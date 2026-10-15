@@ -1,0 +1,5 @@
+// import {
+//   "amistozy/effekt" @lib,
+// }
+
+pkgtype(kind: "executable")

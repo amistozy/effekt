@@ -1,0 +1,1 @@
+# amistozy/effekt
