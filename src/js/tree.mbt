@@ -81,7 +81,7 @@ pub fn Module::commonjs(self : Module) -> Array[Stmt] {
         import_stmts.push(
           Stmt::Const(
             PatternVariable(name),
-            call(Variable(JSName::new("require")), [js_string("./" + file)]),
+            call(Variable(JSName::new("require")), [js_string("./\{file}")]),
           ),
         )
       // const {NAMES, ...} = require(PATH)
@@ -89,7 +89,7 @@ pub fn Module::commonjs(self : Module) -> Array[Stmt] {
         import_stmts.push(
           Stmt::Destruct(
             names,
-            call(Variable(JSName::new("require")), [js_string("./" + file)]),
+            call(Variable(JSName::new("require")), [js_string("./\{file}")]),
           ),
         )
     }
@@ -97,8 +97,7 @@ pub fn Module::commonjs(self : Module) -> Array[Stmt] {
   let export_statement = Stmt::Assign(
     Expr::RawExpr(
       [
-        "(typeof module != \"undefined\" && module !== null ? module : {}).exports = " +
-        self.name.name,
+        "(typeof module != \"undefined\" && module !== null ? module : {}).exports = \{self.name.name}",
       ],
       [],
     ),
@@ -335,7 +334,7 @@ pub fn lambda_stmts(
 
 ///|
 pub fn js_string(scala_string : String) -> Expr {
-  Expr::RawLiteral("\"" + scala_string + "\"")
+  Expr::RawLiteral("\"\{scala_string}\"")
 }
 
 ///|

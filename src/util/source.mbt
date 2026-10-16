@@ -14,9 +14,7 @@ pub(all) struct Position {
 
 ///|
 pub impl Show for Position with fn output(self, logger) {
-  logger.write_string(self.line.to_string())
-  logger.write_string(":")
-  logger.write_string(self.column.to_string())
+  logger.write_string("\{self.line}:\{self.column}")
 }
 
 ///|
@@ -293,9 +291,5 @@ pub fn compare_string(a : String, b : String) -> Int32 {
 ///|
 pub impl Show for Span with fn output(self, logger) {
   let pos = self.position()
-  logger.write_string(self.source.name)
-  logger.write_string(":")
-  logger.write_string(pos.line.to_string())
-  logger.write_string(":")
-  logger.write_string(pos.column.to_string())
+  logger.write_string("\{self.source.name}:\{pos.line}:\{pos.column}")
 }

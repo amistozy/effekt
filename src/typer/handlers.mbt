@@ -82,25 +82,19 @@ fn Typer::check_expr_as_block_kind(
               None =>
                 self.abort(
                   e.span,
-                  "Unbox requires a boxed type, but got " +
-                  show_value_type(res.tpe) +
-                  ".",
+                  "Unbox requires a boxed type, but got \{show_value_type(res.tpe)}.",
                 )
             }
           } else {
             self.abort(
               e.span,
-              "Unbox requires a boxed type, but got " +
-              show_value_type(res.tpe) +
-              ".",
+              "Unbox requires a boxed type, but got \{show_value_type(res.tpe)}.",
             )
           }
         _ =>
           self.abort(
             e.span,
-            "Unbox requires a boxed type, but got " +
-            show_value_type(res.tpe) +
-            ".",
+            "Unbox requires a boxed type, but got \{show_value_type(res.tpe)}.",
           )
       }
     }
@@ -117,11 +111,7 @@ fn Typer::check_expr_as_block_kind(
       } else {
         self.abort(
           e.span,
-          "Expected a block variable, but " +
-          id.name +
-          " is a value. Maybe use explicit syntax: { () => " +
-          id.name +
-          " }",
+          "Expected a block variable, but \{id.name} is a value. Maybe use explicit syntax: { () => \{id.name} }",
         )
       }
     }
@@ -144,8 +134,7 @@ fn Typer::check_expr_as_block_kind(
             _ =>
               self.abort(
                 e.span,
-                "Block literal has a function type, but expected type is: " +
-                show_block_type(t),
+                "Block literal has a function type, but expected type is: \{show_block_type(t)}",
               )
           }
         None => self.infer_function_argument(e)
@@ -206,21 +195,13 @@ pub fn Typer::check_function_argument(
       if vparams.length() != vps.length() {
         self.abort(
           arg.span,
-          "Wrong number of arguments to function: expected " +
-          vps.length().to_string() +
-          " value arguments, but got " +
-          vparams.length().to_string() +
-          ".",
+          "Wrong number of arguments to function: expected \{vps.length()} value arguments, but got \{vparams.length()}.",
         )
       }
       if bparams.length() != bps.length() {
         self.abort(
           arg.span,
-          "Wrong number of arguments to function: expected " +
-          bps.length().to_string() +
-          " block arguments, but got " +
-          bparams.length().to_string() +
-          ".",
+          "Wrong number of arguments to function: expected \{bps.length()} block arguments, but got \{bparams.length()}.",
         )
       }
 
@@ -331,9 +312,7 @@ pub fn Typer::infer_function_argument(
           None =>
             self.abort(
               p.id.span,
-              "Value parameter " +
-              p.id.name +
-              " of a block literal is ambiguous, please provide a type annotation.",
+              "Value parameter \{p.id.name} of a block literal is ambiguous, please provide a type annotation.",
             )
         }
         self.bind_value(sym, tpe)
@@ -347,9 +326,7 @@ pub fn Typer::infer_function_argument(
           None =>
             self.abort(
               p.id.span,
-              "Block parameter " +
-              p.id.name +
-              " of a block literal is ambiguous, please provide a type annotation.",
+              "Block parameter \{p.id.name} of a block literal is ambiguous, please provide a type annotation.",
             )
         }
         self.bind_block(sym, tpe)
@@ -425,7 +402,7 @@ pub fn Typer::check_implementation(
     let names : Array[String] = not_covered.map(o => o.name().name)
     self.error(
       implementation.span,
-      "Missing definitions for operations: " + names.join(", "),
+      "Missing definitions for operations: \{names.join(", ")}",
     )
   }
   let mut seen : Array[Sym] = []
@@ -472,11 +449,7 @@ fn Typer::check_op_clause(
     None =>
       self.abort(
         clause.span,
-        "Operation " +
-        clause.id.name +
-        " not defined in " +
-        interface.name().name +
-        ".",
+        "Operation \{clause.id.name} not defined in \{interface.name().name}.",
       )
   }
   let declared = self.lookup_function_type(declared_op)
@@ -491,7 +464,7 @@ fn Typer::check_op_clause(
         @source.TypeKind::Effectful(_, _) =>
           self.abort(
             clause.span,
-            "Unexpected type annotation on operation " + clause.id.name + ".",
+            "Unexpected type annotation on operation \{clause.id.name}.",
           )
         _ => ()
       }
@@ -529,11 +502,7 @@ fn Typer::check_op_clause(
       .map(t => t.name().name)
     self.abort(
       clause.span,
-      "Operation " +
-      clause.id.name +
-      " requires additional parameters: [" +
-      missing.join(", ") +
-      "]",
+      "Operation \{clause.id.name} requires additional parameters: [\{missing.join(", ")}]",
     )
   }
   let existentials = existential_params.map(t => {
@@ -701,15 +670,7 @@ fn Typer::assert_arity(
   if got != expected {
     self.abort(
       span,
-      "Number of " +
-      kind +
-      " (" +
-      got.to_string() +
-      ") does not match declaration of '" +
-      name +
-      "', which expects " +
-      expected.to_string() +
-      ".",
+      "Number of \{kind} (\{got}) does not match declaration of '\{name}', which expects \{expected}.",
     )
   }
 }
@@ -797,9 +758,7 @@ pub fn Typer::check_try_handle(
     bound_captures,
     free_captures_value(prog_res.tpe),
     prog.span,
-    "The return type " +
-    show_value_type(prog_res.tpe) +
-    " of the handled statement is not allowed to refer to any of the bound capabilities.",
+    "The return type \{show_value_type(prog_res.tpe)} of the handled statement is not allowed to refer to any of the bound capabilities.",
   )
 
   // the captures of the handler continue flowing into the outer scope
@@ -854,17 +813,17 @@ fn Typer::warn_about_handlers(
     if count > 1 && !all_explicit {
       self.warning(
         handlers[0].span,
-        "There are multiple handlers for effect " +
-        show_block_type(effects[i]) +
-        "; this might not be intended.\nMaybe bind capabilities explicitly (e.g. `try { ... } with c: MyEffect { ... }`)?",
+        "There are multiple handlers for effect \{show_block_type(effects[i])}" +
+        (
+          #|; this might not be intended.
+          #|Maybe bind capabilities explicitly (e.g. `try { ... } with c: MyEffect { ... }`)?
+        ),
       )
     }
     if all_implicit && !eff_contains(used, effects[i]) {
       self.warning(
         handlers[0].span,
-        "Handling effect " +
-        show_block_type(effects[i]) +
-        ", which seems not to be used by the program.",
+        "Handling effect \{show_block_type(effects[i])}, which seems not to be used by the program.",
       )
     }
   }

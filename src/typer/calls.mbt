@@ -27,42 +27,24 @@ pub fn Typer::check_call_to(
   // (0) check that argument and parameter counts align
   let (fun_vps, fun_bps) = match self.st.u.prune_block(fun_tpe) {
     @symbols.BlockType::FunctionType(_, _, vps, bps, _, _) => (vps, bps)
-    _ =>
-      self.abort(span, "Expected a function type in call to " + call.name + ".")
+    _ => self.abort(span, "Expected a function type in call to \{call.name}.")
   }
   if targs.length() > 0 && targs.length() != tparams.length() {
     self.abort(
       span,
-      "Wrong number of type arguments to " +
-      call.name +
-      ": expected " +
-      tparams.length().to_string() +
-      ", but got " +
-      targs.length().to_string(),
+      "Wrong number of type arguments to \{call.name}: expected \{tparams.length()}, but got \{targs.length()}",
     )
   }
   if vargs.length() != fun_vps.length() {
     self.abort(
       span,
-      "Wrong number of arguments to " +
-      call.name +
-      ": expected " +
-      describe_args(0, fun_vps.length(), fun_bps.length()) +
-      ", but got " +
-      describe_args(targs.length(), vargs.length(), bargs.length()) +
-      ".",
+      "Wrong number of arguments to \{call.name}: expected \{describe_args(0, fun_vps.length(), fun_bps.length())}, but got \{describe_args(targs.length(), vargs.length(), bargs.length())}.",
     )
   }
   if bargs.length() != fun_bps.length() {
     self.abort(
       span,
-      "Wrong number of arguments to " +
-      call.name +
-      ": expected " +
-      describe_args(0, fun_vps.length(), fun_bps.length()) +
-      ", but got " +
-      describe_args(targs.length(), vargs.length(), bargs.length()) +
-      ".",
+      "Wrong number of arguments to \{call.name}: expected \{describe_args(0, fun_vps.length(), fun_bps.length())}, but got \{describe_args(targs.length(), vargs.length(), bargs.length())}.",
     )
   }
 
@@ -91,19 +73,13 @@ pub fn Typer::check_call_to(
           if expected_name != got {
             self.error(
               span,
-              "Unexpected name in named argument: got " +
-              got +
-              ", but expected " +
-              expected_name +
-              " in this position.",
+              "Unexpected name in named argument: got \{got}, but expected \{expected_name} in this position.",
             )
           }
         } else {
           self.error(
             span,
-            "Unexpected named argument: got " +
-            got +
-            ", but function call is not to a known function.",
+            "Unexpected named argument: got \{got}, but function call is not to a known function.",
           )
         }
       None => ()
@@ -162,22 +138,16 @@ pub fn Typer::check_call_to(
 fn describe_args(types : Int32, values : Int32, blocks : Int32) -> String {
   let parts : Array[String] = []
   if types > 0 {
-    parts.push(
-      types.to_string() + " type argument" + (if types == 1 { "" } else { "s" }),
-    )
+    parts.push("\{types} type argument" + (if types == 1 { "" } else { "s" }))
   }
   if values > 0 {
     parts.push(
-      values.to_string() +
-      " value argument" +
-      (if values == 1 { "" } else { "s" }),
+      "\{values} value argument" + (if values == 1 { "" } else { "s" }),
     )
   }
   if blocks > 0 {
     parts.push(
-      blocks.to_string() +
-      " block argument" +
-      (if blocks == 1 { "" } else { "s" }),
+      "\{blocks} block argument" + (if blocks == 1 { "" } else { "s" }),
     )
   }
   if parts.length() == 0 {
@@ -267,7 +237,7 @@ pub fn Typer::check_overloaded_function_call(
       if sym.is_block_symbol() {
         [[sym]]
       } else if sym.is_value_symbol() {
-        self.abort(call.span, "Cannot call value " + sym.name().name)
+        self.abort(call.span, "Cannot call value \{sym.name().name}")
       } else {
         [[sym]]
       }
@@ -316,11 +286,7 @@ pub fn Typer::check_overloaded_function_call(
       })
       self.abort(
         call.span,
-        "Ambiguous reference to " +
-        call.name +
-        ". Could be: " +
-        names.join(", ") +
-        ".",
+        "Ambiguous reference to \{call.name}. Could be: \{names.join(", ")}.",
       )
     }
     for f in failures {
@@ -332,24 +298,17 @@ pub fn Typer::check_overloaded_function_call(
     [] =>
       self.abort(
         call.span,
-        "Cannot typecheck call to " +
-        call.name +
-        ". Does a function/method with that name exist?",
+        "Cannot typecheck call to \{call.name}. Does a function/method with that name exist?",
       )
     _ => {
       // Report all failed candidates, like upstream's FailedOverloadError.
       let explanations : Array[String] = all_failures.map(f => {
         let (sym, msg) = f
-        "  " + sym.name().qualified_name() + ": " + msg
+        "  \{sym.name().qualified_name()}: \{msg}"
       })
       self.abort(
         call.span,
-        "Cannot typecheck call to " +
-        call.name +
-        ". None of the " +
-        all_failures.length().to_string() +
-        " overloads type check:\n" +
-        explanations.join("\n"),
+        "Cannot typecheck call to \{call.name}. None of the \{all_failures.length()} overloads type check:\n\{explanations.join("\n")}",
       )
     }
   }
@@ -434,11 +393,7 @@ pub fn Typer::check_overloaded_method_call(
           if s.is_value_symbol() || s.is_ref_binder() {
             self.abort(
               receiver.span,
-              "`" +
-              recv_id.name +
-              "." +
-              id.name +
-              "` is uniform function call syntax on a value, which has to be desugared by `unbox_inference` before type checking (did the pipeline type check the tree returned by `unbox_inference`?).",
+              "`\{recv_id.name}.\{id.name}` is uniform function call syntax on a value, which has to be desugared by `unbox_inference` before type checking (did the pipeline type check the tree returned by `unbox_inference`?).",
             )
           }
         None => ()
@@ -462,7 +417,7 @@ pub fn Typer::check_overloaded_method_call(
       if sym.is_operation() {
         [sym]
       } else {
-        self.panic("Not a valid method: " + sym.name().name)
+        self.panic("Not a valid method: \{sym.name().name}")
       }
   }
   let recv = self.check_expr_as_block(receiver, None, None)
@@ -471,9 +426,7 @@ pub fn Typer::check_overloaded_method_call(
     _ =>
       self.abort(
         receiver.span,
-        "Expected an interface type as receiver, but got " +
-        show_block_type(recv.tpe) +
-        ".",
+        "Expected an interface type as receiver, but got \{show_block_type(recv.tpe)}.",
       )
   }
   let candidates = methods.filter(m => {
@@ -485,11 +438,7 @@ pub fn Typer::check_overloaded_method_call(
   if candidates.length() == 0 {
     self.abort(
       id.span,
-      "Method " +
-      id.name +
-      " not found for receiver of type " +
-      show_block_type(recv.tpe) +
-      ".",
+      "Method \{id.name} not found for receiver of type \{show_block_type(recv.tpe)}.",
     )
   }
   // manual type arguments have to be consistent with the receiver
@@ -525,14 +474,14 @@ pub fn Typer::check_overloaded_method_call(
       self.st = state
       return TyRes::new(res.tpe, eff_union(res.effs, recv.effs))
     } else if successes.length() > 1 {
-      self.abort(call.span, "Ambiguous method call to " + id.name + ".")
+      self.abort(call.span, "Ambiguous method call to \{id.name}.")
     }
     match failures {
       [(_, msg)] => self.abort(call.span, msg)
       _ => ()
     }
   }
-  self.abort(call.span, "Cannot typecheck method call to " + id.name + ".")
+  self.abort(call.span, "Cannot typecheck method call to \{id.name}.")
 }
 
 ///|

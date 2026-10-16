@@ -667,9 +667,7 @@ test "imports an included module's exports" {
         [@source.Include::{ path: "lib", span: sp(), }],
         [main],
       )
-      let deps : Map[String, @namer.ResolvedModule] = Map::from_iter([|
-        ("lib", lib),
-      |])
+      let deps : Map[String, @namer.ResolvedModule] = { "lib": lib }
       match resolve_with(module, context, deps) {
         Some(resolved) => {
           assert_eq(resolved.module.includes.length(), 1)
@@ -722,9 +720,7 @@ test "a local definition shadows an imported name" {
           fun_def(id_def("main"), [], None, returns(use)),
         ],
       )
-      let deps : Map[String, @namer.ResolvedModule] = Map::from_iter([|
-        ("lib", lib),
-      |])
+      let deps : Map[String, @namer.ResolvedModule] = { "lib": lib }
       match resolve_with(module, context, deps) {
         Some(_) => {
           // the definition shadows the imported name instead of being ambiguous
@@ -1017,9 +1013,7 @@ test "an importer resolved after its dependency sees its terms and types" {
           ),
         ],
       )
-      let deps : Map[String, @namer.ResolvedModule] = Map::from_iter([|
-        ("lib", lib),
-      |])
+      let deps : Map[String, @namer.ResolvedModule] = { "lib": lib }
       match resolve_with(app_module, context, deps) {
         Some(app) => {
           // including a module twice imports it once

@@ -7,9 +7,9 @@
 /// The path of the runner script for the given output file.
 pub fn runner_path(output : String) -> String {
   if output.has_suffix(".js") {
-    output[0:output.length() - 3].to_owned() + "__main.js"
+    "\{output[0:output.length() - 3].to_owned()}__main.js"
   } else {
-    output + "__main.js"
+    "\{output}__main.js"
   }
 }
 
@@ -28,7 +28,7 @@ pub fn runner_contents(output : String) -> String {
   } else {
     base
   }
-  "require(\"./" + module_file + ".js\").main()\n"
+  "require(\"./\{module_file}.js\").main()\n"
 }
 
 ///|

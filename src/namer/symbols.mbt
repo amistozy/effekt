@@ -35,7 +35,7 @@ fn id_text(id : IdRef) -> String {
   if id.path.length() == 0 {
     id.name
   } else {
-    id.path.join("::") + "::" + id.name
+    "\{id.path.join("::")}::\{id.name}"
   }
 }
 

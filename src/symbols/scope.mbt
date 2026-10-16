@@ -233,7 +233,7 @@ pub fn Scoping::lookup_first_term_option(
       None => None
       Some(syms) =>
         if syms.length() > 1 {
-          raise EffektError::Fatal("Ambiguous reference to " + name)
+          raise EffektError::Fatal("Ambiguous reference to \{name}")
         } else if syms.length() == 0 {
           None
         } else {
@@ -344,20 +344,18 @@ pub fn Scoping::lookup_first_option(
         if ts.length() == 1 {
           Some(ts[0])
         } else {
-          raise EffektError::Fatal("Ambiguous reference to " + name)
+          raise EffektError::Fatal("Ambiguous reference to \{name}")
         }
       (None, Some(t)) => Some(t)
       (Some(ts), Some(t)) =>
         if ts.length() == 1 && ts[0].is_operation() {
           match t {
             Interface(_) => Some(t)
-            _ => raise EffektError::Fatal("Ambiguous reference to " + name)
+            _ => raise EffektError::Fatal("Ambiguous reference to \{name}")
           }
         } else {
           raise EffektError::Fatal(
-            "Ambiguous reference to " +
-            name +
-            ". Can refer to a term or a type.",
+            "Ambiguous reference to \{name}. Can refer to a term or a type.",
           )
         }
       (None, None) => None
@@ -373,7 +371,7 @@ pub fn Scoping::lookup_first(
 ) -> Sym raise EffektError {
   match self.lookup_first_option(path, name) {
     Some(s) => s
-    None => raise EffektError::Fatal("Could not resolve " + name)
+    None => raise EffektError::Fatal("Could not resolve \{name}")
   }
 }
 
@@ -393,17 +391,13 @@ pub fn Scoping::define_term(
     ValueParam(_) | ValBinder(_) | Hole(_) | Wildcard(_) | TmpValue(_) =>
       if in_scope.any(s => s.is_block_symbol()) {
         raise EffektError::Fatal(
-          "Value " +
-          name +
-          " has the same name as a block definition in the same scope, which is not allowed.",
+          "Value \{name} has the same name as a block definition in the same scope, which is not allowed.",
         )
       }
     _ =>
       if in_scope.any(s => s.is_value_symbol()) {
         raise EffektError::Fatal(
-          "Block " +
-          name +
-          " has the same name as a value definition in the same scope, which is not allowed.",
+          "Block \{name} has the same name as a value definition in the same scope, which is not allowed.",
         )
       }
   }

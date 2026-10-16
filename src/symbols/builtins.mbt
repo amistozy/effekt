@@ -289,54 +289,55 @@ pub fn t_state_extract(s : BlockType) -> ValueType raise EffektError {
 ///|
 /// The built-in map of names visible in every module.
 pub fn root_bindings() -> Bindings {
-  let types : Map[String, Sym] = Map::new()
-  types.set("Unit", unit_symbol)
-  types.set("Bool", boolean_symbol)
-  types.set("Int", int_symbol)
-  types.set("Double", double_symbol)
-  types.set("String", string_symbol)
-  types.set("Char", char_symbol)
-  types.set("Byte", byte_symbol)
-  types.set("Any", top_symbol)
-  types.set("Nothing", bottom_symbol)
-  types.set("IO", io_symbol)
-  types.set("Region", region_symbol)
-  types.set("Ref", state_effect.interface)
-  let captures : Map[String, Sym] = Map::new()
-  captures.set("io", io_capture())
-  captures.set("async", async_capture())
-  captures.set("global", global_capture())
+  let types : Map[String, Sym] = {
+    "Unit": unit_symbol,
+    "Bool": boolean_symbol,
+    "Int": int_symbol,
+    "Double": double_symbol,
+    "String": string_symbol,
+    "Char": char_symbol,
+    "Byte": byte_symbol,
+    "Any": top_symbol,
+    "Nothing": bottom_symbol,
+    "IO": io_symbol,
+    "Region": region_symbol,
+    "Ref": state_effect.interface,
+  }
+  let captures : Map[String, Sym] = {
+    "io": io_capture(),
+    "async": async_capture(),
+    "global": global_capture(),
+  }
   let inner : Bindings = {
     terms: Map::new(),
     types,
     captures,
     namespaces: Map::new(),
   }
-  let namespaces : Map[String, Bindings] = Map::new()
-  namespaces.set("effekt", inner)
+  let namespaces : Map[String, Bindings] = { "effekt": inner }
   { terms: Map::new(), types, captures, namespaces, }
 }
 
 ///|
 /// The names that are also available at the core level.
 pub fn core_builtins() -> Map[String, Sym] {
-  let m : Map[String, Sym] = Map::new()
-  m.set("Unit", unit_symbol)
-  m.set("Bool", boolean_symbol)
-  m.set("Int", int_symbol)
-  m.set("Double", double_symbol)
-  m.set("String", string_symbol)
-  m.set("Char", char_symbol)
-  m.set("Byte", byte_symbol)
-  m.set("Any", top_symbol)
-  m.set("Nothing", bottom_symbol)
-  m.set("IO", io_symbol)
-  m.set("Region", region_symbol)
-  m.set("io", io_capture())
-  m.set("async", async_capture())
-  m.set("global", global_capture())
-  m.set("Ref", state_effect.interface)
-  m
+  {
+    "Unit": unit_symbol,
+    "Bool": boolean_symbol,
+    "Int": int_symbol,
+    "Double": double_symbol,
+    "String": string_symbol,
+    "Char": char_symbol,
+    "Byte": byte_symbol,
+    "Any": top_symbol,
+    "Nothing": bottom_symbol,
+    "IO": io_symbol,
+    "Region": region_symbol,
+    "io": io_capture(),
+    "async": async_capture(),
+    "global": global_capture(),
+    "Ref": state_effect.interface,
+  }
 }
 
 ///|

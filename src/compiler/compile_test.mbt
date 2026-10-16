@@ -41,9 +41,12 @@ test "command line parsing reports unknown options" {
 ///|
 test "parses the hello world example" {
   let ctx = @source.Context::new(@source.Config::default())
-  let src = @util.Source::new(
-    "hello.effekt", "def main() = {\n  println(\"Hello, world!\")\n}\n",
-  )
+  let hello =
+    #|def main() = {
+    #|  println("Hello, world!")
+    #|}
+    #|
+  let src = @util.Source::new("hello.effekt", hello)
   let tree = @source.parse_module_decl(src, ctx).unwrap()
   assert_eq(tree.path, "hello")
   assert_eq(tree.defs.length(), 1)
@@ -52,9 +55,12 @@ test "parses the hello world example" {
 ///|
 test "parses an effect declaration" {
   let ctx = @source.Context::new(@source.Config::default())
-  let src = @util.Source::new(
-    "prog.effekt", "interface Exc {\n  def raise(msg: String): Nothing\n}\n",
-  )
+  let exc =
+    #|interface Exc {
+    #|  def raise(msg: String): Nothing
+    #|}
+    #|
+  let src = @util.Source::new("prog.effekt", exc)
   let tree = @source.parse_module_decl(src, ctx).unwrap()
   assert_eq(tree.defs.length(), 1)
 }
@@ -62,9 +68,12 @@ test "parses an effect declaration" {
 ///|
 test "parses a namespace" {
   let ctx = @source.Context::new(@source.Config::default())
-  let src = @util.Source::new(
-    "prog.effekt", "namespace foo {\n  def bar(): Int = 42\n}\n",
-  )
+  let ns =
+    #|namespace foo {
+    #|  def bar(): Int = 42
+    #|}
+    #|
+  let src = @util.Source::new("prog.effekt", ns)
   let tree = @source.parse_module_decl(src, ctx).unwrap()
   assert_eq(tree.defs.length(), 1)
 }
@@ -82,27 +91,33 @@ fn check_program(name : String, text : String) -> Array[@util.Message] {
     let _ = @typer.typecheck(desugared, ctx)
   } catch {
     @util.EffektError::Fatal(msg) => ctx.info(msg)
-    @util.EffektError::Internal(msg) => ctx.info("internal: " + msg)
+    @util.EffektError::Internal(msg) => ctx.info("internal: \{msg}")
   }
   ctx.messages.copy()
 }
 
 ///|
 test "frontend accepts a well-typed program" {
-  let messages = check_program(
-    "ok.effekt",
-    "def id[A](x: A): A = x\n" +
-    "def main() = {\n  val y = id(42)\n  val z = id(\"hi\")\n}\n",
-  )
+  let text =
+    #|def id[A](x: A): A = x
+    #|def main() = {
+    #|  val y = id(42)
+    #|  val z = id("hi")
+    #|}
+    #|
+  let messages = check_program("ok.effekt", text)
   let errors = messages.filter(m => m.severity == @util.Error)
   assert_true(errors.length() == 0)
 }
 
 ///|
 test "frontend rejects ill-typed programs" {
-  let messages = check_program(
-    "bad.effekt", "def main() = {\n  val x: Int = \"nope\"\n}\n",
-  )
+  let text =
+    #|def main() = {
+    #|  val x: Int = "nope"
+    #|}
+    #|
+  let messages = check_program("bad.effekt", text)
   let errors = messages.filter(m => m.severity == @util.Error)
   assert_true(errors.length() > 0)
 }
@@ -152,14 +167,14 @@ test "loads and checks the standard library prelude" {
 ///|
 test "parses a match expression" {
   let ctx = @source.Context::new(@source.Config::default())
-  let src = @util.Source::new(
-    "m.effekt",
-    "type List[A] { Cons(head: A, tail: List[A]); Nil() }\n" +
-    "def len[A](xs: List[A]): Int = xs match {\n" +
-    "  case Cons(h, t) => 1 + len(t)\n" +
-    "  case Nil() => 0\n" +
-    "}\n",
-  )
+  let text =
+    #|type List[A] { Cons(head: A, tail: List[A]); Nil() }
+    #|def len[A](xs: List[A]): Int = xs match {
+    #|  case Cons(h, t) => 1 + len(t)
+    #|  case Nil() => 0
+    #|}
+    #|
+  let src = @util.Source::new("m.effekt", text)
   let tree = @source.parse_module_decl(src, ctx).unwrap()
   assert_eq(tree.defs.length(), 2)
 }
@@ -186,11 +201,16 @@ test "the prelude compiles without warnings" {
 /// reported. This is upstream's `examples/pos/unused_effects.effekt` (and its
 /// `.check` file), which expects exactly one such warning.
 test "an unused handler is still reported" {
-  let messages = check_program(
-    "unused.effekt",
-    "effect Fail(): Unit\n" +
-    "def main() = {\n  try {\n    4\n  } with Fail { () => 0 }\n  ()\n}\n",
-  )
+  let text =
+    #|effect Fail(): Unit
+    #|def main() = {
+    #|  try {
+    #|    4
+    #|  } with Fail { () => 0 }
+    #|  ()
+    #|}
+    #|
+  let messages = check_program("unused.effekt", text)
   let warnings = messages.filter(m => m.severity == @util.Warning)
   if warnings.length() != 1 {
     println(@compiler.render_messages(warnings))
@@ -204,18 +224,18 @@ test "an unused handler is still reported" {
 /// performs `Exception[Int]`, so the `Exception[Int]` handler is used
 /// (`examples/import_handler.effekt`).
 test "an instantiated handler is recognised as used" {
-  let messages = check_program(
-    "instantiated.effekt",
-    "interface Exception[E] { def raise(e: E, msg: String): Nothing }\n" +
-    "def raise[A, E](e: E, msg: String): A / Exception[E] =\n" +
-    "  do raise(e, msg) match {}\n" +
-    "def main() = {\n" +
-    "  val r = try { raise(1, \"boom\") } with Exception[Int] {\n" +
-    "    def raise(e, msg) = 0\n" +
-    "  }\n" +
-    "  println(r)\n" +
-    "}\n",
-  )
+  let text =
+    #|interface Exception[E] { def raise(e: E, msg: String): Nothing }
+    #|def raise[A, E](e: E, msg: String): A / Exception[E] =
+    #|  do raise(e, msg) match {}
+    #|def main() = {
+    #|  val r = try { raise(1, "boom") } with Exception[Int] {
+    #|    def raise(e, msg) = 0
+    #|  }
+    #|  println(r)
+    #|}
+    #|
+  let messages = check_program("instantiated.effekt", text)
   let warnings = messages.filter(m => m.severity == @util.Warning)
   if warnings.length() > 0 {
     println(@compiler.render_messages(warnings))

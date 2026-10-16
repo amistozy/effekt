@@ -65,7 +65,7 @@ pub fn Unification::copy(self : Unification) -> Unification {
 /// parameter it was instantiated for (used for error messages).
 pub fn Unification::fresh_type_var(self : Unification, underlying : Sym) -> Sym {
   let x = Sym::type_param(
-    Name::local("?" + underlying.name().name),
+    Name::local("?\{underlying.name().name}"),
     Span::missing(),
   )
   self.var_of.set(x.uid(), underlying)
@@ -75,7 +75,7 @@ pub fn Unification::fresh_type_var(self : Unification, underlying : Sym) -> Sym 
 ///|
 /// A fresh *capture* unification variable.
 pub fn Unification::fresh_capt_var(self : Unification, role : String) -> Sym {
-  let x = Sym::capture_param(Name::local("?" + role))
+  let x = Sym::capture_param(Name::local("?\{role}"))
   self.capt_var.set(x.uid(), x)
   x
 }
@@ -305,9 +305,7 @@ pub fn Unification::propagate(self : Unification) -> String? {
         for c in lo {
           if !sym_in(c, up) {
             return Some(
-              "Capture " +
-              c.name().name +
-              " is not allowed in the inferred capture set",
+              "Capture \{c.name().name} is not allowed in the inferred capture set",
             )
           }
         }
@@ -330,10 +328,7 @@ pub fn Unification::require_lower(
       for c in bounds {
         if !sym_in(c, solved) {
           return Some(
-            "Capture " +
-            c.name().name +
-            " is not included in " +
-            show_captures(sol),
+            "Capture \{c.name().name} is not included in \{show_captures(sol)}",
           )
         }
       }
@@ -345,11 +340,7 @@ pub fn Unification::require_lower(
           for c in bounds {
             if !sym_in(c, up) {
               return Some(
-                "Used capture " +
-                c.name().name +
-                " is not in the allowed set {" +
-                up.map(s => s.name().name).join(", ") +
-                "}",
+                "Used capture \{c.name().name} is not in the allowed set {\{up.map(s => s.name().name).join(", ")}}",
               )
             }
           }
@@ -381,11 +372,7 @@ pub fn Unification::require_upper(
       for c in solved {
         if !sym_in(c, bounds) {
           return Some(
-            "Used capture " +
-            c.name().name +
-            " is not in the allowed set {" +
-            bounds.map(s => s.name().name).join(", ") +
-            "}",
+            "Used capture \{c.name().name} is not in the allowed set {\{bounds.map(s => s.name().name).join(", ")}}",
           )
         }
       }
@@ -397,11 +384,7 @@ pub fn Unification::require_upper(
           for c in lo {
             if !sym_in(c, bounds) {
               return Some(
-                "Used capture " +
-                c.name().name +
-                " is not in the allowed set {" +
-                bounds.map(s => s.name().name).join(", ") +
-                "}",
+                "Used capture \{c.name().name} is not in the allowed set {\{bounds.map(s => s.name().name).join(", ")}}",
               )
             }
           }
@@ -431,11 +414,7 @@ pub fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
       for c in bounds {
         if !sym_in(c, up) {
           return Some(
-            "Used capture " +
-            c.name().name +
-            " is not in the allowed set {" +
-            up.map(s => s.name().name).join(", ") +
-            "}",
+            "Used capture \{c.name().name} is not in the allowed set {\{up.map(s => s.name().name).join(", ")}}",
           )
         }
       }

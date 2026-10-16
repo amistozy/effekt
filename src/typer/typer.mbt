@@ -154,12 +154,7 @@ fn render_span(span : Span) -> String {
   if span.origin == @util.Origin::Missing {
     ""
   } else {
-    span.source.name +
-    ":" +
-    span.position().line.to_string() +
-    ":" +
-    span.position().column.to_string() +
-    ": "
+    "\{span.source.name}:\{span.position().line}:\{span.position().column}: "
   }
 }
 
@@ -212,7 +207,7 @@ fn[T] Typer::panic(self : Typer, msg : String) -> T raise EffektError {
     self.muted_error = true
     self.muted_messages.push(msg)
   } else {
-    self.ctx.info("Internal compiler error: " + msg)
+    self.ctx.info("Internal compiler error: \{msg}")
   }
   raise EffektError::Internal(msg)
 }
@@ -230,10 +225,7 @@ fn Typer::symbol_of(
 ) -> Sym raise EffektError {
   match self.ctx.symbol_of(uid) {
     Some(s) => s
-    None =>
-      self.panic(
-        "No symbol resolved for " + what + " (uid " + uid.to_string() + ")",
-      )
+    None => self.panic("No symbol resolved for \{what} (uid \{uid})")
   }
 }
 
@@ -309,9 +301,7 @@ pub fn Typer::lookup_value(
     None =>
       self.abort(
         s.decl(),
-        "Cannot find type for " +
-        s.name().name +
-        " -- forward uses and recursive functions need annotated return types.",
+        "Cannot find type for \{s.name().name} -- forward uses and recursive functions need annotated return types.",
       )
   }
 }
@@ -326,8 +316,7 @@ pub fn Typer::lookup_block(
     None =>
       match symbol_block_type(s) {
         Some(t) => t
-        None =>
-          self.abort(s.decl(), "Cannot find type for " + s.name().name + ".")
+        None => self.abort(s.decl(), "Cannot find type for \{s.name().name}.")
       }
   }
 }
@@ -343,7 +332,7 @@ pub fn Typer::lookup_function_type(
     _ =>
       self.abort(
         s.decl(),
-        "Expected function type, but got " + show_block_type(t) + ".",
+        "Expected function type, but got \{show_block_type(t)}.",
       )
   }
 }
@@ -440,9 +429,7 @@ fn[T] Typer::with_unification_scope(
       let underlying = self.st.u.underlying(x)
       self.error(
         self.focus,
-        "Cannot infer type argument " +
-        underlying.name().name +
-        ", maybe consider annotating it?",
+        "Cannot infer type argument \{underlying.name().name}, maybe consider annotating it?",
       )
     }
   }
@@ -496,16 +483,17 @@ fn Typer::capability_for(
         None => {
           for hint in self.st.cap_scope.relevant_in_scope_for(tpe) {
             self.info(
-              "Did you mean to use an operation of the concrete interface " +
-              hint +
-              "?",
+              "Did you mean to use an operation of the concrete interface \{hint}?",
             )
           }
           self.abort(
             span,
-            "Effect " +
-            show_block_type(tpe) +
-            " is not allowed in this context.\n\nMaybe try annotating the function with the effect?",
+            "Effect \{show_block_type(tpe)}" +
+            (
+              #| is not allowed in this context.
+              #|
+              #|Maybe try annotating the function with the effect?
+            ),
           )
         }
       }
@@ -662,10 +650,7 @@ pub fn Typer::require_subregion(
       if not_allowed.length() > 0 {
         self.error(
           span,
-          "Used captures " +
-          show_captures(@symbols.Captures::CaptureSetOf(not_allowed)) +
-          " are not in the allowed set " +
-          show_captures(to),
+          "Used captures \{show_captures(@symbols.Captures::CaptureSetOf(not_allowed))} are not in the allowed set \{show_captures(to)}",
         )
       }
     }
@@ -709,7 +694,11 @@ pub fn Typer::assert_concrete_effect(
         show_block_type(eff) +
         "'s type parameter(s) " +
         us.join(", ") +
-        " could not be inferred.\n\nMaybe try annotating them?",
+        (
+          #| could not be inferred.
+          #|
+          #|Maybe try annotating them?
+        ),
       )
     _ => ()
   }
@@ -736,7 +725,7 @@ fn Typer::assert_concrete_function(
     us if us.length() > 0 =>
       self.abort(
         id.span,
-        "Cannot fully infer type for " + id.name + ": " + show_block_type(tpe),
+        "Cannot fully infer type for \{id.name}: \{show_block_type(tpe)}",
       )
     _ => ()
   }
@@ -881,7 +870,7 @@ pub fn Typer::check_module(
   for d in module.defs {
     let res = self.synth_def(d)
     if res.effs.non_empty() {
-      self.error(d.span, "Unhandled effects " + show_effects(res.effs))
+      self.error(d.span, "Unhandled effects \{show_effects(res.effs)}")
     }
   }
   self.commit()
@@ -1030,10 +1019,7 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
         match sym.annotated_type() {
           Some(tpe) => self.bind_block(sym, tpe)
           None =>
-            self.abort(
-              op.span,
-              "Cannot find type for operation " + op.id.name + ".",
-            )
+            self.abort(op.span, "Cannot find type for operation \{op.id.name}.")
         }
         // Bidirectional effects that mention the same effect recursively are
         // not (yet) supported.
@@ -1061,10 +1047,7 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
         match sym.annotated_type() {
           Some(tpe) => self.bind_block(sym, tpe)
           None =>
-            self.abort(
-              c.span,
-              "Cannot find constructor type for " + c.id.name + ".",
-            )
+            self.abort(c.span, "Cannot find constructor type for \{c.id.name}.")
         }
         self.bind_capture(sym, Captures::empty())
       }
@@ -1756,20 +1739,14 @@ fn Typer::check_expr_kind(
             if patterns.length() != arity {
               self.error(
                 cls.span,
-                "Number of patterns (" +
-                patterns.length().to_string() +
-                ") does not match number of parameters / scrutinees (" +
-                arity.to_string() +
-                ").",
+                "Number of patterns (\{patterns.length()}) does not match number of parameters / scrutinees (\{arity}).",
               )
             }
           _ =>
             if arity != 1 {
               self.error(
                 cls.span,
-                "Number of patterns (1) does not match number of parameters / scrutinees (" +
-                arity.to_string() +
-                ").",
+                "Number of patterns (1) does not match number of parameters / scrutinees (\{arity}).",
               )
             }
         }
@@ -1955,11 +1932,7 @@ fn Typer::check_pattern_kind(
       if patterns.length() != vps.length() {
         self.abort(
           pattern.span,
-          "Wrong number of pattern arguments, given " +
-          patterns.length().to_string() +
-          ", expected " +
-          vps.length().to_string() +
-          ".",
+          "Wrong number of pattern arguments, given \{patterns.length()}, expected \{vps.length()}.",
         )
       }
       for i = 0; i < patterns.length(); i = i + 1 {
@@ -2003,23 +1976,15 @@ pub(all) enum ErrCtx {
 ///|
 fn explain_mismatch(left : String, right : String, ctx : ErrCtx) -> String {
   match ctx {
-    Expected(_, _) => "Expected type\n  " + right + "\nbut got type\n  " + left
+    Expected(_, _) => "Expected type\n  \{right}\nbut got type\n  \{left}"
     MergeTypes(_, _) =>
-      "Different arms of a conditional/match have incompatible types.\n\nOne arm has type\n  " +
-      left +
-      "\nwhile another one has type\n  " +
-      right
+      "Different arms of a conditional/match have incompatible types.\n\nOne arm has type\n  \{left}\nwhile another one has type\n  \{right}"
     Declaration(_, _) =>
-      "Type " + left + " does not match the declared type " + right + "."
+      "Type \{left} does not match the declared type \{right}."
     PatternMatch =>
-      "Pattern matches against type " +
-      right +
-      " but scrutinee has type " +
-      left +
-      "."
-    CaptureFlow =>
-      "Capture flow error: " + left + " is not included in " + right + "."
-    Other => "Type mismatch between " + left + " and " + right + "."
+      "Pattern matches against type \{right} but scrutinee has type \{left}."
+    CaptureFlow => "Capture flow error: \{left} is not included in \{right}."
+    Other => "Type mismatch between \{left} and \{right}."
   }
 }
 
@@ -2122,10 +2087,7 @@ pub fn Typer::unify_value_types(
       } else if args1.length() != args2.length() {
         self.abort(
           self.focus,
-          "Argument count does not match " +
-          show_value_type(tpe1) +
-          " vs. " +
-          show_value_type(tpe2),
+          "Argument count does not match \{show_value_type(tpe1)} vs. \{show_value_type(tpe2)}",
         )
       } else {
         for i = 0; i < args1.length(); i = i + 1 {
@@ -2199,19 +2161,13 @@ pub fn Typer::unify_block_types(
       if vps1.length() != vps2.length() {
         self.abort(
           self.focus,
-          "Value parameter count does not match " +
-          show_block_type(tpe1) +
-          " vs. " +
-          show_block_type(tpe2),
+          "Value parameter count does not match \{show_block_type(tpe1)} vs. \{show_block_type(tpe2)}",
         )
       }
       if bps1.length() != bps2.length() {
         self.abort(
           self.focus,
-          "Block parameter count does not match " +
-          show_block_type(tpe1) +
-          " vs. " +
-          show_block_type(tpe2),
+          "Block parameter count does not match \{show_block_type(tpe1)} vs. \{show_block_type(tpe2)}",
         )
       }
       if capts1.length() != capts2.length() {
@@ -2377,10 +2333,7 @@ pub fn Typer::merge_value_types(
       if !sym_eq(c1, c2) {
         self.abort(
           self.focus,
-          "Cannot merge different constructors: " +
-          show_value_type(old) +
-          " vs. " +
-          show_value_type(new),
+          "Cannot merge different constructors: \{show_value_type(old)} vs. \{show_value_type(new)}",
         )
       }
       for i = 0; i < args1.length() && i < args2.length(); i = i + 1 {
@@ -2399,7 +2352,7 @@ pub fn Typer::merge_value_types(
     _ =>
       self.abort(
         self.focus,
-        "Cannot merge " + show_value_type(old) + " with " + show_value_type(new),
+        "Cannot merge \{show_value_type(old)} with \{show_value_type(new)}",
       )
   }
 }
@@ -2437,22 +2390,13 @@ pub fn Typer::instantiate(
       if cargs.length() != capts.length() {
         self.abort(
           self.focus,
-          "Capture arguments and parameter size mismatch: " +
-          cargs.length().to_string() +
-          " vs. " +
-          capts.length().to_string(),
+          "Capture arguments and parameter size mismatch: \{cargs.length()} vs. \{capts.length()}",
         )
       }
       if capts.length() != bps.length() + effs.distinct().size() {
         self.abort(
           self.focus,
-          "Capture param count " +
-          capts.length().to_string() +
-          " is not equal to bparam " +
-          bps.length().to_string() +
-          " + control effects " +
-          effs.distinct().size().to_string() +
-          ".\n  " +
+          "Capture param count \{capts.length()} is not equal to bparam \{bps.length()} + control effects \{effs.distinct().size()}.\n  " +
           show_block_type(tpe),
         )
       }
@@ -2570,19 +2514,17 @@ pub fn Typer::resolve_block_type(
           @symbols.ValueType::ValueTypeApp(_) as v =>
             self.abort(
               t.span,
-              "Expected a block type, but got " + show_value_type(v) + ".",
+              "Expected a block type, but got \{show_value_type(v)}.",
             )
           @symbols.ValueType::BoxedType(_, _) as v =>
             self.abort(
               t.span,
-              "Expected a block type, but got " + show_value_type(v) + ".",
+              "Expected a block type, but got \{show_value_type(v)}.",
             )
           @symbols.ValueType::ValueTypeRef(s) =>
             self.abort(
               t.span,
-              "Expected a block type, but got " +
-              show_value_type(@symbols.ValueType::ValueTypeRef(s)) +
-              ".",
+              "Expected a block type, but got \{show_value_type(@symbols.ValueType::ValueTypeRef(s))}.",
             )
         }
       }
@@ -2679,7 +2621,7 @@ pub fn Typer::resolve_block_ref(
     _ =>
       self.abort(
         t.span,
-        "Expected an interface type, but got " + show_block_type(b) + ".",
+        "Expected an interface type, but got \{show_block_type(b)}.",
       )
   }
 }
@@ -2749,7 +2691,7 @@ fn Typer::type_symbol_application(
     _ =>
       self.abort(
         span,
-        "Expected a type constructor, but got " + sym.name().name + ".",
+        "Expected a type constructor, but got \{sym.name().name}.",
       )
   }
 }

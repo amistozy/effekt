@@ -6,11 +6,11 @@ fn parse_module(src : String) -> (@source.ModuleDecl?, String) {
   let source = @util.Source::new("test.effekt", src)
   let decl = @source.parse_module_decl(source, ctx) catch {
     @util.Fatal(m) => {
-      println("unexpected internal failure: " + m)
+      println("unexpected internal failure: \{m}")
       None
     }
     @util.Internal(m) => {
-      println("unexpected internal error: " + m)
+      println("unexpected internal error: \{m}")
       None
     }
   }
@@ -23,11 +23,11 @@ fn parse_expr(src : String) -> (@source.Term?, String) {
   let source = @util.Source::new("test.effekt", src)
   let term = @source.parse_term(source, ctx) catch {
     @util.Fatal(m) => {
-      println("unexpected internal failure: " + m)
+      println("unexpected internal failure: \{m}")
       None
     }
     @util.Internal(m) => {
-      println("unexpected internal error: " + m)
+      println("unexpected internal error: \{m}")
       None
     }
   }
@@ -124,10 +124,10 @@ test "parse: call with block argument" {
 
 ///|
 test "parse: each with block parameter and if/else" {
-  let d = module_ok(
-    "def each(n: Int, m: Int) { f: Int => Unit }: Unit =\n" +
-    "  if (n >= m) () else { f(n); each(n + 1, m) { f } }",
-  )
+  let src =
+    #|def each(n: Int, m: Int) { f: Int => Unit }: Unit =
+    #|  if (n >= m) () else { f(n); each(n + 1, m) { f } }
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 1)
   match defs_of(d)[0].kind {
     FunDef(_, _, vparams, bparams, _, _, _) => {
@@ -140,10 +140,10 @@ test "parse: each with block parameter and if/else" {
 
 ///|
 test "parse: effect and try/with" {
-  let d = module_ok(
-    "interface Exc { def raise(msg: String): Unit }\n" +
-    "def main() = try { do raise(\"boom\") } with Exc { def raise(msg) = println(msg) }",
-  )
+  let src =
+    #|interface Exc { def raise(msg: String): Unit }
+    #|def main() = try { do raise("boom") } with Exc { def raise(msg) = println(msg) }
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 2)
   assert_true(defs_of(d)[0].kind is InterfaceDef(_, _, _))
   assert_true(defs_of(d)[1].kind is FunDef(_, _, _, _, _, _, _))
@@ -153,19 +153,23 @@ test "parse: effect and try/with" {
 test "parse: try/with with a legacy effect declaration" {
   // `effect Foo { ... }` is parsed as an interface with the wrong keyword and
   // produces the "did you mean interface" diagnostic.
-  let (decl, messages) = parse_module(
-    "effect Exc { def raise(msg: String): Unit }\n" +
-    "def main() = try { do raise(\"boom\") } with Exc { def raise(msg) = println(msg) }",
-  )
+  let src =
+    #|effect Exc { def raise(msg: String): Unit }
+    #|def main() = try { do raise("boom") } with Exc { def raise(msg) = println(msg) }
+  let (decl, messages) = parse_module(src)
   assert_true(decl is None)
   assert_true(messages.contains("did you mean to declare an interface"))
 }
 
 ///|
 test "parse: mutable variables" {
-  let d = module_ok(
-    "def main() = {\n  var x = 1;\n  x = x + 1;\n  println(x)\n}",
-  )
+  let src =
+    #|def main() = {
+    #|  var x = 1;
+    #|  x = x + 1;
+    #|  println(x)
+    #|}
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 1)
   match defs_of(d)[0].kind {
     FunDef(_, _, _, _, _, _, body) =>
@@ -227,11 +231,11 @@ test "parse: extern js include followed by a definition" {
 
 ///|
 test "parse: extern def with feature-flagged bodies" {
-  let d = module_ok(
-    "extern def add(n: Int, m: Int): Int =\n" +
-    "  js \"${n} + ${m}\"\n" +
-    "  chez \"(+ ${n} ${m})\"",
-  )
+  let src =
+    #|extern def add(n: Int, m: Int): Int =
+    #|  js "${n} + ${m}"
+    #|  chez "(+ ${n} ${m})"
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 1)
   match defs_of(d)[0].kind {
     ExternDef(_, _, _, _, _, _, bodies) => {
@@ -272,14 +276,23 @@ test "parse: extern def with an Effekt body" {
 
 ///|
 test "parse: module declaration" {
-  let d = module_ok("module foo/bar\n\ndef main() = ()")
+  let src =
+    #|module foo/bar
+    #|
+    #|def main() = ()
+  let d = module_ok(src)
   assert_eq(d.path, "foo/bar")
   assert_eq(defs_of(d).length(), 1)
 }
 
 ///|
 test "parse: imports" {
-  let d = module_ok("import foo/bar\nimport baz\n\ndef main() = ()")
+  let src =
+    #|import foo/bar
+    #|import baz
+    #|
+    #|def main() = ()
+  let d = module_ok(src)
   assert_eq(d.includes.length(), 2)
   assert_eq(d.includes[0].path, "foo/bar")
   assert_eq(d.includes[1].path, "baz")
@@ -293,13 +306,20 @@ test "parse: default module path" {
 
 ///|
 test "parse: doc comments are attached" {
-  let d = module_ok("/// The main function.\ndef main() = ()")
+  let src =
+    #|/// The main function.
+    #|def main() = ()
+  let d = module_ok(src)
   assert_eq(defs_of(d)[0].info.doc, Some(" The main function."))
 }
 
 ///|
 test "parse: doc comments and comments" {
-  let d = module_ok("// a normal comment\n/// doc\ndef main() = ()")
+  let src =
+    #|// a normal comment
+    #|/// doc
+    #|def main() = ()
+  let d = module_ok(src)
   assert_eq(defs_of(d)[0].info.doc, Some(" doc"))
 }
 
@@ -314,7 +334,11 @@ test "parse: namespaces" {
     }
     _ => abort("expected a namespace")
   }
-  let d2 = module_ok("namespace foo\ndef bar() = 1\n")
+  let src =
+    #|namespace foo
+    #|def bar() = 1
+    #|
+  let d2 = module_ok(src)
   assert_eq(defs_of(d2).length(), 1)
   match defs_of(d2)[0].kind {
     NamespaceDef(id, defs) => {
@@ -341,7 +365,10 @@ test "parse: interface" {
 
 ///|
 test "parse: legacy effect declaration" {
-  let d = module_ok("effect Exc = {}\ndef main() = 1")
+  let src =
+    #|effect Exc = {}
+    #|def main() = 1
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 2)
   assert_true(defs_of(d)[0].kind is EffectDef(_, _, _))
 }
@@ -382,7 +409,11 @@ test "parse: type alias" {
 
 ///|
 test "parse: val and var at toplevel" {
-  let d = module_ok("val x = 42\nvar y = 0\nvar z in r = 1")
+  let src =
+    #|val x = 42
+    #|var y = 0
+    #|var z in r = 1
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 3)
   assert_true(defs_of(d)[0].kind is ValDef(_, _, _))
   assert_true(defs_of(d)[1].kind is VarDef(_, _, _))
@@ -391,12 +422,12 @@ test "parse: val and var at toplevel" {
 
 ///|
 test "parse: extern type, resource and include" {
-  let d = module_ok(
-    "extern type MyRef[T]\n" +
-    "extern resource file: File\n" +
-    "extern include \"foo.js\"\n" +
-    "extern \"raw\"",
-  )
+  let src =
+    #|extern type MyRef[T]
+    #|extern resource file: File
+    #|extern include "foo.js"
+    #|extern "raw"
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 4)
   assert_true(defs_of(d)[0].kind is ExternType(_, _, _))
   assert_true(defs_of(d)[1].kind is ExternResource(_, _))
@@ -410,24 +441,24 @@ test "parse: extern type, resource and include" {
 
 ///|
 test "parse: newline terminates statements" {
-  let d = module_ok(
-    "def main() = {\n" +
-    "  val x = 1\n" +
-    "  val y = 2\n" +
-    "  println(x + y)\n" +
-    "}",
-  )
+  let src =
+    #|def main() = {
+    #|  val x = 1
+    #|  val y = 2
+    #|  println(x + y)
+    #|}
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 1)
 }
 
 ///|
 test "parse: if/else and while" {
-  let d = module_ok(
-    "def main() = {\n" +
-    "  if (true) println(1) else println(2)\n" +
-    "  while (false) println(3)\n" +
-    "}",
-  )
+  let src =
+    #|def main() = {
+    #|  if (true) println(1) else println(2)
+    #|  while (false) println(3)
+    #|}
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 1)
 }
 
@@ -445,28 +476,33 @@ test "parse: region" {
 
 ///|
 test "parse: handlers with capability names" {
-  let d = module_ok(
-    "interface Exc { def raise(msg: String): Unit }\n" +
-    "def main() = try { do raise(\"boom\") } with exc: Exc { def raise(msg) = println(msg) }",
-  )
+  let src =
+    #|interface Exc { def raise(msg: String): Unit }
+    #|def main() = try { do raise("boom") } with exc: Exc { def raise(msg) = println(msg) }
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 2)
 }
 
 ///|
 test "parse: new with an implementation" {
-  let d = module_ok(
-    "interface Exc { def raise(msg: String): Unit }\n" +
-    "def main() = try { do raise(\"boom\") } with Exc { def raise(msg) = println(msg) }",
-  )
+  let src =
+    #|interface Exc { def raise(msg: String): Unit }
+    #|def main() = try { do raise("boom") } with Exc { def raise(msg) = println(msg) }
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 2)
 }
 
 ///|
 test "parse: multiple operations and new" {
-  let d = module_ok(
-    "interface State { def get(): Int\n def set(n: Int): Unit }\n" +
-    "def main() = {\n  val s = new State { def get() = 1\n def set(n) = () }\n  println(s.get())\n}",
-  )
+  let src =
+    #|interface State { def get(): Int
+    #| def set(n: Int): Unit }
+    #|def main() = {
+    #|  val s = new State { def get() = 1
+    #| def set(n) = () }
+    #|  println(s.get())
+    #|}
+  let d = module_ok(src)
   assert_eq(defs_of(d).length(), 2)
 }
 
@@ -479,7 +515,10 @@ test "parse: errors are reported" {
 
 ///|
 test "parse: reports an error for stray tokens" {
-  let (decl, messages) = parse_module("def main() = 1\n42 43")
+  let src =
+    #|def main() = 1
+    #|42 43
+  let (decl, messages) = parse_module(src)
   assert_true(decl is None)
   assert_true(messages.length() > 0)
 }
@@ -632,7 +671,115 @@ test "parse term: term errors are reported" {
 
 ///|
 test "parse: upstream exception library" {
-  let src = "module exception\n\nimport effekt\n\n// Exceptions\n// ==========\n\ninterface Exception[E] {\n  def raise(exception: E, msg: String): Nothing\n}\n\ndef raise[A, E](exception: E, msg: String): A / Exception[E] =\n  do raise(exception, msg) match {}\n\n/**\n * Used as a type for `Exception` in functions which expect a non-empty\n * container (e.g. option or list).\n */\nrecord MissingValue()\n\ndef missingValue(): Nothing / Exception[MissingValue] =\n  do raise(MissingValue(), \"Missing value.\")\n\n/**\n * Used as a type for `Exception` in functions where an index can be out of bounds.\n */\nrecord OutOfBounds()\n\n/**\n * Unexpected runtime exceptions that can be caught.\n */\nrecord RuntimeError()\n\ndef raise[A](msg: String): A / Exception[RuntimeError] =\n  do raise(RuntimeError(), msg) match {}\n\n/**\n * Used as a type for `Exception` in functions which expect the input\n * to be formatted in a specific way.\n */\nrecord WrongFormat()\n\ndef wrongFormat(): Nothing / Exception[WrongFormat] =\n  do raise(WrongFormat(), \"Wrong format.\")\n\ndef wrongFormat(msg: String): Nothing / Exception[WrongFormat] =\n  do raise(WrongFormat(), msg)\n\n\n// Exception Handlers\n// ==================\n\n\n/**\n * Converts exceptions of (static) type E to an uncatchable panic that aborts the program\n */\ndef panicOn[E, T] { prog: => T / Exception[E] }: T =\n  try { prog() } with Exception[E] { def raise(exception: E, msg: String) = panic(msg) }\n\n/**\n * Reports exceptions of (static) type E to the console\n */\ndef report[E] { prog: => Unit / Exception[E] }: Unit =\n  try { prog() } with Exception[E] { def raise(exception: E, msg: String) = println(msg) }\n\n/**\n * Ignores exceptions of (static) type E\n */\ndef ignore[E] { prog: => Unit / Exception[E] }: Unit =\n  try { prog() } with Exception[E] { def raise(exception: E, msg: String) = () }\n\n/**\n * Use the default value to handle the exception of type E\n */\ndef default[E, T] { default: => T } { prog: => T / Exception[E] }: T =\n  try { prog() } with Exception[E] { def raise(exception: E, msg: String) = default() }\n\n/**\n * Runs the finalizer and rethrows E\n */\ndef finalize[E, T] { finalizer: => Unit } { prog: => T / Exception[E] }: T / Exception[E] =\n  try { val res = prog(); finalizer(); res } with Exception[E] {\n    def raise(exception: E, msg: String) = { finalizer(); do raise(exception, msg) }\n  }\n\n/**\n * A proxy value to enable partial type applications, such as:\n *\n * ```\n * with on[MissingValue].ignore; ...\n * ```\n */\nrecord on[E]()\n\ndef ignore[E](proxy: on[E]) { prog: => Unit / Exception[E] }: Unit =\n  ignore[E] {prog}\n\ndef default[E, T](proxy: on[E]) { d: => T } { prog: => T / Exception[E] }: T =\n  default[E, T] {d} {prog}\n\ndef panic[E, T](proxy: on[E]) { prog: => T / Exception[E] }: T =\n  panicOn[E, T] {prog}\n\ndef report[E](proxy: on[E]) { prog: => Unit / Exception[E] }: Unit =\n  report[E] {prog}\n\ndef finalize[E, T](proxy: on[E]) { finalizer: => Unit } { prog: => T / Exception[E] }: T / Exception[E] =\n  finalize[E, T] {finalizer} {prog}"
+  let src =
+    #|module exception
+    #|
+    #|import effekt
+    #|
+    #|// Exceptions
+    #|// ==========
+    #|
+    #|interface Exception[E] {
+    #|  def raise(exception: E, msg: String): Nothing
+    #|}
+    #|
+    #|def raise[A, E](exception: E, msg: String): A / Exception[E] =
+    #|  do raise(exception, msg) match {}
+    #|
+    #|/**
+    #| * Used as a type for `Exception` in functions which expect a non-empty
+    #| * container (e.g. option or list).
+    #| */
+    #|record MissingValue()
+    #|
+    #|def missingValue(): Nothing / Exception[MissingValue] =
+    #|  do raise(MissingValue(), "Missing value.")
+    #|
+    #|/**
+    #| * Used as a type for `Exception` in functions where an index can be out of bounds.
+    #| */
+    #|record OutOfBounds()
+    #|
+    #|/**
+    #| * Unexpected runtime exceptions that can be caught.
+    #| */
+    #|record RuntimeError()
+    #|
+    #|def raise[A](msg: String): A / Exception[RuntimeError] =
+    #|  do raise(RuntimeError(), msg) match {}
+    #|
+    #|/**
+    #| * Used as a type for `Exception` in functions which expect the input
+    #| * to be formatted in a specific way.
+    #| */
+    #|record WrongFormat()
+    #|
+    #|def wrongFormat(): Nothing / Exception[WrongFormat] =
+    #|  do raise(WrongFormat(), "Wrong format.")
+    #|
+    #|def wrongFormat(msg: String): Nothing / Exception[WrongFormat] =
+    #|  do raise(WrongFormat(), msg)
+    #|
+    #|
+    #|// Exception Handlers
+    #|// ==================
+    #|
+    #|
+    #|/**
+    #| * Converts exceptions of (static) type E to an uncatchable panic that aborts the program
+    #| */
+    #|def panicOn[E, T] { prog: => T / Exception[E] }: T =
+    #|  try { prog() } with Exception[E] { def raise(exception: E, msg: String) = panic(msg) }
+    #|
+    #|/**
+    #| * Reports exceptions of (static) type E to the console
+    #| */
+    #|def report[E] { prog: => Unit / Exception[E] }: Unit =
+    #|  try { prog() } with Exception[E] { def raise(exception: E, msg: String) = println(msg) }
+    #|
+    #|/**
+    #| * Ignores exceptions of (static) type E
+    #| */
+    #|def ignore[E] { prog: => Unit / Exception[E] }: Unit =
+    #|  try { prog() } with Exception[E] { def raise(exception: E, msg: String) = () }
+    #|
+    #|/**
+    #| * Use the default value to handle the exception of type E
+    #| */
+    #|def default[E, T] { default: => T } { prog: => T / Exception[E] }: T =
+    #|  try { prog() } with Exception[E] { def raise(exception: E, msg: String) = default() }
+    #|
+    #|/**
+    #| * Runs the finalizer and rethrows E
+    #| */
+    #|def finalize[E, T] { finalizer: => Unit } { prog: => T / Exception[E] }: T / Exception[E] =
+    #|  try { val res = prog(); finalizer(); res } with Exception[E] {
+    #|    def raise(exception: E, msg: String) = { finalizer(); do raise(exception, msg) }
+    #|  }
+    #|
+    #|/**
+    #| * A proxy value to enable partial type applications, such as:
+    #| *
+    #| * ```
+    #| * with on[MissingValue].ignore; ...
+    #| * ```
+    #| */
+    #|record on[E]()
+    #|
+    #|def ignore[E](proxy: on[E]) { prog: => Unit / Exception[E] }: Unit =
+    #|  ignore[E] {prog}
+    #|
+    #|def default[E, T](proxy: on[E]) { d: => T } { prog: => T / Exception[E] }: T =
+    #|  default[E, T] {d} {prog}
+    #|
+    #|def panic[E, T](proxy: on[E]) { prog: => T / Exception[E] }: T =
+    #|  panicOn[E, T] {prog}
+    #|
+    #|def report[E](proxy: on[E]) { prog: => Unit / Exception[E] }: Unit =
+    #|  report[E] {prog}
+    #|
+    #|def finalize[E, T](proxy: on[E]) { finalizer: => Unit } { prog: => T / Exception[E] }: T / Exception[E] =
+    #|  finalize[E, T] {finalizer} {prog}
   let (decl, messages) = parse_module(src)
   assert_eq(messages, "")
   let d = decl.unwrap()
@@ -673,11 +820,15 @@ fn check_spans(d : @source.ModuleDecl) -> Unit raise {
 
 ///|
 test "parse: spans are well formed" {
-  check_spans(
-    module_ok(
-      "def main() = {\n  val x = 42\n  println(x)\n}\n\ndef fib(n: Int): Int = if (n < 2) n else fib(n - 1) + fib(n - 2)\n",
-    ),
-  )
+  let src =
+    #|def main() = {
+    #|  val x = 42
+    #|  println(x)
+    #|}
+    #|
+    #|def fib(n: Int): Int = if (n < 2) n else fib(n - 1) + fib(n - 2)
+    #|
+  check_spans(module_ok(src))
   check_spans(module_ok("type List[A] { Cons(head: A, tail: List[A]); Nil() }"))
   check_spans(module_ok("interface Exc { def raise(msg: String): Unit }"))
   check_spans(module_ok("record Point(x: Int, y: Int)"))

@@ -39,7 +39,7 @@ pub fn Loader::new(roots : Array[String]) -> Loader {
 /// Locates the file for a module path, e.g. `list` -> `<root>/list.effekt`.
 pub fn Loader::locate(self : Loader, path : String) -> String? {
   for root in self.roots {
-    let candidate = join_path(root, path + ".effekt")
+    let candidate = join_path(root, "\{path}.effekt")
     if file_exists(candidate) {
       return Some(candidate)
     }
@@ -80,7 +80,7 @@ pub fn Loader::load_tree(
       if located is None {
         ctx.abort(
           Span::missing(),
-          "Could not find module '" + path + "' in include path.",
+          "Could not find module '\{path}' in include path.",
         )
       }
       let file = located.unwrap()
@@ -93,7 +93,7 @@ pub fn Loader::load_tree(
       )
       let parsed = parse(source, ctx)
       if parsed is None {
-        ctx.abort(Span::missing(), "Could not parse module '" + path + "'.")
+        ctx.abort(Span::missing(), "Could not parse module '\{path}'.")
       }
       let tree = resolve_includes(parsed.unwrap(), source, ctx)
       // Every module implicitly imports the prelude (`effekt`); the prelude

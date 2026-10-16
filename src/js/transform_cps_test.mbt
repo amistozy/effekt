@@ -25,7 +25,7 @@ fn bparam(name : String) -> @core.BlockParam {
     @symbols.Sym::block_param(
       @symbols.Name::local(name),
       None,
-      sym(name + "_cap"),
+      sym("\{name}_cap"),
       false,
       @util.Span::missing(),
     ),
@@ -117,8 +117,8 @@ test "js: a toplevel definition becomes a function of (params..., ks, k)" {
   let name = @js.name_def(main).name
   // `js.Const` turns a lambda into a function declaration, as upstream
   assert_true(
-    js.contains("function " + name + "("),
-    msg="expected a function declaration for the toplevel definition:\n" + js,
+    js.contains("function \{name}("),
+    msg="expected a function declaration for the toplevel definition:\n\{js}",
   )
   // the block takes the metacontinuation and the continuation
   assert_true(js.contains("ks_"), msg="expected a metacontinuation parameter")
@@ -126,7 +126,7 @@ test "js: a toplevel definition becomes a function of (params..., ks, k)" {
   // the body returns a thunk (toplevel bodies are compiled in thunk mode)
   assert_true(
     js.contains("return () => "),
-    msg="expected a thunked jump:\n" + js,
+    msg="expected a thunked jump:\n\{js}",
   )
 }
 
@@ -153,11 +153,11 @@ test "js: a toplevel val is run by RUN_TOPLEVEL" {
   let js = @js.compile_cps(module, empty_core_module(), main)
   assert_true(
     js.contains("RUN_TOPLEVEL("),
-    msg="expected a RUN_TOPLEVEL call:\n" + js,
+    msg="expected a RUN_TOPLEVEL call:\n\{js}",
   )
   assert_true(
-    js.contains("const " + @js.name_def(main).name + " = "),
-    msg="expected a const binding:\n" + js,
+    js.contains("const \{@js.name_def(main).name} = "),
+    msg="expected a const binding:\n\{js}",
   )
 }
 
@@ -171,8 +171,8 @@ test "js: the exports call main through RUN_TOPLEVEL" {
   )
   let name = @js.name_def(main).name
   assert_true(
-    js.contains("main: () => RUN_TOPLEVEL(" + name + ")"),
-    msg="expected the main export:\n" + js,
+    js.contains("main: () => RUN_TOPLEVEL(\{name})"),
+    msg="expected the main export:\n\{js}",
   )
 }
 
@@ -188,11 +188,11 @@ test "js: a reset compiles to a RESET call" {
     @core.BlockLit::new([], [], [], [prompt], @core.Stmt::Return(int_expr(1))),
   )
   let js = compile(main, unit_block(reset), empty_core_module())
-  assert_true(js.contains("RESET("), msg="expected a RESET call:\n" + js)
+  assert_true(js.contains("RESET("), msg="expected a RESET call:\n\{js}")
   // the prompt is the first parameter of the translated block literal
   assert_true(
-    js.contains("(" + @js.name_def(prompt.id).name + ","),
-    msg="expected the prompt as parameter:\n" + js,
+    js.contains("(\{@js.name_def(prompt.id).name},"),
+    msg="expected the prompt as parameter:\n\{js}",
   )
 }
 
@@ -211,14 +211,14 @@ test "js: a shift compiles to a SHIFT call" {
     @core.Stmt::Return(int_expr(1)),
   )
   let js = compile(main, unit_block(shift), empty_core_module())
-  assert_true(js.contains("SHIFT("), msg="expected a SHIFT call:\n" + js)
+  assert_true(js.contains("SHIFT("), msg="expected a SHIFT call:\n\{js}")
   assert_true(
     js.contains(@js.name_def(prompt).name),
-    msg="expected the prompt to be passed:\n" + js,
+    msg="expected the prompt to be passed:\n\{js}",
   )
   assert_true(
     js.contains(@js.name_def(resume.id).name),
-    msg="expected the resume parameter:\n" + js,
+    msg="expected the resume parameter:\n\{js}",
   )
 }
 
@@ -234,10 +234,10 @@ test "js: a var compiles to a VAR call" {
     @core.Stmt::Return(int_expr(1)),
   )
   let js = compile(main, unit_block(var_stmt), empty_core_module())
-  assert_true(js.contains("VAR("), msg="expected a VAR call:\n" + js)
+  assert_true(js.contains("VAR("), msg="expected a VAR call:\n\{js}")
   assert_true(
-    js.contains("const " + @js.name_def(x).name + " = VAR("),
-    msg="expected the reference to be bound:\n" + js,
+    js.contains("const \{@js.name_def(x).name} = VAR("),
+    msg="expected the reference to be bound:\n\{js}",
   )
 }
 
@@ -306,10 +306,10 @@ test "js: a match compiles to a switch with numeric case labels" {
     ),
   )
   let js = compile(main, block, core_module)
-  assert_true(js.contains("switch ("), msg="expected a switch:\n" + js)
-  assert_true(js.contains(".__tag)"), msg="expected a switch on __tag:\n" + js)
-  assert_true(js.contains("case 0:"), msg="expected the numeric case 0:\n" + js)
-  assert_true(js.contains("case 1:"), msg="expected the numeric case 1:\n" + js)
+  assert_true(js.contains("switch ("), msg="expected a switch:\n\{js}")
+  assert_true(js.contains(".__tag)"), msg="expected a switch on __tag:\n\{js}")
+  assert_true(js.contains("case 0:"), msg="expected the numeric case 0:\n\{js}")
+  assert_true(js.contains("case 1:"), msg="expected the numeric case 1:\n\{js}")
 }
 
 ///|
@@ -336,19 +336,19 @@ test "js: a data declaration generates a class with tag, reflect and equals" {
   )
   let class_name = @js.name_def(ctor).name
   assert_true(
-    js.contains("class " + class_name),
-    msg="expected a class for the constructor:\n" + js,
+    js.contains("class \{class_name}"),
+    msg="expected a class for the constructor:\n\{js}",
   )
-  assert_true(js.contains("this.__tag = 0"), msg="expected the tag:\n" + js)
+  assert_true(js.contains("this.__tag = 0"), msg="expected the tag:\n\{js}")
   assert_true(
-    js.contains("this." + @js.name_def(field).name),
-    msg="expected the field:\n" + js,
+    js.contains("this.\{@js.name_def(field).name}"),
+    msg="expected the field:\n\{js}",
   )
-  assert_true(js.contains("__reflect()"), msg="expected __reflect:\n" + js)
-  assert_true(js.contains("__equals("), msg="expected __equals:\n" + js)
+  assert_true(js.contains("__reflect()"), msg="expected __reflect:\n\{js}")
+  assert_true(js.contains("__equals("), msg="expected __equals:\n\{js}")
   assert_true(
     js.contains("$effekt.equals("),
-    msg="expected the runtime equality:\n" + js,
+    msg="expected the runtime equality:\n\{js}",
   )
 }
 
@@ -372,15 +372,15 @@ test "js: a tail-recursive definition becomes a labelled while loop" {
   )
   let body = @core.Stmt::Def(f, definition, @core.Stmt::Return(int_expr(0)))
   let js = compile(main, unit_block(body), empty_core_module())
-  assert_true(js.contains("while (true)"), msg="expected a loop:\n" + js)
+  assert_true(js.contains("while (true)"), msg="expected a loop:\n\{js}")
   let label = @js.name_def(f).name
   assert_true(
-    js.contains(label + ": while (true)"),
-    msg="expected the loop to be labelled with the definition's name:\n" + js,
+    js.contains("\{label}: while (true)"),
+    msg="expected the loop to be labelled with the definition's name:\n\{js}",
   )
   assert_true(
-    js.contains("continue " + label),
-    msg="expected the tail call to become a continue:\n" + js,
+    js.contains("continue \{label}"),
+    msg="expected the tail call to become a continue:\n\{js}",
   )
 }
 
@@ -395,7 +395,7 @@ test "js: a non-recursive definition does not become a loop" {
   let js = compile(main, unit_block(body), empty_core_module())
   assert_true(
     !js.contains("while (true)"),
-    msg="expected no loop for a non-recursive definition:\n" + js,
+    msg="expected no loop for a non-recursive definition:\n\{js}",
   )
 }
 
@@ -429,18 +429,18 @@ test "js: a non-tail recursive call rebuilds the continuation" {
   let body = @core.Stmt::Def(f, definition, @core.Stmt::Return(int_expr(0)))
   let js = compile(main, unit_block(body), empty_core_module())
   let label = @js.name_def(f).name
-  assert_true(js.contains("while (true)"), msg="expected a loop:\n" + js)
+  assert_true(js.contains("while (true)"), msg="expected a loop:\n\{js}")
   assert_true(
     js.contains("/* prepare call */"),
-    msg="expected the call to be prepared:\n" + js,
+    msg="expected the call to be prepared:\n\{js}",
   )
   assert_true(
-    js.contains("continue " + label),
-    msg="expected the call to become a continue:\n" + js,
+    js.contains("continue \{label}"),
+    msg="expected the call to become a continue:\n\{js}",
   )
   // the continuation parameter of `f` is reassigned before the arguments
-  let k_name = js.contains(label + "(x_")
-  assert_true(k_name, msg="expected the parameters of `f`:\n" + js)
+  let k_name = js.contains("\{label}(x_")
+  assert_true(k_name, msg="expected the parameters of `f`:\n\{js}")
 }
 
 // ---------------------------------------------------------------------------
@@ -476,16 +476,16 @@ test "js: a continuation only jumped to is compiled in direct style" {
   let js = compile_cps_block(main, block)
   let x_name = @js.name_def(x).name
   assert_true(
-    js.contains("let " + x_name + " = undefined;"),
-    msg="expected a mutable local for the continuation parameter:\n" + js,
+    js.contains("let \{x_name} = undefined;"),
+    msg="expected a mutable local for the continuation parameter:\n\{js}",
   )
   assert_true(
-    js.contains(x_name + " = 1;"),
-    msg="expected the jump to become an assignment:\n" + js,
+    js.contains("\{x_name} = 1;"),
+    msg="expected the jump to become an assignment:\n\{js}",
   )
   assert_true(
-    !js.contains(@js.name_def(k1).name + "("),
-    msg="expected no call to the direct-style continuation:\n" + js,
+    !js.contains("\{@js.name_def(k1).name}("),
+    msg="expected no call to the direct-style continuation:\n\{js}",
   )
 }
 
@@ -536,11 +536,11 @@ test "js: an extern with value parameters only is inlined" {
   // `RawExpr` parenthesises its arguments
   assert_true(
     js.contains("(1) + 1"),
-    msg="expected the extern to be inlined:\n" + js,
+    msg="expected the extern to be inlined:\n\{js}",
   )
   assert_true(
-    !js.contains("function " + @js.name_def(ext).name),
-    msg="expected no function for the inlined extern:\n" + js,
+    !js.contains("function \{@js.name_def(ext).name}"),
+    msg="expected no function for the inlined extern:\n\{js}",
   )
 }
 
@@ -586,17 +586,17 @@ test "js: an async extern is not inlined" {
   let name = @js.name_def(ext).name
   let p_name = @js.name_def(p).name
   assert_true(
-    js.contains("function " + name + "(" + p_name + ","),
-    msg="expected the async extern to be emitted with its parameters:\n" + js,
+    js.contains("function \{name}(\{p_name},"),
+    msg="expected the async extern to be emitted with its parameters:\n\{js}",
   )
   // an async extern takes the metacontinuation and the continuation
   assert_true(
-    js.contains("return " + name + "_") || js.contains("return "),
+    js.contains("return \{name}_") || js.contains("return "),
     msg="expected a body",
   )
   assert_true(
     !js.contains("(1) + 1"),
-    msg="expected no inlining for an async extern:\n" + js,
+    msg="expected no inlining for an async extern:\n\{js}",
   )
 }
 
@@ -783,13 +783,13 @@ test "js: a try whose body completes normally" {
     empty_core_module(),
     module.definitions[0].id(),
   )
-  assert_true(js.contains("RESET("), msg="expected a RESET call:\n" + js)
+  assert_true(js.contains("RESET("), msg="expected a RESET call:\n\{js}")
   assert_true(
     !js.contains("SHIFT("),
-    msg="a handled body that completes normally does not shift:\n" + js,
+    msg="a handled body that completes normally does not shift:\n\{js}",
   )
   // the prompt is bound by the reset and the body returns to its continuation
-  assert_true(js.contains("=> () => "), msg="expected a thunked jump:\n" + js)
+  assert_true(js.contains("=> () => "), msg="expected a thunked jump:\n\{js}")
 }
 
 ///|
@@ -800,28 +800,28 @@ test "js: a handler operation whose body performs an effectful call" {
     empty_core_module(),
     module.definitions[0].id(),
   )
-  assert_true(js.contains("RESET("), msg="expected a RESET call:\n" + js)
-  assert_true(js.contains("SHIFT("), msg="expected a SHIFT call:\n" + js)
+  assert_true(js.contains("RESET("), msg="expected a RESET call:\n\{js}")
+  assert_true(js.contains("SHIFT("), msg="expected a SHIFT call:\n\{js}")
   // the handler is an object with the operation, invoked through the capability
   let op_name = @js.name_def(raise_op).name
   assert_true(
-    js.contains("." + op_name + "("),
-    msg="expected the operation to be invoked through the handler:\n" + js,
+    js.contains(".\{op_name}("),
+    msg="expected the operation to be invoked through the handler:\n\{js}",
   )
   // the operation is a property of the handler object
   assert_true(
-    js.contains(op_name + ": (") || js.contains(op_name + ":("),
-    msg="expected the operation in the handler object:\n" + js,
+    js.contains("\{op_name}: (") || js.contains("\{op_name}:("),
+    msg="expected the operation in the handler object:\n\{js}",
   )
   // the *operation body* performs an effect before returning to the resumption
   assert_true(
     js.contains("$effekt.println("),
-    msg="expected the effectful call inside the operation body:\n" + js,
+    msg="expected the effectful call inside the operation body:\n\{js}",
   )
   // the inlined extern does not show up as a function
   assert_true(
     !js.contains("function println"),
-    msg="expected the extern to be inlined:\n" + js,
+    msg="expected the extern to be inlined:\n\{js}",
   )
 }
 
@@ -867,11 +867,11 @@ test "js: a main with capability parameters is rejected" {
       rejected = true
       assert_true(
         msg.contains("Main cannot have effects"),
-        msg="expected the upstream diagnostic, got: " + msg,
+        msg="expected the upstream diagnostic, got: \{msg}",
       )
     }
     @util.EffektError::Internal(msg) =>
-      assert_true(false, msg="unexpected internal error: " + msg)
+      assert_true(false, msg="unexpected internal error: \{msg}")
   }
   assert_true(
     rejected,

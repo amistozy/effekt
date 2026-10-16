@@ -24,6 +24,40 @@ You can browse and install extra skills here:
 - Try to keep deprecated blocks in file called `deprecated.mbt` in each
   directory.
 
+- **Prefer the three literals below over the older idioms** (verified with
+  `moon 0.1.20261012`; they keep this compiler's output-building code readable,
+  and this is a compiler that writes a lot of text):
+
+  - **Map literals** for maps whose keys are known statically:
+    `let m : Map[String, Sym] = { "Unit": unit, "Bool": bool }`.
+    Keys must be *literals* (a variable key is parsed as a struct field);
+    dynamic keys keep `Map([])` plus `.set`. `Map` is a mutable *linked* hash
+    map, so iteration order is observable: the pairs must appear in the order
+    the `.set` calls ran. An empty map must stay `Map([])` — `{}` is reported
+    as `ambiguous_braces`.
+  - **String interpolation** `"\{expr}"` for concatenation chains. Any
+    expression is allowed inside (calls, `if`, nested braces, quotes); a
+    literal `{` needs no escape, a literal `\{` must be written `\\{`. The
+    expression needs a `Show` instance, so interpolate things that are already
+    `String` (`show_value_type(t)`, `sym.name().name`) or scalars; avoid
+    interpolating `Array`/`Option`.
+  - **Multi-line strings** `#|` for any string spanning two or more lines:
+    ```moonbit
+    let js = #|function f() {
+             #|  return `${x}`;
+             #|}
+    ```
+    The content is everything after each `#|` (the indentation before it is not
+    part of the string). Escapes are **not** processed, so embedded JavaScript,
+    Effekt extern templates, regexes and Windows paths need no escaping at all.
+    There is no trailing newline — end with an empty `#|` line if you need one
+    — and it must sit in a `let` binding or inside parentheses, otherwise the
+    compiler warns `deprecated_syntax`.
+
+  The test suite compares generated JavaScript and core IR text, and
+  `scripts/e2e.ps1` runs the compiled programs, so any accidental change to a
+  string's content is caught.
+
 ## Git workflow
 
 - **Commit and push automatically.** After finishing a change, do not stop to ask

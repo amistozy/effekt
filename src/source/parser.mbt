@@ -522,7 +522,7 @@ fn Parser::spaces(self : Parser) -> Unit raise EffektError {
 ///|
 fn Parser::consume(self : Parser, kind : TokenKind) -> Unit raise EffektError {
   if !self.has_next() {
-    self.fail("Expected " + kind.explain() + ", but reached end of file")
+    self.fail("Expected \{kind.explain()}, but reached end of file")
   }
   if self.peek_kind() != kind {
     self.fail_expected(kind.explain(), self.peek_kind())
@@ -577,7 +577,7 @@ fn[T] Parser::fail_expected(
     Some(l) => l
     None => expected
   }
-  self.fail("Expected " + label + " but got " + got.explain())
+  self.fail("Expected \{label} but got \{got.explain()}")
 }
 
 ///|
@@ -833,9 +833,7 @@ fn[T] Parser::delimited_until(
       components.push(p())
     } else if fail_on_singleton && components.length() == 1 {
       self.soft_fail(
-        "There are no one-element tuples. Remove the trailing `" +
-        sep.explain() +
-        "` to group, or add another element.",
+        "There are no one-element tuples. Remove the trailing `\{sep.explain()}` to group, or add another element.",
         self.position - 1,
         self.position - 1,
       )
@@ -2108,7 +2106,7 @@ fn Parser::desugar_with_patterns(
     let pattern_list = patterns.items
     let names : Array[String] = []
     for i = 0; i < pattern_list.length(); i = i + 1 {
-      names.push("__withArg" + i.to_string())
+      names.push("__withArg\{i}")
     }
     let vparams : Array[ValueParam] = []
     for i = 0; i < pattern_list.length(); i = i + 1 {
@@ -2585,7 +2583,7 @@ fn Parser::match_pattern(self : Parser) -> MatchPattern raise EffektError {
         let sp = self.span().synthesized()
         let tuple_id = IdRef::qualified(
           ["effekt"],
-          "Tuple" + patterns.items.length().to_string(),
+          "Tuple\{patterns.items.length()}",
           sp,
         )
         mk_pattern(
@@ -2709,9 +2707,7 @@ fn Parser::expr_outer(
           }
           Ambiguous =>
             self.fail(
-              "Ambiguous infix operator precedence for the usage of " +
-              kind.explain() +
-              ". Consider adding parentheses.",
+              "Ambiguous infix operator precedence for the usage of \{kind.explain()}. Consider adding parentheses.",
             )
         }
       } else if kind == KMatch {
@@ -2923,8 +2919,7 @@ fn Parser::prim_expr(self : Parser) -> Term raise EffektError {
         })
       } else {
         self.fail(
-          "Expected variables, literals, tuples, lists, holes or group but got " +
-          kind.explain(),
+          "Expected variables, literals, tuples, lists, holes or group but got \{kind.explain()}",
         )
       }
   }
@@ -2986,11 +2981,7 @@ fn Parser::tuple_or_group(self : Parser) -> Term raise EffektError {
     } else {
       let sp = self.span().synthesized()
       let args = es.items.map(e => ValueArg::unnamed(e))
-      let id = IdRef::qualified(
-        ["effekt"],
-        "Tuple" + es.items.length().to_string(),
-        sp,
-      )
+      let id = IdRef::qualified(["effekt"], "Tuple\{es.items.length()}", sp)
       mk_term(sp, TermKind::Call(IdTarget(id), [], args, []))
     }
   })
@@ -3414,7 +3405,7 @@ fn Parser::function_arg(self : Parser) -> Term raise EffektError {
           // TODO fresh names should be generated for the scrutinee
           let names : Array[String] = []
           for i = 0; i < arg_spans.length(); i = i + 1 {
-            names.push("__arg" + i.to_string())
+            names.push("__arg\{i}")
           }
           let vparams : Array[ValueParam] = []
           for i = 0; i < arg_spans.length(); i = i + 1 {
@@ -3519,11 +3510,7 @@ fn Parser::ref_type(self : Parser) -> TypeTree raise EffektError {
 ///|
 fn type_tuple(tps : Many[TypeTree]) -> TypeTree {
   let sp = tps.span.synthesized()
-  let id = IdRef::qualified(
-    ["effekt"],
-    "Tuple" + tps.items.length().to_string(),
-    sp,
-  )
+  let id = IdRef::qualified(["effekt"], "Tuple\{tps.items.length()}", sp)
   mk_type(sp, TypeKind::TypeRef(id, tps.items))
 }
 

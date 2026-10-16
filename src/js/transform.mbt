@@ -67,7 +67,7 @@ fn reserved_words() -> Array[String] {
 ///|
 pub fn js_escape(name : String) -> String {
   if reserved_words().contains(name) {
-    "$" + name
+    "$\{name}"
   } else {
     name.replace_all(old="?", new="").replace_all(old="!", new="")
   }
@@ -75,12 +75,12 @@ pub fn js_escape(name : String) -> String {
 
 ///|
 pub fn js_module_name(path : String) -> String {
-  "$" + path.replace_all(old="/", new="_").replace_all(old="-", new="_")
+  "$\{path.replace_all(old="/", new="_").replace_all(old="-", new="_")}"
 }
 
 ///|
 pub fn js_module_file(path : String) -> String {
-  path.replace_all(old="/", new="_").replace_all(old="-", new="_") + ".js"
+  "\{path.replace_all(old="/", new="_").replace_all(old="-", new="_")}.js"
 }
 
 // Attempt to have better / shorter names: `used_names` counts the names handed
@@ -142,7 +142,7 @@ fn unique_name_for(base : String) -> String {
     None => 0
   }
   used_names.set(base, next_id + 1)
-  base + "_" + next_id.to_string()
+  "\{base}_\{next_id}"
 }
 
 ///|
@@ -181,7 +181,7 @@ pub fn member_name_ref(id : Sym) -> JSName {
 /// A name that is guaranteed to be fresh (used for compiler-generated
 /// variables that have no symbol, e.g. the `other` of `__equals`).
 pub fn fresh_name(s : String) -> JSName {
-  JSName::new(s + @util.fresh_uid().to_string())
+  JSName::new("\{s}\{@util.fresh_uid()}")
 }
 
 // ---------------------------------------------------------------------------

@@ -27,11 +27,11 @@ pub fn LexerError::message(self : LexerError) -> String {
   match self {
     InvalidEscapeSequence(str) =>
       "Invalid character in escape sequence: `\\" + str + "`"
-    Expected(char) => "Expected '" + char.to_string() + "' while lexing"
-    UnknownChar(char) => "Unknown character '" + char.to_string() + "' in file"
+    Expected(char) => "Expected '\{char}' while lexing"
+    UnknownChar(char) => "Unknown character '\{char}' in file"
     UnterminatedStringLike(TStr(_, false)) =>
       "Unterminated single-line string; expected closing `\"` on the end of the line"
-    UnterminatedStringLike(kind) => "Unterminated " + kind.explain()
+    UnterminatedStringLike(kind) => "Unterminated \{kind.explain()}"
     UnterminatedComment =>
       "Unterminated multi-line comment; expected closing `*/`"
     EmptyCharLiteral => "Empty character literal"
@@ -43,9 +43,7 @@ pub fn LexerError::message(self : LexerError) -> String {
     InvalidByteFormat =>
       "Invalid byte format, byte has to be exactly two hex digits"
     UnterminatedInterpolation(depth) =>
-      "Unterminated string interpolation (" +
-      depth.to_string() +
-      " unclosed splices)"
+      "Unterminated string interpolation (\{depth} unclosed splices)"
   }
 }
 
@@ -224,15 +222,15 @@ pub fn symbol_text(kind : TokenKind) -> String {
 /// An explanation of a token kind, used in "Expected X but got Y" errors.
 pub fn TokenKind::explain(self : TokenKind) -> String {
   if self.is_keyword() {
-    return "keyword " + self.keyword_text()
+    return "keyword \{self.keyword_text()}"
   }
   match self {
-    TIdent(n) => "identifier " + n
-    TInteger(n) => "integer " + n.to_string()
-    TFloat(d) => "float " + d.to_string()
+    TIdent(n) => "identifier \{n}"
+    TInteger(n) => "integer \{n}"
+    TFloat(d) => "float \{d}"
     TStr(_, true) => "multi-line string literal"
-    TStr(s, false) => "string literal \"" + s + "\""
-    TChr(c) => "character literal '" + char_of_code(c).to_string() + "'"
+    TStr(s, false) => "string literal \"\{s}\""
+    TChr(c) => "character literal '\{char_of_code(c)}'"
     THoleStr(_) => "natural language hole `<\" ... \">`"
     TComment(_) => "comment"
     TDocComment(_) => "doc comment"
@@ -240,7 +238,7 @@ pub fn TokenKind::explain(self : TokenKind) -> String {
     TSpace => "space"
     TEOF => "end of file"
     TSpliceEnd => "a splice ending brace `}`"
-    TError(error) => "invalid token: " + error.message()
+    TError(error) => "invalid token: \{error.message()}"
     other => symbol_text(other)
   }
 }

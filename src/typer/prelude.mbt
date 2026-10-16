@@ -304,7 +304,7 @@ pub fn show_effects(effs : Effects) -> String {
   if names.length() == 0 {
     "{}"
   } else {
-    "{" + names.join(", ") + "}"
+    "{\{names.join(", ")}}"
   }
 }
 
@@ -318,13 +318,10 @@ pub fn show_value_type(t : ValueType) -> String {
       if args.length() == 0 {
         c.name().qualified_name()
       } else {
-        c.name().qualified_name() +
-        "[" +
-        args.map(show_value_type).join(", ") +
-        "]"
+        "\{c.name().qualified_name()}[\{args.map(show_value_type).join(", ")}]"
       }
     @symbols.ValueType::BoxedType(b, c) =>
-      "box " + show_block_type(b) + " at " + show_captures(c)
+      "box \{show_block_type(b)} at \{show_captures(c)}"
   }
 }
 
@@ -335,22 +332,14 @@ pub fn show_block_type(t : BlockType) -> String {
       if args.length() == 0 {
         c.name().qualified_name()
       } else {
-        c.name().qualified_name() +
-        "[" +
-        args.map(show_value_type).join(", ") +
-        "]"
+        "\{c.name().qualified_name()}[\{args.map(show_value_type).join(", ")}]"
       }
     @symbols.BlockType::FunctionType(_, _, vps, bps, ret, effs) => {
       let all : Array[String] = vps.map(show_value_type)
       for b in bps {
-        all.push("{" + show_block_type(b) + "}")
+        all.push("{\{show_block_type(b)}}")
       }
-      "(" +
-      all.join(", ") +
-      ") => " +
-      show_value_type(ret) +
-      " / " +
-      show_effects(effs)
+      "(\{all.join(", ")} => \{show_value_type(ret)} / \{show_effects(effs)}"
     }
   }
 }
@@ -359,7 +348,7 @@ pub fn show_block_type(t : BlockType) -> String {
 pub fn show_captures(c : Captures) -> String {
   match c {
     @symbols.Captures::CaptureSetOf(cs) =>
-      "{" + cs.map(s => s.name().qualified_name()).join(", ") + "}"
-    @symbols.Captures::CaptVar(x) => "?" + x.name().qualified_name()
+      "{\{cs.map(s => s.name().qualified_name()).join(", ")}}"
+    @symbols.Captures::CaptVar(x) => "?\{x.name().qualified_name()}"
   }
 }

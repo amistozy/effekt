@@ -37,12 +37,13 @@ fn main_binding() -> @js.Stmt {
 ///|
 test "js pretty: module skeleton (virtual)" {
   let m = @js.Module::new(jname("mymod"), [], [], [main_binding()])
-  let expected = "const $effekt = {};\n" +
-    "const mymod = {};\n" +
-    "const main = (ks,k) => {\n" +
-    "  return RUN_TOPLEVEL(main_1);\n" +
-    "};\n" +
-    "module.exports = {};"
+  let expected =
+    #|const $effekt = {};
+    #|const mymod = {};
+    #|const main = (ks,k) => {
+    #|  return RUN_TOPLEVEL(main_1);
+    #|};
+    #|module.exports = {};
   assert_eq(@js.show_stmts(m.virtual()), expected)
 }
 
@@ -53,11 +54,11 @@ test "js pretty: module skeleton (commonjs)" {
   assert_eq(stmts.length(), 3)
   let rendered = @js.show_stmts(stmts)
   assert_true(rendered.contains("const $effekt = {};\n"))
-  assert_true(
-    rendered.contains(
-      "const main = (ks,k) => {\n  return RUN_TOPLEVEL(main_1);\n};",
-    ),
-  )
+  let main_decl =
+    #|const main = (ks,k) => {
+    #|  return RUN_TOPLEVEL(main_1);
+    #|};
+  assert_true(rendered.contains(main_decl))
   assert_true(
     rendered.contains(
       "(typeof module != \"undefined\" && module !== null ? module : {}).exports = mymod = {};",
@@ -76,11 +77,12 @@ test "js pretty: import statements" {
     [],
     [],
   )
-  let expected = "const $effekt = {};\n" +
-    "const dep = load(\"dep.js\");\n" +
-    "const {x,y} = load(\"other.js\");\n" +
-    "const mymod = {};\n" +
-    "module.exports = {};"
+  let expected =
+    #|const $effekt = {};
+    #|const dep = load("dep.js");
+    #|const {x,y} = load("other.js");
+    #|const mymod = {};
+    #|module.exports = {};
   assert_eq(@js.show_stmts(m.virtual()), expected)
 }
 
@@ -98,11 +100,12 @@ test "js pretty: switch/case" {
     ],
     Some([@js.Return(@js.js_string("other"))]),
   )
-  let expected = "switch (sc) {\n" +
-    "  case 0: return \"zero\";\n" +
-    "  case 1: return \"one\";\n" +
-    "  default: return \"other\";\n" +
-    "}"
+  let expected =
+    #|switch (sc) {
+    #|  case 0: return "zero";
+    #|  case 1: return "one";
+    #|  default: return "other";
+    #|}
   assert_eq(@js.show_stmt(stmt), expected)
 }
 
@@ -114,12 +117,13 @@ test "js pretty: while loop with label" {
     [body, @js.If(@js.Expr::RawExpr(["i == 5"], []), @js.Break, @js.Block([]))],
     Some(jname("loop")),
   )
-  let expected = "loop: while (i < 10) {\n" +
-    "  i = i + 1;\n" +
-    "  if (i == 5) {\n" +
-    "    break;\n" +
-    "  }\n" +
-    "}"
+  let expected =
+    #|loop: while (i < 10) {
+    #|  i = i + 1;
+    #|  if (i == 5) {
+    #|    break;
+    #|  }
+    #|}
   assert_eq(@js.show_stmt(labelled), expected)
 }
 
@@ -136,11 +140,12 @@ test "js pretty: unlabelled while loop and continue" {
     ],
     None,
   )
-  let expected = "while (i < 10) {\n" +
-    "  if (i == 5) {\n" +
-    "    continue;\n" +
-    "  }\n" +
-    "}"
+  let expected =
+    #|while (i < 10) {
+    #|  if (i == 5) {
+    #|    continue;
+    #|  }
+    #|}
   assert_eq(@js.show_stmt(stmt), expected)
 }
 
@@ -181,16 +186,17 @@ test "js pretty: function declaration from a lambda is flattened" {
     ),
   )
   assert_true(binding is @js.Function(_, _, _))
-  let expected = "function main(ks,k) {\n" +
-    "  return RUN_TOPLEVEL(main_1);\n" +
-    "}"
+  let expected =
+    #|function main(ks,k) {
+    #|  return RUN_TOPLEVEL(main_1);
+    #|}
   assert_eq(@js.show_stmt(binding), expected)
 }
 
 ///|
 test "js codegen monad: traverse, stmts, block and to_expr" {
   let b : @js.Binding[Array[@js.Expr]] = @js.traverse([1, 2], i => {
-    @js.pure(variable("x" + i.to_string()))
+    @js.pure(variable("x\{i}"))
   })
   let with_return = b.flat_map(xs => {
     @js.pure([@js.Return(@js.call(variable("f"), xs))])
@@ -202,9 +208,16 @@ test "js codegen monad: traverse, stmts, block and to_expr" {
     @js.Const(@js.PatternVariable(jname("y")), @js.Expr::RawLiteral("1")),
     @js.Return(variable("y")),
   ])
-  assert_eq(@js.show_stmt(two.block()), "{\n  const y = 1;\n  return y;\n}")
-  assert_eq(
-    @js.show_expr(two.to_expr()),
-    "(() => {\n  const y = 1;\n  return y;\n})()",
-  )
+  let block_js =
+    #|{
+    #|  const y = 1;
+    #|  return y;
+    #|}
+  assert_eq(@js.show_stmt(two.block()), block_js)
+  let expr_js =
+    #|(() => {
+    #|  const y = 1;
+    #|  return y;
+    #|})()
+  assert_eq(@js.show_expr(two.to_expr()), expr_js)
 }

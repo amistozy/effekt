@@ -139,9 +139,7 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
               @symbols.Sym::UserFunction(f) =>
                 if f.vparams.length() == 0 && f.bparams.length() == 0 {
                   self.info(
-                    "Did you mean to call the function using `" +
-                    id.name +
-                    "()`?",
+                    "Did you mean to call the function using `\{id.name}()`?",
                   )
                 }
               @symbols.Sym::ResumeParam(_) =>
@@ -150,11 +148,7 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
             }
             self.error(
               e.span,
-              "Expected a value, but " +
-              id.name +
-              " is a computation. Use `box " +
-              id.name +
-              "` to pass it as a value instead",
+              "Expected a value, but \{id.name} is a computation. Use `box \{id.name}` to pass it as a value instead",
             )
             e
           }
@@ -171,9 +165,7 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
       let names : Array[String] = vparams.map(p => p.id.name)
       self.error(
         e.span,
-        "Expected a value, but block (function) literals are computations. Use `box { (" +
-        names.join(", ") +
-        ") => ... }` to pass it as a value instead",
+        "Expected a value, but block (function) literals are computations. Use `box { (\{names.join(", ")}) => ... }` to pass it as a value instead",
       )
       self.rewrite_as_block(e)
     }

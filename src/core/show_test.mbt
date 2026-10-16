@@ -61,7 +61,7 @@ fn show_test_extern(
 ) -> @core.Extern {
   @core.ExternDef(
     sym,
-    @core.QualifiedSignature::new("test::" + sym.name().name),
+    @core.QualifiedSignature::new("test::\{sym.name().name}"),
     tparams,
     [],
     vparams,
@@ -308,7 +308,7 @@ fn show_test_instance_for(
     Some((_, lit)) => lit
     None =>
       abort(
-        "no show instance was generated for " + @core.show_core_value_type(tpe),
+        "no show instance was generated for \{@core.show_core_value_type(tpe)}",
       )
   }
 }
@@ -324,7 +324,7 @@ fn show_test_instance_id(
     Some((id, _)) => id
     None =>
       abort(
-        "no show instance was generated for " + @core.show_core_value_type(tpe),
+        "no show instance was generated for \{@core.show_core_value_type(tpe)}",
       )
   }
 }
@@ -338,8 +338,7 @@ fn show_test_callee(f : ShowFixture, out : @core.ModuleDecl) -> @symbols.Sym {
         @core.Val(_, @core.App(@core.BlockVar(callee), _, _, _), _) => callee.id
         other =>
           abort(
-            "expected Val(_, App(show0, ...), _), got " +
-            @core.show_core_stmt(other),
+            "expected Val(_, App(show0, ...), _), got \{@core.show_core_stmt(other)}",
           )
       }
     _ => abort("expected a toplevel block definition")
@@ -379,7 +378,7 @@ test "show phase: generates a structural instance and rewrites the call" {
         }
         other =>
           abort(
-            "expected Val(showApp, ...), got " + @core.show_core_stmt(other),
+            "expected Val(showApp, ...), got \{@core.show_core_stmt(other)}",
           )
       }
     _ => abort("expected a toplevel block definition")
@@ -405,7 +404,7 @@ test "show phase: the generated instance matches on the constructors" {
       // `Leaf(v)` shows its field to a temporary
       assert_true(clauses[0].body.body is @core.Val(_, _, _))
     }
-    other => abort("expected a match, got " + @core.show_core_stmt(other))
+    other => abort("expected a match, got \{@core.show_core_stmt(other)}")
   }
   // the fields are shown with `showBuiltin` / concatenated with `infixPlusPlus`
   let rendered = @core.show_core(out)
@@ -417,8 +416,7 @@ test "show phase: the generated instance matches on the constructors" {
       assert_eq(callee.id.uid(), f.show_builtin.uid())
     other =>
       abort(
-        "expected an impure application of showBuiltin, got " +
-        @core.show_core_stmt(other),
+        "expected an impure application of showBuiltin, got \{@core.show_core_stmt(other)}",
       )
   }
 }
@@ -495,8 +493,7 @@ test "show phase: a type variable is not rewritten" {
         }
         other =>
           abort(
-            "expected the extern call to be untouched, got " +
-            @core.show_core_stmt(other),
+            "expected the extern call to be untouched, got \{@core.show_core_stmt(other)}",
           )
       }
     _ => abort("expected a toplevel block definition")
@@ -567,8 +564,7 @@ test "show phase: a call to a user function named show is not rewritten" {
           assert_eq(callee.id.uid(), user_show.uid())
         other =>
           abort(
-            "expected the user call to be untouched, got " +
-            @core.show_core_stmt(other),
+            "expected the user call to be untouched, got \{@core.show_core_stmt(other)}",
           )
       }
     _ => abort("expected a toplevel block definition")
@@ -625,8 +621,7 @@ test "show phase: builtins are shown by showBuiltin" {
       assert_eq(callee.id.uid(), f.show_builtin.uid())
     other =>
       abort(
-        "expected an impure application of showBuiltin, got " +
-        @core.show_core_stmt(other),
+        "expected an impure application of showBuiltin, got \{@core.show_core_stmt(other)}",
       )
   }
 }

@@ -181,8 +181,7 @@ fn skip_defs(s : @core.Stmt) -> @core.Stmt {
 fn only_toplevel_def(module : @core.ModuleDecl) -> @core.Toplevel {
   if module.definitions.length() != 1 {
     abort(
-      "expected exactly one toplevel definition, got " +
-      module.definitions.length().to_string(),
+      "expected exactly one toplevel definition, got \{module.definitions.length()}",
     )
   }
   module.definitions[0]
@@ -253,7 +252,7 @@ test "1 + 2 stays a pure application without a statement wrapper" {
       assert_true(vargs[1] is @core.Literal(@source.LInt(2), _))
     }
     other =>
-      abort("expected Return(PureApp(...)), got " + @core.show_core_stmt(other))
+      abort("expected Return(PureApp(...)), got \{@core.show_core_stmt(other)}")
   }
 }
 
@@ -327,12 +326,12 @@ test "val x = f(); g(x) nests Let/Val in the right order" {
           assert_true(tail is @core.Return(_))
         }
         other =>
-          abort("expected a nested Val, got " + @core.show_core_stmt(other))
+          abort("expected a nested Val, got \{@core.show_core_stmt(other)}")
       }
     }
     other =>
       abort(
-        "expected Val(x, App(f, ...), ...), got " + @core.show_core_stmt(other),
+        "expected Val(x, App(f, ...), ...), got \{@core.show_core_stmt(other)}",
       )
   }
 }
@@ -373,7 +372,7 @@ test "if/else becomes Stmt.If" {
       assert_true(thn is @core.Return(@core.Literal(@source.LInt(1), _)))
       assert_true(els is @core.Return(@core.Literal(@source.LInt(2), _)))
     }
-    other => abort("expected Stmt.If, got " + @core.show_core_stmt(other))
+    other => abort("expected Stmt.If, got \{@core.show_core_stmt(other)}")
   }
 }
 
@@ -502,7 +501,7 @@ test "match on a two-constructor data type produces tags 0 and 1" {
       assert_eq(dctx.get_constructor_tag(clauses[0].tag), 0)
       assert_eq(dctx.get_constructor_tag(clauses[1].tag), 1)
     }
-    other => abort("expected Stmt.Match, got " + @core.show_core_stmt(other))
+    other => abort("expected Stmt.Match, got \{@core.show_core_stmt(other)}")
   }
 }
 
@@ -655,29 +654,27 @@ test "try/handle becomes Reset/Shift" {
                     }
                     other =>
                       abort(
-                        "expected Resume(k, Return(a)), got " +
-                        @core.show_core_stmt(other),
+                        "expected Resume(k, Return(a)), got \{@core.show_core_stmt(other)}",
                       )
                   }
                 }
                 other =>
                   abort(
-                    "expected Def(resume, BlockLit(...)), got " +
-                    @core.show_core_stmt(other),
+                    "expected Def(resume, BlockLit(...)), got \{@core.show_core_stmt(other)}",
                   )
               }
             }
             other =>
-              abort("expected Stmt.Shift, got " + @core.show_core_stmt(other))
+              abort("expected Stmt.Shift, got \{@core.show_core_stmt(other)}")
           }
         }
         other =>
           abort(
-            "expected Def(cap, New(...)), got " + @core.show_core_stmt(other),
+            "expected Def(cap, New(...)), got \{@core.show_core_stmt(other)}",
           )
       }
     }
-    other => abort("expected Stmt.Reset, got " + @core.show_core_stmt(other))
+    other => abort("expected Stmt.Reset, got \{@core.show_core_stmt(other)}")
   }
 }
 
@@ -821,10 +818,10 @@ fn implementation_of(core : @core.ModuleDecl) -> @core.Implementation {
         @core.Def(_, @core.New(implementation), _) => implementation
         other =>
           abort(
-            "expected Def(cap, New(...)), got " + @core.show_core_stmt(other),
+            "expected Def(cap, New(...)), got \{@core.show_core_stmt(other)}",
           )
       }
-    other => abort("expected Stmt.Reset, got " + @core.show_core_stmt(other))
+    other => abort("expected Stmt.Reset, got \{@core.show_core_stmt(other)}")
   }
 }
 
@@ -886,8 +883,7 @@ test "unidirectional resume of an operation with a value parameter" {
             }
             other =>
               abort(
-                "expected Resume(k, Return(a)), got " +
-                @core.show_core_stmt(other),
+                "expected Resume(k, Return(a)), got \{@core.show_core_stmt(other)}",
               )
           }
           // the clause body calls resume(x)
@@ -904,18 +900,17 @@ test "unidirectional resume of an operation with a value parameter" {
             }
             other =>
               abort(
-                "expected App(resume, [x]), got " + @core.show_core_stmt(other),
+                "expected App(resume, [x]), got \{@core.show_core_stmt(other)}",
               )
           }
         }
         other =>
           abort(
-            "expected Def(resume, BlockLit(...)), got " +
-            @core.show_core_stmt(other),
+            "expected Def(resume, BlockLit(...)), got \{@core.show_core_stmt(other)}",
           )
       }
     }
-    other => abort("expected Stmt.Shift, got " + @core.show_core_stmt(other))
+    other => abort("expected Stmt.Shift, got \{@core.show_core_stmt(other)}")
   }
 }
 
@@ -1020,18 +1015,16 @@ test "bidirectional resume of an operation" {
             }
             other =>
               abort(
-                "expected Resume(k, App(h, [g])), got " +
-                @core.show_core_stmt(other),
+                "expected Resume(k, App(h, [g])), got \{@core.show_core_stmt(other)}",
               )
           }
         }
         other =>
           abort(
-            "expected Def(resume, BlockLit(...)), got " +
-            @core.show_core_stmt(other),
+            "expected Def(resume, BlockLit(...)), got \{@core.show_core_stmt(other)}",
           )
       }
-    other => abort("expected Stmt.Shift, got " + @core.show_core_stmt(other))
+    other => abort("expected Stmt.Shift, got \{@core.show_core_stmt(other)}")
   }
 }
 
@@ -1126,8 +1119,7 @@ test "var and assignment become Var/Get/Put" {
                     }
                     other =>
                       abort(
-                        "expected PureApp(infixAdd, ...), got " +
-                        @core.show_core_expr(other),
+                        "expected PureApp(infixAdd, ...), got \{@core.show_core_expr(other)}",
                       )
                   }
                   // the tail reads `x` again
@@ -1144,22 +1136,21 @@ test "var and assignment become Var/Get/Put" {
                     }
                     other =>
                       abort(
-                        "expected Get(..., Return(...)), got " +
-                        @core.show_core_stmt(other),
+                        "expected Get(..., Return(...)), got \{@core.show_core_stmt(other)}",
                       )
                   }
                 }
                 other =>
-                  abort("expected Stmt.Put, got " + @core.show_core_stmt(other))
+                  abort("expected Stmt.Put, got \{@core.show_core_stmt(other)}")
               }
             }
             other =>
-              abort("expected Stmt.Get, got " + @core.show_core_stmt(other))
+              abort("expected Stmt.Get, got \{@core.show_core_stmt(other)}")
           }
         }
-        other => abort("expected Stmt.Var, got " + @core.show_core_stmt(other))
+        other => abort("expected Stmt.Var, got \{@core.show_core_stmt(other)}")
       }
-    other => abort("expected Stmt.Let, got " + @core.show_core_stmt(other))
+    other => abort("expected Stmt.Let, got \{@core.show_core_stmt(other)}")
   }
 }
 
@@ -1236,12 +1227,12 @@ test "regions become Region and Alloc" {
               )
             }
             other =>
-              abort("expected Stmt.Region, got " + @core.show_core_stmt(other))
+              abort("expected Stmt.Region, got \{@core.show_core_stmt(other)}")
           }
         }
         other =>
-          abort("expected Stmt.Alloc, got " + @core.show_core_stmt(other))
+          abort("expected Stmt.Alloc, got \{@core.show_core_stmt(other)}")
       }
-    other => abort("expected Stmt.Let, got " + @core.show_core_stmt(other))
+    other => abort("expected Stmt.Let, got \{@core.show_core_stmt(other)}")
   }
 }

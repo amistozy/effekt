@@ -358,8 +358,7 @@ fn Transformer::assert_no_bindings(
 ) -> Unit raise EffektError {
   if self.bindings.length() != 0 {
     raise EffektError::Internal(
-      "There should not be any bindings left on the toplevel! Got: " +
-      self.bindings.length().to_string(),
+      "There should not be any bindings left on the toplevel! Got: \{self.bindings.length()}",
     )
   }
 }
@@ -399,8 +398,7 @@ fn Transformer::sym_of_id_def(
 ) -> Sym raise EffektError {
   match self.ctx.symbol_of(id.uid) {
     Some(s) => s
-    None =>
-      raise EffektError::Internal("No symbol annotated for `" + id.name + "`.")
+    None => raise EffektError::Internal("No symbol annotated for `\{id.name}`.")
   }
 }
 
@@ -411,8 +409,7 @@ fn Transformer::sym_of_ref(
 ) -> Sym raise EffektError {
   match self.ctx.symbol_of(id.uid) {
     Some(s) => s
-    None =>
-      raise EffektError::Internal("No symbol annotated for `" + id.name + "`.")
+    None => raise EffektError::Internal("No symbol annotated for `\{id.name}`.")
   }
 }
 
@@ -467,24 +464,14 @@ fn Transformer::state_type_of(
         args[0]
       } else {
         raise EffektError::Internal(
-          "Expected the builtin mutable state `Ref[S]` for `" +
-          sym.name().name +
-          "` (a " +
-          sym_kind(sym) +
-          "), but the block type is " +
-          show_core_block_type(tpe) +
-          ".",
+          "Expected the builtin mutable state `Ref[S]` for `\{sym.name().name}` (a " +
+          "\{sym_kind(sym)}), but the block type is \{show_core_block_type(tpe)}.",
         )
       }
     _ =>
       raise EffektError::Internal(
-        "Expected the builtin mutable state `Ref[S]` for `" +
-        sym.name().name +
-        "` (a " +
-        sym_kind(sym) +
-        "), but the block type is " +
-        show_core_block_type(tpe) +
-        ".",
+        "Expected the builtin mutable state `Ref[S]` for `\{sym.name().name}` (a " +
+        "\{sym_kind(sym)}), but the block type is \{show_core_block_type(tpe)}.",
       )
   }
 }
@@ -955,9 +942,7 @@ fn Transformer::transform_toplevel(
         Some(c) => c
         None =>
           raise EffektError::Internal(
-            "Extern include `" +
-            path +
-            "` should have been resolved before core.Transformer.",
+            "Extern include `\{path}` should have been resolved before core.Transformer.",
           )
       }
       result.push(CoreToplevelExtern(ExternInclude(ff, contents)))
@@ -1107,9 +1092,7 @@ fn Transformer::transform_extern_bodies(
 ) -> ExternBody[Expr] raise EffektError {
   if bodies.length() != 1 {
     raise EffektError::Internal(
-      "Externs should be resolved and desugared before core.Transformer (" +
-      what +
-      ").",
+      "Externs should be resolved and desugared before core.Transformer (\{what}).",
     )
   }
   match bodies[0] {
@@ -1121,9 +1104,7 @@ fn Transformer::transform_extern_bodies(
     @source.Unsupported(msg) => Unsupported(EffektError::Fatal(msg))
     @source.EffektExternBody(_, _) =>
       raise EffektError::Internal(
-        "Externs should be resolved and desugared before core.Transformer (" +
-        what +
-        ").",
+        "Externs should be resolved and desugared before core.Transformer (\{what}).",
       )
   }
 }
@@ -1899,7 +1880,7 @@ fn Transformer::transform_match(
   }
   let clauses : Array[PMClause] = []
   for i = 0; i < cs.length(); i = i + 1 {
-    clauses.push(self.preprocess("k" + i.to_string(), scrutinees, cs[i]))
+    clauses.push(self.preprocess("k\{i}", scrutinees, cs[i]))
   }
   match default {
     Some(stmt) =>
@@ -2050,7 +2031,7 @@ fn Transformer::transform_implementation(
       Some(cl) => operations.push(self.transform_op_clause(cl, prompt))
       None =>
         raise EffektError::Internal(
-          "Missing implementation of operation " + op_sym.name().name + ".",
+          "Missing implementation of operation \{op_sym.name().name}.",
         )
     }
   }
@@ -2240,9 +2221,7 @@ fn Transformer::transform_op_clause(
         }
         other =>
           raise EffektError::Internal(
-            "The type of the resumption should be a function type, but is " +
-            show_core_block_type(other) +
-            ".",
+            "The type of the resumption should be a function type, but is \{show_core_block_type(other)}.",
           )
       }
     }

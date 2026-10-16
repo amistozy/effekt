@@ -83,16 +83,8 @@ pub impl Show for LiteralValue with fn output(self, logger) {
     LBool(b) => logger.write_string(b.to_string())
     LInt(i) => logger.write_string(i.to_string())
     LDouble(d) => logger.write_string(d.to_string())
-    LString(s) => {
-      logger.write_string("\"")
-      logger.write_string(s)
-      logger.write_string("\"")
-    }
-    LChar(c) => {
-      logger.write_string("'")
-      logger.write_string(c.to_string())
-      logger.write_string("'")
-    }
+    LString(s) => logger.write_string("\"\{s}\"")
+    LChar(c) => logger.write_string("'\{c}'")
     LByte(b) => logger.write_string(b.to_string())
   }
 }

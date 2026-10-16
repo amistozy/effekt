@@ -352,7 +352,7 @@ fn hex_byte(b : Int32) -> String {
   let v = b & 0xFF
   let hi = (v >> 4) & 0xF
   let lo = v & 0xF
-  "0x" + digits[hi:hi + 1].to_owned() + digits[lo:lo + 1].to_owned()
+  "0x\{digits[hi:hi + 1].to_owned()}\{digits[lo:lo + 1].to_owned()}"
 }
 
 ///|
@@ -571,14 +571,7 @@ fn d_stmts(s : Stmt) -> Doc {
     Hole(tpe, span) =>
       doc_spacecat(
         doc_cat(text("<>"), doc_spacecat(text(":"), d_value_type(tpe))),
-        text(
-          "@ \"" +
-          span.source.name +
-          "\":" +
-          span.start.to_string() +
-          ":" +
-          span.end.to_string(),
-        ),
+        text("@ \"\{span.source.name}\":\{span.start}:\{span.end}"),
       )
   }
 }
@@ -697,7 +690,7 @@ fn d_template(t : Template[Expr]) -> Doc {
 fn d_error(err : EffektError) -> String {
   match err {
     @util.Fatal(msg) => msg
-    @util.Internal(msg) => "Internal compiler error: " + msg
+    @util.Internal(msg) => "Internal compiler error: \{msg}"
   }
 }
 

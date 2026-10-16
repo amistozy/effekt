@@ -102,23 +102,19 @@ pub fn required_names(module : ModuleDecl) -> Array[Sym] {
 /// for types that are equal up to the order of their effects.
 fn value_type_key(vt : ValueType) -> String {
   match vt {
-    ValueTypeRef(id) => "'" + id.uid().to_string()
+    ValueTypeRef(id) => "'\{id.uid()}"
     ValueTypeApp(sym, targs) =>
-      "@" +
-      sym.uid().to_string() +
-      "[" +
-      targs.map(value_type_key).join(",") +
-      "]"
+      "@\{sym.uid()}[\{targs.map(value_type_key).join(",")}]"
     BoxedType(tpe, capt) =>
-      "box(" + block_type_key(tpe) + " at " + captures_key(capt) + ")"
+      "box(\{block_type_key(tpe)} at \{captures_key(capt)})"
   }
 }
 
 ///|
 fn captures_key(capt : Captures) -> String {
   match capt {
-    CaptureSetOf(cs) => "{" + cs.map(s => s.uid().to_string()).join(",") + "}"
-    CaptVar(c) => "?" + c.uid().to_string()
+    CaptureSetOf(cs) => "{\{cs.map(s => s.uid().to_string()).join(",")}}"
+    CaptVar(c) => "?\{c.uid()}"
   }
 }
 
@@ -126,24 +122,12 @@ fn captures_key(capt : Captures) -> String {
 fn block_type_key(tpe : BlockType) -> String {
   match tpe {
     FunctionType(tparams, cparams, vparams, bparams, result, effects) =>
-      "fn[" +
-      tparams.map(s => s.uid().to_string()).join(",") +
-      "]" +
-      cparams.map(captures_key).join(",") +
-      "(" +
-      vparams.map(value_type_key).join(",") +
-      "){" +
-      bparams.map(block_type_key).join(",") +
-      "}:" +
-      value_type_key(result) +
-      "/" +
+      "fn[\{tparams.map(s => s.uid().to_string()).join(",")}]" +
+      "\{cparams.map(captures_key).join(",")}(\{vparams.map(value_type_key).join(",")})" +
+      "{\{bparams.map(block_type_key).join(",")}}:\{value_type_key(result)}/" +
       effects.effects.map(block_type_key).join(",")
     InterfaceType(ctor, targs) =>
-      "iface@" +
-      ctor.uid().to_string() +
-      "[" +
-      targs.map(value_type_key).join(",") +
-      "]"
+      "iface@\{ctor.uid()}[\{targs.map(value_type_key).join(",")}]"
   }
 }
 
@@ -244,7 +228,7 @@ let fresh_show_counter : Ref[Int32] = Ref(0)
 fn fresh_show_id() -> Sym {
   let n = fresh_show_counter.val
   fresh_show_counter.val = n + 1
-  Sym::tmp_block(show_function_name + n.to_string())
+  Sym::tmp_block("\{show_function_name}\{n}")
 }
 
 // ---------------------------------------------------------------------------
@@ -395,9 +379,7 @@ fn show_type_argument(
     return showable_type(dctx, shown_type_of(dctx, vargs[0]))
   }
   raise EffektError::Fatal(
-    "Expected targs for '" +
-    show_function_name +
-    "' to have exactly one argument",
+    "Expected targs for '\{show_function_name}' to have exactly one argument",
   )
 }
 
@@ -473,9 +455,7 @@ fn ShowContext::get_show_block_var(
             Some(id) => id
             None =>
               raise EffektError::Fatal(
-                "Could not generate show instance for '" +
-                show_core_value_type(vt) +
-                "'",
+                "Could not generate show instance for '\{show_core_value_type(vt)}'",
               )
           }
       }
@@ -514,7 +494,7 @@ fn find_extern_def(
       )
     _ =>
       raise EffektError::Fatal(
-        "Could not find show definition for [" + rendered + "]",
+        "Could not find show definition for [\{rendered}]",
       )
   }
 }
@@ -615,9 +595,7 @@ fn ShowContext::generate_show_instance(
             Some(data) => self.generate_show_instance_data(dctx, data, targs)
             None =>
               raise EffektError::Fatal(
-                "Extern type '" +
-                name.name().name +
-                "', does not have a manual show implementation",
+                "Extern type '\{name.name().name}', does not have a manual show implementation",
               )
           }
         ValueTypeRef(name) => {
@@ -629,9 +607,7 @@ fn ShowContext::generate_show_instance(
             Some(t) => t
             None =>
               raise EffektError::Fatal(
-                "Too much type indirection over show, cannot lookup '" +
-                name.name().name +
-                "'",
+                "Too much type indirection over show, cannot lookup '\{name.name().name}'",
               )
           }
           match self.show_names.get(value_type_key(lookup)) {
@@ -760,7 +736,7 @@ fn ShowContext::constructor_vparams(
           Some(t) => out.push(ValueParam::new(field.id, t))
           None =>
             raise EffektError::Internal(
-              "Was not able to lookup var: " + name.name().name,
+              "Was not able to lookup var: \{name.name().name}",
             )
         }
       BoxedType(_, _) => out.push(ValueParam::new(field.id, lookup))
@@ -784,7 +760,7 @@ fn ShowContext::lookup_type(
         Some(t) => t
         None =>
           raise EffektError::Internal(
-            "Was not able to lookup type parameter '" + name.name().name + "'",
+            "Was not able to lookup type parameter '\{name.name().name}'",
           )
       }
     BoxedType(_, _) => vt
@@ -823,7 +799,7 @@ fn ShowContext::constructor_stmt(
     pure_fields.push(self.field_pure(dctx, field))
   }
   let concatenated = PureApp(infix_concat, [], [
-    Literal(LString(constr.id.name().name + "("), t_string()),
+    Literal(LString("\{constr.id.name().name}("), t_string()),
     concat_pure(dctx, pure_fields),
   ])
   field_val_stmts(pure_fields, concatenated)

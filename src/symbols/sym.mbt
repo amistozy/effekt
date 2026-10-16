@@ -564,12 +564,12 @@ pub fn Sym::wildcard() -> Sym {
 
 ///|
 pub fn Sym::tmp_value(hint : String) -> Sym {
-  TmpValue({ base: anon_base("v_" + hint), })
+  TmpValue({ base: anon_base("v_\{hint}"), })
 }
 
 ///|
 pub fn Sym::tmp_block(hint : String) -> Sym {
-  TmpBlock({ base: anon_base("b_" + hint), })
+  TmpBlock({ base: anon_base("b_\{hint}"), })
 }
 
 ///|

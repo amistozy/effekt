@@ -28,11 +28,7 @@ fn resolve_includes_def(d : Def, source : Source, ctx : Context) -> Def {
           if loaded is None {
             ctx.error(
               d.span,
-              "Cannot find extern include '" +
-              path +
-              "' (looked at " +
-              full +
-              ").",
+              "Cannot find extern include '\{path}' (looked at \{full}).",
             )
           }
           @source.ExternInclude(flag, path, loaded)

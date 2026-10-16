@@ -113,10 +113,7 @@ fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
       let capabilities = ctx.bound_capabilities_of(t.uid)
       if capabilities.length() != handlers.length() {
         ctx.panic(
-          "expected as many capabilities as handlers in try/handle, got " +
-          capabilities.length().to_string() +
-          " and " +
-          handlers.length().to_string(),
+          "expected as many capabilities as handlers in try/handle, got \{capabilities.length()} and \{handlers.length()}",
         )
       }
       let new_handlers : Array[Handler] = []

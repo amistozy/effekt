@@ -34,21 +34,24 @@ pub fn Options::default() -> Options {
 
 ///|
 pub fn usage() -> String {
-  "effekt - the Effekt language compiler (MoonBit implementation)\n" +
-  "\n" +
-  "Usage: effekt [options] <input.effekt>\n" +
-  "\n" +
-  "Options:\n" +
-  "  -o, --output <file>   Write the generated JavaScript to <file>\n" +
-  "                        (default: alongside the input, with .js extension)\n" +
-  "  -I, --include <dir>   Add <dir> to the module search path (repeatable)\n" +
-  "  --lib <dir>           Directory containing the Effekt standard library\n" +
-  "                        (default: ./libraries)\n" +
-  "  --show-core           Print the core IR instead of compiling\n" +
-  "  --show-cps            Print the contified CPS IR instead of compiling\n" +
-  "  --show-js             Print the generated JavaScript to stdout\n" +
-  "      --run             Run the program with node after compiling\n" +
-  "  -h, --help            Show this message\n"
+  let usage_text =
+    #|effekt - the Effekt language compiler (MoonBit implementation)
+    #|
+    #|Usage: effekt [options] <input.effekt>
+    #|
+    #|Options:
+    #|  -o, --output <file>   Write the generated JavaScript to <file>
+    #|                        (default: alongside the input, with .js extension)
+    #|  -I, --include <dir>   Add <dir> to the module search path (repeatable)
+    #|  --lib <dir>           Directory containing the Effekt standard library
+    #|                        (default: ./libraries)
+    #|  --show-core           Print the core IR instead of compiling
+    #|  --show-cps            Print the contified CPS IR instead of compiling
+    #|  --show-js             Print the generated JavaScript to stdout
+    #|      --run             Run the program with node after compiling
+    #|  -h, --help            Show this message
+    #|
+  usage_text
 }
 
 ///|
@@ -67,21 +70,21 @@ pub fn parse_args(args : Array[String]) -> (Options, Array[String]) {
           opts.output = Some(args[i + 1])
           i = i + 1
         } else {
-          errors.push("Missing argument for " + arg)
+          errors.push("Missing argument for \{arg}")
         }
       "-I" | "--include" =>
         if i + 1 < args.length() {
           opts.include_paths.push(args[i + 1])
           i = i + 1
         } else {
-          errors.push("Missing argument for " + arg)
+          errors.push("Missing argument for \{arg}")
         }
       "--lib" =>
         if i + 1 < args.length() {
           opts.lib_path = args[i + 1]
           i = i + 1
         } else {
-          errors.push("Missing argument for " + arg)
+          errors.push("Missing argument for \{arg}")
         }
       "--show-core" => opts.show_core = true
       "--show-cps" => opts.show_cps = true
@@ -89,11 +92,11 @@ pub fn parse_args(args : Array[String]) -> (Options, Array[String]) {
       "--run" => opts.run = true
       _ =>
         if arg.has_prefix("-") && arg.length() > 1 {
-          errors.push("Unknown option " + arg)
+          errors.push("Unknown option \{arg}")
         } else if opts.input == "" {
           opts.input = arg
         } else {
-          errors.push("Unexpected argument " + arg)
+          errors.push("Unexpected argument \{arg}")
         }
     }
     i = i + 1

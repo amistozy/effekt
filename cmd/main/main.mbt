@@ -11,7 +11,7 @@ fn run(args : Array[String]) -> Int32 {
   }
   if arg_errors.length() > 0 {
     for e in arg_errors {
-      println("error: " + e)
+      println("error: \{e}")
     }
     println(@compiler.usage())
     return 1
@@ -54,7 +54,7 @@ fn run(args : Array[String]) -> Int32 {
           None => @compiler.default_output(opts.input)
         }
         @compiler.write_file(out, js)
-        @compiler.info("Wrote " + out)
+        @compiler.info("Wrote \{out}")
         // The generated module only *exports* `main`; like the upstream
         // runner, we also write a tiny script that invokes it.
         let driver = @compiler.runner_path(out)

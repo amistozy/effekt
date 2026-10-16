@@ -63,9 +63,7 @@ pub fn Typer::check_exhaustive(
       span,
       "Non-exhaustive match: missing case" +
       (if missing.length() == 1 { "" } else { "s" }) +
-      " for " +
-      names.join(", ") +
-      ".",
+      " for \{names.join(", ")}.",
     )
   }
 }

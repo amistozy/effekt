@@ -49,12 +49,7 @@ pub fn Message::render(self : Message) -> String {
   buf.write_string(sev)
   if self.span.origin != Missing {
     let pos = self.span.position()
-    buf.write_string(":")
-    buf.write_string(self.span.source.name)
-    buf.write_string(":")
-    buf.write_string(pos.line.to_string())
-    buf.write_string(":")
-    buf.write_string(pos.column.to_string())
+    buf.write_string(":\{self.span.source.name}:\{pos.line}:\{pos.column}")
   }
   buf.write_string(": ")
   buf.write_string(self.text)
@@ -90,7 +85,7 @@ pub fn Message::render(self : Message) -> String {
 ///|
 /// The internal-error escape hatch. Mirrors `INTERNAL_ERROR` upstream.
 pub fn internal_error(msg : String) -> Unit raise EffektError {
-  raise EffektError::Internal("Internal compiler error: " + msg)
+  raise EffektError::Internal("Internal compiler error: \{msg}")
 }
 
 ///|

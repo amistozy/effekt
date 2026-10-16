@@ -50,9 +50,7 @@ pub fn emit(
   if main_sym is None {
     ctx.abort(
       Span::missing(),
-      "Cannot find the entry point 'main' in module " +
-      main_module.module.path +
-      ".",
+      "Cannot find the entry point 'main' in module \{main_module.module.path}.",
     )
   }
   let main_sym = main_sym.unwrap()

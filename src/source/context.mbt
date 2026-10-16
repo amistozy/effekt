@@ -119,7 +119,7 @@ pub fn Context::abort(
 ///|
 /// Reports an internal invariant violation. These are compiler bugs.
 pub fn Context::panic(self : Context, msg : String) -> Unit raise EffektError {
-  self.info("Internal compiler error: " + msg)
+  self.info("Internal compiler error: \{msg}")
   raise EffektError::Internal(msg)
 }
 

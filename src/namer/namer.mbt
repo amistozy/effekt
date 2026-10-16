@@ -221,7 +221,7 @@ fn Namer::import_dependency(
 ) -> Module? raise EffektError {
   match self.deps.get(path) {
     None => {
-      self.context.error(span, "Cannot find module to include: " + path)
+      self.context.error(span, "Cannot find module to include: \{path}")
       None
     }
     Some(dep) => {
@@ -347,7 +347,7 @@ fn Namer::lookup_term(
           None => None
           Some(syms) =>
             if syms.length() > 1 {
-              raise EffektError::Fatal("Ambiguous reference to " + name)
+              raise EffektError::Fatal("Ambiguous reference to \{name}")
             } else if syms.length() == 0 {
               None
             } else {
@@ -503,8 +503,7 @@ fn Namer::require_toplevel(self : Namer, kind : String) -> Unit {
     None =>
       self.context.error(
         Span::missing(),
-        kind +
-        " declarations are only allowed on the toplevel of a module or in a namespace.",
+        "\{kind} declarations are only allowed on the toplevel of a module or in a namespace.",
       )
     Some(_) => ()
   }
@@ -516,8 +515,7 @@ fn Namer::require_not_toplevel(self : Namer, kind : String) -> Unit {
     Some(_) =>
       self.context.error(
         Span::missing(),
-        kind +
-        " declarations are not allowed on the toplevel of a module or in a namespace.",
+        "\{kind} declarations are not allowed on the toplevel of a module or in a namespace.",
       )
     None => ()
   }
@@ -619,7 +617,7 @@ fn Namer::symbol_of_node(self : Namer, uid : Int32) -> Sym raise EffektError {
   match self.context.symbol_of(uid) {
     Some(sym) => sym
     None => {
-      self.context.panic("Cannot find symbol for node " + uid.to_string())
+      self.context.panic("Cannot find symbol for node \{uid}")
       @symbols.Sym::wildcard()
     }
   }
@@ -1226,18 +1224,14 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
             if !self.resolve_overloaded_function(target) {
               self.context.abort(
                 target.span,
-                "Cannot resolve function " +
-                id_text(target) +
-                ", called on a value receiver.",
+                "Cannot resolve function \{id_text(target)}, called on a value receiver.",
               )
             }
           } else if sym.is_ref_binder() {
             if !self.resolve_overloaded_function(target) {
               self.context.abort(
                 target.span,
-                "Cannot resolve function " +
-                id_text(target) +
-                ", called on a receiver that is a reference.",
+                "Cannot resolve function \{id_text(target)}, called on a receiver that is a reference.",
               )
             }
           } else if sym.is_block_symbol() {
@@ -1245,9 +1239,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
             if !self.resolve_overloaded_operation(target) {
               self.context.abort(
                 target.span,
-                "Cannot resolve operation " +
-                id_text(target) +
-                ", called on a computation.",
+                "Cannot resolve operation \{id_text(target)}, called on a computation.",
               )
             }
           }
@@ -1256,9 +1248,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
           if !self.resolve_overloaded_function(target) {
             self.context.abort(
               target.span,
-              "Cannot resolve operation " +
-              id_text(target) +
-              ", called on an unboxed computation.",
+              "Cannot resolve operation \{id_text(target)}, called on an unboxed computation.",
             )
           }
         // expr.bar(args) = Call(bar, expr :: args)
@@ -1266,9 +1256,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
           if !self.resolve_overloaded_function(target) {
             self.context.abort(
               target.span,
-              "Cannot resolve function " +
-              id_text(target) +
-              ", called on an expression.",
+              "Cannot resolve function \{id_text(target)}, called on an expression.",
             )
           }
       }
@@ -1330,9 +1318,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
         @symbols.Sym::ValBinder(_) | @symbols.Sym::ValueParam(_) =>
           self.context.abort(
             id.span,
-            "Can only assign to mutable variables, but " +
-            id.name +
-            " is a constant.",
+            "Can only assign to mutable variables, but \{id.name} is a constant.",
           )
         @symbols.Sym::Wildcard(_) =>
           self.context.abort(
@@ -1438,20 +1424,14 @@ fn Namer::resolve_clause(
       if names.any(n => name_eq(n, name)) {
         self.context.error(
           clause.span,
-          "Patterns have to be linear: names can only occur once, but " +
-          name.name +
-          " shows up multiple times.",
+          "Patterns have to be linear: names can only occur once, but \{name.name} shows up multiple times.",
         )
       }
       let cs = self.all_constructors_for(name)
       if cs.length() > 0 {
         self.context.warning(
           clause.span,
-          "Pattern binds variable " +
-          name.name +
-          ". Maybe you meant to match on equally named constructor of type " +
-          constructor_type_text(cs[0]) +
-          "?",
+          "Pattern binds variable \{name.name}. Maybe you meant to match on equally named constructor of type \{constructor_type_text(cs[0])}?",
         )
       }
       names.push(name)
@@ -1506,11 +1486,7 @@ fn Namer::resolve_implementation(
       None => {
         self.context.abort(
           clause.span,
-          "Operation " +
-          id_text(clause.id) +
-          " is not part of interface " +
-          eff.name().qualified_name() +
-          ".",
+          "Operation \{id_text(clause.id)} is not part of interface \{eff.name().qualified_name()}.",
         )
         @symbols.Sym::wildcard()
       }
@@ -1618,18 +1594,14 @@ fn Namer::check_implicit_flags(
     if is_implicit && current == Forbidden {
       self.context.error(
         span,
-        "Implicit parameter " +
-        text +
-        " can never be passed implicitly to here.",
+        "Implicit parameter \{text} can never be passed implicitly to here.",
       )
       return
     }
     if !is_implicit && current == Required {
       self.context.error(
         span,
-        "Parameter " +
-        text +
-        " needs to be implicit so earlier implicit parameters can be passed implicitly.",
+        "Parameter \{text} needs to be implicit so earlier implicit parameters can be passed implicitly.",
       )
       return
     }
@@ -1677,7 +1649,7 @@ fn Namer::resolve_id_ref(self : Namer, id : IdRef) -> Sym raise EffektError {
       sym
     }
     None => {
-      self.context.abort(id.span, "Could not resolve term " + id_text(id))
+      self.context.abort(id.span, "Could not resolve term \{id_text(id)}")
       @symbols.Sym::wildcard()
     }
   }
@@ -1773,19 +1745,13 @@ fn Namer::resolve_function_calltarget(
         // Provide specific info messages for operations.
         for op in ops {
           self.context.info(
-            "There is an equally named effect operation " +
-            op.name().qualified_name() +
-            " of interface " +
-            operation_interface(op).name().qualified_name() +
-            ". Use syntax `do " +
-            id_text(id) +
-            "()` to call it.",
+            "There is an equally named effect operation \{op.name().qualified_name()} of interface \{operation_interface(op).name().qualified_name()}. Use syntax `do \{id_text(id)}()` to call it.",
           )
         }
         // Always abort with the generic message.
         self.context.abort(
           id.span,
-          "Cannot find a function named `" + id_text(id) + "`.",
+          "Cannot find a function named `\{id_text(id)}`.",
         )
       }
       let sym = @symbols.Sym::call_target(blocks)
@@ -1805,7 +1771,7 @@ fn Namer::resolve_select(self : Namer, id : IdRef) -> Sym raise EffektError {
     }
   })
   if syms.length() == 0 {
-    self.context.abort(id.span, "Cannot resolve field access " + id_text(id))
+    self.context.abort(id.span, "Cannot resolve field access \{id_text(id)}")
   }
   let sym = @symbols.Sym::call_target(syms)
   self.context.assign_symbol(id.uid, sym)
@@ -1822,7 +1788,7 @@ fn Namer::resolve_effect_call(
   if syms.length() == 0 {
     self.context.abort(
       id.span,
-      "Cannot resolve effect operation " + id_text(id),
+      "Cannot resolve effect operation \{id_text(id)}",
     )
   }
   let sym = @symbols.Sym::call_target(syms)
@@ -1874,9 +1840,7 @@ fn Namer::resolve_target_candidates(
       }
       self.context.abort(
         id.span,
-        "Multiple values with the same name " +
-        id_text(id) +
-        " in one scope. Values cannot be overloaded.",
+        "Multiple values with the same name \{id_text(id)} in one scope. Values cannot be overloaded.",
       )
     }
   }
@@ -1909,7 +1873,7 @@ fn Namer::resolve_type_ref(
       sym
     }
     None => {
-      self.context.abort(id.span, "Could not resolve type " + id_text(id))
+      self.context.abort(id.span, "Could not resolve type \{id_text(id)}")
       @symbols.Sym::wildcard()
     }
   }
@@ -1923,7 +1887,7 @@ fn Namer::resolve_capture_id(self : Namer, id : IdRef) -> Sym raise EffektError 
       sym
     }
     None => {
-      self.context.abort(id.span, "Could not resolve capture " + id_text(id))
+      self.context.abort(id.span, "Could not resolve capture \{id_text(id)}")
       @symbols.Sym::wildcard()
     }
   }
@@ -1979,13 +1943,7 @@ fn Namer::resolve_value_type(
             if alias.tparams.length() != targs.length() {
               self.context.abort(
                 t.span,
-                "Type alias " +
-                alias.base.name.name +
-                " expects " +
-                alias.tparams.length().to_string() +
-                " type arguments, but got " +
-                targs.length().to_string() +
-                ".",
+                "Type alias \{alias.base.name.name} expects \{alias.tparams.length()} type arguments, but got \{targs.length()}.",
               )
             }
             TypeSubst::new(alias.tparams, targs).value_type(alias.tpe)
@@ -2000,26 +1958,18 @@ fn Namer::resolve_value_type(
               if args.length() > 0 {
                 self.context.abort(
                   t.span,
-                  "Type variables cannot be applied, but received " +
-                  args.length().to_string() +
-                  " arguments.",
+                  "Type variables cannot be applied, but received \{args.length()} arguments.",
                 )
               }
               @symbols.ValueTypeRef(sym)
             } else {
               self.context.error(
                 t.span,
-                "Expected value type, but got block type " +
-                sym.name().qualified_name() +
-                ".",
+                "Expected value type, but got block type \{sym.name().qualified_name()}.",
               )
               if sym.is_block_type_constructor() {
                 self.context.info(
-                  "Did you mean to box the interface " +
-                  sym.name().qualified_name() +
-                  ", i.e. `" +
-                  sym.name().qualified_name() +
-                  " at {}`?",
+                  "Did you mean to box the interface \{sym.name().qualified_name()}, i.e. `\{sym.name().qualified_name()} at {}`?",
                 )
               }
               // Dummy value type in order to aggregate more errors.
@@ -2036,21 +1986,17 @@ fn Namer::resolve_value_type(
       _ => {
         self.context.error(
           t.span,
-          "Expected value type, but got " + describe_type(t) + ".",
+          "Expected value type, but got \{describe_type(t)}.",
         )
         match t.kind {
           @source.FunctionType(_, _, _, _, _) => {
             if is_param {
               self.context.info(
-                "Did you mean to use braces in order to receive a block type `" +
-                tree_text(t) +
-                "`?",
+                "Did you mean to use braces in order to receive a block type `\{tree_text(t)}`?",
               )
             }
             self.context.info(
-              "Did you mean to use a first-class, boxed function type `" +
-              tree_text(t) +
-              " at {}`?",
+              "Did you mean to use a first-class, boxed function type `\{tree_text(t)} at {}`?",
             )
           }
           @source.Effectful(inner, effects) =>
@@ -2060,31 +2006,17 @@ fn Namer::resolve_value_type(
                   fun_effects.effs + effects.effs,
                 )
                 self.context.info(
-                  "A function type cannot have multiple effect sets, did you mean to use `/ " +
-                  combined +
-                  "` instead of `/ " +
-                  tree_text(inner) +
-                  " / " +
-                  span_text(effects.span) +
-                  "`?",
+                  "A function type cannot have multiple effect sets, did you mean to use `/ \{combined}` instead of `/ \{tree_text(inner)} / \{span_text(effects.span)}`?",
                 )
               }
               _ => {
                 if is_param {
                   self.context.info(
-                    "Did you mean to use braces and a function type `() => " +
-                    tree_text(inner) +
-                    " / " +
-                    span_text(effects.span) +
-                    "`?",
+                    "Did you mean to use braces and a function type `() => \{tree_text(inner)} / \{span_text(effects.span)}`?",
                   )
                 }
                 self.context.info(
-                  "Did you mean to use a first-class, boxed type `() => " +
-                  tree_text(inner) +
-                  " at {} / " +
-                  span_text(effects.span) +
-                  "`?",
+                  "Did you mean to use a first-class, boxed type `() => \{tree_text(inner)} at {} / \{span_text(effects.span)}`?",
                 )
               }
             }
@@ -2112,21 +2044,17 @@ fn Namer::resolve_block_type(
       _ => {
         self.context.error(
           t.span,
-          "Expected block type, but got " + describe_type(t) + ".",
+          "Expected block type, but got \{describe_type(t)}.",
         )
         match t.kind {
           @source.BoxedType(inner, _) => {
             if is_param {
               self.context.info(
-                "Did you mean to use parentheses in order to receive a value type " +
-                tree_text(t) +
-                "?",
+                "Did you mean to use parentheses in order to receive a value type \{tree_text(t)}?",
               )
             }
             self.context.info(
-              "Did you mean to use the block type " +
-              tree_text(inner) +
-              " without `at ...`?",
+              "Did you mean to use the block type \{tree_text(inner)} without `at ...`?",
             )
           }
           @source.Effectful(inner, effects) =>
@@ -2136,22 +2064,12 @@ fn Namer::resolve_block_type(
                   fun_effects.effs + effects.effs,
                 )
                 self.context.info(
-                  "A function type cannot have multiple effect sets, did you mean to use `/ " +
-                  combined +
-                  "` instead of `/ " +
-                  tree_text(inner) +
-                  " / " +
-                  span_text(effects.span) +
-                  "`?",
+                  "A function type cannot have multiple effect sets, did you mean to use `/ \{combined}` instead of `/ \{tree_text(inner)} / \{span_text(effects.span)}`?",
                 )
               }
               _ =>
                 self.context.info(
-                  "Did you mean to use a function type () => " +
-                  tree_text(inner) +
-                  " / " +
-                  span_text(effects.span) +
-                  "?",
+                  "Did you mean to use a function type () => \{tree_text(inner)} / \{span_text(effects.span)}?",
                 )
             }
           _ => ()
@@ -2231,13 +2149,7 @@ fn Namer::resolve_with_aliases(
           if alias.tparams.length() != args.length() {
             self.context.abort(
               tpe.span,
-              "Effect alias " +
-              alias.base.name.name +
-              " expects " +
-              alias.tparams.length().to_string() +
-              " type arguments, but got " +
-              args.length().to_string() +
-              ".",
+              "Effect alias \{alias.base.name.name} expects \{alias.tparams.length()} type arguments, but got \{args.length()}.",
             )
           }
           let targs = args.map(a => self.resolve_value_type(a, false))
@@ -2255,9 +2167,7 @@ fn Namer::resolve_with_aliases(
           } else {
             self.context.error(
               tpe.span,
-              "Expected an interface type, but got value type " +
-              sym.name().qualified_name() +
-              ".",
+              "Expected an interface type, but got value type \{sym.name().qualified_name()}.",
             )
             // Dummy interface type in order to aggregate more errors.
             [
@@ -2365,7 +2275,7 @@ fn Namer::fresh_hole_id(self : Namer) -> String {
     None => 0
   }
   self.hole_count.set(prefix, count + 1)
-  prefix + count.to_string()
+  "\{prefix}\{count}"
 }
 
 ///|
@@ -2414,13 +2324,13 @@ fn span_text(span : Span) -> String {
 /// Used for nice error messages in `resolve_value_type` / `resolve_block_type`.
 fn describe_type(t : TypeTree) -> String {
   match t.kind {
-    @source.TypeRef(_, _) => "a type reference " + tree_text(t)
-    @source.BoxedType(_, _) => "a boxed type " + tree_text(t)
+    @source.TypeRef(_, _) => "a type reference \{tree_text(t)}"
+    @source.BoxedType(_, _) => "a boxed type \{tree_text(t)}"
     @source.FunctionType(_, _, _, _, _) =>
-      "a second-class function type " + tree_text(t)
-    @source.Effectful(_, _) => "a type-and-effect annotation " + tree_text(t)
-    @source.ValueTypeTree(tpe) => "a value type tree " + value_type_text(tpe)
-    @source.BlockTypeTree(eff) => "a block type tree " + block_type_text(eff)
+      "a second-class function type \{tree_text(t)}"
+    @source.Effectful(_, _) => "a type-and-effect annotation \{tree_text(t)}"
+    @source.ValueTypeTree(tpe) => "a value type tree \{value_type_text(tpe)}"
+    @source.BlockTypeTree(eff) => "a block type tree \{block_type_text(eff)}"
   }
 }
 
@@ -2432,7 +2342,7 @@ fn pretty_source_effect_set(effects : Array[TypeTree]) -> String {
   } else if texts.length() == 1 {
     texts[0]
   } else {
-    "{" + texts.join(", ") + "}"
+    "{\{texts.join(", ")}}"
   }
 }
 
@@ -2445,12 +2355,9 @@ fn value_type_text(tpe : ValueType) -> String {
       if args.length() == 0 {
         ctor.name().qualified_name()
       } else {
-        ctor.name().qualified_name() +
-        "[" +
-        args.map(a => value_type_text(a)).join(", ") +
-        "]"
+        "\{ctor.name().qualified_name()}[\{args.map(a => value_type_text(a)).join(", ")}]"
       }
-    @symbols.BoxedType(inner, _) => "(" + block_type_text(inner) + " at {...})"
+    @symbols.BoxedType(inner, _) => "(\{block_type_text(inner)} at {...})"
   }
 }
 
@@ -2462,10 +2369,7 @@ fn block_type_text(tpe : BlockType) -> String {
       if args.length() == 0 {
         ctor.name().qualified_name()
       } else {
-        ctor.name().qualified_name() +
-        "[" +
-        args.map(a => value_type_text(a)).join(", ") +
-        "]"
+        "\{ctor.name().qualified_name()}[\{args.map(a => value_type_text(a)).join(", ")}]"
       }
     @symbols.FunctionType(_, _, _, _, _, _) => "<function type>"
   }

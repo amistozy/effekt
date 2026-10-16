@@ -159,9 +159,7 @@ pub fn Typer::check_no_capture_escape(
   if escaping.length() > 0 {
     self.error(
       span,
-      msg +
-      " Escaping: " +
-      show_captures(@symbols.Captures::CaptureSetOf(escaping)),
+      "\{msg} Escaping: \{show_captures(@symbols.Captures::CaptureSetOf(escaping))}",
     )
   }
 }

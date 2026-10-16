@@ -38,10 +38,11 @@ fn def_identity(f : @symbols.Sym, x : @symbols.Sym) -> @core.Toplevel {
 test "core pretty: toplevel definition" {
   let f = bsym("f")
   let x = xsym("x")
-  assert_eq(
-    @core.show_core_toplevel(def_identity(f, x)),
-    "def f(x: Int) = {\n  return x\n}",
-  )
+  let expected =
+    #|def f(x: Int) = {
+    #|  return x
+    #|}
+  assert_eq(@core.show_core_toplevel(def_identity(f, x)), expected)
 }
 
 ///|
@@ -55,8 +56,12 @@ test "core pretty: module" {
     [],
   )
   let rendered = @core.show_core(m)
+  let expected =
+    #|def f(x: Int) = {
+    #|  return x
+    #|}
   assert_true(rendered.starts_with("module test"))
-  assert_true(rendered.contains("def f(x: Int) = {\n  return x\n}"))
+  assert_true(rendered.contains(expected))
 }
 
 ///|

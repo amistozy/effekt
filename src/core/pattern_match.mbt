@@ -305,8 +305,7 @@ pub fn pm_compile(
           pm_split_on_tag(scrutinee, id, variants, normalized, motif)
         _ =>
           raise EffektError::Internal(
-            "Pattern matching: cannot split on " +
-            pm_show_pattern_kind(scrutinee_pattern),
+            "Pattern matching: cannot split on \{pm_show_pattern_kind(scrutinee_pattern)}",
           )
       }
     }
@@ -316,9 +315,9 @@ pub fn pm_compile(
 ///|
 fn pm_show_pattern_kind(p : PMPattern) -> String {
   match p {
-    PMTag(id, _, _, _) => "tag " + id.name().name
+    PMTag(id, _, _, _) => "tag \{id.name().name}"
     PMIgnore => "ignore"
-    PMAny(id) => "any " + id.name().name
+    PMAny(id) => "any \{id.name().name}"
     PMOr(_) => "or"
     PMLiteral(_, _, _) => "literal"
   }

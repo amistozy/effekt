@@ -52,7 +52,7 @@ pub(all) struct DeclarationContext {
 ///|
 fn extern_def_key(name : String, params : Array[ValueType]) -> String {
   let rendered : Array[String] = params.map(show_core_value_type)
-  name + "(" + rendered.join(", ") + ")"
+  "\{name}(\{rendered.join(", ")})"
 }
 
 ///|
@@ -328,7 +328,7 @@ pub fn DeclarationContext::get_declaration(
 ) -> Declaration raise EffektError {
   match self.find_declaration(id) {
     Some(d) => d
-    None => panic("No declaration found for " + show_core_stmt_hint(id) + ".")
+    None => panic("No declaration found for \{show_core_stmt_hint(id)}.")
   }
 }
 
@@ -344,7 +344,7 @@ pub fn DeclarationContext::get_data(
 ) -> Declaration raise EffektError {
   match self.find_data(id) {
     Some(d) => d
-    None => panic("No declaration found for data type " + id.name().name + ".")
+    None => panic("No declaration found for data type \{id.name().name}.")
   }
 }
 
@@ -355,7 +355,7 @@ pub fn DeclarationContext::get_interface(
 ) -> Declaration raise EffektError {
   match self.find_interface(id) {
     Some(d) => d
-    None => panic("No declaration found for interface " + id.name().name + ".")
+    None => panic("No declaration found for interface \{id.name().name}.")
   }
 }
 
@@ -366,8 +366,7 @@ pub fn DeclarationContext::get_constructor(
 ) -> Constructor raise EffektError {
   match self.find_constructor(id) {
     Some(c) => c
-    None =>
-      panic("No declaration found for constructor " + id.name().name + ".")
+    None => panic("No declaration found for constructor \{id.name().name}.")
   }
 }
 
@@ -378,8 +377,7 @@ pub fn DeclarationContext::get_constructor_tag(
 ) -> Int32 raise EffektError {
   match self.find_constructor_tag(id) {
     Some(tag) => tag
-    None =>
-      panic("No declaration found for constructor " + id.name().name + ".")
+    None => panic("No declaration found for constructor \{id.name().name}.")
   }
 }
 
@@ -390,7 +388,7 @@ pub fn DeclarationContext::get_field(
 ) -> Field raise EffektError {
   match self.find_field(id) {
     Some(f) => f
-    None => panic("No declaration found for field " + id.name().name + ".")
+    None => panic("No declaration found for field \{id.name().name}.")
   }
 }
 
@@ -401,7 +399,7 @@ pub fn DeclarationContext::get_property(
 ) -> Property raise EffektError {
   match self.find_property(id) {
     Some(p) => p
-    None => panic("No declaration found for property " + id.name().name + ".")
+    None => panic("No declaration found for property \{id.name().name}.")
   }
 }
 
@@ -412,7 +410,7 @@ pub fn DeclarationContext::get_property_tag(
 ) -> Int32 raise EffektError {
   match self.find_property_tag(id) {
     Some(tag) => tag
-    None => panic("No declaration found for property " + id.name().name + ".")
+    None => panic("No declaration found for property \{id.name().name}.")
   }
 }
 
@@ -423,7 +421,7 @@ pub fn DeclarationContext::get_extern_def(
 ) -> Extern raise EffektError {
   match self.find_extern_def(id) {
     Some(d) => d
-    None => panic("No extern definition found for " + id.name().name + ".")
+    None => panic("No extern definition found for \{id.name().name}.")
   }
 }
 
@@ -434,7 +432,7 @@ pub fn DeclarationContext::get_extern_data(
 ) -> Extern raise EffektError {
   match self.find_extern_data(id) {
     Some(d) => d
-    None => panic("No extern data found for " + id.name().name + ".")
+    None => panic("No extern data found for \{id.name().name}.")
   }
 }
 
@@ -450,24 +448,22 @@ pub fn QualifiedSignature::from_extern_function(
 ) -> QualifiedSignature {
   let callable = f.as_callable()
   match callable {
-    None => QualifiedSignature::new(module_name + "::" + f.name().name)
+    None => QualifiedSignature::new("\{module_name}::\{f.name().name}")
     Some(c) => {
       let tps = if c.tparams.length() == 0 {
         ""
       } else {
-        "[" +
-        c.tparams.map(t => show_core_value_type(ValueTypeRef(t))).join(", ") +
-        "]"
+        "[\{c.tparams.map(t => show_core_value_type(ValueTypeRef(t))).join(", ")}]"
       }
       let value_params = c.vparams
         .map(p => show_core_value_type(value_param_type(p)))
         .join(", ")
-      let vps = if value_params == "" { "" } else { "(" + value_params + ")" }
+      let vps = if value_params == "" { "" } else { "(\{value_params})" }
       let bps = c.bparams
-        .map(b => "{" + show_core_block_type(block_param_type(b)) + "}")
+        .map(b => "{\{show_core_block_type(block_param_type(b))}}")
         .join("")
       let ps = if vps == "" && bps == "" { "()" } else { vps + bps }
-      QualifiedSignature::new(module_name + "::" + f.name().name + tps + ps)
+      QualifiedSignature::new("\{module_name}::\{f.name().name}\{tps}\{ps}")
     }
   }
 }

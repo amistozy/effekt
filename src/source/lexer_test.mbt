@@ -7,23 +7,18 @@
 fn show_kind(k : @source.TokenKind) -> String {
   match k {
     @source.TEOF => "EOF"
-    @source.TError(e) => "!err:" + e.message()
+    @source.TError(e) => "!err:\{e.message()}"
     @source.TNewline => "NL"
-    @source.TInteger(n) => "int:" + n.to_string()
-    @source.TFloat(d) => "float:" + d.to_string()
-    @source.TStr(s, m) =>
-      if m {
-        "str3(\"" + s + "\")"
-      } else {
-        "str(\"" + s + "\")"
-      }
-    @source.THoleStr(s) => "holestr(\"" + s + "\")"
-    @source.TChr(c) => "chr:" + c.to_string()
-    @source.TByt(b) => "byt:" + b.to_string()
-    @source.TIdent(s) => "id:" + s
-    @source.TComment(s) => "//" + s
-    @source.TDocComment(s) => "///" + s
-    @source.TShebang(s) => "#!" + s
+    @source.TInteger(n) => "int:\{n}"
+    @source.TFloat(d) => "float:\{d}"
+    @source.TStr(s, m) => if m { "str3(\"\{s}\")" } else { "str(\"\{s}\")" }
+    @source.THoleStr(s) => "holestr(\"\{s}\")"
+    @source.TChr(c) => "chr:\{c}"
+    @source.TByt(b) => "byt:\{b}"
+    @source.TIdent(s) => "id:\{s}"
+    @source.TComment(s) => "//\{s}"
+    @source.TDocComment(s) => "///\{s}"
+    @source.TShebang(s) => "#!\{s}"
     @source.TSpace => "_"
     other =>
       if other.is_keyword() {
@@ -84,7 +79,10 @@ fn has_error(src : String) -> Bool {
 
 ///|
 test "lexer: function definition" {
-  let prog = "def f[A](x: A, y: A): () => (A, A) at {} =\n    return box { () => (x, y) }\n"
+  let prog =
+    #|def f[A](x: A, y: A): () => (A, A) at {} =
+    #|    return box { () => (x, y) }
+    #|
   assert_eq(
     kinds(prog),
     "def id:f [ id:A ] ( id:x : id:A , id:y : id:A ) : ( ) => ( id:A , id:A ) id:at { } = NL " +
@@ -245,17 +243,34 @@ test "lexer: all holes" {
 
 ///|
 test "lexer: multiline string holes" {
-  let prog1 = "<\" Here it starts\n  and here it continues \">\n"
-  assert_eq(
-    kinds(prog1),
-    "holestr(\" Here it starts\n  and here it continues \") NL EOF",
-  )
-  let prog2 = "<\" Oh look, a number!\n   ${ 42 }\n  and here it continues \">\n"
-  assert_eq(
-    kinds(prog2),
-    "holestr(\" Oh look, a number!\n   \") ${ int:42 }$ holestr(\"\n  and here it continues \") NL EOF",
-  )
-  let prog3 = "effect foo(): Int\neffect bar(): String\ndef baz(x: Int): Int / {foo, bar} = <\"\n  This is some natural language text.\n  ${ do foo() }\n  Some more text.\n  ${ do bar() }\n\">\n"
+  let prog1 =
+    #|<" Here it starts
+    #|  and here it continues ">
+    #|
+  let expected1 =
+    #|holestr(" Here it starts
+    #|  and here it continues ") NL EOF
+  assert_eq(kinds(prog1), expected1)
+  let prog2 =
+    #|<" Oh look, a number!
+    #|   ${ 42 }
+    #|  and here it continues ">
+    #|
+  let expected2 =
+    #|holestr(" Oh look, a number!
+    #|   ") ${ int:42 }$ holestr("
+    #|  and here it continues ") NL EOF
+  assert_eq(kinds(prog2), expected2)
+  let prog3 =
+    #|effect foo(): Int
+    #|effect bar(): String
+    #|def baz(x: Int): Int / {foo, bar} = <"
+    #|  This is some natural language text.
+    #|  ${ do foo() }
+    #|  Some more text.
+    #|  ${ do bar() }
+    #|">
+    #|
   assert_true(!has_error(prog3))
 }
 
@@ -279,11 +294,19 @@ test "lexer: comments" {
   assert_eq(kinds("// \u{2264}"), "// \u{2264} EOF")
   assert_eq(kinds("// foo\nval x = 2"), "// foo NL val id:x = int:2 EOF")
   assert_eq(kinds("// foo\r\nval x = 2"), "// foo NL val id:x = int:2 EOF")
-  let prog = "val x = 42\n/* comment begin def return /* * /\nstill comment\nhere's the end\n*/\ndef main(): Unit = ()"
-  assert_eq(
-    kinds(prog),
-    "val id:x = int:42 NL // comment begin def return /* * /\nstill comment\nhere's the end\n NL def id:main ( ) : id:Unit = ( ) EOF",
-  )
+  let prog =
+    #|val x = 42
+    #|/* comment begin def return /* * /
+    #|still comment
+    #|here's the end
+    #|*/
+    #|def main(): Unit = ()
+  let expected =
+    #|val id:x = int:42 NL // comment begin def return /* * /
+    #|still comment
+    #|here's the end
+    #| NL def id:main ( ) : id:Unit = ( ) EOF
+  assert_eq(kinds(prog), expected)
   assert_true(has_error("/* unterminated"))
 }
 
@@ -311,7 +334,19 @@ test "lexer: empty" {
 
 ///|
 test "lexer: extra whitespace" {
-  let prog = "// interface definition\n  interface\n\n     Eff[A,\n  B] { def operation\n  [C]\n  (x:    C)  :\n\n  (A, B)\n\n  }\n"
+  let prog =
+    #|// interface definition
+    #|  interface
+    #|
+    #|     Eff[A,
+    #|  B] { def operation
+    #|  [C]
+    #|  (x:    C)  :
+    #|
+    #|  (A, B)
+    #|
+    #|  }
+    #|
   assert_eq(
     kinds(prog),
     "// interface definition NL interface NL NL id:Eff [ id:A , NL id:B ] { def id:operation NL [ id:C ] NL " +
@@ -329,7 +364,13 @@ test "lexer: just whitespace" {
 
 ///|
 test "lexer: resilience" {
-  let prog = "\nval a = ${}\nval b = 123456789012345678901234567890\nval c = \"\ninspect(c)\n"
+  let prog =
+    #|
+    #|val a = ${}
+    #|val b = 123456789012345678901234567890
+    #|val c = "
+    #|inspect(c)
+    #|
   assert_eq(
     kinds(prog),
     "NL val id:a = ${ }$ NL val id:b = !err:Invalid integer format, not a 64bit integer literal NL " +

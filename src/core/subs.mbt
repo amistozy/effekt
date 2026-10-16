@@ -255,12 +255,7 @@ fn check_arity(
 ) -> Unit raise EffektError {
   if actual != expected {
     raise EffektError::Internal(
-      "Wrong number of " +
-      what +
-      ": expected " +
-      expected.to_string() +
-      ", got " +
-      actual.to_string(),
+      "Wrong number of \{what}: expected \{expected}, got \{actual}",
     )
   }
 }

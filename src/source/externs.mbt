@@ -54,11 +54,7 @@ fn unsupported_error(bodies : Array[ExternBody], ctx : Context) -> ExternBody {
   let flags : Array[String] = bodies.map(b => b.flag().to_string())
   let supported = supported_flags(ctx).join(", ")
   Unsupported(
-    "Extern definition is not supported as it is only defined for feature flags " +
-    flags.join(", ") +
-    ", but the current backend only supports " +
-    supported +
-    ".",
+    "Extern definition is not supported as it is only defined for feature flags \{flags.join(", ")}, but the current backend only supports \{supported}.",
   )
 }
 
@@ -183,10 +179,7 @@ fn resolve_extern_def(d : Def, ctx : Context) -> Array[Def] raise EffektError {
           Default =>
             ctx.warning(
               d.span,
-              "Found extern include without feature flag. It is likely that this will fail in other backends, " +
-              "please annotate it with a feature flag (Supported in current backend: " +
-              supported_flags(ctx).join(", ") +
-              ")",
+              "Found extern include without feature flag. It is likely that this will fail in other backends, please annotate it with a feature flag (Supported in current backend: \{supported_flags(ctx).join(", ")})",
             )
           _ => ()
         }
@@ -218,12 +211,7 @@ fn warn_default_flag(flag : FeatureFlag, id : IdDef, ctx : Context) -> Unit {
     Default =>
       ctx.warning(
         id.span,
-        "Extern definition " +
-        id.name +
-        " contains extern string without feature flag. This will likely not work in other backends, " +
-        "please annotate it with a feature flag (Supported by the current backend: " +
-        supported_flags(ctx).join(", ") +
-        ")",
+        "Extern definition \{id.name} contains extern string without feature flag. This will likely not work in other backends, please annotate it with a feature flag (Supported by the current backend: \{supported_flags(ctx).join(", ")})",
       )
     _ => ()
   }

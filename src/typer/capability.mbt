@@ -10,20 +10,20 @@
 pub fn interface_key(t : BlockType) -> String {
   match t {
     @symbols.BlockType::InterfaceType(c, args) =>
-      c.uid().to_string() + "[" + args.map(value_type_key).join(",") + "]"
+      "\{c.uid()}[\{args.map(value_type_key).join(",")}]"
     @symbols.BlockType::FunctionType(_, _, _, _, _, _) =>
-      "fn:" + show_block_type(t)
+      "fn:\{show_block_type(t)}"
   }
 }
 
 ///|
 pub fn value_type_key(t : ValueType) -> String {
   match t {
-    @symbols.ValueType::ValueTypeRef(s) => "t" + s.uid().to_string()
+    @symbols.ValueType::ValueTypeRef(s) => "t\{s.uid()}"
     @symbols.ValueType::ValueTypeApp(c, args) =>
-      "c" + c.uid().to_string() + "[" + args.map(value_type_key).join(",") + "]"
+      "c\{c.uid()}[\{args.map(value_type_key).join(",")}]"
     @symbols.ValueType::BoxedType(b, c) =>
-      "@source.TermKind::Box(" + interface_key(b) + "," + show_captures(c) + ")"
+      "@source.TermKind::Box(\{interface_key(b)},\{show_captures(c)})"
   }
 }
 

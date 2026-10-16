@@ -195,7 +195,7 @@ fn report_unsupported(ctx : TransformerContext, err : EffektError) -> Unit {
   let _ = ctx
   let message = match err {
     EffektError::Fatal(m) => m
-    EffektError::Internal(m) => "Internal error: " + m
+    EffektError::Internal(m) => "Internal error: \{m}"
   }
   unsupported_messages.push(message)
 }
@@ -220,9 +220,7 @@ fn check_main_signature(
         if id.uid() == main.uid() {
           if lit.vparams.length() > 0 {
             raise EffektError::Fatal(
-              "Main does not take arguments, but takes " +
-              lit.vparams.length().to_string() +
-              ".",
+              "Main does not take arguments, but takes \{lit.vparams.length()}.",
             )
           }
           if lit.bparams.length() > 0 {
@@ -231,9 +229,7 @@ fn check_main_signature(
               effects.push(@core.show_core_block_type(p.tpe))
             }
             raise EffektError::Fatal(
-              "Main cannot have effects, but includes effects: {" +
-              effects.join(", ") +
-              "}.",
+              "Main cannot have effects, but includes effects: {\{effects.join(", ")}}.",
             )
           }
         }
@@ -406,36 +402,22 @@ fn to_js_extern(
       match body {
         @cps.StringExternBody(_, contents) =>
           raw_stmt(
-            "// extern type " +
-            id.name().qualified_name() +
-            show_tparams(tps) +
-            " = " +
-            render_template(contents),
+            "// extern type \{id.name().qualified_name()}\{show_tparams(tps)} = \{render_template(contents)}",
           )
         @cps.Unsupported(_) =>
           raw_stmt(
-            "// unsupported extern type " +
-            id.name().qualified_name() +
-            " = " +
-            show_tparams(tps),
+            "// unsupported extern type \{id.name().qualified_name()} = \{show_tparams(tps)}",
           )
       }
     @cps.ExternInterface(id, tps, body) =>
       match body {
         @cps.StringExternBody(_, contents) =>
           raw_stmt(
-            "// extern type " +
-            id.name().qualified_name() +
-            show_tparams(tps) +
-            " = " +
-            render_template(contents),
+            "// extern type \{id.name().qualified_name()}\{show_tparams(tps)} = \{render_template(contents)}",
           )
         @cps.Unsupported(_) =>
           raw_stmt(
-            "// unsupported extern type " +
-            id.name().qualified_name() +
-            " = " +
-            show_tparams(tps),
+            "// unsupported extern type \{id.name().qualified_name()} = \{show_tparams(tps)}",
           )
       }
     @cps.ExternInclude(_, contents) => raw_stmt(contents)
@@ -915,7 +897,7 @@ fn to_js_stmt(
           let values : Map[Int32, @cps.Expr] = Map([])
           for param in bound {
             if free_of_block.contains(param) {
-              let tmp = fresh_sym("tmp_" + param.name().name)
+              let tmp = fresh_sym("tmp_\{param.name().name}")
               stmts.push(Const(PatternVariable(name_def(tmp)), name_ref(param)))
               values.set(param.uid(), @cps.Expr::ValueVar(tmp))
             }
@@ -1137,7 +1119,7 @@ fn to_js_stmt(
               let values : Map[Int32, @cps.Expr] = Map([])
               for param in info.vparams + info.bparams {
                 if all_free_vars.contains(param) {
-                  let tmp = fresh_sym("tmp_" + param.name().name)
+                  let tmp = fresh_sym("tmp_\{param.name().name}")
                   stmts.push(
                     Const(PatternVariable(name_def(tmp)), name_ref(param)),
                   )

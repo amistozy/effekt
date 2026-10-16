@@ -78,7 +78,7 @@ pub fn compile_file(
     let source = match read_file(opts.input) {
       Some(c) => Source::new(resolve_path(opts.input), c)
       None => {
-        ctx.error(Span::missing(), "Cannot read input file " + opts.input)
+        ctx.error(Span::missing(), "Cannot read input file \{opts.input}")
         return { output: None, messages: ctx.messages.copy(), failed: true, }
       }
     }
@@ -145,7 +145,7 @@ pub fn compile_file(
       None
     }
     EffektError::Internal(msg) => {
-      ctx.error(Span::missing(), "Internal compiler error: " + msg)
+      ctx.error(Span::missing(), "Internal compiler error: \{msg}")
       None
     }
   }
@@ -217,8 +217,8 @@ pub fn render_messages(messages : Array[Message]) -> String {
 /// The default output path for the given input file.
 pub fn default_output(input : String) -> String {
   if input.has_suffix(".effekt") {
-    input[0:input.length() - 7].to_owned() + ".js"
+    "\{input[0:input.length() - 7].to_owned()}.js"
   } else {
-    input + ".js"
+    "\{input}.js"
   }
 }

@@ -38,7 +38,7 @@ pub fn Name::qualified_name(self : Name) -> String {
   if self.path.length() == 0 {
     self.name
   } else {
-    self.path.join("::") + "::" + self.name
+    "\{self.path.join("::")}::\{self.name}"
   }
 }
 

@@ -50,7 +50,7 @@ using @core {type Declaration, type DeclarationContext, type Constructor}
 /// Raises an internal compiler error. The polymorphic result type lets it stand
 /// in for any expected value.
 pub fn[T] internal_error(msg : String) -> T raise EffektError {
-  raise EffektError::Internal("Internal compiler error: " + msg)
+  raise EffektError::Internal("Internal compiler error: \{msg}")
 }
 
 ///|

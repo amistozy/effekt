@@ -64,7 +64,7 @@ pub fn Binding::to_toplevel(self : Binding) -> Toplevel raise EffektError {
     BindingDef(id, binding) => ToplevelDef(id, binding)
     _ =>
       raise EffektError::Internal(
-        "Binding." + self.kind_name() + " is not allowed on the toplevel.",
+        "Binding.\{self.kind_name()} is not allowed on the toplevel.",
       )
   }
 }
