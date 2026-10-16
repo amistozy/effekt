@@ -306,10 +306,10 @@ pub fn Typer::check_overloaded_function_call(
         let (sym, msg) = f
         "  \{sym.name().qualified_name()}: \{msg}"
       })
-      self.abort(
-        call.span,
-        "Cannot typecheck call to \{call.name}. None of the \{all_failures.length()} overloads type check:\n\{explanations.join("\n")}",
-      )
+      let message =
+        $|Cannot typecheck call to \{call.name}. None of the \{all_failures.length()} overloads type check:
+        $|\{explanations.join("\n")}
+      self.abort(call.span, message)
     }
   }
 }

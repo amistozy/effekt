@@ -136,7 +136,10 @@ fn run_typecheck(
     for m in ctx.messages() {
       rendered.push(m.render())
     }
-    fail("\{failure}\n\{rendered.join("\n")}")
+    let message =
+      $|\{failure}
+      $|\{rendered.join("\n")}
+    fail(message)
   }
   let errors : Array[String] = []
   for m in ctx.messages() {
@@ -145,7 +148,10 @@ fn run_typecheck(
     }
   }
   if errors.length() > 0 {
-    fail("type checking reported errors:\n\{errors.join("\n")}")
+    let message =
+      $|type checking reported errors:
+      $|\{errors.join("\n")}
+    fail(message)
   }
 }
 
@@ -1001,7 +1007,10 @@ fn run_frontend(
     for m in ctx.messages() {
       rendered.push(m.render())
     }
-    fail("\{failure}\n\{rendered.join("\n")}")
+    let message =
+      $|\{failure}
+      $|\{rendered.join("\n")}
+    fail(message)
   }
   match rewritten {
     Some(t) => t
@@ -1281,7 +1290,10 @@ fn run_typecheck_dropping_unbox(
     for m in ctx.messages() {
       rendered.push(m.render())
     }
-    fail("\{failure}\n\{rendered.join("\n")}")
+    let message =
+      $|\{failure}
+      $|\{rendered.join("\n")}
+    fail(message)
   }
 }
 

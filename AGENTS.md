@@ -54,6 +54,28 @@ You can browse and install extra skills here:
     — and it must sit in a `let` binding or inside parentheses, otherwise the
     compiler warns `deprecated_syntax`.
 
+  - **`$|` is the *interpolating* multi-line string** — use it when the text
+    spans lines *and* has dynamic parts, which is what most diagnostics look
+    like:
+    ```moonbit
+    let message =
+      $|Expected type
+      $|  \{right}
+      $|but got type
+      $|  \{left}
+    ```
+    `\{expr}` is substituted (unlike `#|`, which keeps it literal), `${x}` stays
+    plain text, and `\n` is *deprecated* inside `$|` — write `\{'\n'}` for a
+    real newline or `\{"\\n"}` for the two characters `\` and `n`. The `let`
+    binding rule is the same as for `#|`: as a bare call argument (or even in
+    call parentheses) it warns `deprecated_syntax`, so bind it first.
+    Do not convert a one-line source string such as
+    `msg="expected a switch:\n\{js}"` into a `$|` block just because its
+    *content* has a newline — that only makes call sites longer. Convert when
+    the text genuinely spans several lines, or when the alternative is a
+    `"…" + (#|…|)` split or a line that would have to end in trailing
+    whitespace.
+
   The test suite compares generated JavaScript and core IR text, and
   `scripts/e2e.ps1` runs the compiled programs, so any accidental change to a
   string's content is caught.

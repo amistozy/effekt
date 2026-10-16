@@ -811,14 +811,10 @@ fn Typer::warn_about_handlers(
       }
     }
     if count > 1 && !all_explicit {
-      self.warning(
-        handlers[0].span,
-        "There are multiple handlers for effect \{show_block_type(effects[i])}" +
-        (
-          #|; this might not be intended.
-          #|Maybe bind capabilities explicitly (e.g. `try { ... } with c: MyEffect { ... }`)?
-        ),
-      )
+      let message =
+        $|There are multiple handlers for effect \{show_block_type(effects[i])}; this might not be intended.
+        $|Maybe bind capabilities explicitly (e.g. `try { ... } with c: MyEffect { ... }`)?
+      self.warning(handlers[0].span, message)
     }
     if all_implicit && !eff_contains(used, effects[i]) {
       self.warning(

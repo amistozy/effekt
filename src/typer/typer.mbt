@@ -486,15 +486,11 @@ fn Typer::capability_for(
               "Did you mean to use an operation of the concrete interface \{hint}?",
             )
           }
-          self.abort(
-            span,
-            "Effect \{show_block_type(tpe)}" +
-            (
-              #| is not allowed in this context.
-              #|
-              #|Maybe try annotating the function with the effect?
-            ),
-          )
+          let message =
+            $|Effect \{show_block_type(tpe)} is not allowed in this context.
+            $|
+            $|Maybe try annotating the function with the effect?
+          self.abort(span, message)
         }
       }
   }
@@ -687,19 +683,13 @@ pub fn Typer::assert_concrete_effect(
 ) -> Unit raise EffektError {
   let eff = self.st.u.prune_block(eff)
   match self.unknowns_block(eff) {
-    us if us.length() > 0 =>
-      self.abort(
-        span,
-        "Effects need to be fully known, but effect " +
-        show_block_type(eff) +
-        "'s type parameter(s) " +
-        us.join(", ") +
-        (
-          #| could not be inferred.
-          #|
-          #|Maybe try annotating them?
-        ),
-      )
+    us if us.length() > 0 => {
+      let message =
+        $|Effects need to be fully known, but effect \{show_block_type(eff)}'s type parameter(s) \{us.join(", ")} could not be inferred.
+        $|
+        $|Maybe try annotating them?
+      self.abort(span, message)
+    }
     _ => ()
   }
 }
@@ -1976,9 +1966,22 @@ pub(all) enum ErrCtx {
 ///|
 fn explain_mismatch(left : String, right : String, ctx : ErrCtx) -> String {
   match ctx {
-    Expected(_, _) => "Expected type\n  \{right}\nbut got type\n  \{left}"
+    Expected(_, _) =>
+      (
+        $|Expected type
+        $|  \{right}
+        $|but got type
+        $|  \{left}
+      )
     MergeTypes(_, _) =>
-      "Different arms of a conditional/match have incompatible types.\n\nOne arm has type\n  \{left}\nwhile another one has type\n  \{right}"
+      (
+        $|Different arms of a conditional/match have incompatible types.
+        $|
+        $|One arm has type
+        $|  \{left}
+        $|while another one has type
+        $|  \{right}
+      )
     Declaration(_, _) =>
       "Type \{left} does not match the declared type \{right}."
     PatternMatch =>
