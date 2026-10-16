@@ -783,7 +783,11 @@ pub fn Typer::check_try_handle(
     handlers,
     provided_capabilities,
     handled_effects,
-    prog_res.effs,
+    // The effects of the handled program can still mention unification
+    // variables (calling a generic function like `raise[A, E]` instantiates
+    // `Exception[?E]`); prune before comparing, otherwise a handler for the
+    // instantiated effect is not recognised as used.
+    self.st.u.prune_effects(prog_res.effs),
   )
 
   // (5) the return type of the handled statement must not mention any of the

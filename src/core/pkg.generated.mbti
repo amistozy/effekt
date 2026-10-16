@@ -16,6 +16,8 @@ pub fn capture_set(@symbols.Sym) -> @symbols.Captures
 
 pub fn clear_pattern_equality_function() -> Unit
 
+pub fn deadcode(ModuleDecl, Array[@symbols.Sym]) -> ModuleDecl
+
 pub fn expr_type_hint(Expr) -> @symbols.ValueType
 
 pub fn free_var_extern_body(ExternBody[Expr]) -> Free

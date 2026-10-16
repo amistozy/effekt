@@ -81,10 +81,13 @@ priv struct RecursiveDefInfo {
 
 ///|
 /// The direct-style continuation, if available.
+///
+/// Upstream carries a third field `ks` here (`ContinuationInfo(k, vparams,
+/// ks)`); it is written but never read there, so it is dropped instead of
+/// keeping dead state around.
 priv struct ContinuationInfo {
   k : Sym
   vparams : Array[Sym]
-  ks : Sym
 }
 
 ///|
@@ -136,14 +139,13 @@ fn TransformerContext::nonrecursive(
 }
 
 ///|
-/// `markDirectStyle(id, params, ks)`.
+/// `markDirectStyle(id, params, ks)` (the upstream `ks` argument is unused).
 fn TransformerContext::mark_direct_style(
   self : TransformerContext,
   id : Sym,
   params : Array[Sym],
-  ks : Sym,
 ) -> TransformerContext {
-  { ..self, direct_style: Some({ k: id, vparams: params, ks, }), }
+  { ..self, direct_style: Some({ k: id, vparams: params, }), }
 }
 
 ///|
@@ -975,7 +977,7 @@ fn to_js_stmt(
               out.push(js_let(name_def(p), undefined()))
             }
             out.append(
-              to_js_stmt(body2, ctx.mark_direct_style(id, params, ks)).stmts(),
+              to_js_stmt(body2, ctx.mark_direct_style(id, params)).stmts(),
             )
             out.append(
               (to_js_stmt(maintain_direct_style(ks, cont_body, ctx), ctx).run)(

@@ -14,6 +14,7 @@ closely, so programs compiled here link against the unmodified Effekt JS runtime
 Source ──► Lexer ──► Parser ──► Namer ──► UnboxInference ──► Typer
        ──► ResolveExternDefs ──► ExplicitCapabilities
        ──► core.Transformer (ANF) ──► Aggregate
+       ──► core.optimizer.Deadcode ──► core.Show
        ──► cps.Transformer ──► cps.Contify
        ──► js.TransformerCps ──► JavaScript
 ```
@@ -52,7 +53,7 @@ stripped-down prelude that avoids the slow-to-check parts of the real one.
 | `src/source` | `effekt/source/*`, `Lexer`, `Parser` | Syntax tree, `Context`, lexer, parser, generic AST rewriting, `ResolveExternDefs`, `ExplicitCapabilities` |
 | `src/namer` | `effekt/Namer.scala` | Name resolution, symbol construction, scope handling |
 | `src/typer` | `effekt/Typer.scala`, `effekt/typer/*` | Type and effect inference, unification, capability annotations, exhaustivity, unboxing |
-| `src/core` | `effekt/core/*` | The ANF core IR, the source→core translation, the pattern matching compiler, the structural `show` generator, free variables, substitutions, `DeclarationContext` |
+| `src/core` | `effekt/core/*` | The ANF core IR, the source→core translation, the pattern matching compiler, the structural `show` generator, dead code elimination, free variables, substitutions, `DeclarationContext` |
 | `src/cps` | `effekt/cps/*` | The CPS IR, the core→CPS translation, contification |
 | `src/js` | `effekt/generator/js/*` | The JavaScript IR, the CPS→JS translation, the JS pretty printer |
 | `src/backend` | `effekt/generator/js/JavaScript.scala` | Wires core → CPS → JS and aggregates the modules |
@@ -76,14 +77,20 @@ These are deliberate and are documented at the point of use in the sources:
 - **Capture-set and region inference is reduced.** Effects and value types are
   inferred properly; capture sets use a simplified constraint solver, so the
   capture information that reaches the backends is coarser than upstream's.
-- **The dead-code eliminator is not ported.** Without `core/optimizer/Deadcode`
-  the aggregated module still contains every extern of every dependency, so an
-  extern that is only defined for another backend produces one `warning:` (on
-  stderr) even when nothing calls it. The rest of `core/optimizer/*`
-  (`DropBindings`, `Normalizer`, `DirectStyle`, `StaticArguments`, …) is also
-  skipped; these passes are semantics-preserving, so omitting them only affects
-  the quality of the generated code, and the JS backend already implements its
-  own direct-style and loop optimizations (`src/js/transform_cps.mbt`).
+- **Dead code elimination is partial.** `core/optimizer/Deadcode` (and the
+  `Reachable` analysis behind it) is ported and runs where upstream runs it,
+  between `Aggregate` and `core.Show`, so unreachable functions, constructors,
+  externs and toplevel definitions no longer reach the backend — that is what
+  keeps the prelude's llvm-only externs from being reported as unsupported. One
+  rule of it is *not* ported: upstream also drops a local `val` whose binding is
+  a provably pure call (`Deadcode.isPureCall`), which needs precise capture
+  sets; with the approximate capture sets of this port such a call can look pure
+  while capturing a region (a `while` loop is exactly this shape), so the rule
+  would drop live calls. The rest of `core/optimizer/*` (`DropBindings`,
+  `Normalizer`, `DirectStyle`, `StaticArguments`, …) is still skipped; those
+  passes are semantics-preserving, so omitting them only affects the quality of
+  the generated code, and the JS backend already implements its own direct-style
+  and loop optimizations (`src/js/transform_cps.mbt`).
 - **The Chez Scheme, LLVM and VM backends are not ported**, nor the LSP server,
   the REPL or the documentation generator.
 
@@ -98,17 +105,20 @@ These are deliberate and are documented at the point of use in the sources:
   through more than one import path. Everything the prelude itself needs —
   `println`, `show` (including the compiler-generated structural instances),
   `ref`, `region`, `loop`/`each`/`stop` — compiles and runs.
-- The parser wraps *every* annotated result type in `Effectful(t, {})`, so an
-  annotation without `/ …` is indistinguishable from `: T / {}` for the namer.
-  The typer compensates by inferring (and self-binding) the effects whenever the
-  declared effect set is empty; fixing the parser would let it report the
-  difference.
+- The parser wraps *every* annotated result type in `Effectful(t, {})`, exactly
+  like upstream's `Parser.effectful` ("if it's not a `${tpe} / ${effs}`, then
+  pretend the effect set is empty"). An annotation without `/ …` therefore means
+  "no effect is declared": no capability is bound for that definition and every
+  effect its body performs — including the effects of nested definitions —
+  escapes to the enclosing statement. That is what makes the standard library's
+  `stop`/`fail` loops work, but it also means `: T` and `: T / {}` are the same
+  thing, upstream included.
 
 ## Testing
 
 | Command | What it covers |
 |---|---|
-| `moon test --target js` | 181 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output) |
+| `moon test --target js` | 184 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output) |
 | `powershell -File scripts/e2e.ps1` | 12 example programs (22 runs across two standard libraries), compiled and executed with `node`, output compared |
 | `src/source/parser_test.mbt` | additionally validated out of band against all 575 `.effekt` files of the upstream checkout |
 

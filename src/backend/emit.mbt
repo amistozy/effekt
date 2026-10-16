@@ -4,8 +4,9 @@
 //
 //     Frontend andThen Middleend                      (source -> core)
 //     Aggregate                                       (concatenate modules)
+//     Deadcode                                        (drop unreachable code)
 //     core.Show                                       (structural show instances)
-//     Deadcode / Optimizer / DropBindings             (skipped for now)
+//     Optimizer / DropBindings                        (skipped for now)
 //     cps.Transformer.transform                       (core -> cps)
 //     cps.Contify.rewrite                             (cps -> cps)
 //     TransformerCps.compile(...).commonjs            (cps -> js)
@@ -39,19 +40,12 @@ pub fn emit(
   // 2. Aggregate into a single core module.
   let main_module = modules[modules.length() - 1]
   let aggregated = aggregate(cores, main_module.module.path)
-  // 2b. Replace the prelude's `show` extern by compiler-generated structural
-  //     show definitions (upstream: `Aggregate andThen Deadcode andThen
-  //     core.Show andThen ...`).
-  let aggregated = @core.show_phase(aggregated)
-
-  // 3. Bind the `infixEq` used by the pattern matching compiler to the one
-  //    from the prelude.
-  match find_infix_eq(modules) {
-    Some(sym) => @core.set_pattern_equality_function(sym)
-    None => ()
-  }
-
-  // 4. CPS conversion and code generation.
+  // 2b. Remove the definitions and externs that `main` cannot reach (upstream:
+  //     `Aggregate andThen Deadcode andThen core.Show andThen ...`). This keeps
+  //     unreachable externs — e.g. the llvm-only ones of the prelude — from
+  //     reaching the code generator, which would report them as unsupported.
+  //     The entry points are `Context.ensureMainExists` (the `main` of the main
+  //     module) plus the names `core.Show` needs in the next step.
   let main_sym = find_main(modules)
   if main_sym is None {
     ctx.abort(
@@ -62,12 +56,28 @@ pub fn emit(
     )
   }
   let main_sym = main_sym.unwrap()
+  let required = @symbols.dedup_syms(
+    [main_sym] + @core.required_names(aggregated),
+  )
+  let aggregated = @core.deadcode(aggregated, required)
+  // 2c. Replace the prelude's `show` extern by compiler-generated structural
+  //     show definitions.
+  let aggregated = @core.show_phase(aggregated)
+
+  // 3. Bind the `infixEq` used by the pattern matching compiler to the one
+  //    from the prelude.
+  match find_infix_eq(modules) {
+    Some(sym) => @core.set_pattern_equality_function(sym)
+    None => ()
+  }
+
+  // 4. CPS conversion and code generation.
   let cps_module = @cps.transform(aggregated)
   let contified = @cps.contify(cps_module)
   let js = @js.compile_cps(contified, aggregated, main_sym)
-  // Externs that no body applies to are warnings, exactly as upstream. The
-  // upstream `Deadcode` pass (which this port does not include) would already
-  // have removed the unused ones, so identical messages are reported once.
+  // Externs that no body applies to are warnings, exactly as upstream. `2b`
+  // has already dropped the unreachable ones, so only externs that the program
+  // can actually call are reported (once per distinct message).
   let reported : Array[String] = []
   for message in @js.take_unsupported_messages() {
     if !reported.any(m => m == message) {

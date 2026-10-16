@@ -23,8 +23,8 @@
 //
 //     Aggregate andThen Deadcode andThen core.Show andThen Optimizer andThen DropBindings
 //
-// `Deadcode` has to spare the three externs above (`requiredNames`); this port
-// does not run `Deadcode`, so they are always part of the aggregated module.
+// `Deadcode` has to spare the three externs above (`requiredNames`); the
+// backend passes them as entry points to `core.deadcode` (see `emit`).
 //
 // Deviations from upstream, all of them noted where they occur:
 //
@@ -38,7 +38,7 @@
 //     generated; a call whose type cannot be made out is left alone (and keeps
 //     compiling to the extern's `undefined` body). Upstream aborts in several of
 //     those cases, but it runs `Deadcode` first, which removes the unreachable
-//     definitions that trigger them in this port (see `showable_type`).
+//     definitions that trigger them (see `showable_type`).
 //   - Only *extern* functions named `show` are rewritten; upstream matches by
 //     name only, which also catches e.g. `examples/minilib`'s
 //     `def show(value: Int): String` (see `is_show_call`).
@@ -64,8 +64,9 @@ let show_string_concat_name : String = "infixPlusPlus"
 ///|
 /// Names that `Deadcode` must preserve for this phase to work.
 ///
-/// The port does not include `Deadcode`; this is kept for parity with upstream
-/// (and is used by the tests to check the extern lookup).
+/// Mirrors `Show.requiredNames`; the backend passes the result to
+/// `core.deadcode` as entry points (see `@backend.emit`). It is also used by the
+/// tests to check the extern lookup.
 pub fn required_names(module : ModuleDecl) -> Array[Sym] {
   let required : Array[String] = [
     show_function_name, show_builtin_function_name, show_string_concat_name,
@@ -411,8 +412,9 @@ fn show_type_argument(
 ///     function. Upstream aborts with "Too much type indirection over show"
 ///     only because it runs `Deadcode` first, and such definitions are usually
 ///     unreachable — the prelude's `inspect[R](value: R) = default {
-///     println(show(value)) }` is exactly this shape. This port does not run
-///     `Deadcode`, so the call survives.
+///     println(show(value)) }` is exactly this shape. The port runs `Deadcode`
+///     too (see `@backend.emit`), so this only happens if such a definition is
+///     reachable after all.
 ///   - unknown types, i.e. the transformer could not annotate the shown
 ///     expression (see [[shown_type_of]]).
 ///   - data types that are not fully applied (see [[recover_make_type]]), and

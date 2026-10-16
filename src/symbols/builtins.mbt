@@ -312,12 +312,9 @@ pub fn root_bindings() -> Bindings {
     captures,
     namespaces: Map::new(),
   }
-  {
-    terms: Map::new(),
-    types,
-    captures,
-    namespaces: Map::from_iter([("effekt", inner)]),
-  }
+  let namespaces : Map[String, Bindings] = Map::new()
+  namespaces.set("effekt", inner)
+  { terms: Map::new(), types, captures, namespaces, }
 }
 
 ///|

@@ -1171,24 +1171,18 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
                       )
                     },
                   )
-                  // A result annotation without a `/ ...` clause is parsed as
-                  // `T / {}` (see `src/source`: the parser wraps every annotated
-                  // result in `Effectful`), so an *empty* declared effect set
-                  // means "not annotated": the function then handles whatever
-                  // effects it performs itself, like upstream's unannotated
-                  // case. If the parser ever distinguishes the two forms, this
-                  // check can be removed.
-                  let infer_effects = annotated_effs.distinct().is_empty()
-                  let res = if infer_effects {
-                    let (r, _) = self.binding_all_capabilities(d.uid, () => {
-                      self.check_stmt(body, Some(ret_t))
-                    })
-                    r
-                  } else {
-                    self.binding_capabilities(d.uid, capabilities, () => {
-                      self.check_stmt(body, Some(ret_t))
-                    })
-                  }
+                  // Only the declared effects are bound as capabilities. A
+                  // result annotation without a `/ ...` clause is parsed as
+                  // `T / {}` (upstream `Parser.effectful` "pretends the effect
+                  // set is empty", and `src/source` does the same), so it binds
+                  // no capabilities and every effect of the body escapes the
+                  // definition -- including the effects of *nested* definitions,
+                  // which is what makes an unannotated effect of a local `def`
+                  // visible to an enclosing handler (see the `stop` and `fail`
+                  // loops of the standard library).
+                  let res = self.binding_capabilities(d.uid, capabilities, () => {
+                    self.check_stmt(body, Some(ret_t))
+                  })
                   self.annotate_value(d.uid, res.tpe)
                   self.annotate_effects(d.uid, res.effs)
                   let filter = cps +
@@ -1204,11 +1198,14 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
                   // variables (instantiating the declared effect `Exception[E]`
                   // of a call gives `Exception[?E]`); prune before comparing,
                   // otherwise the declared effect is never recognised.
-                  let unhandled = if infer_effects {
-                    Effects::empty()
-                  } else {
-                    eff_diff(self.st.u.prune_effects(res.effs), bound)
-                  }
+                  // Everything the body performs beyond the declared effects is
+                  // *not* handled by this definition: it escapes and is
+                  // attributed to the enclosing statement (upstream:
+                  // `Result(annotated, effs -- bound)`).
+                  let unhandled = eff_diff(
+                    self.st.u.prune_effects(res.effs),
+                    bound,
+                  )
                   (unhandled, annotated)
                 }
                 None => {

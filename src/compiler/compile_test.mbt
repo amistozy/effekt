@@ -3,20 +3,26 @@
 
 ///|
 test "module path of a file" {
-  assert_eq(module_path_of("examples/hello.effekt"), "hello")
-  assert_eq(module_path_of("libraries/common/effekt.effekt"), "effekt")
-  assert_eq(module_path_of("C:\\work\\hello.effekt"), "hello")
+  assert_eq(@compiler.module_path_of("examples/hello.effekt"), "hello")
+  assert_eq(
+    @compiler.module_path_of("libraries/common/effekt.effekt"),
+    "effekt",
+  )
+  assert_eq(@compiler.module_path_of("C:\\work\\hello.effekt"), "hello")
 }
 
 ///|
 test "default output path" {
-  assert_eq(default_output("examples/hello.effekt"), "examples/hello.js")
-  assert_eq(default_output("hello"), "hello.js")
+  assert_eq(
+    @compiler.default_output("examples/hello.effekt"),
+    "examples/hello.js",
+  )
+  assert_eq(@compiler.default_output("hello"), "hello.js")
 }
 
 ///|
 test "command line parsing" {
-  let (opts, errors) = parse_args([
+  let (opts, errors) = @compiler.parse_args([
     "-I", "lib", "--lib", "stdlib", "-o", "out.js", "main.effekt",
   ])
   assert_eq(errors.length(), 0)
@@ -28,7 +34,7 @@ test "command line parsing" {
 
 ///|
 test "command line parsing reports unknown options" {
-  let (_, errors) = parse_args(["--nope"])
+  let (_, errors) = @compiler.parse_args(["--nope"])
   assert_eq(errors.length(), 1)
 }
 
@@ -156,4 +162,63 @@ test "parses a match expression" {
   )
   let tree = @source.parse_module_decl(src, ctx).unwrap()
   assert_eq(tree.defs.length(), 2)
+}
+
+///|
+/// Checking a program must not report warnings for the prelude.
+///
+/// In particular the `stop` handler of `loop` (and of `boundary`) *is* used: a
+/// result annotation without a `/ …` clause binds no capability, so the effects
+/// that a nested, annotated `def` performs escape the definition and are
+/// attributed to the enclosing statement, where the handler sees them
+/// (upstream: `Result(annotated, effs -- bound)`).
+test "the prelude compiles without warnings" {
+  let result = frontend_only("examples/hello.effekt")
+  let warnings = result.messages.filter(m => m.severity == @util.Warning)
+  if warnings.length() > 0 {
+    println(@compiler.render_messages(warnings))
+  }
+  assert_true(warnings.length() == 0)
+}
+
+///|
+/// ... but a handler for an effect the program really does not perform is still
+/// reported. This is upstream's `examples/pos/unused_effects.effekt` (and its
+/// `.check` file), which expects exactly one such warning.
+test "an unused handler is still reported" {
+  let messages = check_program(
+    "unused.effekt",
+    "effect Fail(): Unit\n" +
+    "def main() = {\n  try {\n    4\n  } with Fail { () => 0 }\n  ()\n}\n",
+  )
+  let warnings = messages.filter(m => m.severity == @util.Warning)
+  if warnings.length() != 1 {
+    println(@compiler.render_messages(warnings))
+  }
+  assert_true(warnings.length() == 1)
+}
+
+///|
+/// The effect a generic operation instantiates is recognised as handled, even
+/// though it is inferred through a unification variable: `raise(1, "boom")`
+/// performs `Exception[Int]`, so the `Exception[Int]` handler is used
+/// (`examples/import_handler.effekt`).
+test "an instantiated handler is recognised as used" {
+  let messages = check_program(
+    "instantiated.effekt",
+    "interface Exception[E] { def raise(e: E, msg: String): Nothing }\n" +
+    "def raise[A, E](e: E, msg: String): A / Exception[E] =\n" +
+    "  do raise(e, msg) match {}\n" +
+    "def main() = {\n" +
+    "  val r = try { raise(1, \"boom\") } with Exception[Int] {\n" +
+    "    def raise(e, msg) = 0\n" +
+    "  }\n" +
+    "  println(r)\n" +
+    "}\n",
+  )
+  let warnings = messages.filter(m => m.severity == @util.Warning)
+  if warnings.length() > 0 {
+    println(@compiler.render_messages(warnings))
+  }
+  assert_true(warnings.length() == 0)
 }
