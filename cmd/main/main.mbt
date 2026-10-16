@@ -10,10 +10,11 @@ fn run(args : Array[String]) -> Int32 {
     return 0
   }
   if arg_errors.length() > 0 {
+    // argparse renders the message together with the usage and the option
+    // list; report it on stderr like every other diagnostic.
     for e in arg_errors {
-      println("error: \{e}")
+      @compiler.info(e)
     }
-    println(@compiler.usage())
     return 1
   }
   let pipeline : @compiler.Pipeline = {

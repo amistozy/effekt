@@ -36,6 +36,72 @@ test "command line parsing" {
 test "command line parsing reports unknown options" {
   let (_, errors) = @compiler.parse_args(["--nope"])
   assert_eq(errors.length(), 1)
+  // argparse renders the diagnostic together with the usage text.
+  assert_true(errors[0].contains("unexpected argument"))
+  assert_true(errors[0].contains("Usage: effekt"))
+}
+
+///|
+test "command line parsing reports a missing option value" {
+  let (_, errors) = @compiler.parse_args(["--output"])
+  assert_eq(errors.length(), 1)
+  assert_true(errors[0].contains("--output"))
+}
+
+///|
+test "command line parsing rejects a second positional argument" {
+  let (opts, errors) = @compiler.parse_args(["a.effekt", "b.effekt"])
+  assert_eq(errors.length(), 1)
+  assert_eq(opts.input, "")
+}
+
+///|
+test "command line defaults" {
+  let (opts, errors) = @compiler.parse_args([])
+  assert_eq(errors.length(), 0)
+  assert_eq(opts.input, "")
+  assert_eq(opts.output, None)
+  assert_eq(opts.include_paths, [])
+  // argparse fills the declared default in.
+  assert_eq(opts.lib_path, "libraries")
+  assert_true(!opts.show_help)
+  assert_true(!opts.run)
+}
+
+///|
+test "command line parsing collects repeated options and all flags" {
+  let (opts, errors) = @compiler.parse_args([
+    "-I", "a", "--include", "b", "-I", "c", "--show-core", "--show-cps", "--show-js",
+    "--run", "main.effekt",
+  ])
+  assert_eq(errors.length(), 0)
+  assert_eq(opts.include_paths, ["a", "b", "c"])
+  assert_true(opts.show_core)
+  assert_true(opts.show_cps)
+  assert_true(opts.show_js)
+  assert_true(opts.run)
+  assert_eq(opts.input, "main.effekt")
+}
+
+///|
+test "the help flag is recognised in both spellings" {
+  assert_true(@compiler.parse_args(["-h"]).0.show_help)
+  assert_true(@compiler.parse_args(["--help"]).0.show_help)
+  assert_true(@compiler.parse_args(["main.effekt", "--help"]).0.show_help)
+}
+
+///|
+test "the help text documents every option" {
+  let help = @compiler.usage()
+  for
+    flag in [
+      "-h, --help", "--show-core", "--show-cps", "--show-js", "--run", "-o, --output",
+      "-I, --include", "--lib", "input",
+    ] {
+    assert_true(help.contains(flag))
+  }
+  // `usage` is printed with `println`, so it must not end in a newline.
+  assert_true(!help.ends_with("\n"))
 }
 
 ///|

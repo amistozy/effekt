@@ -3,6 +3,7 @@ import {
   "amistozy/effekt/src/symbols",
   "amistozy/effekt/src/source",
   "amistozy/effekt/src/namer",
+  "moonbitlang/core/argparse",
 }
 
 import {

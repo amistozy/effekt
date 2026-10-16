@@ -40,9 +40,12 @@ $ node _build/js/debug/build/cmd/main/main.js --run examples/amb.effekt
 66
 ```
 
-`moon run cmd/main --target js -- --help` prints the command line reference.
-`--lib <dir>` selects a different standard library; `examples/minilib` contains a
-stripped-down prelude that avoids the slow-to-check parts of the real one.
+The command line is declared with `moonbitlang/core/argparse`
+(`src/compiler/cli.mbt`), so `--help` prints the reference rendered from that
+declaration and malformed arguments are reported by argparse with the same
+usage text. `--lib <dir>` selects a different standard library;
+`examples/minilib` contains a stripped-down prelude that avoids the
+slow-to-check parts of the real one.
 
 ## Layout
 
@@ -57,7 +60,7 @@ stripped-down prelude that avoids the slow-to-check parts of the real one.
 | `src/cps` | `effekt/cps/*` | The CPS IR, the core→CPS translation, contification |
 | `src/js` | `effekt/generator/js/*` | The JavaScript IR, the CPS→JS translation, the JS pretty printer |
 | `src/backend` | `effekt/generator/js/JavaScript.scala` | Wires core → CPS → JS and aggregates the modules |
-| `src/compiler` | `effekt/Compiler.scala`, `Driver` | Module loading, the compilation pipeline, the command line |
+| `src/compiler` | `effekt/Compiler.scala`, `Driver` | Module loading, the compilation pipeline, the command line (declared with `moonbitlang/core/argparse`) |
 | `libraries/` | `libraries/` | The Effekt standard library and the JavaScript runtime, copied verbatim from upstream |
 | `examples/` | | Small Effekt programs used for smoke testing |
 
