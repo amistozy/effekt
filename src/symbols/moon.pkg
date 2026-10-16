@@ -1,0 +1,5 @@
+import {
+  "amistozy/effekt/src/util",
+}
+
+warnings = "-deprecated-unused_type_declaration-unused_mut-implicit_impl_as_method-redundant_modifier-unused_value-unused_constructor-unused_error_type-reserved_keyword-unused_package-missing_priv"

@@ -1,0 +1,17 @@
+// The `namer` package resolves all names in a module and creates symbols,
+// mirroring `effekt/namer/Namer.scala` upstream.
+import {
+  "amistozy/effekt/src/util",
+  "amistozy/effekt/src/symbols",
+  "amistozy/effekt/src/source",
+}
+
+// The blackbox tests build syntax trees programmatically, so they need the
+// foundation packages as well.
+import {
+  "amistozy/effekt/src/util",
+  "amistozy/effekt/src/symbols",
+  "amistozy/effekt/src/source",
+} for "test"
+
+warnings = "-deprecated-unused_type_declaration-unused_mut-implicit_impl_as_method-redundant_modifier-unused_value-unused_constructor-unused_error_type-reserved_keyword-unused_package-missing_priv"

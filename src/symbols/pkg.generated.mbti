@@ -1,0 +1,515 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "amistozy/effekt/src/symbols"
+
+import {
+  "amistozy/effekt/src/util",
+}
+
+// Values
+pub fn async_capability_sym() -> Sym
+
+pub fn async_capture() -> Sym
+
+pub fn block_type_equal(BlockType, BlockType) -> Bool
+
+pub fn canonical_compare(BlockType, BlockType) -> Int
+
+pub fn canonical_compare_value(ValueType, ValueType) -> Int
+
+pub fn canonical_order(Array[BlockType]) -> Array[BlockType]
+
+pub fn constructor_applied_datatype(Sym) -> ValueType
+
+pub fn constructor_tparams(Sym) -> Array[Sym]
+
+pub fn core_builtin_to_string(Sym) -> String?
+
+pub fn core_builtins() -> Map[String, Sym]
+
+pub fn dedup_syms(Array[Sym]) -> Array[Sym]
+
+pub fn field_param(Sym) -> Sym
+
+pub fn field_return_type(Sym) -> ValueType
+
+pub fn global_capability_sym() -> Sym
+
+pub fn global_capture() -> Sym
+
+pub fn interface_type_equal(BlockType, BlockType) -> Bool
+
+pub fn io_capability_sym() -> Sym
+
+pub fn io_capture() -> Sym
+
+pub fn is_core_builtin(Sym) -> Bool
+
+pub fn[T] or_else(T?, () -> T? raise @util.EffektError) -> T? raise @util.EffektError
+
+pub fn root_bindings() -> Bindings
+
+pub fn state_effect_sym() -> Sym
+
+pub fn sym_eq(Sym, Sym) -> Bool
+
+pub fn sym_in(Sym, Array[Sym]) -> Bool
+
+pub fn t_bool() -> ValueType
+
+pub fn t_bottom() -> ValueType
+
+pub fn t_byte() -> ValueType
+
+pub fn t_char() -> ValueType
+
+pub fn t_double() -> ValueType
+
+pub fn t_int() -> ValueType
+
+pub fn t_io() -> BlockType
+
+pub fn t_region() -> BlockType
+
+pub fn t_state(ValueType) -> BlockType
+
+pub fn t_state_extract(BlockType) -> ValueType raise @util.EffektError
+
+pub fn t_string() -> ValueType
+
+pub fn t_top() -> ValueType
+
+pub fn t_unit() -> ValueType
+
+pub fn toplevel(Array[String], Bindings) -> Scoping
+
+pub fn value_type_equal(ValueType, ValueType) -> Bool
+
+pub fn value_types_equal(Array[ValueType], Array[ValueType]) -> Bool
+
+// Errors
+
+// Types and methods
+pub(all) struct Bindings {
+  terms : Map[String, Array[Sym]]
+  types : Map[String, Sym]
+  captures : Map[String, Sym]
+  namespaces : Map[String, Bindings]
+}
+pub fn Bindings::add_term(Self, String, Sym) -> Unit
+pub fn Bindings::empty() -> Self
+pub fn Bindings::fork(Self) -> Self
+pub fn Bindings::get_namespace(Self, String) -> Self?
+pub fn Bindings::import_all(Self, Self) -> Unit
+pub fn Bindings::namespace(Self, String) -> Self
+pub fn Bindings::set_capture(Self, String, Sym) -> Unit
+pub fn Bindings::set_type(Self, String, Sym) -> Unit
+
+pub(all) struct BlockParamSym {
+  base : SymBase
+  mut tpe : BlockType?
+  capture : Sym
+  is_implicit : Bool
+}
+
+pub(all) enum BlockType {
+  FunctionType(Array[Sym], Array[Captures], Array[ValueType], Array[BlockType], ValueType, Effects)
+  InterfaceType(Sym, Array[ValueType])
+}
+pub fn BlockType::interface_ctor(Self) -> Sym?
+pub fn BlockType::interface_name(Self) -> Name?
+pub fn BlockType::is_interface(Self) -> Bool
+
+pub(all) struct CallTargetSym {
+  base : SymBase
+  symbols : Array[Array[Sym]]
+}
+
+pub(all) struct CallableView {
+  tparams : Array[Sym]
+  vparams : Array[Sym]
+  bparams : Array[Sym]
+  annotated_captures : Array[Sym]?
+  annotated_result : ValueType?
+  annotated_effects : Effects?
+}
+
+pub(all) enum CaptUnificationRole {
+  VariableInstantiation(Sym)
+  HandlerRegion
+  RegionRegion
+  VarRegion
+  FunctionRegion
+  ExternDefRegion
+  BlockRegion
+  AnonymousFunctionRegion
+  InferredBox
+  InferredUnbox
+  OpClause
+  Subtraction(Array[Sym], Sym)
+  Substitution
+}
+
+pub(all) struct CaptUnificationVarSym {
+  base : SymBase
+  role : CaptUnificationRole
+}
+
+pub(all) struct CaptureParamSym {
+  base : SymBase
+}
+
+pub(all) enum Captures {
+  CaptureSetOf(Array[Sym])
+  CaptVar(Sym)
+}
+pub fn Captures::diff(Self, Self) -> Self
+pub fn Captures::empty() -> Self
+pub fn Captures::is_pure(Self) -> Bool
+pub fn Captures::to_array(Self) -> Array[Sym]
+pub fn Captures::union(Self, Self) -> Self
+
+pub(all) struct ConstructorSym {
+  base : SymBase
+  tparams : Array[Sym]
+  mut fields : Array[Sym]
+  mut tpe : Sym
+}
+
+pub(all) struct DataTypeSym {
+  base : SymBase
+  tparams : Array[Sym]
+  mut constructors : Array[Sym]
+}
+
+pub(all) struct DefBinderSym {
+  base : SymBase
+  caps : Array[Sym]?
+  mut tpe : BlockType?
+}
+
+pub(all) struct EffectAliasSym {
+  base : SymBase
+  tparams : Array[Sym]
+  effs : Effects
+}
+
+pub(all) struct Effects {
+  effects : Array[BlockType]
+}
+pub fn Effects::distinct(Self) -> Self
+pub fn Effects::empty() -> Self
+pub fn Effects::exists(Self, (BlockType) -> Bool) -> Bool
+pub fn Effects::filter_not(Self, (BlockType) -> Bool) -> Self
+pub fn Effects::forall(Self, (BlockType) -> Bool) -> Bool
+pub fn Effects::is_empty(Self) -> Bool
+pub fn Effects::new(Array[BlockType]) -> Self
+pub fn Effects::non_empty(Self) -> Bool
+pub fn Effects::size(Self) -> Int
+pub fn Effects::to_list(Self) -> Array[BlockType]
+pub fn Effects::union(Self, Self) -> Self
+
+pub(all) struct ErrorBlockTypeSym {
+  base : SymBase
+  tparams : Array[Sym]
+}
+
+pub(all) struct ErrorValueTypeSym {
+  base : SymBase
+  tparams : Array[Sym]
+}
+
+pub(all) struct ExternFunctionSym {
+  base : SymBase
+  tparams : Array[Sym]
+  vparams : Array[Sym]
+  bparams : Array[Sym]
+  result : ValueType
+  effects : Effects
+  capture : Array[Sym]
+}
+
+pub(all) struct ExternInterfaceSym {
+  base : SymBase
+  tparams : Array[Sym]
+}
+
+pub(all) struct ExternResourceSym {
+  base : SymBase
+  tpe : BlockType
+  capture : Sym
+}
+
+pub(all) struct ExternTypeSym {
+  base : SymBase
+  tparams : Array[Sym]
+}
+
+pub(all) struct FieldSym {
+  base : SymBase
+  param : Sym
+  constructor : Sym
+}
+
+pub(all) struct HoleSym {
+  base : SymBase
+  mut expected_type : ValueType?
+  mut arg_types : Array[ValueType?]
+}
+
+pub(all) struct InterfaceSym {
+  base : SymBase
+  tparams : Array[Sym]
+  mut operations : Array[Sym]
+}
+
+pub(all) struct JSName {
+  name : String
+}
+pub fn JSName::new(String) -> Self
+
+pub(all) struct LambdaSym {
+  base : SymBase
+  vparams : Array[Sym]
+  bparams : Array[Sym]
+}
+
+pub(all) struct LexicalRegionSym {
+  base : SymBase
+}
+
+pub(all) struct Module {
+  uid : Int
+  path : String
+  name : Name
+  mut includes : Array[Module]
+  mut exports : Bindings
+  source : @util.Span
+}
+pub fn Module::dependencies(Self) -> Array[Self]
+pub fn Module::find_dependency(Self, Name) -> Self?
+pub fn Module::is_prelude(Self) -> Bool
+pub fn Module::new(String, @util.Span) -> Self
+pub impl Show for Module
+
+pub(all) struct Name {
+  path : Array[String]
+  name : String
+}
+pub fn Name::anon() -> Self
+pub fn Name::is_anon(Self) -> Bool
+pub fn Name::local(String) -> Self
+pub fn Name::qualified(Array[String], String) -> Self
+pub fn Name::qualified_name(Self) -> String
+pub fn Name::rename(Self, (String) -> String) -> Self
+pub impl Show for Name
+
+pub(all) struct OperationSym {
+  base : SymBase
+  tparams : Array[Sym]
+  vparams : Array[Sym]
+  bparams : Array[Sym]
+  result_type : ValueType
+  effects : Effects
+  mut interface : Sym
+}
+
+pub(all) struct RecordSym {
+  base : SymBase
+  tparams : Array[Sym]
+  mut constructor : Sym
+}
+
+pub(all) struct RegBinderSym {
+  base : SymBase
+  mut tpe : ValueType?
+  region : Sym
+}
+
+pub(all) struct ResourceSym {
+  base : SymBase
+}
+
+pub(all) struct ResumeParamSym {
+  base : SymBase
+}
+
+pub(all) enum Scope {
+  Global(Bindings)
+  Named(String, Bindings, Scope)
+  Local(String?, Bindings, Scope)
+}
+pub fn Scope::bindings(Self) -> Bindings
+
+pub(all) struct Scoping {
+  module_path : Array[String]
+  mut scope : Scope
+}
+pub fn Scoping::current_terms_for(Self, String) -> Array[Sym]
+pub fn Scoping::define_capture(Self, String, Sym) -> Unit
+pub fn Scoping::define_term(Self, String, Sym) -> Unit raise @util.EffektError
+pub fn Scoping::define_type(Self, String, Sym) -> Unit
+pub fn Scoping::exports(Self) -> Bindings
+pub fn Scoping::import_all(Self, Bindings) -> Unit
+pub fn Scoping::import_as(Self, Bindings, Array[String]) -> Unit
+pub fn Scoping::lookup_capture(Self, Array[String], String) -> Sym? raise @util.EffektError
+pub fn Scoping::lookup_first(Self, Array[String], String) -> Sym raise @util.EffektError
+pub fn Scoping::lookup_first_block_param(Self, Array[String], String) -> Array[Sym] raise @util.EffektError
+pub fn Scoping::lookup_first_option(Self, Array[String], String) -> Sym? raise @util.EffektError
+pub fn Scoping::lookup_first_term_option(Self, Array[String], String) -> Sym? raise @util.EffektError
+pub fn Scoping::lookup_function(Self, Array[String], String) -> Array[Array[Sym]]
+pub fn Scoping::lookup_operation(Self, Array[String], String) -> Array[Array[Sym]]
+pub fn Scoping::lookup_overloaded(Self, Array[String], String, (Sym) -> Bool) -> Array[Array[Sym]]
+pub fn Scoping::lookup_overloaded_method(Self, Array[String], String) -> Array[Array[Sym]]
+pub fn Scoping::lookup_type_option(Self, Array[String], String) -> Sym? raise @util.EffektError
+pub fn[T] Scoping::namespace(Self, String, () -> T) -> T raise @util.EffektError
+pub fn Scoping::path(Self) -> Array[String]?
+pub fn[T] Scoping::scoped(Self, () -> T) -> T raise @util.EffektError
+pub fn[T] Scoping::scoped_named(Self, String, () -> T) -> T raise @util.EffektError
+
+pub(all) struct StateEffect {
+  state_param : Sym
+  interface : Sym
+  get : Sym
+  put : Sym
+}
+
+pub(all) enum Sym {
+  ValueParam(ValueParamSym)
+  ValBinder(ValBinderSym)
+  Hole(HoleSym)
+  Wildcard(WildcardSym)
+  TmpValue(TmpValueSym)
+  BlockParam(BlockParamSym)
+  ExternResource(ExternResourceSym)
+  ResumeParam(ResumeParamSym)
+  UserFunction(UserFunctionSym)
+  Lambda(LambdaSym)
+  RegBinder(RegBinderSym)
+  VarBinder(VarBinderSym)
+  DefBinder(DefBinderSym)
+  CallTarget(CallTargetSym)
+  Operation(OperationSym)
+  Constructor(ConstructorSym)
+  Field(FieldSym)
+  ExternFunction(ExternFunctionSym)
+  TmpBlock(TmpBlockSym)
+  TypeParam(TypeParamSym)
+  UnificationVar(UnificationVarSym)
+  TypeAlias(TypeAliasSym)
+  DataType(DataTypeSym)
+  Record(RecordSym)
+  ExternType(ExternTypeSym)
+  ErrorValueType(ErrorValueTypeSym)
+  Interface(InterfaceSym)
+  ExternInterface(ExternInterfaceSym)
+  ErrorBlockType(ErrorBlockTypeSym)
+  EffectAlias(EffectAliasSym)
+  CaptUnificationVar(CaptUnificationVarSym)
+  CaptureParam(CaptureParamSym)
+  LexicalRegion(LexicalRegionSym)
+  Resource(ResourceSym)
+}
+pub fn Sym::annotated_type(Self) -> BlockType?
+pub fn Sym::as_callable(Self) -> CallableView?
+pub fn Sym::base(Self) -> SymBase
+pub fn Sym::block_param(Name, BlockType?, Self, Bool, @util.Span) -> Self
+pub fn Sym::call_target(Array[Array[Self]]) -> Self
+pub fn Sym::capture_param(Name) -> Self
+pub fn Sym::decl(Self) -> @util.Span
+pub fn Sym::error_block_type(@util.Span) -> Self
+pub fn Sym::error_value_type(@util.Span) -> Self
+pub fn Sym::implicit_param(Name, ValueType?, @util.Span) -> Self
+pub fn Sym::is_block_symbol(Self) -> Bool
+pub fn Sym::is_block_type_constructor(Self) -> Bool
+pub fn Sym::is_callable(Self) -> Bool
+pub fn Sym::is_capture(Self) -> Bool
+pub fn Sym::is_operation(Self) -> Bool
+pub fn Sym::is_ref_binder(Self) -> Bool
+pub fn Sym::is_synthetic(Self) -> Bool
+pub fn Sym::is_term_symbol(Self) -> Bool
+pub fn Sym::is_type_symbol(Self) -> Bool
+pub fn Sym::is_type_var(Self) -> Bool
+pub fn Sym::is_value_symbol(Self) -> Bool
+pub fn Sym::is_value_type_constructor(Self) -> Bool
+pub fn Sym::lexical_region(Name, @util.Span) -> Self
+pub fn Sym::name(Self) -> Name
+pub fn Sym::resource(Name) -> Self
+pub fn Sym::resume_param() -> Self
+pub fn Sym::tmp_block(String) -> Self
+pub fn Sym::tmp_value(String) -> Self
+pub fn Sym::type_param(Name, @util.Span) -> Self
+pub fn Sym::uid(Self) -> Int
+pub fn Sym::value_param(Name, ValueType?, @util.Span) -> Self
+pub fn Sym::wildcard() -> Self
+pub impl Eq for Sym
+pub impl Show for Sym
+
+pub(all) struct SymBase {
+  uid : Int
+  name : Name
+  decl : @util.Span
+}
+
+pub(all) struct TmpBlockSym {
+  base : SymBase
+}
+
+pub(all) struct TmpValueSym {
+  base : SymBase
+}
+
+pub(all) struct TypeAliasSym {
+  base : SymBase
+  tparams : Array[Sym]
+  tpe : ValueType
+}
+
+pub(all) struct TypeParamSym {
+  base : SymBase
+}
+
+pub(all) struct UnificationVarSym {
+  base : SymBase
+  underlying : Sym
+}
+
+pub(all) struct UserFunctionSym {
+  base : SymBase
+  tparams : Array[Sym]
+  vparams : Array[Sym]
+  bparams : Array[Sym]
+  annotated_captures : Array[Sym]?
+  annotated_result : ValueType?
+  annotated_effects : Effects?
+}
+
+pub(all) struct ValBinderSym {
+  base : SymBase
+  mut tpe : ValueType?
+}
+
+pub(all) struct ValueParamSym {
+  base : SymBase
+  mut tpe : ValueType?
+  is_implicit : Bool
+}
+
+pub(all) enum ValueType {
+  BoxedType(BlockType, Captures)
+  ValueTypeRef(Sym)
+  ValueTypeApp(Sym, Array[ValueType])
+}
+
+pub(all) struct VarBinderSym {
+  base : SymBase
+  mut tpe : ValueType?
+  capture : Sym
+}
+
+pub(all) struct WildcardSym {
+  base : SymBase
+}
+
+// Type aliases
+
+// Traits

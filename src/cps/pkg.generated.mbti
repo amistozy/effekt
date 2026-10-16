@@ -1,0 +1,226 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "amistozy/effekt/src/cps"
+
+import {
+  "amistozy/effekt/src/core",
+  "amistozy/effekt/src/source",
+  "amistozy/effekt/src/symbols",
+  "amistozy/effekt/src/util",
+}
+
+// Values
+pub fn clause_tag(Clause) -> @symbols.Sym
+
+pub fn clause_with_tag(Array[@symbols.Sym], @symbols.Sym, Stmt) -> Clause
+
+pub fn contify(ModuleDecl) -> ModuleDecl raise @util.EffektError
+
+pub fn[T] internal_error(String) -> T raise @util.EffektError
+
+pub fn substitute_as_block_var(@symbols.Sym, Substitution) -> @symbols.Sym raise @util.EffektError
+
+pub fn substitute_as_cont_var(@symbols.Sym, Substitution) -> @symbols.Sym raise @util.EffektError
+
+pub fn substitute_block(Block, Substitution) -> Block raise @util.EffektError
+
+pub fn substitute_block_lit(BlockLit, Substitution) -> BlockLit raise @util.EffektError
+
+pub fn substitute_clause(Clause, Substitution) -> Clause raise @util.EffektError
+
+pub fn substitute_cont(Cont, Substitution) -> Cont raise @util.EffektError
+
+pub fn substitute_cont_lam(ContLam, Substitution) -> ContLam raise @util.EffektError
+
+pub fn substitute_expr(Expr, Substitution) -> Expr raise @util.EffektError
+
+pub fn substitute_implementation(Implementation, Substitution) -> Implementation raise @util.EffektError
+
+pub fn substitute_meta_cont(MetaCont, Substitution) -> MetaCont
+
+pub fn substitute_operation(Operation, Substitution) -> Operation raise @util.EffektError
+
+pub fn substitute_stmt(Stmt, Substitution) -> Stmt raise @util.EffektError
+
+pub fn transform(@core.ModuleDecl) -> ModuleDecl raise @util.EffektError
+
+// Errors
+
+// Types and methods
+pub(all) enum Block {
+  BlockVar(@symbols.Sym)
+  BlockLit(BlockLit)
+  Unbox(Expr)
+  New(Implementation)
+}
+pub fn Block::free(Self) -> Variables
+pub fn Block::size(Self) -> Int
+
+pub(all) struct BlockLit {
+  vparams : Array[@symbols.Sym]
+  bparams : Array[@symbols.Sym]
+  ks : @symbols.Sym
+  k : @symbols.Sym
+  body : Stmt
+}
+pub fn BlockLit::free(Self) -> Variables
+pub fn BlockLit::new(Array[@symbols.Sym], Array[@symbols.Sym], @symbols.Sym, @symbols.Sym, Stmt) -> Self
+pub fn BlockLit::size(Self) -> Int
+
+pub(all) struct Clause {
+  vparams : Array[@symbols.Sym]
+  body : Stmt
+}
+pub fn Clause::free(Self) -> Variables
+pub fn Clause::new(Array[@symbols.Sym], Stmt) -> Self
+pub fn Clause::size(Self) -> Int
+
+pub(all) enum Cont {
+  ContVar(@symbols.Sym)
+  ContLam(ContLam)
+  Abort
+}
+pub fn Cont::free(Self) -> Variables
+pub fn Cont::size(Self) -> Int
+
+pub(all) struct ContLam {
+  results : Array[@symbols.Sym]
+  ks : @symbols.Sym
+  body : Stmt
+}
+pub fn ContLam::free(Self) -> Variables
+pub fn ContLam::new(Array[@symbols.Sym], @symbols.Sym, Stmt) -> Self
+pub fn ContLam::size(Self) -> Int
+
+pub(all) struct Def {
+  id : @symbols.Sym
+  block : Block
+}
+pub fn Def::free(Self) -> Variables
+pub fn Def::new(@symbols.Sym, Block) -> Self
+pub fn Def::size(Self) -> Int
+
+pub(all) enum Expr {
+  ValueVar(@symbols.Sym)
+  Literal(@source.LiteralValue, @symbols.ValueType)
+  PureApp(@symbols.Sym, Array[Expr])
+  Make(@symbols.Sym, @symbols.Sym, Array[Expr])
+  Box(Block)
+}
+pub fn Expr::free(Self) -> Variables
+pub fn Expr::size(Self) -> Int
+
+pub(all) enum Extern {
+  ExternDef(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], Bool, ExternBody[Expr])
+  ExternData(@symbols.Sym, Array[@symbols.Sym], ExternBody[Expr])
+  ExternInterface(@symbols.Sym, Array[@symbols.Sym], ExternBody[Expr])
+  ExternInclude(@source.FeatureFlag, String)
+}
+
+pub(all) enum ExternBody[T] {
+  StringExternBody(@source.FeatureFlag, @util.Template[T])
+  Unsupported(@util.EffektError)
+}
+pub fn[T] ExternBody::flag(Self[T]) -> @source.FeatureFlag
+pub fn[T] ExternBody::is_supported_by(Self[T], String) -> Bool
+
+pub(all) struct Implementation {
+  interface : @symbols.BlockType
+  operations : Array[Operation]
+}
+pub fn Implementation::free(Self) -> Variables
+pub fn Implementation::new(@symbols.BlockType, Array[Operation]) -> Self
+pub fn Implementation::size(Self) -> Int
+
+pub(all) struct MetaCont {
+  id : @symbols.Sym
+}
+pub fn MetaCont::free(Self) -> Variables
+pub fn MetaCont::new(@symbols.Sym) -> Self
+pub fn MetaCont::size(Self) -> Int
+
+pub(all) struct ModuleDecl {
+  path : String
+  includes : Array[String]
+  declarations : Array[@core.Declaration]
+  externs : Array[Extern]
+  definitions : Array[ToplevelDefinition]
+  exports : Array[@symbols.Sym]
+}
+pub fn ModuleDecl::new(String, Array[String], Array[@core.Declaration], Array[Extern], Array[ToplevelDefinition], Array[@symbols.Sym]) -> Self
+pub fn ModuleDecl::size(Self) -> Int
+
+pub(all) struct Operation {
+  name : @symbols.Sym
+  vparams : Array[@symbols.Sym]
+  bparams : Array[@symbols.Sym]
+  ks : @symbols.Sym
+  k : @symbols.Sym
+  body : Stmt
+}
+pub fn Operation::free(Self) -> Variables
+pub fn Operation::new(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], @symbols.Sym, @symbols.Sym, Stmt) -> Self
+pub fn Operation::size(Self) -> Int
+
+pub(all) enum Stmt {
+  Jump(@symbols.Sym, Array[Expr], MetaCont)
+  App(Block, Array[Expr], Array[Block], MetaCont, Cont)
+  Invoke(Block, @symbols.Sym, Array[Expr], Array[Block], MetaCont, Cont)
+  If(Expr, Stmt, Stmt)
+  Match(Expr, Array[Clause], Stmt?)
+  LetDef(@symbols.Sym, Block, Stmt)
+  LetExpr(@symbols.Sym, Expr, Stmt)
+  LetCont(@symbols.Sym, ContLam, Stmt)
+  ImpureApp(@symbols.Sym, @symbols.Sym, Array[Expr], Array[Block], Stmt)
+  Region(@symbols.Sym, MetaCont, Stmt)
+  Alloc(@symbols.Sym, Expr, @symbols.Sym, Stmt)
+  Var(@symbols.Sym, Expr, MetaCont, Stmt)
+  Dealloc(@symbols.Sym, Stmt)
+  Get(@symbols.Sym, @symbols.Sym, Stmt)
+  Put(@symbols.Sym, Expr, Stmt)
+  Reset(BlockLit, MetaCont, Cont)
+  Shift(@symbols.Sym, BlockLit, MetaCont, Cont)
+  Resume(@symbols.Sym, BlockLit, MetaCont, Cont)
+  Hole(@util.Span)
+}
+pub fn Stmt::free(Self) -> Variables
+pub fn Stmt::size(Self) -> Int
+
+pub(all) struct Substitution {
+  values : Map[Int, Expr]
+  blocks : Map[Int, Block]
+  conts : Map[Int, Cont]
+  metaconts : Map[Int, MetaCont]
+}
+pub fn Substitution::empty() -> Self
+pub fn Substitution::new(Map[Int, Expr], Map[Int, Block], Map[Int, Cont], Map[Int, MetaCont]) -> Self
+pub fn Substitution::shadow_blocks(Self, Array[@symbols.Sym]) -> Self
+pub fn Substitution::shadow_conts(Self, Array[@symbols.Sym]) -> Self
+pub fn Substitution::shadow_metaconts(Self, Array[@symbols.Sym]) -> Self
+pub fn Substitution::shadow_params(Self, Array[@symbols.Sym], Array[@symbols.Sym]) -> Self
+pub fn Substitution::shadow_values(Self, Array[@symbols.Sym]) -> Self
+
+pub(all) enum ToplevelDefinition {
+  ToplevelDef(@symbols.Sym, Block)
+  ToplevelVal(@symbols.Sym, @symbols.Sym, @symbols.Sym, Stmt)
+  ToplevelLet(@symbols.Sym, Expr)
+}
+pub fn ToplevelDefinition::id(Self) -> @symbols.Sym
+
+pub(all) struct Variables {
+  ids : Map[Int, @symbols.Sym]
+}
+pub fn Variables::block(@symbols.Sym) -> Self
+pub fn Variables::cont(@symbols.Sym) -> Self
+pub fn Variables::contains(Self, @symbols.Sym) -> Bool
+pub fn Variables::diff(Self, Array[@symbols.Sym]) -> Self
+pub fn Variables::empty() -> Self
+pub fn Variables::is_empty(Self) -> Bool
+pub fn Variables::length(Self) -> Int
+pub fn Variables::meta(@symbols.Sym) -> Self
+pub fn Variables::to_array(Self) -> Array[@symbols.Sym]
+pub fn Variables::union(Self, Self) -> Self
+pub fn Variables::value(@symbols.Sym) -> Self
+
+// Type aliases
+
+// Traits

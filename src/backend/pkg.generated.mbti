@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "amistozy/effekt/src/backend"
+
+import {
+  "amistozy/effekt/src/core",
+  "amistozy/effekt/src/namer",
+  "amistozy/effekt/src/source",
+  "amistozy/effekt/src/symbols",
+  "amistozy/effekt/src/util",
+}
+
+// Values
+pub fn aggregate(Array[@core.ModuleDecl], String) -> @core.ModuleDecl
+
+pub fn emit(Array[@namer.ResolvedModule], @source.Context) -> String raise @util.EffektError
+
+pub fn exports_of(@symbols.Module) -> Array[@symbols.Sym]
+
+pub fn find_exported(@symbols.Module, String) -> @symbols.Sym?
+
+pub fn find_infix_eq(Array[@namer.ResolvedModule]) -> @symbols.Sym?
+
+pub fn find_main(Array[@namer.ResolvedModule]) -> @symbols.Sym?
+
+pub fn main_name() -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

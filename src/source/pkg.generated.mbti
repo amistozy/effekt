@@ -1,0 +1,652 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "amistozy/effekt/src/source"
+
+import {
+  "amistozy/effekt/src/symbols",
+  "amistozy/effekt/src/util",
+}
+
+// Values
+pub fn at_kind() -> TokenKind
+
+pub fn build_precedence_table() -> PrecedenceTable
+
+pub fn definition_for_capability(@symbols.Sym, Context) -> BlockParam
+
+pub fn explicit_capabilities(ModuleDecl, Context) -> ModuleDecl raise @util.EffektError
+
+pub fn find_preferred(Array[ExternBody], Context) -> ExternBody?
+
+pub fn in_kind() -> TokenKind
+
+pub fn index_of(Array[String], String) -> Int?
+
+pub fn keyword_kind(String) -> TokenKind?
+
+pub fn literal_type(LiteralValue) -> @symbols.ValueType
+
+pub fn mk_def(@util.Span, Info, DefKind) -> Def
+
+pub fn mk_guard(@util.Span, GuardKind) -> MatchGuard
+
+pub fn mk_pattern(@util.Span, PatternKind) -> MatchPattern
+
+pub fn mk_stmt(@util.Span, StmtKind) -> Stmt
+
+pub fn mk_term(@util.Span, TermKind) -> Term
+
+pub fn mk_type(@util.Span, TypeKind) -> TypeTree
+
+pub fn parse_module_decl(@util.Source, Context) -> ModuleDecl? raise @util.EffektError
+
+pub fn parse_statement(@util.Source, Context) -> Stmt? raise @util.EffektError
+
+pub fn parse_term(@util.Source, Context) -> Term? raise @util.EffektError
+
+pub fn reference_to_capability(@symbols.Sym, Context) -> Term
+
+pub fn resolve_extern_defs(ModuleDecl, Context) -> ModuleDecl raise @util.EffektError
+
+pub fn resume_kind() -> TokenKind
+
+pub fn rewrite_capture_set(CaptureSetTree, Context, Hooks) -> CaptureSetTree raise @util.EffektError
+
+pub fn rewrite_def(Def, Context, Hooks) -> Def raise @util.EffektError
+
+pub fn rewrite_effects(EffectsTree, Context, Hooks) -> EffectsTree raise @util.EffektError
+
+pub fn rewrite_extern_body(ExternBody, Context, Hooks) -> ExternBody raise @util.EffektError
+
+pub fn rewrite_handler(Handler, Context, Hooks) -> Handler raise @util.EffektError
+
+pub fn rewrite_implementation(Implementation, Context, Hooks) -> Implementation raise @util.EffektError
+
+pub fn rewrite_module(ModuleDecl, Context, Hooks) -> ModuleDecl raise @util.EffektError
+
+pub fn rewrite_op_clause(OpClause, Context, Hooks) -> OpClause raise @util.EffektError
+
+pub fn rewrite_stmt(Stmt, Context, Hooks) -> Stmt raise @util.EffektError
+
+pub fn rewrite_term(Term, Context, Hooks) -> Term raise @util.EffektError
+
+pub fn rewrite_type(TypeTree, Context, Hooks) -> TypeTree raise @util.EffektError
+
+pub fn rewrite_value_arg(ValueArg, Context, Hooks) -> ValueArg raise @util.EffektError
+
+pub fn soft_keyword(String) -> TokenKind
+
+pub fn supported_flags(Context) -> Array[String]
+
+pub fn symbol_text(TokenKind) -> String
+
+pub fn underscore_kind() -> TokenKind
+
+// Errors
+
+// Types and methods
+pub(all) enum Associativity {
+  AssocLeft
+  AssocRight
+  AssocNone
+}
+
+pub(all) struct BlockParam {
+  id : IdDef
+  tpe : TypeTree?
+  is_implicit : Bool
+}
+
+pub(all) enum CallTarget {
+  IdTarget(IdRef)
+  ExprTarget(Term)
+}
+pub fn CallTarget::span_of(Self) -> @util.Span
+
+pub(all) struct CaptureSetTree {
+  span : @util.Span
+  captures : Array[IdRef]
+}
+
+pub(all) struct Config {
+  feature_flags : Array[String]
+  debug : Bool
+  optimize : Bool
+}
+pub fn Config::default() -> Self
+
+pub(all) struct Constructor {
+  uid : Int
+  span : @util.Span
+  id : IdDef
+  tparams : Array[IdDef]
+  params : Array[ValueParam]
+  doc : String?
+}
+
+pub(all) struct Context {
+  mut messages : Array[@util.Message]
+  symbols : Map[Int, @symbols.Sym]
+  value_types : Map[Int, @symbols.ValueType]
+  block_types : Map[Int, @symbols.BlockType]
+  types : Map[Int, @symbols.Sym]
+  captures : Map[Int, @symbols.Captures]
+  effects : Map[Int, @symbols.Effects]
+  bound_capabilities : Map[Int, Array[@symbols.Sym]]
+  implicit_value_args : Map[Int, Array[Term]]
+  implicit_block_args : Map[Int, Array[Term]]
+  capability_receiver : Map[Int, @symbols.Sym]
+  capability_arguments : Map[Int, Array[@symbols.Sym]]
+  type_arguments : Map[Int, Array[@symbols.ValueType]]
+  mut resolved_module : @symbols.Module?
+  config : Config
+}
+pub fn Context::abort(Self, @util.Span, String) -> Unit raise @util.EffektError
+pub fn Context::assign_block_type(Self, Int, @symbols.BlockType) -> Unit
+pub fn Context::assign_bound_capabilities(Self, Int, Array[@symbols.Sym]) -> Unit
+pub fn Context::assign_capability_arguments(Self, Int, Array[@symbols.Sym]) -> Unit
+pub fn Context::assign_capability_receiver(Self, Int, @symbols.Sym) -> Unit
+pub fn Context::assign_capture(Self, Int, @symbols.Captures) -> Unit
+pub fn Context::assign_effects(Self, Int, @symbols.Effects) -> Unit
+pub fn Context::assign_implicit_block_args(Self, Int, Array[Term]) -> Unit
+pub fn Context::assign_implicit_value_args(Self, Int, Array[Term]) -> Unit
+pub fn Context::assign_symbol(Self, Int, @symbols.Sym) -> Unit
+pub fn Context::assign_type_arguments(Self, Int, Array[@symbols.ValueType]) -> Unit
+pub fn Context::assign_value_type(Self, Int, @symbols.ValueType) -> Unit
+pub fn Context::block_type_of(Self, Int) -> @symbols.BlockType?
+pub fn Context::bound_capabilities_of(Self, Int) -> Array[@symbols.Sym]
+pub fn Context::capability_arguments_of(Self, Int) -> Array[@symbols.Sym]
+pub fn Context::capability_receiver_of(Self, Int) -> @symbols.Sym?
+pub fn Context::capture_of(Self, Int) -> @symbols.Captures?
+pub fn Context::copy_annotations(Self, Int, Int) -> Unit
+pub fn Context::effects_of(Self, Int) -> @symbols.Effects?
+pub fn Context::error(Self, @util.Span, String) -> Unit
+pub fn Context::feature_flags(Self) -> Array[String]
+pub fn Context::has_errors(Self) -> Bool
+pub fn Context::implicit_block_args_of(Self, Int) -> Array[Term]
+pub fn Context::implicit_value_args_of(Self, Int) -> Array[Term]
+pub fn Context::info(Self, String) -> Unit
+pub fn Context::messages(Self) -> Array[@util.Message]
+pub fn Context::new(Config) -> Self
+pub fn Context::panic(Self, String) -> Unit raise @util.EffektError
+pub fn Context::report(Self, @util.Message) -> Unit
+pub fn Context::resolved_module(Self) -> @symbols.Module?
+pub fn Context::set_resolved_module(Self, @symbols.Module) -> Unit
+pub fn Context::supports(Self, String) -> Bool
+pub fn Context::symbol_of(Self, Int) -> @symbols.Sym?
+pub fn Context::symbol_of_or(Self, Int, @symbols.Sym) -> @symbols.Sym
+pub fn Context::type_arguments_of(Self, Int) -> Array[@symbols.ValueType]
+pub fn Context::value_type_of(Self, Int) -> @symbols.ValueType?
+pub fn Context::warning(Self, @util.Span, String) -> Unit
+
+pub(all) struct Def {
+  uid : Int
+  span : @util.Span
+  info : Info
+  kind : DefKind
+}
+pub fn Def::id_def(Self) -> IdDef
+
+pub(all) enum DefKind {
+  FunDef(IdDef, Array[IdDef], Array[ValueParam], Array[BlockParam], CaptureSetTree?, TypeTree?, Stmt)
+  ValDef(IdDef, TypeTree?, Stmt)
+  RegDef(IdDef, TypeTree?, IdRef, Stmt)
+  VarDef(IdDef, TypeTree?, Stmt)
+  DefDef(IdDef, CaptureSetTree?, TypeTree?, Term)
+  NamespaceDef(IdDef, Array[Def])
+  InterfaceDef(IdDef, Array[IdDef], Array[Operation])
+  DataDef(IdDef, Array[IdDef], Array[Constructor])
+  RecordDef(IdDef, Array[IdDef], Array[ValueParam])
+  TypeDef(IdDef, Array[IdDef], TypeTree)
+  EffectDef(IdDef, Array[IdDef], EffectsTree)
+  ExternType(IdDef, Array[IdDef], Array[ExternBody])
+  ExternDef(IdDef, Array[IdDef], Array[ValueParam], Array[BlockParam], CaptureSetTree, TypeTree, Array[ExternBody])
+  ExternResource(IdDef, TypeTree)
+  ExternInterface(IdDef, Array[IdDef], Array[ExternBody])
+  ExternInclude(FeatureFlag, String, String?)
+}
+
+pub(all) enum Delimiter {
+  SingleString
+  MultiString
+  CharString
+  HoleString
+} derive(Eq)
+pub fn Delimiter::allows_escapes(Self) -> Bool
+pub fn Delimiter::allows_interpolation(Self) -> Bool
+pub fn Delimiter::is_multiline(Self) -> Bool
+pub fn Delimiter::to_token_kind(Self, String) -> TokenKind
+
+pub(all) struct EffectsTree {
+  span : @util.Span
+  effs : Array[TypeTree]
+}
+pub fn EffectsTree::pure(@util.Span) -> Self
+
+pub(all) enum ExternBody {
+  StringExternBody(FeatureFlag, @util.Template[Term])
+  EffektExternBody(FeatureFlag, Stmt)
+  Unsupported(String)
+}
+pub fn ExternBody::flag(Self) -> FeatureFlag
+pub fn ExternBody::is_supported_by(Self, String) -> Bool
+
+pub(all) enum FeatureFlag {
+  NamedFeatureFlag(String)
+  Default
+}
+pub fn FeatureFlag::is_default(Self) -> Bool
+pub fn FeatureFlag::matches(Self, String) -> Bool
+pub fn FeatureFlag::matches_any(Self, Array[String]) -> Bool
+pub impl Show for FeatureFlag
+
+pub(all) enum GuardKind {
+  BooleanGuard(Term)
+  PatternGuard(Term, MatchPattern)
+}
+
+pub(all) struct Handler {
+  uid : Int
+  span : @util.Span
+  capability : BlockParam?
+  implementation : Implementation
+}
+
+pub(all) struct Hooks {
+  expr : ((Context, Term) -> Term? raise @util.EffektError)?
+  stmt : ((Context, Stmt) -> Stmt? raise @util.EffektError)?
+  defn : ((Context, Def) -> Def? raise @util.EffektError)?
+}
+pub fn Hooks::none() -> Self
+
+pub(all) struct IdDef {
+  uid : Int
+  path : Array[String]
+  name : String
+  span : @util.Span
+}
+pub fn IdDef::new(String, @util.Span) -> Self
+pub fn IdDef::qualified(Array[String], String, @util.Span) -> Self
+
+pub(all) struct IdRef {
+  uid : Int
+  path : Array[String]
+  name : String
+  span : @util.Span
+}
+pub fn IdRef::new(String, @util.Span) -> Self
+pub fn IdRef::qualified(Array[String], String, @util.Span) -> Self
+
+pub(all) struct Implementation {
+  uid : Int
+  span : @util.Span
+  interface : TypeTree
+  clauses : Array[OpClause]
+}
+
+pub(all) struct Include {
+  path : String
+  span : @util.Span
+}
+
+pub(all) struct Info {
+  doc : String?
+  is_private : Bool
+  is_extern : Bool
+}
+pub fn Info::empty() -> Self
+
+pub struct Lexer {
+  content : String
+  mut current_char : Char
+  mut next_char : Char
+  mut offset : Int
+  mut token_start : Int
+  delimiters : Array[Delimiter]
+  mut parens : Int
+  mut braces : Int
+  mut brackets : Int
+  interpolation_depths : Array[Int]
+  mut resume_string_next : Bool
+  mut eof : Bool
+}
+pub fn Lexer::has_next(Self) -> Bool
+pub fn Lexer::lex(@util.Source) -> Array[Token]
+pub fn Lexer::new(@util.Source) -> Self
+pub fn Lexer::next(Self) -> Token
+
+pub(all) enum LexerError {
+  InvalidEscapeSequence(String)
+  Expected(Char)
+  UnknownChar(Char)
+  UnterminatedStringLike(TokenKind)
+  UnterminatedComment
+  EmptyCharLiteral
+  MultipleCodePointsInChar
+  InvalidIntegerFormat
+  InvalidDoubleFormat
+  InvalidByteFormat
+  UnterminatedInterpolation(Int)
+} derive(Eq)
+pub fn LexerError::message(Self) -> String
+
+pub(all) enum LiteralValue {
+  LUnit
+  LBool(Bool)
+  LInt(Int)
+  LDouble(Double)
+  LString(String)
+  LChar(Int)
+  LByte(Int)
+}
+pub impl Show for LiteralValue
+
+pub struct Many[T] {
+  items : Array[T]
+  span : @util.Span
+}
+pub fn[T] Many::empty(@util.Span) -> Self[T]
+pub fn[T] Many::new(Array[T], @util.Span) -> Self[T]
+pub fn[T] Many::size(Self[T]) -> Int
+pub fn[T] Many::unspan(Self[T]) -> Array[T]
+
+pub(all) struct MatchClause {
+  uid : Int
+  span : @util.Span
+  pattern : MatchPattern
+  guards : Array[MatchGuard]
+  body : Stmt
+}
+
+pub(all) struct MatchGuard {
+  uid : Int
+  span : @util.Span
+  kind : GuardKind
+}
+
+pub(all) struct MatchPattern {
+  uid : Int
+  span : @util.Span
+  kind : PatternKind
+}
+
+pub struct Maybe[T] {
+  value : T?
+  span : @util.Span
+}
+pub fn[T] Maybe::get_or_else(Self[T], T) -> T
+pub fn[T] Maybe::get_or_else_lazy(Self[T], () -> T raise @util.EffektError) -> T raise @util.EffektError
+pub fn[T, U] Maybe::map(Self[T], (T) -> U raise @util.EffektError) -> Self[U] raise @util.EffektError
+pub fn[T] Maybe::non_empty(Self[T]) -> Bool
+pub fn[T] Maybe::none(@util.Span) -> Self[T]
+pub fn[T] Maybe::or_else(Self[T], () -> Self[T] raise @util.EffektError) -> Self[T] raise @util.EffektError
+pub fn[T] Maybe::some(T, @util.Span) -> Self[T]
+
+pub(all) struct ModuleDecl {
+  uid : Int
+  span : @util.Span
+  path : String
+  includes : Array[Include]
+  defs : Array[Def]
+  doc : String?
+}
+
+pub(all) struct OpClause {
+  uid : Int
+  span : @util.Span
+  id : IdRef
+  tparams : Array[IdDef]
+  vparams : Array[ValueParam]
+  bparams : Array[BlockParam]
+  ret : TypeTree?
+  body : Stmt
+  resume : IdDef
+}
+
+pub(all) struct Operation {
+  uid : Int
+  span : @util.Span
+  id : IdDef
+  tparams : Array[IdDef]
+  vparams : Array[ValueParam]
+  bparams : Array[BlockParam]
+  ret : TypeTree
+  doc : String?
+}
+
+pub struct Parser {
+  tokens : Array[Token]
+  source : @util.Source
+  context : Context
+  mut position : Int
+  mut previous : Token?
+  mut current_label : String?
+  mut start : Int
+  mut fail_position : Int
+  diagnostics : Array[RecoverableDiagnostic]
+  precedence : PrecedenceTable
+}
+pub fn Parser::new(Array[Token], @util.Source, Context) -> Self raise @util.EffektError
+
+pub(all) enum PatternKind {
+  AnyPattern(IdDef)
+  TagPattern(IdRef, Array[MatchPattern])
+  IgnorePattern
+  LiteralPattern(LiteralValue, @symbols.ValueType)
+  MultiPattern(Array[MatchPattern])
+}
+
+pub(all) enum Precedence {
+  LeftBindsTighter
+  RightBindsTighter
+  Ambiguous
+}
+
+pub struct PrecedenceTable {
+  ops : Array[TokenKind]
+  assoc : Array[(TokenKind, Associativity)]
+  matrix : Array[Array[Bool]]
+}
+
+pub struct RecoverableDiagnostic {
+  kind : @util.Severity
+  message : String
+  start : Int
+  end : Int
+}
+
+pub struct Spanned[T] {
+  unspan : T
+  span : @util.Span
+}
+
+pub struct SpannedTemplate[T] {
+  strings : Array[Spanned[String]]
+  args : Array[Spanned[T]]
+}
+
+pub(all) struct Stmt {
+  uid : Int
+  span : @util.Span
+  kind : StmtKind
+}
+
+pub(all) enum StmtKind {
+  DefStmt(Def, Stmt)
+  ExprStmt(Term, Stmt)
+  Return(Term)
+  BlockStmt(Stmt)
+}
+
+pub(all) struct Term {
+  uid : Int
+  span : @util.Span
+  kind : TermKind
+}
+
+pub(all) enum TermKind {
+  Var(IdRef)
+  Assign(IdRef, Term)
+  Literal(LiteralValue, @symbols.ValueType)
+  Hole(IdDef, @util.Template[Stmt])
+  Box(CaptureSetTree?, Term)
+  Unbox(Term)
+  Select(Term, IdRef)
+  Do(IdRef, Array[TypeTree], Array[ValueArg], Array[Term])
+  Call(CallTarget, Array[TypeTree], Array[ValueArg], Array[Term])
+  MethodCall(Term, IdRef, Array[TypeTree], Array[ValueArg], Array[Term])
+  If(Array[MatchGuard], Stmt, Stmt)
+  While(Array[MatchGuard], Stmt, Stmt?)
+  Match(Array[Term], Array[MatchClause], Stmt?)
+  TryHandle(Stmt, Array[Handler])
+  Region(IdDef, Stmt)
+  BlockLiteral(Array[IdDef], Array[ValueParam], Array[BlockParam], Stmt)
+  New(Implementation)
+}
+
+pub struct Token {
+  start : Int
+  end : Int
+  kind : TokenKind
+}
+pub fn Token::is_error(Self) -> Bool
+pub fn Token::new(Int, Int, TokenKind) -> Self
+pub impl Show for Token
+
+pub(all) enum TokenKind {
+  TEOF
+  TError(LexerError)
+  TNewline
+  TInteger(Int)
+  TFloat(Double)
+  TStr(String, Bool)
+  THoleStr(String)
+  TChr(Int)
+  TByt(Int)
+  TIdent(String)
+  TComment(String)
+  TDocComment(String)
+  TShebang(String)
+  TSpace
+  TAssign
+  TColonAssign
+  TEqEqEq
+  TNotEqEq
+  TColon
+  TSemi
+  TPathSep
+  TAt
+  TSpliceStart
+  TLBrace
+  TRBrace
+  TSpliceEnd
+  TLParen
+  TRParen
+  TLBracket
+  TRBracket
+  TComma
+  TQuote
+  TDot
+  TSlash
+  TArrow
+  TDiamond
+  TLt
+  TLtEq
+  TGt
+  TGtEq
+  THoleStart
+  THoleEnd
+  TBang
+  TBar
+  TBarBar
+  TAmp
+  TAmpAmp
+  TPlus
+  TPlusPlus
+  TMinus
+  TStar
+  TGtGt
+  TLtLt
+  TTilde
+  TMinusMinus
+  TTildeGt
+  TLtTilde
+  TPlusEq
+  TMinusEq
+  TStarEq
+  TSlashEq
+  TDotDot
+  TDotDotDot
+  THatHat
+  THat
+  TQuestion
+  KLet
+  KTrue
+  KFalse
+  KVal
+  KVar
+  KIf
+  KElse
+  KWhile
+  KType
+  KEffect
+  KInterface
+  KTry
+  KWith
+  KCase
+  KDo
+  KMatch
+  KDef
+  KExtern
+  KRecord
+  KBox
+  KUnbox
+  KReturn
+  KRegion
+  KResource
+  KNew
+  KAnd
+  KIs
+  KNamespace
+  KModule
+  KImport
+  KExport
+  KInclude
+  KPrivate
+} derive(Eq)
+pub fn TokenKind::explain(Self) -> String
+pub fn TokenKind::is_keyword(Self) -> Bool
+pub fn TokenKind::is_space(Self) -> Bool
+pub fn TokenKind::keyword_text(Self) -> String
+
+pub(all) enum TypeKind {
+  TypeRef(IdRef, Array[TypeTree])
+  ValueTypeTree(@symbols.ValueType)
+  BlockTypeTree(@symbols.BlockType)
+  BoxedType(TypeTree, CaptureSetTree)
+  FunctionType(Array[IdDef], Array[TypeTree], Array[(IdDef?, TypeTree)], TypeTree, EffectsTree)
+  Effectful(TypeTree, EffectsTree)
+}
+
+pub(all) struct TypeTree {
+  uid : Int
+  span : @util.Span
+  kind : TypeKind
+}
+
+pub(all) struct ValueArg {
+  name : String?
+  value : Term
+  span : @util.Span
+}
+pub fn ValueArg::named(String, Term, @util.Span) -> Self
+pub fn ValueArg::unnamed(Term) -> Self
+
+pub(all) struct ValueParam {
+  id : IdDef
+  tpe : TypeTree?
+  is_implicit : Bool
+}
+
+// Type aliases
+
+// Traits

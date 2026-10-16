@@ -24,6 +24,20 @@ You can browse and install extra skills here:
 - Try to keep deprecated blocks in file called `deprecated.mbt` in each
   directory.
 
+## Git workflow
+
+- **Commit and push automatically.** After finishing a change, do not stop to ask
+  whether to commit: run the checks below, then `git add -A`, commit with a
+  descriptive message, and `git push` to `origin/main` on your own.
+- Before every commit, the tree must be green:
+  `moon check`, `moon test --target js` and
+  `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/e2e.ps1`
+  (use `powershell`, not `pwsh`, which is not on PATH here).
+- Run `moon info && moon fmt` first, and commit the updated `.mbti` interfaces
+  together with the code that changed them.
+- Never commit build output: `_build/`, the JavaScript generated for the examples
+  (`examples/**/*.js`, already in `.gitignore`), or scratch/debug files.
+
 ## Tooling
 
 - `moon fmt` is used to format your code properly.

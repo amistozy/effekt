@@ -1,0 +1,76 @@
+module stringbuffer
+
+import effekt
+import bytearray
+
+effect flush(): String
+
+def stringBuffer { program: () => Unit / write }: String =
+  flushableStringBuffer { program(); do flush() }
+
+def flushableStringBuffer[A] { program: () => A / { write, flush } }: A = {
+  val initialCapacity = 128
+  var buffer = bytearray::allocate(initialCapacity)
+  // next free index to write to
+  var position = 0
+
+  def ensureCapacity(required: Int): Unit = {
+    val capacity = buffer.size - position
+    if (required <= capacity) ()
+    else {
+      // Double the capacity while ensuring the required capacity
+      val newSize = max(buffer.size * 2, buffer.size + required)
+      buffer = buffer.resize(newSize)
+    }
+  }
+
+  try {
+    program()
+  } with write { string =>
+    val bytes = fromString(string)
+    val n = bytes.size
+    ensureCapacity(n)
+    // safe: `ensureCapacity` just established the target range
+    bytearray::unsafeCopy(bytes, 0, buffer, position, n)
+    position = position + n
+    resume(())
+  } with flush {
+    val string = buffer.resize(position).toString()
+    position = 0
+    resume(string)
+  }
+}
+
+def splicing[T] { writer: T => Unit } { program: () => Unit / splice[T] }: Unit =
+  try { program() } with splice[T] { t => resume(writer(t)) }
+
+
+/// Handler for string interpolation using a string buffer
+def s { program: () => Unit / { write, splice[String] } }: String =
+  stringBuffer {
+    try { program() }
+    with splice[String] { x => resume(do write(x)) }
+  }
+
+namespace examples {
+  def main() = {
+    with flushableStringBuffer
+
+    do write("hello")
+    do write(", world")
+    // prints `hello, world`
+    println(do flush())
+
+    // prints the empty string
+    println(do flush())
+
+    do write("Ef")
+    do write("fe")
+    do write("kt")
+    do write(" = ")
+    do write("")
+    do write("Effekt")
+    // prints `Effekt = Effekt`
+    println(do flush())
+  }
+}

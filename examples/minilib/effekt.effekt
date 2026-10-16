@@ -1,0 +1,91 @@
+// A minimal stand-in for the Effekt prelude.
+//
+// The full `libraries/common/effekt.effekt` exercises parts of the typer that
+// are still being brought up (overloaded `println` on every builtin type, the
+// `js`/`chez`/`llvm` feature-flagged extern bodies, ...). This file contains
+// just enough of the prelude to compile and run small programs end to end, and
+// is used by the backend smoke tests via `--lib examples/minilib`.
+module effekt
+
+namespace js {
+  extern include js "../../libraries/js/effekt_runtime.js"
+  extern include js "../../libraries/js/effekt_builtins.js"
+}
+
+extern def println(value: String): Unit =
+  js "$effekt.println(${value})"
+
+extern def infixPlusPlus(s1: String, s2: String) at {}: String =
+  js "${s1} + ${s2}"
+
+/// Structurally generated show function, as in the real prelude.
+extern def generated::show[R](value: R) at {}: String =
+  js "$effekt.show(${value})"
+
+extern def showBuiltin(value: Int) at {}: String =
+  js "'' + ${value}"
+
+extern def infixPlus(x: Int, y: Int) at {}: Int =
+  js "(${x} + ${y})"
+
+extern def infixMinus(x: Int, y: Int) at {}: Int =
+  js "(${x} - ${y})"
+
+extern def infixStar(x: Int, y: Int) at {}: Int =
+  js "(${x} * ${y})"
+
+extern def infixSlash(x: Int, y: Int) at {}: Int =
+  js "Math.trunc(${x} / ${y})"
+
+extern def infixLt(x: Int, y: Int) at {}: Bool =
+  js "(${x} < ${y})"
+
+extern def infixLte(x: Int, y: Int) at {}: Bool =
+  js "(${x} <= ${y})"
+
+extern def infixGt(x: Int, y: Int) at {}: Bool =
+  js "(${x} > ${y})"
+
+extern def infixGte(x: Int, y: Int) at {}: Bool =
+  js "(${x} >= ${y})"
+
+extern def infixEq(x: Int, y: Int) at {}: Bool =
+  js "${x} === ${y}"
+
+extern def infixNeq(x: Int, y: Int) at {}: Bool =
+  js "${x} !== ${y}"
+
+extern def infixEq(x: String, y: String) at {}: Bool =
+  js "${x} === ${y}"
+
+extern def infixEq(x: Bool, y: Bool) at {}: Bool =
+  js "${x} === ${y}"
+
+extern def not(b: Bool) at {}: Bool =
+  js "!${b}"
+
+def infixBarBar { first: => Bool } { second: => Bool }: Bool =
+  if (first()) true else second()
+
+def infixAmpAmp { first: => Bool } { second: => Bool }: Bool =
+  if (first()) second() else false
+
+def show(value: Int): String = showBuiltin(value)
+
+def println(value: Int): Unit = println(showBuiltin(value))
+
+extern def showBuiltin(value: Char) at {}: String =
+  js "String.fromCodePoint(${value})"
+
+def show(value: Char): String = showBuiltin(value)
+
+def println(value: Char): Unit = println(showBuiltin(value))
+
+def println(value: Bool): Unit =
+  if (value) println("true") else println("false")
+
+def each(start: Int, end: Int) { action: (Int) => Unit } = {
+  def loop(i: Int): Unit =
+    if (i < end) { action(i); loop(i + 1) }
+  loop(start)
+}

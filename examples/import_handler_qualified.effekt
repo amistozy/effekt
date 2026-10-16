@@ -1,0 +1,8 @@
+import exception
+
+def main() = {
+  val r = try { raise(1, "boom") } with exception::Exception[Int] {
+    def raise(e, msg) = { println(msg); 0 }
+  }
+  println(r)
+}

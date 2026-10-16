@@ -1,0 +1,13 @@
+interface Exc {
+  def raise(msg: String): Nothing
+}
+
+def safeDiv(x: Int, y: Int): Int / Exc =
+  if (y == 0) do raise("division by zero") else x / y
+
+def main() = {
+  val result = try { safeDiv(10, 0) } with Exc {
+    def raise(msg) = { println(msg); -1 }
+  }
+  println(result.show)
+}

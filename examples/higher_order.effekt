@@ -1,0 +1,6 @@
+def each(start: Int, end: Int) { action: (Int) => Unit } = {
+  def loop(i: Int): Unit = if (i < end) { action(i); loop(i + 1) }
+  loop(start)
+}
+
+def main() = each(1, 5) { x => println(x) }

@@ -1,0 +1,108 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "amistozy/effekt/src/compiler"
+
+import {
+  "amistozy/effekt/src/namer",
+  "amistozy/effekt/src/source",
+  "amistozy/effekt/src/symbols",
+  "amistozy/effekt/src/util",
+}
+
+// Values
+pub fn command_line_args() -> Array[String]
+
+pub fn compile_file(Options, Pipeline, @source.Config) -> CompileResult raise @util.EffektError
+
+pub fn default_output(String) -> String
+
+pub fn dirname(String) -> String
+
+pub fn exit(Int) -> Unit
+
+pub fn file_exists(String) -> Bool
+
+pub fn includes_of(@source.ModuleDecl) -> Array[@source.Include]
+
+pub fn info(String) -> Unit
+
+pub fn join_path(String, String) -> String
+
+pub fn module_path_of(String) -> String
+
+pub fn normalize_separators(String) -> String
+
+pub fn parse_args(Array[String]) -> (Options, Array[String])
+
+pub fn read_file(String) -> String?
+
+pub fn render_messages(Array[@util.Message]) -> String
+
+pub fn resolve_includes(@source.ModuleDecl, @util.Source, @source.Context) -> @source.ModuleDecl
+
+pub fn resolve_path(String) -> String
+
+pub fn run_node(String) -> Int
+
+pub fn runner_contents(String) -> String
+
+pub fn runner_path(String) -> String
+
+pub fn search_paths(String, Options) -> Array[String]
+
+pub fn usage() -> String
+
+pub fn write_file(String, String) -> Unit
+
+// Errors
+
+// Types and methods
+pub(all) struct CompileResult {
+  output : String?
+  messages : Array[@util.Message]
+  failed : Bool
+}
+
+pub(all) struct LoadedModule {
+  path : String
+  source : @util.Source
+  tree : @source.ModuleDecl
+}
+
+pub struct Loader {
+  roots : Array[String]
+  sources : Map[String, @util.Source]
+  trees : Map[String, @source.ModuleDecl]
+  modules : Map[String, @symbols.Module]
+  mut loading : Array[String]
+}
+pub fn Loader::closure(Self, String, @source.Context, (@util.Source, @source.Context) -> @source.ModuleDecl? raise @util.EffektError) -> Array[String] raise @util.EffektError
+pub fn Loader::load_tree(Self, String, @source.Context, (@util.Source, @source.Context) -> @source.ModuleDecl? raise @util.EffektError) -> @source.ModuleDecl raise @util.EffektError
+pub fn Loader::locate(Self, String) -> String?
+pub fn Loader::locate_relative(Self, @util.Source, String) -> String?
+pub fn Loader::new(Array[String]) -> Self
+pub fn Loader::source_of(Self, String) -> @util.Source?
+pub fn Loader::tree_of(Self, String) -> @source.ModuleDecl?
+
+pub(all) struct Options {
+  mut input : String
+  mut output : String?
+  mut include_paths : Array[String]
+  mut lib_path : String
+  mut show_help : Bool
+  mut show_core : Bool
+  mut show_cps : Bool
+  mut show_js : Bool
+  mut run : Bool
+}
+pub fn Options::default() -> Self
+
+pub(all) struct Pipeline {
+  parse : (@util.Source, @source.Context) -> @source.ModuleDecl? raise @util.EffektError
+  resolve : (@source.ModuleDecl, @source.Context, Map[String, @namer.ResolvedModule]) -> @namer.ResolvedModule raise @util.EffektError
+  typecheck : (@source.ModuleDecl, @source.Context) -> @source.ModuleDecl raise @util.EffektError
+  emit : (Array[@namer.ResolvedModule], @source.Context) -> String raise @util.EffektError
+}
+
+// Type aliases
+
+// Traits

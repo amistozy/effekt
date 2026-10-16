@@ -1,0 +1,17 @@
+// Multi-shot continuations: `flip` is resumed twice, so all four
+// combinations of the two `amb` calls are explored and summed.
+interface Amb {
+  def flip(): Bool
+}
+
+def amb(x: Int, y: Int): Int / Amb =
+  if (do flip()) x else y
+
+def main() = {
+  val result = try {
+    amb(1, 2) + amb(10, 20)
+  } with Amb {
+    def flip() = resume(true) + resume(false)
+  }
+  println(result)
+}

@@ -1,0 +1,167 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "amistozy/effekt/src/util"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn braces_inner(Doc) -> Doc
+
+pub fn brackets_inner(Doc) -> Doc
+
+pub fn comma() -> Doc
+
+pub fn compare_string(String, String) -> Int
+
+pub fn doc_cat(Doc, Doc) -> Doc
+
+pub fn doc_group(Doc) -> Doc
+
+pub fn doc_hardline() -> Doc
+
+pub fn doc_line() -> Doc
+
+pub fn doc_nest(Int, Doc) -> Doc
+
+pub fn doc_softbreak() -> Doc
+
+pub fn doc_space() -> Doc
+
+pub fn doc_spacecat(Doc, Doc) -> Doc
+
+pub fn empty_doc() -> Doc
+
+pub fn fill_sep(Array[Doc]) -> Doc
+
+pub fn fresh_uid() -> Int
+
+pub fn hcat(Array[Doc]) -> Doc
+
+pub fn hsep(Array[Doc]) -> Doc
+
+pub fn intercalate(Array[String], Array[Doc]) -> Array[Doc]
+
+pub fn internal_error(String) -> Unit raise EffektError
+
+pub fn nested(Doc) -> Doc
+
+pub fn nested_at(Int, Doc) -> Doc
+
+pub fn parens_inner(Doc) -> Doc
+
+pub fn punctuate(Array[Doc], Doc) -> Doc
+
+pub fn render(Doc) -> String
+
+pub fn render_width(Doc, Int) -> String
+
+pub fn reset_uid() -> Unit
+
+pub fn text(String) -> Doc
+
+pub fn vcat(Array[Doc]) -> Doc
+
+pub fn vsep(Array[Doc]) -> Doc
+
+// Errors
+pub(all) suberror EffektError {
+  Fatal(String)
+  Internal(String)
+}
+
+// Types and methods
+pub(all) enum Doc {
+  Empty
+  Text(String)
+  Cat(Doc, Doc)
+  Nest(Int, Doc)
+  Line
+  SoftBreak
+  HardLine
+  Group(Doc)
+}
+
+pub(all) struct Message {
+  severity : Severity
+  span : Span
+  text : String
+}
+pub fn Message::error(Span, String) -> Self
+pub fn Message::info(String) -> Self
+pub fn Message::render(Self) -> String
+pub fn Message::warning(Span, String) -> Self
+
+pub(all) enum Mode {
+  Flat
+  Break
+} derive(Eq)
+
+pub(all) enum Origin {
+  Real
+  Synthesized
+  Missing
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Position {
+  line : Int
+  column : Int
+} derive(Eq, @debug.Debug)
+pub impl Show for Position
+
+pub(all) enum Severity {
+  Error
+  Warning
+  Info
+} derive(Eq, @debug.Debug)
+pub impl Show for Severity
+
+pub(all) struct Source {
+  name : String
+  content : String
+  line_starts : Array[Int]
+}
+pub fn Source::empty() -> Self
+pub fn Source::line_count(Self) -> Int
+pub fn Source::line_start(Self, Int) -> Int
+pub fn Source::line_text(Self, Int) -> String
+pub fn Source::new(String, String) -> Self
+pub fn Source::offset_to_position(Self, Int) -> Position
+pub fn Source::position_to_offset(Self, Position) -> Int
+pub fn Source::text_between(Self, Position, Position) -> String
+
+pub(all) struct Span {
+  source : Source
+  start : Int
+  end : Int
+  origin : Origin
+}
+pub fn Span::compare(Self, Self) -> Int
+pub fn Span::empty_after(Self) -> Self
+pub fn Span::is_missing(Self) -> Bool
+pub fn Span::merge(Self, Self) -> Self
+pub fn Span::missing() -> Self
+pub fn Span::missing_in(Source) -> Self
+pub fn Span::new(Source, Int, Int) -> Self
+pub fn Span::position(Self) -> Position
+pub fn Span::range_text(Self) -> String
+pub fn Span::synthesized(Self) -> Self
+pub fn Span::text(Self) -> String?
+pub fn Span::to_span(Self, Self) -> Self
+pub fn Span::with_origin(Source, Int, Int, Origin) -> Self
+pub impl Show for Span
+
+pub(all) struct Template[T] {
+  strings : Array[String]
+  args : Array[T]
+}
+pub fn[T] Template::empty() -> Self[T]
+pub fn[T] Template::is_empty(Self[T]) -> Bool
+pub fn[T, U] Template::map(Self[T], (T) -> U) -> Self[U]
+pub fn[T, U] Template::map_raise(Self[T], (T) -> U raise EffektError) -> Self[U] raise EffektError
+pub fn[T] Template::new(Array[String], Array[T]) -> Self[T]
+pub fn[T] Template::render(Self[T], (T) -> String) -> String
+
+// Type aliases
+
+// Traits

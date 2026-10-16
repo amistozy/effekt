@@ -1,0 +1,5 @@
+def main() = {
+  val c = 'A'
+  println(c.show)
+  println("ok")
+}

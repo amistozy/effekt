@@ -1,0 +1,58 @@
+module io/channel
+
+import io
+import io/signal
+
+type Node[A, B] {
+  Nope()
+  Node(this: Signal[A, B], rest: Ref[Node[A, B]])
+}
+
+type Sender[A, B] = Ref[Ref[Node[A, B]]]
+type Receiver[A, B] = Ref[Ref[Node[A, B]]]
+
+/// Creates a new rendezvous channel and returns the receiving and the sending end.
+/// Every send must be matched by exactly one receive upon which two values are exchanged.
+def channel[A, B](): (Sender[A, B], Receiver[A, B]) = {
+  val node = ref(Nope())
+  (ref(node), ref(node))
+}
+
+/// Sends a value to a channel and blocks until a receiver arrives.
+def send[A, B](sender: Sender[A, B], value: A): B = {
+  val current = sender.get()
+  val (this, rest) = current.get() match {
+    case Nope() =>
+      val this = signal()
+      val rest = ref(Nope())
+      current.set(Node(this, rest))
+      (this, rest)
+    case Node(this, rest) =>
+      (this, rest)
+  }
+  sender.set(rest)
+  // TODO avoid yield
+  yield()
+  this.fire(value)
+}
+
+/// Receives a value from a channel and blocks until a sender arrives.
+def receive[A, B](receiver: Receiver[A, B], value: B): A = {
+  val current = receiver.get()
+  val (this, rest) = current.get() match {
+    case Nope() =>
+      val this = signal()
+      val rest = ref(Nope())
+      current.set(Node(this, rest))
+      (this, rest)
+    case Node(this, rest) =>
+      (this, rest)
+  }
+  receiver.set(rest)
+  // TODO avoid yield
+  yield()
+  this.wait(value)
+}
+
+// TODO streaming
+

@@ -1,0 +1,182 @@
+import tty
+import process
+import bench
+import sourcepos
+
+interface Assertion {
+  def assert(condition: Bool, msg: String, ?sourcePosition: SourcePosition): Unit
+}
+
+def assertTrue(condition: Bool, msg: String, ?sourcePosition: SourcePosition) =
+  do assert(condition, msg, sourcePosition)
+
+def assertTrue(condition: Bool, ?sourcePosition: SourcePosition) =
+  do assert(condition, "Assertion failed", sourcePosition)
+
+def assertFalse(condition: Bool, msg: String, ?sourcePosition: SourcePosition) =
+  do assert(not(condition), msg, sourcePosition)
+
+def assertFalse(condition: Bool, ?sourcePosition: SourcePosition) =
+  do assert(not(condition), "Assertion failed", sourcePosition)
+
+def assert(obtained: Int, expected: Int, msg: String, ?sourcePosition: SourcePosition): Unit / Assertion =
+  assertEqual(obtained, expected, msg, sourcePosition) { (x, y) => x == y }
+
+def assert(obtained: Bool, expected: Bool, msg: String, ?sourcePosition: SourcePosition): Unit / Assertion =
+  assertEqual(obtained, expected, msg, sourcePosition) { (x, y) => x == y }
+
+def assert(obtained: Char, expected: Char, msg: String, ?sourcePosition: SourcePosition): Unit / Assertion =
+  assertEqual(obtained, expected, msg, sourcePosition) { (x, y) => x == y }
+
+def assert(obtained: String, expected: String, msg: String, ?sourcePosition: SourcePosition): Unit / Assertion =
+  assertEqual(obtained, expected, msg, sourcePosition) { (x, y) => x == y }
+
+def assert(obtained: Int, expected: Int, ?sourcePosition: SourcePosition): Unit / { Assertion, Formatted } =
+  assertEqual(obtained, expected, sourcePosition) { (x, y) => x == y } { x => show(x) }
+
+def assert(obtained: Byte, expected: Byte, ?sourcePosition: SourcePosition): Unit / { Assertion, Formatted } =
+  assertEqual(obtained, expected, sourcePosition) { (x, y) => x == y } { x => show(x) }
+
+def assert(obtained: Bool, expected: Bool, ?sourcePosition: SourcePosition): Unit / { Assertion, Formatted } =
+  assertEqual(obtained, expected, sourcePosition) { (x, y) => x == y } { x => show(x) }
+
+def assert(obtained: Char, expected: Char, ?sourcePosition: SourcePosition): Unit / { Assertion, Formatted } =
+  assertEqual(obtained, expected, sourcePosition) { (x, y) => x == y } { x => show(x) }
+
+def assert(obtained: String, expected: String, ?sourcePosition: SourcePosition): Unit / { Assertion, Formatted } =
+  assertEqual(obtained, expected, sourcePosition) { (x, y) => x == y } { x => show(x) }
+
+def assertEqual[A](obtained: A, expected: A, msg: String, ?sourcePosition: SourcePosition): Unit / Assertion =
+  assertEqual(obtained, expected, msg, sourcePosition) { (x, y) => x.genericEquals(y) }
+
+def assertEqual[A](obtained: A, expected: A, ?sourcePosition: SourcePosition): Unit / { Assertion, Formatted } =
+  assertEqual(obtained, expected, sourcePosition) { (x, y) => x.genericEquals(y) } { x => x.genericShow }
+
+def assertEqual[A](obtained: A, expected: A, msg: String, ?sourcePosition: SourcePosition) { equals: (A, A) => Bool }: Unit / Assertion =
+  do assert(equals(obtained, expected), msg, sourcePosition)
+
+def assertEqual[A](obtained: A, expected: A, ?sourcePosition: SourcePosition) { equals: (A, A) => Bool } { show: A => String }: Unit / { Assertion, Formatted } =
+  do assert(equals(obtained, expected), Formatted::tryEmit(Escape::RESET) ++ "Expected: ".dim ++ show(expected).green ++ "\n  Obtained: ".dim ++ show(obtained).red, sourcePosition)
+  // NOTE:                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  //             Here's an accidental capture! Can we prevent this somehow nicely?
+
+def assertNotThrown[E](ex: on[E], ?sourcePosition: SourcePosition) { body: => Unit / Exception[E] }: Unit / Assertion =
+  ex.default { do assert(false, "Unexpected Exception", sourcePosition) } {body}
+
+def assertNoThrow[E](?sourcePosition: SourcePosition) { body: => Unit / Exception[E] }: Unit / Assertion =
+  on[E].default{ do assert(false, "Unexpected Exception", sourcePosition) } {body}
+
+def assertThrown[E](ex: on[E], ?sourcePosition: SourcePosition) { body: => Unit / Exception[E] }: Unit / Assertion =
+  do assert(ex.default { true } { body(); false }, "Expected Exception, but exited normally", sourcePosition)
+
+def assertThrows[E](?sourcePosition: SourcePosition) { body: => Unit / Exception[E] }: Unit / Assertion =
+  do assert(on[E].default { true } { body(); false }, "Expected Exception, but exited normally", sourcePosition)
+
+def assertFail(?sourcePosition: SourcePosition) { body: => Unit / fail }: Unit / Assertion =
+  do assert(succeeds {body}, "Expected 'fail', but exited normally", sourcePosition)
+
+def assertNoFail(?sourcePosition: SourcePosition) { body: => Unit / fail }: Unit / Assertion =
+  onFail { do assert(false, "Unexpected 'fail'", sourcePosition) } {body}
+
+
+interface Test {
+  def success(name: String, duration: Int, ?sourcePosition: SourcePosition): Unit
+  def failure(name: String, msg: String, duration: Int, ?sourcePosition: SourcePosition): Unit
+}
+
+/// Runs the `body` as a test under the given `name`
+/// See `suite` for examples.
+def test(name: String, ?sourcePosition: SourcePosition) { body: => Unit / Assertion } = {
+  val startTime = bench::relativeTimestamp()
+  try {
+    body()
+    val duration = Duration::diff(startTime, bench::relativeTimestamp())
+    do success(name, duration, sourcePosition)
+  } with Assertion {
+    def assert(condition, msg, assertSourcePosition) =
+      if (condition) resume(())
+      else {
+        val duration = Duration::diff(startTime, bench::relativeTimestamp())
+        do failure(name, msg, duration, assertSourcePosition)
+      }
+  }
+}
+
+/// Run a test suite with a given `name`.
+/// - If `printTimes` is `true` (or missing), prints out time in milliseconds.
+/// - Formats automatically using ANSI escapes.
+/// - Returns `true` if all tests succeed, otherwise returns `false`. If you want to exit the program on failure, see `mainSuite`.
+///
+/// Example:
+/// ```effekt
+/// suite("My Tests") {
+///   test("1 + 1 == 2") {
+///     assertEqual(1 + 1, 2)
+///   }
+/// }
+/// ```
+def suite(name: String, printTimes: Bool) { body: => Unit / { Test, Formatted } }: Bool / {} = {
+  with Formatted::formatting;
+
+  def ms(duration: Int): String / Formatted =
+    if (printTimes) {
+      " " ++ ("[" ++ bench::formatMs(duration) ++ "]").dim
+    } else {
+      ""
+    }
+
+  def dimWhenZeroElse(s: String, n: Int) { colorIfNonZero: String => String / Formatted } =
+    if (n == 0) { dim(s) }
+    else { colorIfNonZero(s) }
+
+  var failed = 0
+  var passed = 0
+
+  // 1) Print the name of the test
+  println(name.bold)
+
+  // 2) Run the tests, timing them
+  val totalDuration = timed {
+    try { body() } with Test {
+      // 2a) Handle a passing test on success
+      def success(name, duration, sourcePosition) = {
+        passed = passed + 1
+        println("✓".green ++ " " ++ name ++ duration.ms)
+        resume(())
+      }
+
+      // 2b) Handle a failing test on failure, additionally printing its message
+      def failure(name, msg, duration, sourcePosition) = {
+        failed = failed + 1
+        println("✕".red ++ " " ++ name ++ duration.ms)
+        println("  " ++ msg.red ++ " at " ++ sourcePosition.toGccStyleString())
+        resume(())
+      }
+    }
+  }
+
+  // 3) Format the test results
+  println("")
+  println(" " ++ (passed.show ++ " pass").dimWhenZeroElse(passed) { green })
+  println(" " ++ (failed.show ++ " fail").dimWhenZeroElse(failed) { red })
+  println(" " ++ (passed + failed).show ++ " tests total" ++ totalDuration.ms)
+
+  // 4) Return true if all tests succeeded, otherwise false
+  return failed == 0
+}
+
+/// See `suite` above.
+def suite(name: String) { body: => Unit / { Test, Formatted } }: Bool / {} =
+  suite(name, true) { body }
+
+/// Use as `def main() = mainSuite("...") { ... }`
+/// Recommended for standalone test files ran by CI.
+///
+/// Exits after running all tests:
+/// - if all tests succeed, exits the program with success (exit code 0)
+/// - otherwise exits the program with failure (exit code 1)
+def mainSuite(name: String) { body: => Unit / { Test, Formatted } }: Unit = {
+  val result = suite(name, true) { body }
+  val exitCode = if (result) 0 else 1
+  exit(exitCode)
+}

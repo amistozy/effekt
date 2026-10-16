@@ -1,26 +1,21 @@
-// Learn more about moon.mod configuration:
-// https://docs.moonbitlang.com/en/latest/toolchain/moon/module.html
+// Effekt: a MoonBit reimplementation of the Effekt language compiler.
 //
-// To add a dependency, run this command in your terminal:
-//   moon add moonbitlang/x
-//
-// Or manually declare it in `import`, for example:
-// import {
-//   "moonbitlang/x@0.4.6",
-// }
-
+// Upstream Effekt is implemented in Scala (see .reference/effekt for the
+// original sources). This port targets the JavaScript backend only.
 name = "amistozy/effekt"
 
 version = "0.1.0"
 
 readme = "README.mbt.md"
 
-repository = ""
+repository = "https://github.com/amistozy/effekt"
 
 license = "Apache-2.0"
 
-keywords = []
+keywords = [ "effekt", "compiler", "effects", "javascript" ]
 
-preferred_target = "wasm"
+preferred_target = "js"
 
-description = ""
+description = "An implementation of the Effekt language in MoonBit, compiling to JavaScript."
+
+warnings = "-implicit_impl_as_method-redundant_modifier-unused_value-unused_constructor"

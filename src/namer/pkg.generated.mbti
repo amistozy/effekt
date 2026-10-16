@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "amistozy/effekt/src/namer"
+
+import {
+  "amistozy/effekt/src/source",
+  "amistozy/effekt/src/symbols",
+  "amistozy/effekt/src/util",
+}
+
+// Values
+pub fn resolve(@source.ModuleDecl, @source.Context) -> Unit raise @util.EffektError
+
+pub fn resolve_module(@source.ModuleDecl, @source.Context, Map[String, ResolvedModule]) -> ResolvedModule raise @util.EffektError
+
+// Errors
+
+// Types and methods
+pub(all) struct ResolvedModule {
+  module : @symbols.Module
+  tree : @source.ModuleDecl
+  holes : Array[@symbols.Sym]
+}
+
+// Type aliases
+
+// Traits

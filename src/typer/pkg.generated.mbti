@@ -1,0 +1,271 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "amistozy/effekt/src/typer"
+
+import {
+  "amistozy/effekt/src/source",
+  "amistozy/effekt/src/symbols",
+  "amistozy/effekt/src/util",
+}
+
+// Values
+pub fn block_type_eq(@symbols.BlockType, @symbols.BlockType) -> Bool
+
+pub fn block_types_eq(Array[@symbols.BlockType], Array[@symbols.BlockType]) -> Bool
+
+pub fn capability_type(@symbols.Sym) -> @symbols.BlockType?
+
+pub fn capture_param_of(@symbols.Captures) -> @symbols.Sym?
+
+pub fn capture_params_of(Array[@symbols.Captures]) -> Array[@symbols.Sym]
+
+pub fn captures_eq(@symbols.Captures, @symbols.Captures) -> Bool
+
+pub fn captures_list_eq(Array[@symbols.Captures], Array[@symbols.Captures]) -> Bool
+
+pub fn captures_of_params(Array[@symbols.Sym]) -> Array[@symbols.Captures]
+
+pub fn datatype_constructors(@symbols.ValueType) -> Array[@symbols.Sym]
+
+pub fn eff_contains(@symbols.Effects, @symbols.BlockType) -> Bool
+
+pub fn eff_diff(@symbols.Effects, @symbols.Effects) -> @symbols.Effects
+
+pub fn eff_union(@symbols.Effects, @symbols.Effects) -> @symbols.Effects
+
+pub fn eff_union_of(Array[@symbols.Effects]) -> @symbols.Effects
+
+pub fn effects_eq(@symbols.Effects, @symbols.Effects) -> Bool
+
+pub fn effects_of(Array[@symbols.BlockType]) -> @symbols.Effects
+
+pub fn free_captures(@symbols.Captures) -> Array[@symbols.Sym]
+
+pub fn free_captures_block(@symbols.BlockType) -> Array[@symbols.Sym]
+
+pub fn free_captures_value(@symbols.ValueType) -> Array[@symbols.Sym]
+
+pub fn free_types_block(@symbols.BlockType, Array[@symbols.Sym]) -> Array[@symbols.Sym]
+
+pub fn free_types_value(@symbols.ValueType, Array[@symbols.Sym]) -> Array[@symbols.Sym]
+
+pub fn interface_key(@symbols.BlockType) -> String
+
+pub fn show_block_type(@symbols.BlockType) -> String
+
+pub fn show_captures(@symbols.Captures) -> String
+
+pub fn show_effects(@symbols.Effects) -> String
+
+pub fn show_value_type(@symbols.ValueType) -> String
+
+pub fn syms_eq(Array[@symbols.Sym], Array[@symbols.Sym]) -> Bool
+
+pub fn typecheck(@source.ModuleDecl, @source.Context) -> Unit raise @util.EffektError
+
+pub fn unbox_inference(@source.ModuleDecl, @source.Context) -> @source.ModuleDecl raise @util.EffektError
+
+pub fn value_type_eq(@symbols.ValueType, @symbols.ValueType) -> Bool
+
+pub fn value_type_key(@symbols.ValueType) -> String
+
+pub fn value_types_eq(Array[@symbols.ValueType], Array[@symbols.ValueType]) -> Bool
+
+// Errors
+
+// Types and methods
+pub(all) struct Annotations {
+  value : Map[Int, @symbols.ValueType]
+  block : Map[Int, @symbols.BlockType]
+  effect : Map[Int, @symbols.Effects]
+  capt : Map[Int, @symbols.Captures]
+  type_args : Map[Int, Array[@symbols.ValueType]]
+  bound_caps : Map[Int, Array[@symbols.Sym]]
+  cap_receiver : Map[Int, @symbols.Sym]
+  cap_args : Map[Int, Array[@symbols.Sym]]
+  impl_vargs : Map[Int, Array[@source.Term]]
+  impl_bargs : Map[Int, Array[@source.Term]]
+}
+pub fn Annotations::copy(Self) -> Self
+pub fn Annotations::new() -> Self
+
+pub struct CallLike {
+  uid : Int
+  span : @util.Span
+  name : String
+}
+
+pub(all) enum CapScope {
+  GlobalCap
+  BindSome(Map[String, @symbols.Sym], CapScope)
+  BindAll(Map[String, @symbols.Sym], CapScope)
+}
+pub fn CapScope::all_capabilities(Self) -> Array[@symbols.Sym]
+pub fn CapScope::capability_for(Self, @symbols.BlockType) -> @symbols.Sym?
+pub fn CapScope::capability_for_matching(Self, @symbols.BlockType, (@symbols.BlockType) -> @symbols.BlockType) -> @symbols.Sym?
+pub fn CapScope::copy(Self) -> Self
+pub fn CapScope::is_global(Self) -> Bool
+pub fn CapScope::parent(Self) -> Self
+pub fn CapScope::relevant_in_scope_for(Self, @symbols.BlockType) -> Array[String]
+
+pub(all) enum ErrCtx {
+  Expected(@symbols.ValueType, @symbols.ValueType)
+  MergeTypes(@symbols.ValueType, @symbols.ValueType)
+  Declaration(@symbols.ValueType, @symbols.ValueType)
+  PatternMatch
+  CaptureFlow
+  Other
+}
+
+pub(all) struct Instantiated {
+  vparams : Array[@symbols.ValueType]
+  bparams : Array[@symbols.BlockType]
+  ret : @symbols.ValueType
+  effs : @symbols.Effects
+}
+
+pub struct Substitutions {
+  values : Map[Int, @symbols.ValueType]
+  captures : Map[Int, @symbols.Captures]
+}
+pub fn Substitutions::bind_captures(Self, @symbols.Sym, @symbols.Captures) -> Unit
+pub fn Substitutions::bind_value(Self, @symbols.Sym, @symbols.ValueType) -> Unit
+pub fn Substitutions::captures(Array[@symbols.Sym], Array[@symbols.Captures]) -> Self
+pub fn Substitutions::captures_of(Self, @symbols.Sym) -> @symbols.Captures?
+pub fn Substitutions::compose(Self, Self) -> Self
+pub fn Substitutions::empty() -> Self
+pub fn Substitutions::is_empty(Self) -> Bool
+pub fn Substitutions::substitute_block(Self, @symbols.BlockType) -> @symbols.BlockType
+pub fn Substitutions::substitute_captures(Self, @symbols.Captures) -> @symbols.Captures
+pub fn Substitutions::substitute_effects(Self, @symbols.Effects) -> @symbols.Effects
+pub fn Substitutions::substitute_value(Self, @symbols.ValueType) -> @symbols.ValueType
+pub fn Substitutions::types(Array[@symbols.Sym], Array[@symbols.ValueType]) -> Self
+pub fn Substitutions::value_of(Self, @symbols.Sym) -> @symbols.ValueType?
+pub fn Substitutions::without(Self, Array[@symbols.Sym], Array[@symbols.Sym]) -> Self
+
+pub struct TyRes[T] {
+  tpe : T
+  effs : @symbols.Effects
+}
+pub fn[T] TyRes::new(T, @symbols.Effects) -> Self[T]
+
+pub struct Typer {
+  ctx : @source.Context
+  mut st : TyperState
+  mut muting : Bool
+  mut muted_error : Bool
+  mut muted_messages : Array[String]
+  mut focus : @util.Span
+}
+pub fn Typer::annotate_block(Self, Int, @symbols.BlockType) -> Unit
+pub fn Typer::annotate_capture(Self, Int, @symbols.Captures) -> Unit
+pub fn Typer::annotate_effects(Self, Int, @symbols.Effects) -> Unit
+pub fn Typer::annotate_value(Self, Int, @symbols.ValueType) -> Unit
+pub fn Typer::assert_concrete_effect(Self, @symbols.BlockType, @util.Span) -> Unit raise @util.EffektError
+pub fn Typer::assert_concrete_effects(Self, @symbols.Effects, @util.Span) -> Unit raise @util.EffektError
+pub fn Typer::bind_block(Self, @symbols.Sym, @symbols.BlockType) -> Unit
+pub fn Typer::bind_capture(Self, @symbols.Sym, @symbols.Captures) -> Unit
+pub fn Typer::bind_value(Self, @symbols.Sym, @symbols.ValueType) -> Unit
+pub fn Typer::check_call_to(Self, CallLike, Array[@symbols.Sym], Array[@symbols.Sym], Array[@symbols.Sym], @symbols.BlockType, Array[@symbols.ValueType], Array[@source.ValueArg], Array[@source.Term], @symbols.ValueType?, CapScope?) -> TyRes[@symbols.ValueType] raise @util.EffektError
+pub fn Typer::check_exhaustive(Self, @source.Term, Array[@source.MatchClause], @util.Span) -> Unit
+pub fn Typer::check_expr(Self, @source.Term, @symbols.ValueType?) -> TyRes[@symbols.ValueType] raise @util.EffektError
+pub fn Typer::check_expr_as_block(Self, @source.Term, @symbols.BlockType?, (Int, @symbols.ValueType)?) -> TyRes[@symbols.BlockType] raise @util.EffektError
+pub fn Typer::check_function_argument(Self, @source.Term, @symbols.BlockType) -> TyRes[@symbols.BlockType] raise @util.EffektError
+pub fn Typer::check_guards(Self, Array[@source.MatchGuard]) -> @symbols.Effects raise @util.EffektError
+pub fn Typer::check_implementation(Self, @source.Implementation, (@symbols.ValueType, @symbols.Sym)?) -> TyRes[@symbols.BlockType] raise @util.EffektError
+pub fn Typer::check_main(Self, @source.ModuleDecl) -> Unit raise @util.EffektError
+pub fn Typer::check_module(Self, @source.ModuleDecl) -> Unit raise @util.EffektError
+pub fn Typer::check_no_capture_escape(Self, Array[@symbols.Sym], Array[@symbols.Sym], @util.Span, String) -> Unit
+pub fn Typer::check_overloaded_function_call(Self, CallLike, @source.IdRef, Array[@symbols.ValueType], Array[@source.ValueArg], Array[@source.Term], @symbols.ValueType?) -> TyRes[@symbols.ValueType] raise @util.EffektError
+pub fn Typer::check_overloaded_method_call(Self, @source.Term, @source.Term, @source.IdRef, Array[@symbols.ValueType], Array[@source.ValueArg], Array[@source.Term], @symbols.ValueType?) -> TyRes[@symbols.ValueType] raise @util.EffektError
+pub fn Typer::check_pattern(Self, @symbols.ValueType, @source.MatchPattern) -> Array[(@symbols.Sym, @symbols.ValueType)] raise @util.EffektError
+pub fn Typer::check_stmt(Self, @source.Stmt, @symbols.ValueType?) -> TyRes[@symbols.ValueType] raise @util.EffektError
+pub fn Typer::check_try_handle(Self, @source.Term, @source.Stmt, Array[@source.Handler], @symbols.ValueType?) -> TyRes[@symbols.ValueType] raise @util.EffektError
+pub fn Typer::commit(Self) -> Unit
+pub fn Typer::find_function_type_for(Self, @symbols.Sym) -> (@symbols.BlockType, Array[@symbols.Sym], Array[@symbols.Sym], Array[@symbols.Sym]) raise @util.EffektError
+pub fn Typer::infer_function_argument(Self, @source.Term) -> TyRes[@symbols.BlockType] raise @util.EffektError
+pub fn Typer::instantiate(Self, @symbols.BlockType, Array[@symbols.Sym], Array[@symbols.ValueType], Array[@symbols.Captures]) -> (Array[@symbols.ValueType], Array[@symbols.BlockType], @symbols.ValueType, @symbols.Effects) raise @util.EffektError
+pub fn Typer::instantiate_fresh(Self, @symbols.BlockType, Array[@symbols.Sym]) -> (Array[@symbols.ValueType], Array[@symbols.Captures], Instantiated) raise @util.EffektError
+pub fn Typer::instantiate_value(Self, @symbols.BlockType, Array[@symbols.Sym], Array[@symbols.ValueType], Array[@symbols.Captures]) -> (Array[@symbols.ValueType], @symbols.ValueType) raise @util.EffektError
+pub fn Typer::join(Self, @symbols.ValueType?, Array[(@symbols.ValueType, @util.Span?)]) -> @symbols.ValueType raise @util.EffektError
+pub fn Typer::lookup_block(Self, @symbols.Sym) -> @symbols.BlockType raise @util.EffektError
+pub fn Typer::lookup_capture(Self, @symbols.Sym) -> @symbols.Captures
+pub fn Typer::lookup_first_value(Self, @symbols.Sym) -> @symbols.ValueType?
+pub fn Typer::lookup_function_type(Self, @symbols.Sym) -> @symbols.BlockType raise @util.EffektError
+pub fn Typer::lookup_value(Self, @symbols.Sym) -> @symbols.ValueType raise @util.EffektError
+pub fn Typer::merge_value_types(Self, @symbols.ValueType, @symbols.ValueType, ErrCtx) -> @symbols.ValueType raise @util.EffektError
+pub fn Typer::new(@source.Context) -> Self
+pub fn Typer::precheck_def(Self, @source.Def) -> Unit raise @util.EffektError
+pub fn Typer::require_subregion(Self, @symbols.Captures, @symbols.Captures, @util.Span) -> Unit raise @util.EffektError
+pub fn Typer::require_subtype_value(Self, @symbols.ValueType, @symbols.ValueType, ErrCtx) -> Unit raise @util.EffektError
+pub fn Typer::resolve_block_ref(Self, @source.TypeTree) -> @symbols.BlockType raise @util.EffektError
+pub fn Typer::resolve_block_type(Self, @source.TypeTree) -> @symbols.BlockType raise @util.EffektError
+pub fn Typer::resolve_captures(Self, @source.CaptureSetTree) -> @symbols.Captures
+pub fn Typer::resolve_value_type(Self, @source.TypeTree) -> @symbols.ValueType raise @util.EffektError
+pub fn Typer::synth_def(Self, @source.Def) -> TyRes[Unit] raise @util.EffektError
+pub fn Typer::unify_block_types(Self, @symbols.BlockType, @symbols.BlockType, ErrCtx) -> Unit raise @util.EffektError
+pub fn Typer::unify_captures(Self, @symbols.Captures, @symbols.Captures, ErrCtx) -> Unit raise @util.EffektError
+pub fn Typer::unify_effects(Self, @symbols.Effects, @symbols.Effects, ErrCtx) -> Unit
+pub fn Typer::unify_value_types(Self, @symbols.ValueType, @symbols.ValueType, ErrCtx) -> Unit raise @util.EffektError
+
+pub(all) struct TyperState {
+  mut u : Unification
+  mut scope : UnifScope
+  mut cap_scope : CapScope
+  mut current : @symbols.Captures
+  vt : Map[Int, @symbols.ValueType]
+  bt : Map[Int, @symbols.BlockType]
+  ct : Map[Int, @symbols.Captures]
+  ann : Annotations
+}
+pub fn TyperState::backup(Self) -> Self
+
+pub struct Unboxer {
+  ctx : @source.Context
+}
+
+pub(all) enum UnifScope {
+  GlobalScope
+  LocalScope(Array[@symbols.Sym], Array[@symbols.Sym], UnifScope)
+}
+pub fn UnifScope::capt_vars(Self) -> Array[@symbols.Sym]
+pub fn UnifScope::deep_copy(Self) -> Self
+pub fn UnifScope::is_global(Self) -> Bool
+pub fn UnifScope::parent(Self) -> Self
+pub fn UnifScope::register_capt_var(Self, @symbols.Sym) -> Unit
+pub fn UnifScope::register_type_var(Self, @symbols.Sym) -> Unit
+pub fn UnifScope::type_vars(Self) -> Array[@symbols.Sym]
+
+pub struct Unification {
+  types : Map[Int, @symbols.ValueType]
+  capts : Map[Int, @symbols.Captures]
+  lower : Map[Int, Array[@symbols.Sym]]
+  upper : Map[Int, Array[@symbols.Sym]]
+  links : Array[(Int, Int, Array[@symbols.Sym])]
+  var_of : Map[Int, @symbols.Sym]
+  capt_var : Map[Int, @symbols.Sym]
+}
+pub fn Unification::copy(Self) -> Self
+pub fn Unification::fresh_capt_var(Self, String) -> @symbols.Sym
+pub fn Unification::fresh_type_var(Self, @symbols.Sym) -> @symbols.Sym
+pub fn Unification::is_capt_var(Self, @symbols.Sym) -> Bool
+pub fn Unification::is_type_var(Self, @symbols.Sym) -> Bool
+pub fn Unification::link(Self, Int, Int, Array[@symbols.Sym]) -> Unit
+pub fn Unification::lower_of(Self, Int) -> Array[@symbols.Sym]
+pub fn Unification::new() -> Self
+pub fn Unification::propagate(Self) -> String?
+pub fn Unification::prune_block(Self, @symbols.BlockType) -> @symbols.BlockType
+pub fn Unification::prune_captures(Self, @symbols.Captures) -> @symbols.Captures
+pub fn Unification::prune_effects(Self, @symbols.Effects) -> @symbols.Effects
+pub fn Unification::prune_value(Self, @symbols.ValueType) -> @symbols.ValueType
+pub fn Unification::require_lower(Self, Array[@symbols.Sym], @symbols.Sym) -> String?
+pub fn Unification::require_upper(Self, Array[@symbols.Sym], @symbols.Sym) -> String?
+pub fn Unification::set_type(Self, @symbols.Sym, @symbols.ValueType) -> Unit
+pub fn Unification::solve_all(Self, Array[@symbols.Sym]) -> Array[String]
+pub fn Unification::solve_capt_var(Self, @symbols.Sym) -> String?
+pub fn Unification::substitution(Self) -> Substitutions
+pub fn Unification::underlying(Self, @symbols.Sym) -> @symbols.Sym
+pub fn Unification::update_substitution(Self) -> Unit
+
+// Type aliases
+
+// Traits

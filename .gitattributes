@@ -1,0 +1,3 @@
+# Store every text file with LF and check it out with LF on all platforms,
+# overriding core.autocrlf so tooling (moon fmt) never causes whitespace churn.
+* text=auto eol=lf

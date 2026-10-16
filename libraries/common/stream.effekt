@@ -1,0 +1,524 @@
+module stream
+
+import effekt
+import option
+import partial
+
+// Effects
+// -------
+
+/// The effect for emitting an item of type `A` in a push stream.
+effect emit[A](item: A): Unit
+
+/// The effect for getting the next item of type `A` from a pull stream.
+///
+/// Uses the `stop` effect to signal the end of the stream.
+effect next[A](): A / stop
+
+
+/// Like `for[A, R]`, but ignores the result of the stream, and consequently
+/// works for any type. Use this to annotate the type of stream elements
+/// `A` without having to also annotate `R`.
+///
+/// e.g. for[Int] { prog() } { el => println(el) }
+def for[A] { stream: () => Unit / emit[A] } { action: A => Unit }: Unit =
+  returning::for[A, Unit]{stream}{action}
+
+/// Applies the given function on each emitted element and reemits the result.
+///
+/// e.g. map[Int,String]{ x => x.show } { range(0, 5) }
+def map[A, B] { function: A => B } { stream: () => Unit / emit[A] }: Unit / emit[B] =
+  returning::map[A, B, Unit]{function}{stream}
+
+/// Runs the given action whenever the given driver reads an element.
+///
+/// e.g. var i = -1; with tap { i = i + 1; i }; driver()
+def tap[A] { action: () => A / stop } { driver: () => Unit / next[A] }: Unit =
+  returning::tap[A, Unit]{action}{driver}
+
+/// Runs the stream as a message queue,
+/// handling each of its elements that can produce new elements ("messages"),
+/// until a fixed point is reached.
+def fix[T] { one: T => Unit / emit[T] } { stream: => Unit / emit[T] }: Unit =
+  try {
+    stream()
+  } with emit[T] { item =>
+    fix {one} { one(item) }
+    resume(())
+  }
+
+
+def many[A] { action: () => A / stop }: Unit / emit[A] =
+  loop { do emit(action()) }
+
+def some[A] { action: () => A / stop }: Unit / { emit[A], fail } = {
+  do emit(must { action() })
+  many { action() }
+}
+
+
+/// In Effekt lower bounds are inclusive and upper bounds are exclusive
+record Indexed[A](index: Int, item: A)
+
+def range(lower: Int, upper: Int): Unit / emit[Int] =
+  if (lower < upper) {
+    do emit(lower)
+    range(lower + 1, upper)
+  }
+
+def rangeTo(upper: Int): Unit / emit[Int] =
+  range(0, upper)
+
+def rangeFrom(lower: Int): Unit / emit[Int] = {
+  do emit(lower)
+  rangeFrom(lower + 1)
+}
+
+def index[A] { stream: () => Unit / emit[A] }: Unit / emit[Indexed[A]] =
+  returning::index[A, Unit]{stream}
+
+
+/// If `number` is zero or negative it does nothing
+def limit[A](number: Int) { stream: () => Unit / emit[A] }: Unit / emit[A] =
+  boundary { returning::limit[A, Unit](number){stream} }
+
+
+/// If `number` is zero or negative it does nothing
+def replicate[A](number: Int) { action: () => A }: Unit / emit[A] =
+  if (number > 0) {
+    do emit(action())
+    replicate(number - 1) {action}
+  }
+
+/// Creates an infinite iterated stream given by an `initial` seed and a `step` function:
+/// iterate(a){f} ~> a, f(a), f(f(a)), f(f(f(a))), ...
+def iterate[A](initial: A) { step: A => A }: Unit / emit[A] = {
+  var current = initial
+  while (true) {
+    do emit(current)
+    current = step(current)
+  }
+}
+
+/// Re-emit from the `stream` as long as the `predicate` holds.
+/// Once the predicate fails, the stream ends.
+///
+/// Examples:
+/// ```effekt
+/// > list::collect[Int] { takeWhile[Int] { x => x < 3 } { [1, 2, 3, 4, 1].each } }
+/// [1, 2]
+///
+/// > list::collect[Int] { takeWhile[Int] { x => x < 10 } { [1, 2, 3].each } }
+/// [1, 2, 3]
+///
+/// > list::collect[Int] { takeWhile[Int] { x => x < 0 } { [1, 2, 3].each } }
+/// []
+/// ```
+def takeWhile[A] { predicate: A => Bool } { stream: () => Unit / emit[A] }: Unit / emit[A] =
+  try { stream() } with emit[A] {
+    case item and predicate(item) => do emit(item); resume(())
+    case _                          => () // end the stream
+  }
+
+
+def sum { stream: () => Unit / emit[Int] }: Int =
+  returning::sum[Unit]{stream}.second
+
+def product { stream: () => Unit / emit[Int] }: Int =
+  returning::product[Unit]{stream}.second
+
+/// Returns true if all elements in the stream satisfy the given predicate,
+/// false otherwise. Short-circuits as soon as a non-matching element is found.
+///
+/// Examples:
+/// ```effekt
+/// > all[Int] { x => x > 0 } { [1, 2, 3].each }
+/// true
+///
+/// > all[Int] { x => x < 3 } { [1, 2, 3, 4].each }
+/// false
+///
+/// > all[Bool] { x => x } { [false, true, true].each }
+/// false
+///
+/// > all[Int] { x => x >= 0 } { () } // empty stream
+/// true
+/// ```
+def all[A] { cond: A => Bool } { stream: => Unit / emit[A] }: Bool =
+  try { stream(); true } with emit[A] {
+    case item and not(cond(item)) => false
+    case _                          => resume(())
+  }
+
+/// Returns true if any element in the stream satisfies the given predicate,
+/// false otherwise. Short-circuits as soon as a matching element is found.
+///
+/// Examples:
+/// ```effekt
+/// > any[Int] { x => x > 0 } { [-2, -1, 0, 1, 2].each }
+/// true
+///
+/// > any[Int] { x => x > 10 } { [1, 2, 3, 4].each }
+/// false
+///
+/// > any[Bool] { x => x } { [false, true, false].each }
+/// true
+///
+/// > any[Int] { x => x == 0 } { () } // empty stream
+/// false
+/// ```
+def any[A] { cond: A => Bool } { stream: => Unit / emit[A] }: Bool =
+  try { stream(); false } with emit[A] {
+    case item and cond(item) => true
+    case _                     => resume(())
+  }
+
+/// Count the number of emitted values that satisfy the given predicate.
+///
+/// Examples:
+/// ```
+/// > countIf[Int] { x => x > 0 } { [2, -1, 0, 1, -2].each }
+/// 2
+///
+/// > countIf[Bool] { x => x } { [false, false, true, false].each }
+/// 1
+/// ```
+def countIf[A] { shouldCount: A => Bool } { stream: () => Unit / emit[A] }: Int = {
+  var count = 0
+  for {stream} {
+    case x and shouldCount(x) => count = count + 1
+    case _                    => ()
+  }
+  count
+}
+
+/// Count the number of emitted values.
+def count[A] { stream: () => Unit / emit[A] }: Int =
+  countIf[A] { _ => true } {stream}
+
+def source[A] { stream: () => Unit / emit[A] } { driver: () => Unit / next[A] }: Unit =
+  returning::source[A, Unit]{stream}{driver}
+
+/// Combines two streams together calling action on pairs in lockstep.
+/// Terminates when either of them terminates.
+def zip[A, B] { stream1: () => Unit / emit[A] } { stream2: () => Unit / emit[B] } { action: (A, B) => Unit }: Unit = {
+  with source[A] { stream1 }
+  with source[B] { stream2 }
+
+  loop {
+    action(do next[A](), do next[B]())
+  }
+}
+
+/// Combines two streams together calling action on OneOrBoth in lockstep.
+/// Terminates when both of them terminated.
+def zipLongest[A, B] { stream1: () => Unit / emit[A] } { stream2: () => Unit / emit[B] } { action: OneOrBoth[A, B] => Unit }: Unit = {
+  with source[A] { stream1 }
+  with source[B] { stream2 }
+
+  loop {
+     try {
+      val a = do next[A]()
+      try {
+        val b = do next[B]()
+        action(Both(a, b))
+      } with stop { () =>
+        action(This(a))
+      }
+    } with stop{ () =>
+      val b = do next[B]()
+      action(That(b))
+    }
+  }
+}
+
+namespace internal {
+  effect snapshot(): Unit
+}
+
+/// Use cons to handle prod, but also emit to the outside.
+/// The outside controls iteration, i.e., if cons aborts, the rest of prod will still be emitted.
+///
+/// Starts by executing cons. Will stop cons during execution if the outside stops consuming.
+///
+/// Example, printing all values consumed by the outside:
+///
+///     with teeing{ {s} => for{s}{ e => println(e) } }
+///     prod() // some producer
+///
+/// Laws-ish (hopefully):
+/// - hnd{ prd() } === hnd{ teeing{t}{ prd() } } for all hnd and t that calls its argument at most once (and has no other captures)
+def teeing[A]{ cons: { => Unit / emit[A] } => Unit }{ prod: => Unit / emit[A] }: Unit / emit[A] = region r {
+  var consDone = false
+  var k in r = box { prod() } // what still needs to run of prod after cons exits
+  try {
+    cons{
+      try {
+        prod()
+        k = box { () }
+      } with emit[A] { v =>
+        do internal::snapshot() // remember that we need to continue here if cons aborts
+        if(not(consDone)) do emit(v)
+        outer.emit(v)
+        resume(())
+      }
+      if(consDone) do stop() // cons already exited, so skip continuing there
+    } // end cons
+    consDone = true
+  }
+  with stop { () => () }
+  with outer: emit[A]{ v => resume(do emit(v)) }
+  with internal::snapshot{ () =>
+    k = box { resume(()) }
+    resume(())
+  }
+  k()
+}
+
+/// Binds a `teeing`-like function in the body, stopping the inner producer once all consumers in tees are done consuming.
+///
+/// Example of use, equivalent to `tee[A]{cns1}{cns2}{prd}`:
+///
+///     manyTee[A] { {tee} =>
+///       with tee{cns1}
+///       with tee{cns2}
+///       prd()
+///     }
+///
+def manyTee[A]{ body: { { { => Unit / emit[A] } => Unit }{ => Unit / emit[A] } => Unit / emit[A] } => Unit / emit[A] }: Unit = {
+  var running = 0
+  try {
+    body{ {hnd}{prod} =>
+      running = running + 1
+      teeing[A]{ {b} => hnd{b}; running = running - 1 }{prod}
+    }
+  } with emit[A] { _ =>
+    if(running > 0) resume(())
+  }
+}
+
+/// Streams prod to both cons1 and cons2. Stops once both cons1 and cons2 stopped.
+/// Only runs prod once, resuming at most once at each emit.
+///
+///     var sumRes = 0
+///     var productRes = 0
+///     tee{ s => sumRes = sum{s} }{ s => productRes = product{s} }{ range(0, 10) }
+///     assertEquals(sum{ range(0, 10) }, sumRes)
+///     assertEquals(product{ range(0, 10) }, productRes)
+///
+def tee[A]{ cons1: { => Unit / emit[A] } => Unit }{ cons2: { => Unit / emit[A] } => Unit }{ prod: => Unit / emit[A] }: Unit = {
+  manyTee[A]{ {tee} =>
+    with tee{cons1}
+    with tee{cons2}
+    prod()
+  }
+}
+
+/// Extract exactly the very first element of the given stream
+/// or fails if no elements are emitted.
+///
+/// Examples:
+/// ```effekt
+/// > first[Int] { [1, 2, 3].each }
+/// 1
+/// > first[Bool] { do emit(true) }
+/// true
+/// > first[String] { () } // empty stream
+/// <fail>
+/// ```
+def first[A] { stream: () => Unit / emit[A] }: A / fail = {
+  try {
+    stream()
+    do fail().absurd
+  } with emit[A] { a => a }
+}
+
+/// Extract the nth element of the given stream.
+/// Fails if not enough elements are emitted
+def nth[A](n: Int){ stream: () => Unit / emit[A] }: A / fail = {
+  var m = n
+  try {
+    stream()
+    do fail().absurd
+  } with emit[A] { a =>
+    if (m == 0) {
+      return a
+    } else {
+      m = m - 1
+      resume(())
+    }
+  }
+}
+
+// Peeking
+// -------
+
+/// Return the next item without advancing.
+effect peek[A](): A / stop
+
+/// Provide the ability to peek when consuming a stream.
+def peeking[A] { peeker: () => Unit / {next[A], peek[A]} }: Unit / next[A] =
+  returning::peeking[A, Unit]{peeker}
+
+// Counting and padding
+// --------------------
+
+/// get current position in stream
+effect getPos(): Int
+
+/// Track position in stream, starting with init
+/// Handles getPos
+def tracking[A](init: Int){ body: => Unit / { emit[A], getPos } }: Unit / emit[A] = {
+  var n = init
+  try body()
+  with emit[A] { b => n = n + 1; resume(do emit[A](b)) }
+  with getPos{ resume(n) }
+}
+
+/// Pad to a multiple of fac emitted values, by emitting gen repeatedly
+def pad[A](fac: Int){ gen: => A }: Unit  / {getPos, emit[A]} = {
+  while(mod(do getPos(), fac) != 0) {
+    do emit[A](gen())
+  }
+}
+
+/// Track how many bytes were emitted (in the body)
+/// Handles getPos
+def tracking[A]{ body: => Unit / { emit[A], getPos } }: Unit / emit[A] =
+  tracking[A](0){body}
+
+namespace returning {
+
+/// Canonical handler of push streams that performs `action` for every
+/// item emitted by `stream`.
+def for[A, R] { stream: () => R / emit[A] } { action: A => Unit }: R =
+  try {
+    stream()
+  } with emit[A] { item =>
+    resume(action(item))
+  }
+
+def map[A, B, R] { function: A => B } { stream: () => R / emit[A] }: R / emit[B] =
+  try {
+    stream()
+  } with emit[A] { item =>
+    resume(do emit(function(item)))
+  }
+
+def tap[A, R] { action: () => A / stop } { driver: () => R / next[A] }: R =
+  try {
+    driver()
+  } with next[A] { () =>
+    resume { action() }
+  }
+
+def boundary[R] { program: () => R / stop }: Option[R] =
+  try {
+    Some(program())
+  } with stop {
+    None()
+  }
+
+def index[A, R] { stream: () => R / emit[A] }: R / emit[Indexed[A]] = {
+  var i = 0;
+  try {
+    stream()
+  } with emit[A] { v =>
+    val c = i;
+    i = c + 1;
+    resume(do emit(Indexed(c, v)))
+  }
+}
+
+/// If `number` is zero or negative it does nothing
+def limit[A, R](number: Int) { stream: () => R / emit[A] }: R / { emit[A], stop } = {
+  if (number > 0) {
+    var i = number;
+    try {
+      stream()
+    } with emit[A] { v =>
+      do emit(v);
+      i = i - 1;
+      if (i > 0) {
+        resume(())
+      } else {
+        do stop()
+      }
+    }
+  } else {
+    do stop()
+  }
+}
+
+def sum[R] { stream: () => R / emit[Int] }: (R, Int) = {
+  var s = 0;
+  try {
+    (stream(), s)
+  } with emit[Int] { v =>
+    s = s + v;
+    resume(())
+  }
+}
+
+def product[R] { stream: () => R / emit[Int] }: (R, Int) = {
+  var s = 1;
+  try {
+    (stream(), s)
+  } with emit[Int] { v =>
+    s = s * v;
+    resume(())
+  }
+}
+
+def source[A, R] { stream: () => Unit / emit[A] } { driver: () => R / next[A] }: R = {
+  var next = box { None() }
+  next = box {
+    try {
+      stream()
+      next = box { None() }
+      None()
+    } with emit[A] { (v) =>
+      next = box { resume(()) }
+      Some(v)
+    }
+  }
+  try {
+    driver()
+  } with next[A] {
+    resume {
+      next().getOrElse { do stop() }
+    }
+  }
+}
+
+/// Provide the ability to peek when consuming a stream.
+def peeking[A, R] { peeker: () => R / {next[A], peek[A]} }: R / next[A] = {
+  def upstream(): A / stop = do next()
+  var last = None()
+  try {
+    peeker()
+  } with peek[A] { () =>
+    resume {
+      last match {
+        case None() =>
+          val t = upstream()
+          last = Some(t)
+          return t
+        case Some(t) =>
+          return t
+      }
+    }
+  } with next[A] {
+    resume {
+      last match {
+        case None() =>
+          upstream()
+        case Some(t) =>
+          last = None()
+          return t
+      }
+    }
+  }
+}
+
+}

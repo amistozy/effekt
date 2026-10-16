@@ -1,0 +1,471 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "amistozy/effekt/src/core"
+
+import {
+  "amistozy/effekt/src/source",
+  "amistozy/effekt/src/symbols",
+  "amistozy/effekt/src/util",
+}
+
+// Values
+pub fn bindings_to_stmt(Array[Binding], Stmt) -> Stmt
+
+pub fn block_captures(Block) -> @symbols.Captures
+
+pub fn capture_set(@symbols.Sym) -> @symbols.Captures
+
+pub fn clear_pattern_equality_function() -> Unit
+
+pub fn expr_type_hint(Expr) -> @symbols.ValueType
+
+pub fn free_var_extern_body(ExternBody[Expr]) -> Free
+
+pub fn free_var_module(ModuleDecl) -> Free
+
+pub fn pm_compile(Array[PMClause], @symbols.ValueType) -> Stmt raise @util.EffektError
+
+pub fn pm_normalize(PMClause) -> PMClause raise @util.EffektError
+
+pub fn required_names(ModuleDecl) -> Array[@symbols.Sym]
+
+pub fn set_pattern_equality_function(@symbols.Sym) -> Unit
+
+pub fn show_core(ModuleDecl) -> String
+
+pub fn show_core_block(Block) -> String
+
+pub fn show_core_block_type(@symbols.BlockType) -> String
+
+pub fn show_core_captures(@symbols.Captures) -> String
+
+pub fn show_core_expr(Expr) -> String
+
+pub fn show_core_implementation(Implementation) -> String
+
+pub fn show_core_stmt(Stmt) -> String
+
+pub fn show_core_toplevel(Toplevel) -> String
+
+pub fn show_core_toplevels(Array[Toplevel]) -> String
+
+pub fn show_core_value_type(@symbols.ValueType) -> String
+
+pub fn show_phase(ModuleDecl) -> ModuleDecl raise @util.EffektError
+
+pub fn substitute_as_var(@symbols.Sym, Substitution) -> @symbols.Sym raise @util.EffektError
+
+pub fn substitute_binding(Binding, Substitution) -> Binding raise @util.EffektError
+
+pub fn substitute_block(Block, Substitution) -> Block raise @util.EffektError
+
+pub fn substitute_block_lit(BlockLit, Substitution) -> BlockLit raise @util.EffektError
+
+pub fn substitute_block_lit_call(BlockLit, Array[@symbols.ValueType], Array[Expr], Array[Block]) -> Stmt raise @util.EffektError
+
+pub fn substitute_block_param(BlockParam, Substitution) -> BlockParam
+
+pub fn substitute_block_type(@symbols.BlockType, Substitution) -> @symbols.BlockType
+
+pub fn substitute_block_type_with(@symbols.BlockType, Map[Int, @symbols.ValueType], Map[Int, @symbols.Captures]) -> @symbols.BlockType
+
+pub fn substitute_block_var(BlockVar, Substitution) -> BlockVar raise @util.EffektError
+
+pub fn substitute_captures(@symbols.Captures, Substitution) -> @symbols.Captures
+
+pub fn substitute_captures_with(@symbols.Captures, Map[Int, @symbols.Captures]) -> @symbols.Captures
+
+pub fn substitute_expr(Expr, Substitution) -> Expr raise @util.EffektError
+
+pub fn substitute_implementation(Implementation, Substitution) -> Implementation raise @util.EffektError
+
+pub fn substitute_operation(Operation, Substitution) -> Operation raise @util.EffektError
+
+pub fn substitute_stmt(Stmt, Substitution) -> Stmt raise @util.EffektError
+
+pub fn substitute_value_param(ValueParam, Substitution) -> ValueParam
+
+pub fn substitute_value_type(@symbols.ValueType, Substitution) -> @symbols.ValueType
+
+pub fn substitute_value_type_with(@symbols.ValueType, Map[Int, @symbols.ValueType], Map[Int, @symbols.Captures]) -> @symbols.ValueType
+
+pub fn transform(@source.ModuleDecl, String, @source.Context) -> ModuleDecl raise @util.EffektError
+
+pub fn transform_with_exports(@source.ModuleDecl, String, @source.Context, Array[@symbols.Sym]) -> ModuleDecl raise @util.EffektError
+
+pub fn unknown_block_type() -> @symbols.BlockType
+
+pub fn unknown_value_type() -> @symbols.ValueType
+
+// Errors
+
+// Types and methods
+pub(all) struct Bind[A] {
+  value : A
+  bindings : Array[Binding]
+}
+pub fn Bind::bind_block(Block) -> Self[Block]
+pub fn Bind::bind_expr(Expr) -> Self[Expr]
+pub fn Bind::bind_impure_app(BlockVar, Array[@symbols.ValueType], Array[Expr], Array[Block]) -> Self[Expr]
+pub fn Bind::delimit(Self[Stmt]) -> Stmt
+pub fn[A, B] Bind::flat_map(Self[A], (A) -> Self[B]) -> Self[B]
+pub fn[A, B] Bind::map(Self[A], (A) -> B) -> Self[B]
+pub fn[A] Bind::pure(A) -> Self[A]
+pub fn[A] Bind::run(Self[A], (A) -> Stmt) -> Stmt
+pub fn[S, T] Bind::traverse(Array[S], (S) -> Self[T]) -> Self[Array[T]]
+
+pub(all) enum Binding {
+  BindingVal(@symbols.Sym, Stmt)
+  BindingLet(@symbols.Sym, Expr)
+  BindingImpureApp(@symbols.Sym, BlockVar, Array[@symbols.ValueType], Array[Expr], Array[Block])
+  BindingDef(@symbols.Sym, Block)
+  BindingAlloc(@symbols.Sym, Expr, @symbols.Sym)
+  BindingVar(@symbols.Sym, Expr, @symbols.Sym)
+  BindingGet(@symbols.Sym, @symbols.ValueType, @symbols.Sym, @symbols.Captures)
+  BindingPut(@symbols.Sym, @symbols.Captures, Expr)
+}
+pub fn Binding::kind_name(Self) -> String
+pub fn Binding::to_stmt(Self, Stmt) -> Stmt
+pub fn Binding::to_toplevel(Self) -> Toplevel raise @util.EffektError
+
+pub(all) enum Block {
+  BlockVar(BlockVar)
+  BlockLit(BlockLit)
+  Unbox(Expr)
+  New(Implementation)
+}
+pub fn Block::free(Self) -> Free
+
+pub(all) struct BlockLit {
+  tparams : Array[@symbols.Sym]
+  cparams : Array[@symbols.Sym]
+  vparams : Array[ValueParam]
+  bparams : Array[BlockParam]
+  body : Stmt
+}
+pub fn BlockLit::free(Self) -> Free
+pub fn BlockLit::new(Array[@symbols.Sym], Array[@symbols.Sym], Array[ValueParam], Array[BlockParam], Stmt) -> Self
+
+pub(all) struct BlockParam {
+  id : @symbols.Sym
+  tpe : @symbols.BlockType
+  capt : @symbols.Captures
+}
+pub fn BlockParam::new(@symbols.Sym, @symbols.BlockType, @symbols.Captures) -> Self
+
+pub(all) struct BlockVar {
+  id : @symbols.Sym
+  annotated_tpe : @symbols.BlockType
+  annotated_capt : @symbols.Captures
+}
+pub fn BlockVar::new(@symbols.Sym, @symbols.BlockType, @symbols.Captures) -> Self
+
+pub(all) enum CallingConvention {
+  ConvPure
+  ConvDirect
+  ConvControl
+}
+
+pub(all) struct Clause {
+  tag : @symbols.Sym
+  body : BlockLit
+}
+pub fn Clause::free(Self) -> Free
+pub fn Clause::new(@symbols.Sym, BlockLit) -> Self
+
+pub(all) struct Constructor {
+  id : @symbols.Sym
+  tparams : Array[@symbols.Sym]
+  fields : Array[Field]
+}
+pub fn Constructor::new(@symbols.Sym, Array[@symbols.Sym], Array[Field]) -> Self
+
+pub(all) struct ConstructorRef {
+  data : Declaration
+  constructor : Constructor
+}
+
+pub(all) enum CoreToplevel {
+  CoreToplevelDef(Toplevel)
+  CoreToplevelDecl(Declaration)
+  CoreToplevelExtern(Extern)
+}
+
+pub(all) enum Declaration {
+  DeclarationData(@symbols.Sym, Array[@symbols.Sym], Array[Constructor])
+  DeclarationInterface(@symbols.Sym, Array[@symbols.Sym], Array[Property])
+}
+pub fn Declaration::id(Self) -> @symbols.Sym
+
+pub(all) struct DeclarationContext {
+  declarations : Array[Declaration]
+  externs : Array[Extern]
+  datas : Map[Int, Int]
+  interfaces : Map[Int, Int]
+  constructors : Map[Int, ConstructorRef]
+  fields : Map[Int, FieldRef]
+  properties : Map[Int, PropertyRef]
+  extern_defs : Map[Int, Int]
+  extern_datas : Map[Int, Int]
+  extern_defs_by_name : Map[String, Int]
+}
+pub fn DeclarationContext::find_constructor(Self, @symbols.Sym) -> Constructor?
+pub fn DeclarationContext::find_constructor_of_field(Self, Field) -> Constructor?
+pub fn DeclarationContext::find_constructor_tag(Self, @symbols.Sym) -> Int?
+pub fn DeclarationContext::find_data(Self, @symbols.Sym) -> Declaration?
+pub fn DeclarationContext::find_data_of_constructor(Self, Constructor) -> Declaration?
+pub fn DeclarationContext::find_data_of_field(Self, Field) -> Declaration?
+pub fn DeclarationContext::find_declaration(Self, @symbols.Sym) -> Declaration?
+pub fn DeclarationContext::find_extern_data(Self, @symbols.Sym) -> Extern?
+pub fn DeclarationContext::find_extern_def(Self, @symbols.Sym) -> Extern?
+pub fn DeclarationContext::find_extern_def_by_name(Self, String, Array[@symbols.ValueType]) -> Extern?
+pub fn DeclarationContext::find_field(Self, @symbols.Sym) -> Field?
+pub fn DeclarationContext::find_interface(Self, @symbols.Sym) -> Declaration?
+pub fn DeclarationContext::find_interface_of_property(Self, Property) -> Declaration?
+pub fn DeclarationContext::find_property(Self, @symbols.Sym) -> Property?
+pub fn DeclarationContext::find_property_tag(Self, @symbols.Sym) -> Int?
+pub fn DeclarationContext::get_constructor(Self, @symbols.Sym) -> Constructor raise @util.EffektError
+pub fn DeclarationContext::get_constructor_tag(Self, @symbols.Sym) -> Int raise @util.EffektError
+pub fn DeclarationContext::get_data(Self, @symbols.Sym) -> Declaration raise @util.EffektError
+pub fn DeclarationContext::get_declaration(Self, @symbols.Sym) -> Declaration raise @util.EffektError
+pub fn DeclarationContext::get_extern_data(Self, @symbols.Sym) -> Extern raise @util.EffektError
+pub fn DeclarationContext::get_extern_def(Self, @symbols.Sym) -> Extern raise @util.EffektError
+pub fn DeclarationContext::get_field(Self, @symbols.Sym) -> Field raise @util.EffektError
+pub fn DeclarationContext::get_interface(Self, @symbols.Sym) -> Declaration raise @util.EffektError
+pub fn DeclarationContext::get_property(Self, @symbols.Sym) -> Property raise @util.EffektError
+pub fn DeclarationContext::get_property_tag(Self, @symbols.Sym) -> Int raise @util.EffektError
+pub fn DeclarationContext::new(Array[Declaration], Array[Extern]) -> Self
+
+pub(all) enum Expr {
+  ValueVar(@symbols.Sym, @symbols.ValueType)
+  Literal(@source.LiteralValue, @symbols.ValueType)
+  PureApp(BlockVar, Array[@symbols.ValueType], Array[Expr])
+  Make(@symbols.Sym, @symbols.Sym, Array[@symbols.ValueType], Array[Expr])
+  Box(Block, @symbols.Captures)
+}
+pub fn Expr::free(Self) -> Free
+
+pub(all) enum Extern {
+  ExternData(@symbols.Sym, Array[@symbols.Sym], ExternBody[Expr])
+  ExternInterface(@symbols.Sym, Array[@symbols.Sym], ExternBody[Expr])
+  ExternDef(@symbols.Sym, QualifiedSignature, Array[@symbols.Sym], Array[@symbols.Sym], Array[ValueParam], Array[BlockParam], @symbols.ValueType, @symbols.Captures, ExternBody[Expr])
+  ExternInclude(@source.FeatureFlag, String)
+}
+
+pub(all) enum ExternBody[T] {
+  StringExternBody(@source.FeatureFlag, @util.Template[T])
+  Unsupported(@util.EffektError)
+}
+pub fn[T] ExternBody::flag(Self[T]) -> @source.FeatureFlag
+pub fn[T] ExternBody::is_supported_by(Self[T], String) -> Bool
+
+pub(all) struct Field {
+  id : @symbols.Sym
+  tpe : @symbols.ValueType
+}
+pub fn Field::new(@symbols.Sym, @symbols.ValueType) -> Self
+
+pub(all) struct FieldRef {
+  constructor_ref : ConstructorRef
+  field : Field
+}
+
+pub(all) struct Free {
+  values : Map[Int, FreeValue]
+  blocks : Map[Int, FreeBlock]
+}
+pub fn Free::block(@symbols.Sym, @symbols.BlockType, @symbols.Captures) -> Self
+pub fn Free::contains(Self, @symbols.Sym) -> Bool
+pub fn Free::empty() -> Self
+pub fn Free::free_blocks(Self) -> Array[FreeBlock]
+pub fn Free::free_ids(Self) -> Array[@symbols.Sym]
+pub fn Free::free_values(Self) -> Array[FreeValue]
+pub fn Free::is_empty(Self) -> Bool
+pub fn Free::remove_block(Self, @symbols.Sym) -> Self
+pub fn Free::remove_value(Self, @symbols.Sym) -> Self
+pub fn Free::union(Self, Self) -> Self
+pub fn Free::value(@symbols.Sym, @symbols.ValueType) -> Self
+pub fn Free::without(Self, Array[ValueParam], Array[BlockParam]) -> Self
+pub fn Free::without_blocks(Self, Array[@symbols.Sym]) -> Self
+pub fn Free::without_values(Self, Array[@symbols.Sym]) -> Self
+
+pub(all) struct FreeBlock {
+  id : @symbols.Sym
+  tpe : @symbols.BlockType
+  capt : @symbols.Captures
+}
+
+pub(all) struct FreeValue {
+  id : @symbols.Sym
+  tpe : @symbols.ValueType
+}
+
+pub(all) struct Implementation {
+  interface : @symbols.BlockType
+  operations : Array[Operation]
+}
+pub fn Implementation::free(Self) -> Free
+pub fn Implementation::new(@symbols.BlockType, Array[Operation]) -> Self
+
+pub(all) struct ModuleDecl {
+  path : String
+  includes : Array[String]
+  declarations : Array[Declaration]
+  externs : Array[Extern]
+  definitions : Array[Toplevel]
+  exports : Array[@symbols.Sym]
+}
+pub fn ModuleDecl::new(String, Array[String], Array[Declaration], Array[Extern], Array[Toplevel], Array[@symbols.Sym]) -> Self
+
+pub(all) struct Operation {
+  name : @symbols.Sym
+  tparams : Array[@symbols.Sym]
+  cparams : Array[@symbols.Sym]
+  vparams : Array[ValueParam]
+  bparams : Array[BlockParam]
+  body : Stmt
+}
+pub fn Operation::free(Self) -> Free
+pub fn Operation::new(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], Array[ValueParam], Array[BlockParam], Stmt) -> Self
+
+pub(all) struct PMClause {
+  conditions : Array[PMCondition]
+  label : BlockVar
+  targs : Array[@symbols.ValueType]
+  args : Array[PMVar]
+}
+pub fn PMClause::new(Array[PMCondition], BlockVar, Array[@symbols.ValueType], Array[PMVar]) -> Self
+
+pub(all) enum PMCondition {
+  PMPatterns(Map[Int, PMVarPattern])
+  PMPredicate(Expr)
+  PMRun(Binding)
+}
+
+pub(all) struct PMEquals {
+  symbol : @symbols.Sym
+  targs : Array[@symbols.ValueType]
+}
+pub fn PMEquals::new(@symbols.Sym, Array[@symbols.ValueType]) -> Self
+pub fn PMEquals::pm_apply(Self, Expr, Expr) -> Expr
+
+pub(all) enum PMPattern {
+  PMTag(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], Array[PMSubPattern])
+  PMIgnore
+  PMAny(@symbols.Sym)
+  PMOr(Array[PMPattern])
+  PMLiteral(@source.LiteralValue, @symbols.ValueType, PMEquals?)
+}
+
+pub(all) struct PMSubPattern {
+  pattern : PMPattern
+  tpe : @symbols.ValueType
+}
+pub fn PMSubPattern::new(PMPattern, @symbols.ValueType) -> Self
+
+pub(all) struct PMVar {
+  id : @symbols.Sym
+  tpe : @symbols.ValueType
+}
+pub fn PMVar::new(@symbols.Sym, @symbols.ValueType) -> Self
+pub fn PMVar::to_expr(Self) -> Expr
+pub fn PMVar::to_param(Self) -> ValueParam
+
+pub(all) struct PMVarPattern {
+  variable : PMVar
+  pattern : PMPattern
+}
+pub fn PMVarPattern::new(PMVar, PMPattern) -> Self
+
+pub(all) struct Property {
+  id : @symbols.Sym
+  tpe : @symbols.BlockType
+}
+pub fn Property::new(@symbols.Sym, @symbols.BlockType) -> Self
+
+pub(all) struct PropertyRef {
+  interface : Declaration
+  property : Property
+}
+
+pub(all) struct QualifiedSignature {
+  name : String
+}
+pub fn QualifiedSignature::from_extern_function(String, @symbols.Sym) -> Self
+pub fn QualifiedSignature::new(String) -> Self
+
+pub(all) struct ScrutineePattern {
+  scrutinee : Expr
+  pattern : @source.MatchPattern
+}
+
+pub(all) struct ShowContext {
+  show_names : Map[String, @symbols.Sym]
+  show_defns : Map[String, Toplevel]
+  tparam_lookup : Map[Int, @symbols.ValueType]
+  mut bindings : Array[Binding]
+}
+pub fn ShowContext::new() -> Self
+
+pub(all) enum Stmt {
+  Def(@symbols.Sym, Block, Stmt)
+  Let(@symbols.Sym, Expr, Stmt)
+  ImpureApp(@symbols.Sym, BlockVar, Array[@symbols.ValueType], Array[Expr], Array[Block], Stmt)
+  Return(Expr)
+  Val(@symbols.Sym, Stmt, Stmt)
+  App(Block, Array[@symbols.ValueType], Array[Expr], Array[Block])
+  Invoke(Block, @symbols.Sym, @symbols.BlockType, Array[@symbols.ValueType], Array[Expr], Array[Block])
+  If(Expr, Stmt, Stmt)
+  Match(Expr, @symbols.ValueType, Array[Clause], Stmt?)
+  Region(BlockLit)
+  Alloc(@symbols.Sym, Expr, @symbols.Sym, Stmt)
+  Var(@symbols.Sym, Expr, @symbols.Sym, Stmt)
+  Get(@symbols.Sym, @symbols.ValueType, @symbols.Sym, @symbols.Captures, Stmt)
+  Put(@symbols.Sym, @symbols.Captures, Expr, Stmt)
+  Reset(BlockLit)
+  Shift(BlockVar, BlockParam, Stmt)
+  Resume(BlockVar, Stmt)
+  Hole(@symbols.ValueType, @util.Span)
+}
+pub fn Stmt::free(Self) -> Free
+
+pub(all) struct Substitution {
+  vtypes : Map[Int, @symbols.ValueType]
+  captures : Map[Int, @symbols.Captures]
+  values : Map[Int, Expr]
+  blocks : Map[Int, Block]
+}
+pub fn Substitution::empty() -> Self
+pub fn Substitution::new(Map[Int, @symbols.ValueType], Map[Int, @symbols.Captures], Map[Int, Expr], Map[Int, Block]) -> Self
+pub fn Substitution::shadow_blocks(Self, Array[@symbols.Sym]) -> Self
+pub fn Substitution::shadow_captures(Self, Array[@symbols.Sym]) -> Self
+pub fn Substitution::shadow_params(Self, Array[ValueParam], Array[BlockParam]) -> Self
+pub fn Substitution::shadow_types(Self, Array[@symbols.Sym]) -> Self
+pub fn Substitution::shadow_values(Self, Array[@symbols.Sym]) -> Self
+
+pub(all) enum Toplevel {
+  ToplevelDef(@symbols.Sym, Block)
+  ToplevelVal(@symbols.Sym, Stmt)
+}
+pub fn Toplevel::free(Self) -> Free
+pub fn Toplevel::id(Self) -> @symbols.Sym
+
+pub(all) struct Transformer {
+  ctx : @source.Context
+  module_path : String
+  eq_function : @symbols.Sym?
+  mut bindings : Array[Binding]
+  mut capture_substitution : Map[Int, @symbols.Captures]
+  region_captures : Map[Int, @symbols.Sym]
+  prompt_ctor : @symbols.Sym
+}
+pub fn Transformer::new(@source.Context, String, @symbols.Sym?) -> Self
+
+pub(all) struct ValueParam {
+  id : @symbols.Sym
+  tpe : @symbols.ValueType
+}
+pub fn ValueParam::new(@symbols.Sym, @symbols.ValueType) -> Self
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,173 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "amistozy/effekt/src/js"
+
+import {
+  "amistozy/effekt/src/core",
+  "amistozy/effekt/src/cps",
+  "amistozy/effekt/src/symbols",
+  "amistozy/effekt/src/util",
+}
+
+// Values
+pub fn call(Expr, Array[Expr]) -> Expr
+
+pub fn compile_cps(@cps.ModuleDecl, @core.ModuleDecl, @symbols.Sym) -> String raise @util.EffektError
+
+pub fn effekt_call(String, Array[Expr]) -> Expr
+
+pub fn effekt_field(String) -> Expr
+
+pub fn effekt_namespace() -> Expr
+
+pub fn escape(String) -> String
+
+pub fn fresh_name(String) -> @symbols.JSName
+
+pub fn fresh_sym(String) -> @symbols.Sym
+
+pub fn generate_constructor(@core.Constructor, Int) -> Stmt
+
+pub fn[T] internal_error(String) -> T raise @util.EffektError
+
+pub fn js_const(@symbols.JSName, Expr) -> Stmt
+
+pub fn js_escape(String) -> String
+
+pub fn js_feature_flags() -> Array[String]
+
+pub fn js_let(@symbols.JSName, Expr) -> Stmt
+
+pub fn js_let_multi(Array[@symbols.JSName], Expr) -> Stmt
+
+pub fn js_module_file(String) -> String
+
+pub fn js_module_name(String) -> String
+
+pub fn js_string(String) -> Expr
+
+pub fn lambda(Array[@symbols.JSName], Expr) -> Expr
+
+pub fn lambda_stmts(Array[@symbols.JSName], Array[Stmt]) -> Expr raise @util.EffektError
+
+pub fn maybe_block(Array[Stmt]) -> Stmt
+
+pub fn member_name_ref(@symbols.Sym) -> @symbols.JSName
+
+pub fn method_call(Expr, @symbols.JSName, Array[Expr]) -> Expr
+
+pub fn name_def(@symbols.Sym) -> @symbols.JSName
+
+pub fn name_ref(@symbols.Sym) -> Expr
+
+pub fn[A] pure(A) -> Binding[A]
+
+pub fn raw_expr(String) -> Expr
+
+pub fn raw_stmt(String) -> Stmt
+
+pub fn reset_naming() -> Unit
+
+pub fn should_export(@symbols.Sym) -> Bool
+
+pub fn show_expr(Expr) -> String
+
+pub fn show_module(Module) -> String
+
+pub fn show_stmt(Stmt) -> String
+
+pub fn show_stmts(Array[Stmt]) -> String
+
+pub fn tag_for(@symbols.Sym, @core.DeclarationContext) -> Expr raise @util.EffektError
+
+pub fn take_unsupported_messages() -> Array[String]
+
+pub fn[S, T] traverse(Array[S], (S) -> Binding[T] raise @util.EffektError) -> Binding[Array[T]] raise @util.EffektError
+
+pub fn undefined() -> Expr
+
+// Errors
+
+// Types and methods
+pub(all) struct Binding[A] {
+  run : ((A) -> Array[Stmt] raise @util.EffektError) -> Array[Stmt] raise @util.EffektError
+}
+pub fn Binding::block(Self[Array[Stmt]]) -> Stmt raise @util.EffektError
+pub fn[A, B] Binding::flat_map(Self[A], (A) -> Self[B] raise @util.EffektError) -> Self[B] raise @util.EffektError
+pub fn[A, B] Binding::map(Self[A], (A) -> B raise @util.EffektError) -> Self[B] raise @util.EffektError
+pub fn Binding::stmts(Self[Array[Stmt]]) -> Array[Stmt] raise @util.EffektError
+pub fn Binding::to_expr(Self[Array[Stmt]]) -> Expr raise @util.EffektError
+
+pub(all) struct Export {
+  name : @symbols.JSName
+  expr : Expr
+}
+pub fn Export::new(@symbols.JSName, Expr) -> Self
+
+pub(all) enum Expr {
+  Call(Expr, Array[Expr])
+  New(Expr, Array[Expr])
+  RawExpr(Array[String], Array[Expr])
+  RawLiteral(String)
+  IfExpr(Expr, Expr, Expr)
+  Lambda(Array[@symbols.JSName], Stmt)
+  Object(Array[ObjectProperty])
+  Member(Expr, @symbols.JSName)
+  ArrayLiteral(Array[Expr])
+  Variable(@symbols.JSName)
+}
+
+pub(all) enum Import {
+  ImportAll(@symbols.JSName, String)
+  ImportSelective(Array[@symbols.JSName], String)
+}
+
+pub(all) struct Module {
+  name : @symbols.JSName
+  imports : Array[Import]
+  exports : Array[Export]
+  stmts : Array[Stmt]
+}
+pub fn Module::commonjs(Self) -> Array[Stmt]
+pub fn Module::new(@symbols.JSName, Array[Import], Array[Export], Array[Stmt]) -> Self
+pub fn Module::virtual(Self) -> Array[Stmt]
+
+pub(all) struct ObjectProperty {
+  name : @symbols.JSName
+  value : Expr
+}
+pub fn ObjectProperty::new(@symbols.JSName, Expr) -> Self
+
+pub(all) enum Pattern {
+  PatternVariable(@symbols.JSName)
+  PatternArray(Array[Pattern])
+}
+
+pub(all) enum Stmt {
+  Block(Array[Stmt])
+  Return(Expr)
+  RawStmt(Array[String], Array[Expr])
+  Const(Pattern, Expr)
+  Let(Pattern, Expr)
+  Assign(Expr, Expr)
+  Destruct(Array[@symbols.JSName], Expr)
+  Switch(Expr, Array[SwitchBranch], Array[Stmt]?)
+  Function(@symbols.JSName, Array[@symbols.JSName], Array[Stmt])
+  Class(@symbols.JSName, Array[Stmt])
+  If(Expr, Stmt, Stmt)
+  Try(Array[Stmt], @symbols.JSName, Array[Stmt], Array[Stmt])
+  Throw(Expr)
+  While(Expr, Array[Stmt], @symbols.JSName?)
+  Break
+  Continue(@symbols.JSName?)
+  ExprStmt(Expr)
+}
+
+pub(all) struct SwitchBranch {
+  tag : Expr
+  body : Array[Stmt]
+}
+pub fn SwitchBranch::new(Expr, Array[Stmt]) -> Self
+
+// Type aliases
+
+// Traits
