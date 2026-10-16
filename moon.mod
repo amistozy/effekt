@@ -19,3 +19,7 @@ preferred_target = "js"
 description = "An implementation of the Effekt language in MoonBit, compiling to JavaScript."
 
 warnings = "-implicit_impl_as_method-redundant_modifier-unused_value-unused_constructor"
+
+import {
+  "moonbitlang/x@0.5.5",
+}

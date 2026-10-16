@@ -10,4 +10,14 @@ import {
 
 pkgtype(kind: "executable")
 
+// `moonbitlang/x` pulls Node.js builtins in with `#module(...)`, which makes
+// the backend emit `import` statements and therefore an ES module. The
+// programs this compiler generates are CommonJS scripts (`module.exports`),
+// the runner scripts require them, and the CLI is started with plain `node`,
+// so the compiler itself is linked as CommonJS too.
+
+options(
+  link: { "js": { "format": "cjs" } },
+)
+
 warnings = "-deprecated-unused_type_declaration-unused_mut-implicit_impl_as_method-redundant_modifier-unused_value-unused_constructor-unused_error_type-reserved_keyword-unused_package-missing_priv"

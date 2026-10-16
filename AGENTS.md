@@ -80,6 +80,27 @@ You can browse and install extra skills here:
   `scripts/e2e.ps1` runs the compiled programs, so any accidental change to a
   string's content is caught.
 
+## Host access: prefer the standard library over `extern`
+
+- **Do not hand-write JavaScript when `moonbitlang/core` or `moonbitlang/x` has
+  the API.** Files come from `moonbitlang/x/fs`, paths (`dirname`, `join`,
+  `resolve`, `node:path` semantics on either platform) from
+  `moonbitlang/x/path`, the command line from `moonbitlang/core/env`, and
+  subprocess-free tasks generally from the core packages. `moonbitlang/x` is a
+  mooncakes dependency declared in `moon.mod`; `moon` downloads it on demand.
+- The **only** `extern "js"` left in the project is `src/compiler/node.mbt`:
+  the process exit code (`moonbitlang/x/sys`'s `exit` calls `process.exit()`,
+  which truncates piped stdout), stderr, and `child_process`. Anything new
+  belongs there, documented with the reason the library cannot do it, rather
+  than in a fresh file.
+- `moonbitlang/x/fs` imports Node builtins with `#module(...)`, which switches
+  the JS backend to **ES module** output. `cmd/main/moon.pkg` therefore pins
+  `options(link: {"js": {"format": "cjs"}})`: the generated Effekt programs and
+  their runner scripts are CommonJS (`module.exports` / `require`), and the CLI
+  is started with plain `node`, which would otherwise print a
+  `MODULE_TYPELESS_PACKAGE_JSON` warning on every run. Keep that option (and
+  the CommonJS `require` it allows) if you touch the linker settings.
+
 ## Git workflow
 
 - **Commit and push automatically.** After finishing a change, do not stop to ask

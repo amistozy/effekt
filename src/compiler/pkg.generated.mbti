@@ -17,13 +17,13 @@ pub fn default_output(String) -> String
 
 pub fn dirname(String) -> String
 
+pub fn eprintln(String) -> Unit
+
 pub fn exit(Int) -> Unit
 
 pub fn file_exists(String) -> Bool
 
 pub fn includes_of(@source.ModuleDecl) -> Array[@source.Include]
-
-pub fn info(String) -> Unit
 
 pub fn join_path(String, String) -> String
 
@@ -51,7 +51,7 @@ pub fn search_paths(String, Options) -> Array[String]
 
 pub fn usage() -> String
 
-pub fn write_file(String, String) -> Unit
+pub fn write_file(String, String) -> String?
 
 // Errors
 

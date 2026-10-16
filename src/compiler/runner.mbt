@@ -2,6 +2,9 @@
 //
 // Mirrors `effekt/Runner.scala`'s JSRunner: the generated `.js` file only
 // exports `main`; a second tiny script requires it and calls `main()`.
+//
+// `run_node` and `eprintln` live in `node.mbt`, next to the Node.js externs
+// they need.
 
 ///|
 /// The path of the runner script for the given output file.
@@ -30,34 +33,3 @@ pub fn runner_contents(output : String) -> String {
   }
   "require(\"./\{module_file}.js\").main()\n"
 }
-
-///|
-/// Executes a generated script with `node`, returning its exit code.
-pub fn run_node(path : String) -> Int32 {
-  js_run_node(path)
-}
-
-///|
-/// Writes a progress message to stderr, keeping stdout clean for the program's
-/// own output when `--run` is used.
-pub fn info(message : String) -> Unit {
-  js_eprintln(message)
-}
-
-///|
-extern "js" fn js_eprintln(message : String) -> Unit =
-  #| (message) => { if (typeof process !== "undefined") process.stderr.write(message + "\n"); }
-
-///|
-extern "js" fn js_run_node(path : String) -> Int32 =
-  #| (path) => {
-  #|   const cp = require("node:child_process");
-  #|   try {
-  #|     cp.execFileSync(process.execPath, [path], { stdio: "inherit" });
-  #|     return 0;
-  #|   } catch (e) {
-  #|     if (typeof e.status === "number") return e.status;
-  #|     console.error(String(e.message || e));
-  #|     return 1;
-  #|   }
-  #| }

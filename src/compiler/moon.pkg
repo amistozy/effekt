@@ -4,6 +4,9 @@ import {
   "amistozy/effekt/src/source",
   "amistozy/effekt/src/namer",
   "moonbitlang/core/argparse",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "moonbitlang/x/path",
 }
 
 import {
@@ -12,6 +15,7 @@ import {
   "amistozy/effekt/src/source",
   "amistozy/effekt/src/namer",
   "amistozy/effekt/src/typer",
+  "moonbitlang/x/fs",
 } for "test"
 
 warnings = "-deprecated-unused_type_declaration-unused_mut-implicit_impl_as_method-redundant_modifier-unused_value-unused_constructor-unused_error_type-reserved_keyword-unused_package-missing_priv"

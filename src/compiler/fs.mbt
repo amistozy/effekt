@@ -1,109 +1,68 @@
-// File-system access for the driver.
+// File-system and path access for the driver.
 //
 // The compiler itself never touches the file system: it receives `Source`
 // values. Loading them (and writing the output) is the driver's job, and this
-// is the only place that talks to Node.js.
+// is the only place that talks to the host.
+//
+// It is built on `moonbitlang/x/fs` and `moonbitlang/x/path` instead of on
+// hand-written JavaScript. `moonbitlang/x/path` implements `node:path`
+// semantics and picks its Win32 or POSIX flavour at run time (`is_windows`),
+// so the paths the driver computes are the same ones `require("node:path")`
+// would produce on the host it runs on.
 
 ///|
-extern "js" fn js_read_file(path : String) -> String =
-  #| (path) => {
-  #|   const fs = typeof require !== "undefined" ? require("node:fs") : null;
-  #|   if (fs === null) return "";
-  #|   try { return fs.readFileSync(path, "utf8"); } catch (e) { return ""; }
-  #| }
-
-///|
-extern "js" fn js_file_exists(path : String) -> Bool =
-  #| (path) => {
-  #|   const fs = typeof require !== "undefined" ? require("node:fs") : null;
-  #|   if (fs === null) return false;
-  #|   try { return fs.statSync(path).isFile(); } catch (e) { return false; }
-  #| }
-
-///|
-extern "js" fn js_write_file(path : String, contents : String) -> Unit =
-  #| (path, contents) => {
-  #|   const fs = require("node:fs");
-  #|   const p = require("node:path");
-  #|   fs.mkdirSync(p.dirname(path), { recursive: true });
-  #|   fs.writeFileSync(path, contents, "utf8");
-  #| }
-
-///|
-extern "js" fn js_argv() -> Array[String] =
-  #| () => (typeof process !== "undefined" ? process.argv.slice(2) : [])
-
-///|
-/// Sets the process exit code.
-///
-/// Deliberately does *not* call `process.exit()`: that can truncate buffered
-/// output when stdout is a pipe (which is exactly how the CLI is usually
-/// invoked).
-extern "js" fn js_exit(code : Int32) -> Unit =
-  #| (code) => { if (typeof process !== "undefined") process.exitCode = code; }
-
-///|
-extern "js" fn js_dirname(path : String) -> String =
-  #| (path) => {
-  #|   const p = require("node:path");
-  #|   return p.dirname(path);
-  #| }
-
-///|
-extern "js" fn js_join(a : String, b : String) -> String =
-  #| (a, b) => {
-  #|   const p = require("node:path");
-  #|   return p.join(a, b);
-  #| }
-
-///|
-extern "js" fn js_resolve(path : String) -> String =
-  #| (path) => {
-  #|   const p = require("node:path");
-  #|   return p.resolve(path);
-  #| }
-
-///|
-/// Reads a file, returning `None` when it does not exist.
+/// Reads a file, returning `None` when there is no readable file at `path`.
 pub fn read_file(path : String) -> String? {
-  if js_file_exists(path) {
-    Some(js_read_file(path))
+  if file_exists(path) {
+    Some(@fs.read_file_to_string(path)) catch {
+      _ => None
+    }
   } else {
     None
   }
 }
 
 ///|
+/// Is there a file (as opposed to a directory) at `path`?
 pub fn file_exists(path : String) -> Bool {
-  js_file_exists(path)
+  @fs.is_file(path) catch {
+    _ => false
+  }
 }
 
 ///|
-pub fn write_file(path : String, contents : String) -> Unit {
-  js_write_file(path, contents)
+/// Writes `contents` to `path`, creating the parent directory if necessary.
+///
+/// Returns a message when the file could not be written; the caller reports it
+/// and fails the compilation.
+pub fn write_file(path : String, contents : String) -> String? {
+  // Best effort: when the directory cannot be created, the write below fails
+  // with a message that names the file, which is more useful than this one.
+  @fs.create_dir(dirname(path)) catch {
+    _ => ()
+  }
+  try {
+    @fs.write_string_to_file(path, contents)
+    None
+  } catch {
+    @fs.IOError(message) => Some("Cannot write \{path}: \{message}")
+  }
 }
 
 ///|
-pub fn command_line_args() -> Array[String] {
-  js_argv()
-}
-
-///|
-pub fn exit(code : Int32) -> Unit {
-  js_exit(code)
-}
-
-///|
+/// The directory part of `path`, following `node:path`'s `dirname`.
 pub fn dirname(path : String) -> String {
-  js_dirname(path)
+  @path.Path(path).dirname().0
 }
 
 ///|
+/// Joins two path segments, following `node:path`'s `join`.
 pub fn join_path(a : String, b : String) -> String {
-  js_join(a, b)
+  @path.Path(a).join(@path.Path(b)).0
 }
 
 ///|
+/// Makes `path` absolute, following `node:path`'s `resolve`.
 pub fn resolve_path(path : String) -> String {
-  js_resolve(path)
+  @path.Path(path).resolve().0
 }

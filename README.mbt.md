@@ -47,6 +47,14 @@ usage text. `--lib <dir>` selects a different standard library;
 `examples/minilib` contains a stripped-down prelude that avoids the
 slow-to-check parts of the real one.
 
+The compiler depends on [`moonbitlang/x`](https://mooncakes.io/docs/moonbitlang/x)
+for everything it needs from its host: `moonbitlang/x/fs` reads and writes the
+files, `moonbitlang/x/path` implements `node:path`'s rules, and the command line
+comes from `moonbitlang/core/env`. The only hand-written JavaScript left is the
+three functions in `src/compiler/node.mbt` (exit code, stderr, running a script
+with `node`) which the standard library does not provide. `moon` fetches the
+dependency on the first build.
+
 ## Layout
 
 | Package | Upstream counterpart | Contents |
@@ -60,7 +68,7 @@ slow-to-check parts of the real one.
 | `src/cps` | `effekt/cps/*` | The CPS IR, the core→CPS translation, contification |
 | `src/js` | `effekt/generator/js/*` | The JavaScript IR, the CPS→JS translation, the JS pretty printer |
 | `src/backend` | `effekt/generator/js/JavaScript.scala` | Wires core → CPS → JS and aggregates the modules |
-| `src/compiler` | `effekt/Compiler.scala`, `Driver` | Module loading, the compilation pipeline, the command line (declared with `moonbitlang/core/argparse`) |
+| `src/compiler` | `effekt/Compiler.scala`, `Driver` | Module loading, the compilation pipeline, the command line (declared with `moonbitlang/core/argparse`), the host layer (files and paths via `moonbitlang/x`, `node.mbt` for the rest) |
 | `libraries/` | `libraries/` | The Effekt standard library and the JavaScript runtime, copied verbatim from upstream |
 | `examples/` | | Small Effekt programs used for smoke testing |
 
@@ -121,7 +129,7 @@ These are deliberate and are documented at the point of use in the sources:
 
 | Command | What it covers |
 |---|---|
-| `moon test --target js` | 184 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output) |
+| `moon test --target js` | 193 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output), the driver's host layer |
 | `powershell -File scripts/e2e.ps1` | 12 example programs (22 runs across two standard libraries), compiled and executed with `node`, output compared |
 | `src/source/parser_test.mbt` | additionally validated out of band against all 575 `.effekt` files of the upstream checkout |
 
