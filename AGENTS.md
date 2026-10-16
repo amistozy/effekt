@@ -35,6 +35,13 @@ You can browse and install extra skills here:
   (use `powershell`, not `pwsh`, which is not on PATH here).
 - Run `moon info && moon fmt` first, and commit the updated `.mbti` interfaces
   together with the code that changed them.
+- Direct HTTPS access to github.com is unreliable on this machine (`Recv failure:
+  Connection was reset`) even though TCP/443 connects. When a plain
+  `git push origin main` fails like that, retry through the local proxy that is
+  usually listening on `127.0.0.1:7897`:
+  `git -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 push origin main`
+  (a one-off `-c`, no persistent config change). Verify with
+  `git rev-parse HEAD` against `git rev-parse origin/main` afterwards.
 - Never commit build output: `_build/`, the JavaScript generated for the examples
   (`examples/**/*.js`, already in `.gitignore`), or scratch/debug files.
 
