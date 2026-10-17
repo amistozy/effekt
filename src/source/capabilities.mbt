@@ -109,6 +109,11 @@ fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
         ),
       )
     }
+    // The bodies below have already been rewritten by the generic traversal; the
+    // hook only has to add the capability parameters that
+    // `ExplicitCapabilities` introduces at handler and function definitions.
+    // Re-running the traversal here would append them a second time (and, for
+    // the `try` node itself, look up capabilities that were already consumed).
     TryHandle(prog, handlers) => {
       let capabilities = ctx.bound_capabilities_of(t.uid)
       if capabilities.length() != handlers.length() {
@@ -123,39 +128,42 @@ fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
         new_handlers.push({
           ..h,
           capability: Some(definition_for_capability(cap, ctx)),
-          implementation: rewrite_implementation(
-            h.implementation,
-            ctx,
-            capability_hooks(),
-          ),
+          implementation: with_clause_capabilities(h.implementation, ctx),
         })
       }
       Some(mk_term(t.span, TryHandle(prog, new_handlers)))
     }
-    New(implementation) => {
-      let clauses : Array[OpClause] = []
-      for c in implementation.clauses {
-        let caps = ctx
-          .bound_capabilities_of(c.uid)
-          .map(cap => definition_for_capability(cap, ctx))
-        let c2 = { ..c, bparams: c.bparams + caps, }
-        ctx.copy_annotations(c.uid, c2.uid)
-        clauses.push(rewrite_op_clause(c2, ctx, capability_hooks()))
-      }
-      let impl2 = { ..implementation, clauses, }
-      ctx.copy_annotations(implementation.uid, impl2.uid)
-      Some(mk_term(t.span, New(impl2)))
-    }
+    New(implementation) =>
+      Some(mk_term(t.span, New(with_clause_capabilities(implementation, ctx))))
     BlockLiteral(tparams, vparams, bparams, body) => {
       let caps = ctx
         .bound_capabilities_of(t.uid)
         .map(cap => definition_for_capability(cap, ctx))
+
       Some(
         mk_term(t.span, BlockLiteral(tparams, vparams, bparams + caps, body)),
       )
     }
     _ => None
   }
+}
+
+///|
+/// Adds the capability parameters that the clauses of a handler implementation
+/// bind (upstream: the `New` case of `ExplicitCapabilities`). The clause bodies
+/// themselves are already rewritten.
+fn with_clause_capabilities(
+  implementation : Implementation,
+  ctx : Context,
+) -> Implementation {
+  let clauses : Array[OpClause] = []
+  for c in implementation.clauses {
+    let caps = ctx
+      .bound_capabilities_of(c.uid)
+      .map(cap => definition_for_capability(cap, ctx))
+    clauses.push({ ..c, bparams: c.bparams + caps, })
+  }
+  { ..implementation, clauses, }
 }
 
 ///|
@@ -174,17 +182,6 @@ fn is_field_call(
   match ctx.symbol_of(fun.uid) {
     Some(Field(_)) => true
     _ => false
-  }
-}
-
-///|
-/// Hooks used when descending into handler implementations, where the
-/// capabilities bound by the enclosing `try` are already in scope.
-fn capability_hooks() -> Hooks {
-  {
-    expr: Some(capabilities_expr),
-    stmt: None,
-    defn: Some((ctx, d) => capabilities_def(ctx, d)),
   }
 }
 

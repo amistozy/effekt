@@ -536,6 +536,7 @@ fn to_js_block_expr(
       for p in lit.vparams + lit.bparams {
         params.push(name_def(p))
       }
+
       lambda_stmts(
         params + [name_def(lit.ks), name_def(lit.k)],
         to_js_stmt(lit.body, ctx).stmts(),

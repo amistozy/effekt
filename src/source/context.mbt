@@ -219,10 +219,19 @@ fn[V] copy_entry(
 }
 
 ///|
-/// Copies all annotations from one tree node to another (used by tree
+/// Copies the *typing* annotations from one tree node to another (used by tree
 /// rewriting passes that create new nodes, upstream `Context.copyAnnotations`).
 /// Annotations the target already has are kept: a pass that replaced a node
 /// with a more specific one wins over the node it replaces.
+///
+/// The elaboration annotations of `ExplicitCapabilities` are deliberately not
+/// copied: they are *instructions* — "bind a capability for this block", "pass
+/// these implicit arguments here" — and the hook that replaces the node has
+/// already carried them out. Copying them would make a second traversal of the
+/// same subtree (handler implementations are rewritten by `TryHandle` on top of
+/// the generic traversal) apply them twice, e.g. adding a capability parameter
+/// to a block literal twice and thus generating JavaScript with duplicate
+/// parameter names.
 pub fn Context::copy_annotations(
   self : Context,
   from : Int32,
@@ -236,11 +245,6 @@ pub fn Context::copy_annotations(
   copy_entry(self.block_types, self.block_types, from, to)
   copy_entry(self.captures, self.captures, from, to)
   copy_entry(self.effects, self.effects, from, to)
-  copy_entry(self.bound_capabilities, self.bound_capabilities, from, to)
-  copy_entry(self.implicit_value_args, self.implicit_value_args, from, to)
-  copy_entry(self.implicit_block_args, self.implicit_block_args, from, to)
-  copy_entry(self.capability_receiver, self.capability_receiver, from, to)
-  copy_entry(self.capability_arguments, self.capability_arguments, from, to)
   copy_entry(self.type_arguments, self.type_arguments, from, to)
 }
 
