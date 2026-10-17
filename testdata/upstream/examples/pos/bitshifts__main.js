@@ -1,0 +1,1 @@
+require("./bitshifts.js").main()

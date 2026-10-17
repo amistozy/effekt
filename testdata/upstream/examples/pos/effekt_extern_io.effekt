@@ -1,0 +1,5 @@
+extern def foo() at io: Unit =
+  js { println("Hallo") }
+  default { println("Hallo") }
+
+def main() = { foo() }

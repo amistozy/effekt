@@ -288,9 +288,11 @@ pub fn compile_cps(
     js_declarations.append(to_js_declaration(d))
   }
   let stmts : Array[Stmt] = []
+
   for d in module.definitions {
     stmts.push(to_js_toplevel(d, ctx))
   }
+
   let js_module = Module::new(
     JSName::new(js_module_name(module.path)),
     [],
@@ -754,6 +756,13 @@ fn can_be_direct(
   stmt : @cps.Stmt,
   ctx : TransformerContext,
 ) -> Bool raise EffektError {
+  // A continuation that does not occur in the statement cannot be captured by
+  // it, so every use of it stays a tail jump *and* is already in direct style.
+  // Checking this first is what keeps the analysis from descending into the
+  // rest of the program once per continuation.
+  if !stmt.free().contains(k) {
+    return true
+  }
   match stmt {
     @cps.Stmt::Jump(k2, vargs, ks2) => {
       let args_ok = vargs.all(v => !v.free().contains(k))

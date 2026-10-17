@@ -1,0 +1,1 @@
+require("./arrays.js").main()

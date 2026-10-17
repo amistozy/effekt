@@ -1,0 +1,21 @@
+module examples/pos/arrays
+
+import array
+
+def main() = {
+    val arr = array[String](5, "");
+
+    arr.set(0, "hello");
+    arr.set(2, "world");
+    println(arr.get(0));
+    println(arr.get(2));
+
+    val arrWithVals: Array[String] = array(4, "Hello World");
+    println(arrWithVals)
+
+    val arrByF: Array[Int] = array::build(5){ i => i };
+    println(arrByF);
+
+    var arrByList: Array[Int] = array::fromList([1, 5, 17]);
+    println(arrByList)
+}

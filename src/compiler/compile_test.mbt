@@ -362,7 +362,7 @@ test "a block parameter is visible inside a nested block literal" {
   let text =
     #|def apply[A](x: A) { f: A => Bool }: Bool = f(x)
     #|def contains[A](x: A) { eq: (A, A) => Bool }: Bool = apply(x) { y => y.eq(x) }
-    #|def main() = contains(1) { (a, b) => true }
+    #|def main() = if (contains(1) { (a, b) => true }) () else ()
     #|
   let messages = check_program("ufcs_block_param.effekt", text)
   let errors = messages.filter(m => m.severity == @util.Error)

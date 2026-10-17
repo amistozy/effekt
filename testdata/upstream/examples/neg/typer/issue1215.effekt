@@ -1,0 +1,9 @@
+def push123(): Unit / emit[Int] = [1, 2, 3].each
+def printAll(): Bool / next[Int] = {
+  loop { println(do next()) }
+  true
+}
+
+def main() = {
+  val a = returning::source {push123} {printAll}
+}

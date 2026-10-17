@@ -1037,12 +1037,83 @@ pub fn Typer::commit(self : Typer) -> Unit {
 }
 
 ///|
-/// `main` must be a function without arguments, without effects, returning
-/// Unit. (Upstream `Typer.checkMain`; the parts that need the module symbol
-/// are checked by the driver.)
-pub fn Typer::check_main(_self : Typer, module : ModuleDecl) -> Unit {
-  ignore(module)
-  ()
+/// The top-level `main` functions of a module, including the ones inside
+/// namespaces.
+///
+/// Upstream `Context.findMain` walks the exported bindings: the terms of the
+/// module itself first, then its namespaces — the order shows up in the
+/// "Multiple main functions defined" message.
+fn collect_mains(ctx : Context, defs : Array[Def], out : Array[Sym]) -> Unit {
+  for d in defs {
+    match d.kind {
+      @source.DefKind::FunDef(id, _, _, _, _, _, _) =>
+        if id.name == "main" {
+          match ctx.symbol_of(id.uid) {
+            Some(sym) => out.push(sym)
+            None => ()
+          }
+        }
+      _ => ()
+    }
+  }
+  for d in defs {
+    match d.kind {
+      @source.DefKind::NamespaceDef(_, inner) => collect_mains(ctx, inner, out)
+      _ => ()
+    }
+  }
+}
+
+///|
+/// Checks the module's `main` functions (upstream `Typer.checkMain`): there is
+/// at most one, and it takes no arguments, performs no effects and returns
+/// `Unit`. This runs for every module; whether one *exists* is checked by the
+/// backend (`Context.ensureMainExists`), which only knows the main module.
+pub fn Typer::check_main(
+  self : Typer,
+  module : ModuleDecl,
+) -> Unit raise EffektError {
+  let mains : Array[Sym] = []
+  collect_mains(self.ctx, module.defs, mains)
+  if mains.length() > 1 {
+    let names = mains.map(s => s.name().qualified_name()).join(", ")
+    self.abort(module.span, "Multiple main functions defined: \{names}")
+  }
+  if mains.length() == 1 {
+    let main = mains[0]
+    match self.ctx.block_type_of(main.uid()) {
+      Some(
+        @symbols.BlockType::FunctionType(
+          _,
+          _,
+          vparams,
+          bparams,
+          result,
+          effects
+        )
+      ) => {
+        if vparams.length() > 0 || bparams.length() > 0 {
+          self.abort(main.decl(), "Main does not take arguments")
+        }
+        if effects.non_empty() {
+          self.abort(
+            main.decl(),
+            "Main cannot have effects, but includes effects: \{show_effects(effects)}",
+          )
+        }
+        if value_type_equal(result, t_int()) {
+          self.abort(
+            main.decl(),
+            "Main must return Unit, please use `exit(n)` to return an error code.",
+          )
+        }
+        if !value_type_equal(result, t_unit()) {
+          self.match_expected(result, t_unit(), Some(main.decl()))
+        }
+      }
+      _ => ()
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

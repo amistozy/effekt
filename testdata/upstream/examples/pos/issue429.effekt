@@ -1,0 +1,89 @@
+// Test generic equality implementation
+type MyType {
+  MySingleCase()
+}
+
+record EmptyRecord()
+
+record Person(name: String, age: Int)
+
+// Binary tree with values in nodes
+type Tree[T] {
+  Leaf();
+  Node(value: T, left: Tree[T], right: Tree[T])
+}
+
+// Create a simple tree for testing
+def createTree[T](depth: Int, value: T): Tree[T] = {
+  if (depth <= 0) {
+    Leaf()
+  } else {
+    Node(value, createTree(depth - 1, value), createTree(depth - 1, value))
+  }
+}
+
+// Create a more complex tree with different values
+def createMixedTree(): Tree[Int] = {
+  Node(1, 
+    Node(2, Leaf(), Leaf()),
+    Node(3, 
+      Node(4, Leaf(), Leaf()),
+      Leaf()
+    )
+  )
+}
+
+def main() = {
+  // Original tests
+  println("=== Basic equality tests ===")
+  println(MySingleCase().genericEquals(MySingleCase()))   // ~> true
+  println(EmptyRecord().genericEquals(EmptyRecord()))    // ~> true
+  println(Some(MySingleCase()).genericEquals(Some(MySingleCase()))) // ~> true
+  println(Some(EmptyRecord()).genericEquals(Some(EmptyRecord())))   // ~> true
+  println([Some(EmptyRecord()), Some(EmptyRecord()), None()].genericEquals([Some(EmptyRecord()), Some(EmptyRecord()), None()]))
+
+  // Enhanced tests with records and nested structures
+  println("\n=== Record equality tests ===")
+  val person1 = Person("Alice", 30)
+  val person2 = Person("Alice", 30)
+  val person3 = Person("Bob", 25)
+  println(person1.genericEquals(person2))  // ~> true
+  println(person1.genericEquals(person3))  // ~> false
+  println(Person("Alice", 30).genericEquals(Person("Alice", 30)))  // ~> true
+  
+  // Test nested records
+  println("\n=== Nested structure tests ===")
+  println(Some(person1).genericEquals(Some(person2)))  // ~> true
+  println(Some(person1).genericEquals(Some(person3)))  // ~> false
+  println([person1, person2].genericEquals([person1, person2]))  // ~> true
+  println([person1, person3].genericEquals([person1, person2]))  // ~> false
+  
+  // Tree equality tests
+  println("\n=== Tree equality tests ===")
+  val tree1 = createTree(3, 42)
+  val tree2 = createTree(3, 42)
+  val tree3 = createTree(2, 42)
+  val tree4 = createTree(3, 100)
+  
+  println(tree1.genericEquals(tree2))  // ~> true
+  println(tree1.genericEquals(tree3))  // ~> false
+  println(tree1.genericEquals(tree4))  // ~> false
+  
+  val mixedTree1 = createMixedTree()
+  val mixedTree2 = createMixedTree()
+  println(mixedTree1.genericEquals(mixedTree2))  // ~> true
+  
+  // Even more complex nested structures
+  println("\n=== Complex nested structure tests ===")
+  val nestedList1 = [Some(tree1), None(), Some(mixedTree1)]
+  val nestedList2 = [Some(tree2), None(), Some(mixedTree2)]
+  val nestedList3 = [Some(tree3), None(), Some(mixedTree1)]
+  
+  println(nestedList1.genericEquals(nestedList2))  // ~> true
+  println(nestedList1.genericEquals(nestedList3))  // ~> false
+  
+  val complexRecord = Person("Charlie", 35)
+  val recordWithTree = [complexRecord, Person("Dave", 40), Person("Charlie", 35)]
+  println(recordWithTree.genericEquals([complexRecord, Person("Dave", 40), Person("Charlie", 35)]))  // ~> true
+  println(recordWithTree.genericEquals([complexRecord, Person("Dave", 40), Person("Charlie", 36)]))  // ~> false
+}

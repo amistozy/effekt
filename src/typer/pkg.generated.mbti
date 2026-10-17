@@ -172,7 +172,7 @@ pub fn Typer::check_expr_as_block(Self, @source.Term, @symbols.BlockType?, (Int,
 pub fn Typer::check_function_argument(Self, @source.Term, @symbols.BlockType) -> TyRes[@symbols.BlockType] raise @util.EffektError
 pub fn Typer::check_guards(Self, Array[@source.MatchGuard]) -> @symbols.Effects raise @util.EffektError
 pub fn Typer::check_implementation(Self, @source.Implementation, (@symbols.ValueType, @symbols.Sym)?) -> TyRes[@symbols.BlockType] raise @util.EffektError
-pub fn Typer::check_main(Self, @source.ModuleDecl) -> Unit
+pub fn Typer::check_main(Self, @source.ModuleDecl) -> Unit raise @util.EffektError
 pub fn Typer::check_module(Self, @source.ModuleDecl) -> Unit raise @util.EffektError
 pub fn Typer::check_no_capture_escape(Self, Array[@symbols.Sym], Array[@symbols.Sym], @util.Span, String) -> Unit
 pub fn Typer::check_overloaded_function_call(Self, CallLike, @source.IdRef, Array[@symbols.ValueType], Array[@source.ValueArg], Array[@source.Term], @symbols.ValueType?) -> TyRes[@symbols.ValueType] raise @util.EffektError

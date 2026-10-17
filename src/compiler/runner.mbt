@@ -17,7 +17,11 @@ pub fn runner_path(output : String) -> String {
 }
 
 ///|
-/// The contents of the runner script: `require('./<module>.js').main()`.
+/// The contents of the runner script: `require('./<module>').main()`.
+///
+/// The generated module is written verbatim to the output path (normally with
+/// a `.js` extension, but `-o` accepts anything), so the runner requires
+/// exactly that file name.
 pub fn runner_contents(output : String) -> String {
   let normalized = normalize_separators(output)
   let segments = normalized.split("/").map(s => s.to_owned()).collect()
@@ -26,10 +30,5 @@ pub fn runner_contents(output : String) -> String {
   } else {
     segments[segments.length() - 1]
   }
-  let module_file = if base.has_suffix(".js") {
-    base[0:base.length() - 3].to_owned()
-  } else {
-    base
-  }
-  "require(\"./\{module_file}.js\").main()\n"
+  "require(\"./\{base}\").main()\n"
 }

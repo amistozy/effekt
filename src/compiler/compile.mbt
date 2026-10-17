@@ -34,13 +34,17 @@ pub(all) struct CompileResult {
 }
 
 ///|
-/// The directories the *library* provides: `--lib` and its `common`
-/// subdirectory. The implicit prelude is looked up here only.
+/// The directories the *library* provides: `--lib`, and its `common` and `js`
+/// subdirectories, mirroring upstream's JS `EffektConfig.includes()`
+/// (`List("common", "js", ".")`, relative to the library path). The implicit
+/// prelude is looked up here only.
 pub fn library_roots(opts : Options) -> Array[String] {
   let lib = resolve_path(opts.lib_path)
   let roots : Array[String] = [lib]
-  let common = join_path(lib, "common")
-  roots.push(common)
+  roots.push(join_path(lib, "common"))
+  // The JavaScript backend's library directory: `import mutable/map` resolves
+  // to `<lib>/js/mutable/map.effekt` (upstream `backendIncludes`).
+  roots.push(join_path(lib, "js"))
   roots
 }
 

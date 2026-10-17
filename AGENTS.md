@@ -146,6 +146,12 @@ You can browse and install extra skills here:
   than its recorded baseline: phase bugs hide in the standard library long
   before the small examples reach them, so raise the baseline whenever it
   improves and never lower it without removing a module.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/upstream.ps1`
+  additionally runs the Effekt repository's own test corpus (`testdata/upstream`,
+  copied verbatim, 565 programs with the recorded `.check` outputs). It takes
+  several minutes, so run it at milestones rather than on every commit; its
+  numbers are tracked by baselines inside the script, which must be raised
+  whenever they improve, exactly like `scripts/stdlib.ps1`'s.
 - Run `moon info && moon fmt` first, and commit the updated `.mbti` interfaces
   together with the code that changed them.
 - Direct HTTPS access to github.com is unreliable on this machine (`Recv failure:

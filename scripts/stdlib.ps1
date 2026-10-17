@@ -39,7 +39,7 @@ foreach ($file in (Get-ChildItem libraries -Recurse -Filter *.effekt)) {
   Remove-Item $stdout, $stderr -Force
   if ($null -eq $message) { $message = "" }
 
-  if ($proc.ExitCode -eq 0 -or $message -match "Cannot find the entry point") {
+  if ($proc.ExitCode -eq 0 -or $message -match "No main function defined") {
     $ok++
     Write-Host "  ok    $rel" -ForegroundColor Green
   } else {

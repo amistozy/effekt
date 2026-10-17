@@ -58,12 +58,12 @@ pub fn middle_end(
   //     reaching the code generator, which would report them as unsupported.
   //     The entry points are `Context.ensureMainExists` (the `main` of the main
   //     module) plus the names `core.Show` needs in the next step.
+  // `Typer.checkMain` has already rejected ambiguous mains; finding none is the
+  // backend's error (upstream `Context.ensureMainExists`). The span is the main
+  // module's, so the diagnostic points at the file.
   let main_sym = find_main(modules)
   if main_sym is None {
-    ctx.abort(
-      Span::missing(),
-      "Cannot find the entry point 'main' in module \{main_module.module.path}.",
-    )
+    ctx.abort(main_module.tree.span, "No main function defined")
   }
   let main_sym = main_sym.unwrap()
   let required = @symbols.dedup_syms(
@@ -96,9 +96,13 @@ pub fn emit(
   let (aggregated, main_sym) = middle_end(modules, ctx)
 
   // 3. CPS conversion and code generation.
+
   let cps_module = @cps.transform(aggregated)
+
   let contified = @cps.contify(cps_module)
+
   let js = @js.compile_cps(contified, aggregated, main_sym)
+
   // Externs that no body applies to are warnings, exactly as upstream. `2b`
   // has already dropped the unreachable ones, so only externs that the program
   // can actually call are reported (once per distinct message).
@@ -137,6 +141,12 @@ pub fn find_exported(module : @symbols.Module, name : String) -> Sym? {
 
 ///|
 /// The `main` symbol of the main module.
+///
+/// Only a *top-level* `main` is an entry point: upstream's `ensureMainExists`
+/// also accepts one inside a namespace, but code generating such a module
+/// currently explodes in `TransformerCps` (the direct-style analysis is
+/// exponential for its continuation nesting), so a namespaced `main` is
+/// reported as missing instead of hanging the compiler.
 pub fn find_main(modules : Array[@namer.ResolvedModule]) -> Sym? {
   if modules.length() == 0 {
     return None

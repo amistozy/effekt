@@ -24,6 +24,8 @@ using @symbols {
   canonical_order,
   t_unit,
   t_bool,
+  t_int,
+  value_type_equal,
   t_top,
   t_bottom,
   constructor_tparams,

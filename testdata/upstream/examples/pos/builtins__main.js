@@ -1,0 +1,1 @@
+require("./builtins.js").main()

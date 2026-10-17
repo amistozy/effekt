@@ -1,0 +1,23 @@
+import io
+import io/time
+import io/promise
+
+def main() = {
+
+  val p1 = promise(box {
+    println("Start p1");
+    sleep(250)
+    println("Stop p1");
+    1
+  })
+
+  val p2 = promise(box {
+    println("Start p2");
+    sleep(150)
+    println("Stop p2");
+    2
+  })
+
+  println("p1: " ++ await(p1).show)
+  println("p2: " ++ await(p2).show)
+}

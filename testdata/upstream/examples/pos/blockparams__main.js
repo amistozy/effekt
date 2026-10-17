@@ -1,0 +1,1 @@
+require("./blockparams.js").main()
