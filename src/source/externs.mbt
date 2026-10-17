@@ -173,7 +173,7 @@ fn resolve_extern_def(d : Def, ctx : Context) -> Array[Def] raise EffektError {
             ),
           ]
       }
-    ExternInclude(flag, path, contents) =>
+    ExternInclude(flag, _path, _contents) =>
       if flag.matches_any(supported_flags(ctx)) {
         match flag {
           Default =>

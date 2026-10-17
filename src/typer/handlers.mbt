@@ -440,7 +440,7 @@ pub fn Typer::check_implementation(
 ///|
 fn Typer::check_op_clause(
   self : Typer,
-  implementation : Implementation,
+  _implementation : Implementation,
   interface : Sym,
   targs : Array[ValueType],
   clause : OpClause,

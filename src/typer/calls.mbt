@@ -12,7 +12,7 @@ pub fn Typer::check_call_to(
   call : CallLike,
   tparams : Array[Sym],
   known_vps : Array[Sym],
-  known_bps : Array[Sym],
+  _known_bps : Array[Sym],
   fun_tpe : BlockType,
   targs : Array[ValueType],
   vargs : Array[ValueArg],

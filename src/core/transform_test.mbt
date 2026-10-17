@@ -72,7 +72,7 @@ fn def_stmt(d : @source.Def, rest : @source.Stmt) -> @source.Stmt {
 }
 
 ///|
-fn value_param(name : String, tpe : @symbols.ValueType) -> @source.ValueParam {
+fn value_param(name : String, _tpe : @symbols.ValueType) -> @source.ValueParam {
   @source.ValueParam::{ id: id_def(name), tpe: None, is_implicit: false, }
 }
 

@@ -9,19 +9,14 @@ using @util {
   type EffektError,
   type Template,
   type Doc,
-  type Message,
   empty_doc,
   text,
   doc_cat,
   doc_spacecat,
   doc_space,
   doc_line,
-  doc_group,
   doc_nest,
-  doc_hardline,
-  hcat,
   hsep,
-  vcat,
   vsep,
   punctuate,
   comma,
@@ -29,8 +24,6 @@ using @util {
   braces_inner,
   brackets_inner,
   nested,
-  intercalate,
-  render,
   render_width,
 }
 
@@ -42,7 +35,6 @@ using @symbols {
   type BlockType,
   type Captures,
   type Effects,
-  sym_eq,
   sym_in,
   dedup_syms,
   // built-in types and effects
@@ -57,17 +49,8 @@ using @symbols {
   t_state,
   // built-in symbols
   core_builtin_to_string,
-  core_builtins,
-  is_core_builtin,
   // type queries (mirrors the parts of `core/Type.scala` we do port)
   field_return_type,
-  field_param,
-  constructor_tparams,
-  constructor_applied_datatype,
-  value_type_equal,
-  block_type_equal,
-  interface_type_equal,
-  canonical_order,
 }
 
 ///|

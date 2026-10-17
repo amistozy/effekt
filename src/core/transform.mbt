@@ -158,17 +158,6 @@ fn calling_convention(sym : Sym) -> CallingConvention {
 // ---------------------------------------------------------------------------
 
 ///|
-fn[T] array_take(xs : Array[T], n : Int32) -> Array[T] {
-  let out : Array[T] = []
-  let mut i = 0
-  while i < n && i < xs.length() {
-    out.push(xs[i])
-    i = i + 1
-  }
-  out
-}
-
-///|
 fn[T] array_drop(xs : Array[T], n : Int32) -> Array[T] {
   let out : Array[T] = []
   let mut i = n
@@ -179,11 +168,6 @@ fn[T] array_drop(xs : Array[T], n : Int32) -> Array[T] {
     i = i + 1
   }
   out
-}
-
-///|
-fn sym_list_contains(xs : Array[Sym], x : Sym) -> Bool {
-  sym_in(x, xs)
 }
 
 // ---------------------------------------------------------------------------
@@ -732,26 +716,6 @@ fn Transformer::block_var(self : Transformer, sym : Sym) -> BlockVar {
   )
 }
 
-///|
-/// The value variable bound by a `ValueParam` symbol.
-fn Transformer::value_param_var(self : Transformer, sym : Sym) -> ValueParam {
-  ValueParam::new(sym, self.transform_value_type(self.value_type_of_sym(sym)))
-}
-
-///|
-fn Transformer::block_param_var(self : Transformer, sym : Sym) -> BlockParam {
-  BlockParam::new(
-    sym,
-    self.transform_block_type(self.block_type_of_sym(sym)),
-    CaptureSetOf([
-      match sym {
-        BlockParam(p) => p.capture
-        _ => self.region_capture(sym)
-      },
-    ]),
-  )
-}
-
 // ---------------------------------------------------------------------------
 // Toplevel definitions
 // ---------------------------------------------------------------------------
@@ -763,7 +727,7 @@ fn Transformer::transform_toplevel(
 ) -> Array[CoreToplevel] raise EffektError {
   let result : Array[CoreToplevel] = []
   match d.kind {
-    @source.FunDef(id, tps, vps, bps, cpt, ret, body) => {
+    @source.FunDef(_id, tps, vps, bps, _cpt, _ret, body) => {
       let sym = self.sym_of_def(d)
       let tparams : Array[Sym] = []
       for p in tps {
@@ -793,7 +757,7 @@ fn Transformer::transform_toplevel(
         ),
       )
     }
-    @source.DataDef(id, tparams, ctors) => {
+    @source.DataDef(_id, tparams, ctors) => {
       let datatype = self.sym_of_def(d)
       let dt_tparams = self.type_constructor_tparams_of(datatype, tparams)
       let ctors_of_symbol = type_constructor_constructors(datatype)
@@ -814,7 +778,7 @@ fn Transformer::transform_toplevel(
         CoreToplevelDecl(DeclarationData(datatype, dt_tparams, core_ctors)),
       )
     }
-    @source.RecordDef(id, tparams, params) => {
+    @source.RecordDef(_id, tparams, _params) => {
       let rec = self.sym_of_def(d)
       let rec_tparams = self.type_constructor_tparams_of(rec, tparams)
       let ctor_syms = type_constructor_constructors(rec)
@@ -826,7 +790,7 @@ fn Transformer::transform_toplevel(
         CoreToplevelDecl(DeclarationData(rec, rec_tparams, core_ctors)),
       )
     }
-    @source.ValDef(id, tpe, binding) =>
+    @source.ValDef(_id, _tpe, binding) =>
       if self.is_pure_or_io_uid(binding.uid) {
         let transformed = self.insert_bindings(fn() raise EffektError {
           self.transform_stmt(binding)
@@ -838,7 +802,7 @@ fn Transformer::transform_toplevel(
       } else {
         self.ctx.abort(d.span, "Effectful bindings not allowed on the toplevel")
       }
-    @source.DefDef(id, captures, annot, binding) => {
+    @source.DefDef(_id, _captures, _annot, binding) => {
       let sym = self.sym_of_def(d)
       let (definition, bindings) = self.with_bindings(fn() raise EffektError {
         CoreToplevelDef(ToplevelDef(sym, self.transform_as_block(binding)))
@@ -858,7 +822,7 @@ fn Transformer::transform_toplevel(
         d.span,
         "Mutable variable bindings not allowed on the toplevel",
       )
-    @source.InterfaceDef(id, tparams_interface, ops) => {
+    @source.InterfaceDef(_id, _tparams_interface, ops) => {
       let interface = self.sym_of_def(d)
       let tparams = interface_tparams(interface)
       let ops_of_symbol = interface_operations(interface)
@@ -881,7 +845,7 @@ fn Transformer::transform_toplevel(
         CoreToplevelDecl(DeclarationInterface(interface, tparams, properties)),
       )
     }
-    @source.ExternDef(id, tparams, vps, bps, capt, ret, bodies) => {
+    @source.ExternDef(_id, _tparams, vps, bps, _capt, _ret, bodies) => {
       let sym = self.sym_of_def(d)
       match sym {
         ExternFunction(f) => {
@@ -929,7 +893,7 @@ fn Transformer::transform_toplevel(
           )
       }
     }
-    @source.ExternType(id, tparams, bodies) => {
+    @source.ExternType(_id, _tparams, bodies) => {
       let sym = self.sym_of_def(d)
       let tps = match sym {
         ExternType(t) => t.tparams
@@ -948,7 +912,7 @@ fn Transformer::transform_toplevel(
       }
       result.push(CoreToplevelExtern(ExternInclude(ff, contents)))
     }
-    @source.NamespaceDef(name, defs) =>
+    @source.NamespaceDef(_name, defs) =>
       for inner in defs {
         for x in self.transform_toplevel(inner) {
           result.push(x)
@@ -1138,7 +1102,7 @@ fn Transformer::transform_stmt(
     @source.BlockStmt(b) => self.transform_stmt(b)
     @source.DefStmt(d, rest) =>
       match d.kind {
-        @source.FunDef(id, tps, vps, bps, cpt, ret, body) => {
+        @source.FunDef(_id, tps, vps, bps, _cpt, _ret, body) => {
           let tparams : Array[Sym] = []
           for p in tps {
             tparams.push(self.sym_of_id_def(p))
@@ -1166,26 +1130,26 @@ fn Transformer::transform_stmt(
           )
           self.transform_stmt(rest)
         }
-        @source.ValDef(id, tpe, binding) => {
+        @source.ValDef(_id, _tpe, binding) => {
           let transformed = self.insert_bindings(fn() raise EffektError {
             self.transform_stmt(binding)
           })
           self.emit(BindingVal(self.sym_of_def(d), transformed))
           self.transform_stmt(rest)
         }
-        @source.DefDef(id, captures, annot, binding) => {
+        @source.DefDef(_id, _captures, _annot, binding) => {
           self.emit(
             BindingDef(self.sym_of_def(d), self.transform_as_block(binding)),
           )
           self.transform_stmt(rest)
         }
-        @source.RegDef(id, tpe, reg, binding) => {
+        @source.RegDef(_id, _tpe, _reg, binding) => {
           let sym = self.sym_of_def(d)
           let init = self.bind_stmt(self.transform_stmt(binding))
           self.emit(BindingAlloc(sym, init, self.reg_binder_region(sym)))
           self.transform_stmt(rest)
         }
-        @source.VarDef(id, tpe, binding) => {
+        @source.VarDef(_id, _tpe, binding) => {
           let sym = self.sym_of_def(d)
           let init = self.bind_stmt(self.transform_stmt(binding))
           self.emit(BindingVar(sym, init, self.var_binder_capture(sym)))
@@ -1236,7 +1200,7 @@ fn Transformer::transform_stmt(
 }
 
 ///|
-fn Transformer::reg_binder_region(self : Transformer, sym : Sym) -> Sym {
+fn Transformer::reg_binder_region(_self : Transformer, sym : Sym) -> Sym {
   match sym {
     RegBinder(r) => r.region
     _ => sym
@@ -1244,7 +1208,7 @@ fn Transformer::reg_binder_region(self : Transformer, sym : Sym) -> Sym {
 }
 
 ///|
-fn Transformer::var_binder_capture(self : Transformer, sym : Sym) -> Sym {
+fn Transformer::var_binder_capture(_self : Transformer, sym : Sym) -> Sym {
   match sym {
     VarBinder(v) => v.capture
     _ => sym
@@ -1274,7 +1238,7 @@ fn Transformer::transform_box(
   tree : @source.Term,
 ) -> Expr raise EffektError {
   match tree.kind {
-    @source.Box(capt, block) =>
+    @source.Box(_capt, block) =>
       Box(
         self.transform_as_block(tree),
         self.transform_captures(self.inferred_capture(block)),
@@ -1339,7 +1303,7 @@ fn Transformer::transform_as_control_block(
       let sym = self.sym_of_ref(id)
       let tpe = self.block_type_of_sym(sym)
       match tpe {
-        FunctionType(tparams, cparams, vparamtps, bparamtps, restpe, effects) => {
+        FunctionType(tparams, _cparams, vparamtps, bparamtps, restpe, _effects) => {
           // if this block argument expects to be called using PureApp or
           // ImpureApp, make sure it is by wrapping it in a BlockLit.
           let targs : Array[ValueType] = tparams.map(t => ValueTypeRef(t))
@@ -1503,7 +1467,7 @@ fn Transformer::transform_as_expr(
     }
     @source.Literal(value, tpe) =>
       Literal(value, self.transform_value_type(tpe))
-    @source.Box(capt, block) => self.transform_box(block)
+    @source.Box(_capt, block) => self.transform_box(block)
     @source.New(_) => self.transform_box(tree)
     @source.Unbox(_) => self.transform_box(tree)
     @source.BlockLiteral(_, _, _, _) => self.transform_box(tree)
@@ -1784,7 +1748,7 @@ fn Transformer::transform_as_stmt(
 
     // methods are dynamically dispatched, so we have to assume they are
     // `control`, hence no PureApp.
-    @source.MethodCall(receiver, id, targs, vargs, bargs) => {
+    @source.MethodCall(receiver, id, _targs, vargs, bargs) => {
       let rec = self.transform_as_object(receiver)
       let type_args = self
         .type_arguments_of(tree)
@@ -1818,7 +1782,7 @@ fn Transformer::transform_as_stmt(
     }
     @source.Hole(_, _) =>
       Hole(self.transform_value_type(self.inferred_type_of(tree)), tree.span)
-    @source.Call(target, targs, vargs, bargs) =>
+    @source.Call(target, _targs, vargs, bargs) =>
       match target {
         @source.IdTarget(id) =>
           self.make_function_call(tree, self.sym_of_ref(id), vargs, bargs)
@@ -2272,7 +2236,7 @@ fn Transformer::operation_at_callsite(
   member : Sym,
 ) -> BlockType raise EffektError {
   match receiver {
-    InterfaceType(i, targs) =>
+    InterfaceType(_i, targs) =>
       match member {
         Operation(o) => {
           let vsubst : Map[Int32, ValueType] = Map([])
@@ -2499,7 +2463,7 @@ fn Transformer::bound_in_pattern(
         ),
       ]
     }
-    @source.TagPattern(id, patterns) => {
+    @source.TagPattern(_id, patterns) => {
       let out : Array[ValueParam] = []
       for inner in patterns {
         for vp in self.bound_in_pattern(inner) {

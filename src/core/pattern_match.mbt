@@ -353,7 +353,7 @@ fn pm_split_clause(
 /// compile the resulting cascade of `if`s.
 fn pm_split_on_literal(
   scrutinee : PMVar,
-  lit_value : LiteralValue,
+  _lit_value : LiteralValue,
   lit_tpe : ValueType,
   eq : PMEquals?,
   normalized : Array[PMClause],
@@ -464,7 +464,7 @@ fn pm_constructor_field_names(
 /// (3b) Match on a data type constructor.
 fn pm_split_on_tag(
   scrutinee : PMVar,
-  id : Sym,
+  _id : Sym,
   all_variants : Array[Sym],
   normalized : Array[PMClause],
   motif : ValueType,

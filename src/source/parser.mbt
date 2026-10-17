@@ -246,11 +246,6 @@ pub fn build_precedence_table() -> PrecedenceTable {
 }
 
 ///|
-fn PrecedenceTable::operators(self : PrecedenceTable) -> Array[TokenKind] {
-  self.ops
-}
-
-///|
 fn PrecedenceTable::is_operator(self : PrecedenceTable, op : TokenKind) -> Bool {
   array_index_of(self.ops, op) >= 0
 }
@@ -769,14 +764,6 @@ fn[T] Parser::backtrack(
 }
 
 ///|
-fn[T] Parser::backtrack_default(
-  self : Parser,
-  p : () -> T raise EffektError,
-) -> Maybe[T] raise EffektError {
-  self.backtrack(true, p)
-}
-
-///|
 /// Marks the current parse position with a label, used for error messages.
 fn[T] Parser::labelled(
   self : Parser,
@@ -915,7 +902,7 @@ fn[T] Parser::many_while_kind(
 
 ///|
 fn[T] Parser::many_while(
-  self : Parser,
+  _self : Parser,
   p : () -> T raise EffektError,
   predicate : () -> Bool raise EffektError,
 ) -> Array[T] raise EffektError {
@@ -1075,11 +1062,6 @@ fn Parser::info(self : Parser) -> Info raise EffektError {
 }
 
 ///|
-fn Parser::no_info(self : Parser) -> Info {
-  Info::empty()
-}
-
-///|
 fn Parser::assert_extern(self : Parser, info : Info) -> Unit {
   if !info.is_extern {
     self.soft_fail(
@@ -1112,7 +1094,7 @@ fn Parser::only_doc(self : Parser, info : Info) -> Info {
 }
 
 ///|
-fn Parser::default_capture(self : Parser, span : Span) -> CaptureSetTree {
+fn Parser::default_capture(_self : Parser, span : Span) -> CaptureSetTree {
   { span, captures: [IdRef::qualified(["effekt"], "io", span)], }
 }
 
@@ -1651,11 +1633,6 @@ fn Parser::namespace_def(self : Parser, info : Info) -> Def raise EffektError {
 // ---------------------------------------------------------------------------
 
 ///|
-fn Parser::extern_def(self : Parser) -> Def raise EffektError {
-  self.documented(info => self.extern_def_with(info))
-}
-
-///|
 fn Parser::extern_def_with(self : Parser, info : Info) -> Def raise EffektError {
   self.assert_extern(info)
   let kind = self.peek_kind()
@@ -1774,7 +1751,7 @@ fn Parser::extern_body(
             self.consume(TLBrace)
             let body = eff()
             self.consume(TRBrace)
-            let span = self.span()
+            let _span = self.span()
             EffektExternBody(flag, body)
           } else {
             self.string_extern_body(splice)
@@ -1792,7 +1769,7 @@ fn Parser::string_extern_body(
 ) -> ExternBody raise EffektError {
   let flag = self.maybe_feature_flag()
   let template = self.template(splice).unspan_template()
-  let span = self.span()
+  let _span = self.span()
   StringExternBody(flag, template)
 }
 
@@ -2162,7 +2139,7 @@ fn Parser::desugar_with_patterns(
 
 ///|
 fn Parser::desugar_with(
-  self : Parser,
+  _self : Parser,
   call : Term,
   block_lit : Term,
   with_span : Span,
@@ -2733,7 +2710,7 @@ fn is_var_term(t : Term) -> Bool {
 }
 
 ///|
-fn Parser::is_thunked_op(self : Parser, op : TokenKind) -> Bool {
+fn Parser::is_thunked_op(_self : Parser, op : TokenKind) -> Bool {
   match op {
     TBarBar | TAmpAmp => true
     _ => false
@@ -2741,7 +2718,7 @@ fn Parser::is_thunked_op(self : Parser, op : TokenKind) -> Bool {
 }
 
 ///|
-fn Parser::op_name(self : Parser, op : TokenKind) -> String {
+fn Parser::op_name(_self : Parser, op : TokenKind) -> String {
   match op {
     TBarBar => "infixBarBar"
     TAmpAmp => "infixAmpAmp"
@@ -3930,11 +3907,6 @@ fn Parser::maybe_block_params(
     )
     Many::new(params, self.span())
   })
-}
-
-///|
-fn Parser::block_params(self : Parser) -> Array[BlockParam] raise EffektError {
-  self.nonterminal(() => self.block_params_opt())
 }
 
 ///|

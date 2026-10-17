@@ -822,8 +822,8 @@ pub fn Captures::to_array(self : Captures) -> Array[Sym] {
 pub fn Captures::union(self : Captures, other : Captures) -> Captures {
   match (self, other) {
     (CaptureSetOf(a), CaptureSetOf(b)) => CaptureSetOf(dedup_syms(a + b))
-    (CaptVar(c), other) => CaptVar(c)
-    (self, CaptVar(c)) => CaptVar(c)
+    (CaptVar(c), _other) => CaptVar(c)
+    (_self, CaptVar(c)) => CaptVar(c)
   }
 }
 

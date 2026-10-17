@@ -55,11 +55,6 @@ fn empty_captures() -> @source.CaptureSetTree {
 }
 
 ///|
-fn io_effect() -> @symbols.BlockType {
-  @symbols.t_io()
-}
-
-///|
 fn extern_body() -> Array[@source.ExternBody] {
   [
     @source.ExternBody::StringExternBody(

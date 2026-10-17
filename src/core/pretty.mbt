@@ -97,11 +97,6 @@ fn braced_block(content : Doc) -> Doc {
 }
 
 ///|
-fn doc_of_string(s : String) -> Doc {
-  text(s)
-}
-
-///|
 fn escape_string(s : String) -> String {
   let buf = StringBuilder()
   for c in s {

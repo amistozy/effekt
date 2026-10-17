@@ -28,7 +28,7 @@ pub fn explicit_capabilities(
 fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
   match t.kind {
     // An effect call: dispatch on the inferred capability.
-    Do(id, targs, vargs, bargs) => {
+    Do(id, _targs, vargs, bargs) => {
       let extra_v = ctx.implicit_value_args_of(t.uid)
       let extra_b = ctx.implicit_block_args_of(t.uid)
       let value_args = vargs + extra_v.map(a => ValueArg::unnamed(a))
@@ -67,7 +67,7 @@ fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
     Call(IdTarget(fun), _targs, vargs, bargs) if is_field_call(
         ctx, fun, vargs, bargs,
       ) => Some(mk_term(t.span.synthesized(), Select(vargs[0].value, fun)))
-    MethodCall(receiver, id, targs, vargs, bargs) => {
+    MethodCall(receiver, id, _targs, vargs, bargs) => {
       let extra_v = ctx.implicit_value_args_of(t.uid)
       let extra_b = ctx.implicit_block_args_of(t.uid)
       let value_args = vargs + extra_v.map(a => ValueArg::unnamed(a))
@@ -91,7 +91,7 @@ fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
         ),
       )
     }
-    Call(target, targs, vargs, bargs) => {
+    Call(target, _targs, vargs, bargs) => {
       let extra_v = ctx.implicit_value_args_of(t.uid)
       let extra_b = ctx.implicit_block_args_of(t.uid)
       let value_args = vargs + extra_v.map(a => ValueArg::unnamed(a))

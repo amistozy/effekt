@@ -15,36 +15,22 @@ using @util {
   doc_group,
   doc_nest,
   hcat,
-  hsep,
   vcat,
   vsep,
   parens_inner,
   braces_inner,
   brackets_inner,
   nested,
-  intercalate,
   punctuate,
   comma,
-  render,
   render_width,
 }
 
 ///|
-using @symbols {
-  type JSName,
-  type Sym,
-  type Name,
-  type ValueType,
-  type BlockType,
-  type Captures,
-  sym_eq,
-}
+using @symbols {type JSName, type Sym}
 
 ///|
-using @source {type FeatureFlag, type LiteralValue}
-
-///|
-using @core {type Declaration, type DeclarationContext, type Constructor}
+using @source {type LiteralValue}
 
 ///|
 /// Raises an internal compiler error. The polymorphic result type lets it stand

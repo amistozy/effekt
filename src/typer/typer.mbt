@@ -928,7 +928,7 @@ pub fn Typer::commit(self : Typer) -> Unit {
 /// Unit. (Upstream `Typer.checkMain`; the parts that need the module symbol
 /// are checked by the driver.)
 pub fn Typer::check_main(
-  self : Typer,
+  _self : Typer,
   module : ModuleDecl,
 ) -> Unit raise EffektError {
   ignore(module)
@@ -1056,7 +1056,7 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
             Some(c) =>
               for v in c.vparams {
                 match v {
-                  @symbols.Sym::ValueParam(p) =>
+                  @symbols.Sym::ValueParam(_p) =>
                     self.bind_capture(v, Captures::empty())
                   _ => ()
                 }
@@ -1479,7 +1479,7 @@ fn Typer::check_stmt_kind(
         }
         _ => {
           let bind_res = {
-            let r = self.precheck_def(d)
+            let _r = self.precheck_def(d)
             self.synth_def(d)
           }
           let rest_res = self.check_stmt(rest, expected)
@@ -2450,7 +2450,7 @@ pub fn Typer::instantiate_fresh(
       let type_args = tparams.map(t => {
         @symbols.ValueType::ValueTypeRef(self.fresh_type_var(t))
       })
-      let capt_args = capts.map(c => {
+      let capt_args = capts.map(_c => {
         @symbols.Captures::CaptVar(self.fresh_capt_var("instantiation"))
       })
       let (vps, bps, ret, effs) = self.instantiate(

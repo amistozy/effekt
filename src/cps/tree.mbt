@@ -365,7 +365,7 @@ pub fn ContLam::size(self : ContLam) -> Int32 {
 }
 
 ///|
-pub fn MetaCont::size(self : MetaCont) -> Int32 {
+pub fn MetaCont::size(_self : MetaCont) -> Int32 {
   1
 }
 

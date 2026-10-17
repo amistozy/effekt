@@ -50,11 +50,6 @@ fn brackets_list(docs : Array[Doc]) -> Doc {
 }
 
 ///|
-fn braces_list(docs : Array[Doc]) -> Doc {
-  braces_inner(punctuate(docs, comma()))
-}
-
-///|
 /// `jsBlock(content) = "{" <> nest(line <> content) <> line <> "}"`.
 fn js_block(content : Doc) -> Doc {
   braces_inner(doc_cat(doc_nest(2, doc_cat(doc_line(), content)), doc_line()))

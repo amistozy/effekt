@@ -34,16 +34,6 @@ pub fn[T, U] Template::map(self : Template[T], f : (T) -> U) -> Template[U] {
 }
 
 ///|
-impl[T : Show] Show for Template[T] with fn output(self, logger) {
-  for i = 0; i < self.strings.length(); i = i + 1 {
-    logger.write_string(self.strings[i])
-    if i < self.args.length() {
-      self.args[i].output(logger)
-    }
-  }
-}
-
-///|
 /// Renders a template where each argument is rendered by `f`.
 pub fn[T] Template::render(self : Template[T], f : (T) -> String) -> String {
   let buf = StringBuilder()

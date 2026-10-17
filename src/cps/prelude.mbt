@@ -1,19 +1,10 @@
 // Names used unqualified throughout the `cps` package.
 
 ///|
-using @util {type Span, type EffektError, type Template, type Message}
+using @util {type Span, type EffektError, type Template}
 
 ///|
-using @symbols {
-  type Sym,
-  type Name,
-  type ValueType,
-  type BlockType,
-  type Captures,
-  sym_eq,
-  sym_in,
-  dedup_syms,
-}
+using @symbols {type Sym, type ValueType, type BlockType, sym_eq}
 
 ///|
 using @source {type FeatureFlag, type LiteralValue}

@@ -111,7 +111,7 @@ pub fn CapScope::capability_for(self : CapScope, tpe : BlockType) -> Sym? {
         Some(cap) => Some(cap)
         None => parent.capability_for(tpe)
       }
-    BindAll(caps, parent) =>
+    BindAll(caps, _parent) =>
       match caps.get(key) {
         Some(cap) => Some(cap)
         None => {

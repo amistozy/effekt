@@ -3,11 +3,9 @@
 ///|
 using @util {
   type Span,
-  type Origin,
   type EffektError,
   type Template,
   type Source,
-  type Position,
   type Message,
   type Severity,
   fresh_uid,
@@ -19,8 +17,6 @@ using @symbols {
   type BlockType,
   type Effects,
   type Sym,
-  type Name,
-  type JSName,
   type Captures,
   t_unit,
   t_bool,
@@ -29,5 +25,4 @@ using @symbols {
   t_string,
   t_char,
   t_byte,
-  or_else,
 }

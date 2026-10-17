@@ -331,7 +331,7 @@ fn show_test_instance_id(
 
 ///|
 /// The id of the definition the call in `entry` was rewritten to.
-fn show_test_callee(f : ShowFixture, out : @core.ModuleDecl) -> @symbols.Sym {
+fn show_test_callee(_f : ShowFixture, out : @core.ModuleDecl) -> @symbols.Sym {
   match out.definitions[0] {
     @core.ToplevelDef(_, @core.BlockLit(lit)) =>
       match lit.body {

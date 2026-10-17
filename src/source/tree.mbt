@@ -51,20 +51,6 @@ pub fn IdRef::qualified(
 }
 
 ///|
-impl Show for IdDef with fn output(self, logger) {
-  logger.write_string(self.name)
-}
-
-///|
-impl Show for IdRef with fn output(self, logger) {
-  for p in self.path {
-    logger.write_string(p)
-    logger.write_string("::")
-  }
-  logger.write_string(self.name)
-}
-
-///|
 /// A literal value as written in the source.
 pub(all) enum LiteralValue {
   LUnit

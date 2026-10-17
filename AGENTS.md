@@ -108,17 +108,19 @@ You can browse and install extra skills here:
   fix the code.
 - The suppressions all live in **one place**, `moon.mod`'s `warnings`, and each
   entry is documented there with why the port produces it on purpose
-  (`reserved_keyword` for the `module` field name, the `unused_*` family for
-  definitions ported for fidelity to the Scala sources, and
-  `implicit_impl_as_method`, which `derive(Eq, Debug)` triggers whether we want
-  it or not — ~685 diagnostics in total). Do not add a package-level
-  `warnings =` line: `moon.pkg` lists were removed in favour of the shared
-  default, and a package that needs an extra suppression should be discussed
-  rather than silenced.
+  (`reserved_keyword` for Effekt's own AST vocabulary — `module`, `local`, `ref`,
+  `constructor`, …; `unused_error_type` for `raise` clauses left over from the
+  Scala signatures; and `implicit_impl_as_method`, which `pub impl` and
+  `derive(Eq, Debug)` trigger — 523 diagnostics in total). Do not add a
+  package-level `warnings =` line: `moon.pkg` lists were removed in favour of
+  the shared default, and a package that needs an extra suppression should be
+  discussed rather than silenced.
 - Fixing one of those classes is always welcome — `unused_package`,
-  `redundant_modifier`, `deprecated` and `unused_mut` were cleaned up that way —
-  but drop the entry only after a full clean `moon check -d` (delete `_build`:
-  a cached build hides whole packages).
+  `redundant_modifier`, `deprecated`, `unused_mut`, `unused_value` and
+  `unused_type_declaration` were cleaned up that way (the last two by dropping
+  dead declarations and unused `using` entries rather than by renaming) — but
+  drop the entry only after a full clean `moon check -d` (delete `_build`: a
+  cached build hides whole packages).
 
 ## Git workflow
 

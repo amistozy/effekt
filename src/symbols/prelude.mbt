@@ -1,14 +1,7 @@
 // Names from `util` that are used unqualified throughout this package.
 
 ///|
-using @util {
-  type Span,
-  type EffektError,
-  type Message,
-  type Severity,
-  type Origin,
-  fresh_uid,
-}
+using @util {type Span, type EffektError, fresh_uid}
 
 ///|
 /// `a` if it is `Some`, otherwise compute `b`.
