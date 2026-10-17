@@ -80,6 +80,16 @@ You can browse and install extra skills here:
   `scripts/e2e.ps1` runs the compiled programs, so any accidental change to a
   string's content is caught.
 
+- **Write lambdas as arrows**, never as anonymous `fn` literals: `x => …`,
+  `(a, b) => …`, `() => { … }`. A `fn` literal whose body may raise has to
+  repeat the effect (`fn() raise EffektError { … }`), and the annotated form is
+  then checked for being *unused* (`unused_error_type`) as well, so it needs
+  editing whenever the body stops raising; without the annotation the compiler
+  reports `deprecated_syntax` (0027). Arrows infer the effect from the body, so
+  one spelling covers both the pure and the raising case — e.g.
+  `self.with_bindings(() => { … })`. `moon fmt` collapses a single-expression
+  body to `x => expr`.
+
 ## Host access: prefer the standard library over `extern`
 
 - **Do not hand-write JavaScript when `moonbitlang/core` or `moonbitlang/x` has

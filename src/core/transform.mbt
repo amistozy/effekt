@@ -745,9 +745,7 @@ fn Transformer::transform_toplevel(
       for p in bps {
         bparams.push(self.transform_block_param(p))
       }
-      let body = self.insert_bindings(fn() raise EffektError {
-        self.transform_stmt(body)
-      })
+      let body = self.insert_bindings(() => self.transform_stmt(body))
       result.push(
         CoreToplevelDef(
           ToplevelDef(
@@ -792,7 +790,7 @@ fn Transformer::transform_toplevel(
     }
     @source.ValDef(_id, _tpe, binding) =>
       if self.is_pure_or_io_uid(binding.uid) {
-        let transformed = self.insert_bindings(fn() raise EffektError {
+        let transformed = self.insert_bindings(() => {
           self.transform_stmt(binding)
         })
         // TODO what to do with the potentially annotated type here?
@@ -804,7 +802,7 @@ fn Transformer::transform_toplevel(
       }
     @source.DefDef(_id, _captures, _annot, binding) => {
       let sym = self.sym_of_def(d)
-      let (definition, bindings) = self.with_bindings(fn() raise EffektError {
+      let (definition, bindings) = self.with_bindings(() => {
         CoreToplevelDef(ToplevelDef(sym, self.transform_as_block(binding)))
       })
       for b in bindings {
@@ -1062,10 +1060,7 @@ fn Transformer::transform_extern_bodies(
   }
   match bodies[0] {
     @source.StringExternBody(ff, body) =>
-      StringExternBody(
-        ff,
-        body.map_raise(fn(a) raise EffektError { self.transform_as_expr(a) }),
-      )
+      StringExternBody(ff, body.map_raise(a => self.transform_as_expr(a)))
     @source.Unsupported(msg) => Unsupported(EffektError::Fatal(msg))
     @source.EffektExternBody(_, _) =>
       raise EffektError::Internal(
@@ -1119,9 +1114,7 @@ fn Transformer::transform_stmt(
           for p in bps {
             bparams.push(self.transform_block_param(p))
           }
-          let body = self.insert_bindings(fn() raise EffektError {
-            self.transform_stmt(body)
-          })
+          let body = self.insert_bindings(() => self.transform_stmt(body))
           self.emit(
             BindingDef(
               self.sym_of_def(d),
@@ -1131,7 +1124,7 @@ fn Transformer::transform_stmt(
           self.transform_stmt(rest)
         }
         @source.ValDef(_id, _tpe, binding) => {
-          let transformed = self.insert_bindings(fn() raise EffektError {
+          let transformed = self.insert_bindings(() => {
             self.transform_stmt(binding)
           })
           self.emit(BindingVal(self.sym_of_def(d), transformed))
@@ -1319,7 +1312,7 @@ fn Transformer::transform_as_control_block(
           let vargs = vparams.map(p => ValueVar(p.id, p.tpe))
 
           // [[ f ]] = { (x) => f(x) }
-          let eta_expand_pure = fn(f : Sym) {
+          let eta_expand_pure = (f : Sym) => {
             BlockLit(
               BlockLit::new(
                 tparams,
@@ -1332,7 +1325,7 @@ fn Transformer::transform_as_control_block(
           }
 
           // [[ f ]] = { [A](x) => make f[A](x) }
-          let eta_expand_constructor = fn(f : Sym, data : Sym) {
+          let eta_expand_constructor = (f : Sym, data : Sym) => {
             BlockLit(
               BlockLit::new(
                 tparams,
@@ -1345,7 +1338,7 @@ fn Transformer::transform_as_control_block(
           }
 
           // [[ f ]] = { (x){g} => let r = f(x){g}; return r }
-          let eta_expand_direct = fn(f : Sym) {
+          let eta_expand_direct = (f : Sym) => {
             let bparams : Array[BlockParam] = []
             for t in bparamtps {
               let id = Sym::tmp_block("etaParam")
@@ -1417,9 +1410,7 @@ fn Transformer::transform_as_control_block(
       for p in bps {
         bparams.push(self.transform_block_param(p))
       }
-      let body = self.insert_bindings(fn() raise EffektError {
-        self.transform_stmt(body)
-      })
+      let body = self.insert_bindings(() => self.transform_stmt(body))
       BlockLit(BlockLit::new(tparams, cparams, vparams, bparams, body))
     }
     @source.New(_) =>
@@ -1529,12 +1520,8 @@ fn Transformer::transform_as_stmt(
       match single_boolean_guard(guards) {
         Some(cond) => {
           let c = self.transform_as_expr(cond)
-          let then_stmt = self.insert_bindings(fn() raise EffektError {
-            self.transform_stmt(thn)
-          })
-          let else_stmt = self.insert_bindings(fn() raise EffektError {
-            self.transform_stmt(els)
-          })
+          let then_stmt = self.insert_bindings(() => self.transform_stmt(thn))
+          let else_stmt = self.insert_bindings(() => self.transform_stmt(els))
           If(c, then_stmt, else_stmt)
         }
         None => {
@@ -1542,17 +1529,13 @@ fn Transformer::transform_as_stmt(
             "thn",
             [],
             guards,
-            self.insert_bindings(fn() raise EffektError {
-              self.transform_stmt(thn)
-            }),
+            self.insert_bindings(() => self.transform_stmt(thn)),
           )
           let els_clause = self.preprocess_patterns(
             "els",
             [],
             [],
-            self.insert_bindings(fn() raise EffektError {
-              self.transform_stmt(els)
-            }),
+            self.insert_bindings(() => self.transform_stmt(els)),
           )
           let tpe = self.transform_value_type(self.inferred_type_of(tree))
           pm_compile([thn_clause, els_clause], tpe)
@@ -1582,12 +1565,10 @@ fn Transformer::transform_as_stmt(
 
       let then_branch = Val(
         Sym::tmp_value("while_thn"),
-        self.insert_bindings(fn() raise EffektError {
-          self.transform_stmt(body)
-        }),
+        self.insert_bindings(() => self.transform_stmt(body)),
         loop_call,
       )
-      let else_branch = self.insert_bindings(fn() raise EffektError {
+      let else_branch = self.insert_bindings(() => {
         match default {
           Some(d) => self.transform_stmt(d)
           None => Return(Literal(LUnit, t_unit()))
@@ -1596,11 +1577,11 @@ fn Transformer::transform_as_stmt(
 
       let loop_body = match single_boolean_guard(guards) {
         Some(cond) =>
-          self.insert_bindings(fn() raise EffektError {
+          self.insert_bindings(() => {
             If(self.transform_as_expr(cond), then_branch, else_branch)
           })
         None =>
-          self.insert_bindings(fn() raise EffektError {
+          self.insert_bindings(() => {
             let then_clause = self.preprocess_patterns(
               "guard_thn",
               [],
@@ -1704,7 +1685,7 @@ fn Transformer::transform_as_stmt(
         CaptureSetOf([prompt_capt]),
       )
 
-      let body = self.insert_bindings(fn() raise EffektError {
+      let body = self.insert_bindings(() => {
         for h in handlers {
           match h.capability {
             Some(cap) => {
@@ -1737,9 +1718,7 @@ fn Transformer::transform_as_stmt(
         self.transform_block_type(tpe),
         CaptureSetOf([cap]),
       )
-      let body = self.insert_bindings(fn() raise EffektError {
-        self.transform_stmt(body)
-      })
+      let body = self.insert_bindings(() => self.transform_stmt(body))
       Region(BlockLit::new([], [cap], [], [param], body))
     }
 
@@ -1851,9 +1830,7 @@ fn Transformer::transform_match(
           "k_els",
           [],
           [],
-          self.insert_bindings(fn() raise EffektError {
-            self.transform_stmt(stmt)
-          }),
+          self.insert_bindings(() => self.transform_stmt(stmt)),
         ),
       )
     None => ()
@@ -2074,9 +2051,7 @@ fn Transformer::transform_op_clause(
               Def(
                 resume_symbol,
                 BlockLit(resume_fun),
-                self.insert_bindings(fn() raise EffektError {
-                  self.transform_stmt(cl.body)
-                }),
+                self.insert_bindings(() => self.transform_stmt(cl.body)),
               ),
             ),
           )
@@ -2174,9 +2149,7 @@ fn Transformer::transform_op_clause(
               Def(
                 resume_symbol,
                 BlockLit(resume_fun),
-                self.insert_bindings(fn() raise EffektError {
-                  self.transform_stmt(cl.body)
-                }),
+                self.insert_bindings(() => self.transform_stmt(cl.body)),
               ),
             ),
           )
@@ -2208,9 +2181,7 @@ fn Transformer::transform_op_clause(
         cps,
         vps,
         bps,
-        self.insert_bindings(fn() raise EffektError {
-          self.transform_stmt(cl.body)
-        }),
+        self.insert_bindings(() => self.transform_stmt(cl.body)),
       )
     }
   }
@@ -2373,9 +2344,7 @@ fn Transformer::preprocess(
         self.ctx.abort(clause.span, "Malformed multi-match")
       }
   }
-  let body = self.insert_bindings(fn() raise EffektError {
-    self.transform_stmt(clause.body)
-  })
+  let body = self.insert_bindings(() => self.transform_stmt(clause.body))
   self.preprocess_patterns(label, patterns, clause.guards, body)
 }
 
@@ -2558,7 +2527,7 @@ fn Transformer::transform_guard(
   self : Transformer,
   g : @source.MatchGuard,
 ) -> Array[PMCondition] raise EffektError {
-  let (cond, bindings) = self.with_bindings(fn() raise EffektError {
+  let (cond, bindings) = self.with_bindings(() => {
     match g.kind {
       @source.BooleanGuard(condition) =>
         PMPredicate(self.transform_as_expr(condition))

@@ -205,15 +205,13 @@ fn frontend_only(input : String) -> @compiler.CompileResult {
   }
   let pipeline : @compiler.Pipeline = {
     parse: @source.parse_module_decl,
-    resolve: fn(tree, ctx, deps) raise @util.EffektError {
-      @namer.resolve_module(tree, ctx, deps)
-    },
-    typecheck: fn(tree, ctx) raise @util.EffektError {
+    resolve: (tree, ctx, deps) => @namer.resolve_module(tree, ctx, deps),
+    typecheck: (tree, ctx) => {
       let desugared = @typer.unbox_inference(tree, ctx)
       @typer.typecheck(desugared, ctx)
       desugared
     },
-    emit: fn(_trees, _ctx) { "" },
+    emit: (_trees, _ctx) => "",
   }
   @compiler.compile_file(opts, pipeline, @source.Config::default())
 }

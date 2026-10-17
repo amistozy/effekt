@@ -186,7 +186,7 @@ fn show_test_fixture(
     @symbols.t_int(),
   )
   // extern def infixPlusPlus(s1: String, s2: String): String
-  let str_param = fn(name : String) {
+  let str_param = (name : String) => {
     @core.ValueParam::new(
       @symbols.Sym::value_param(
         @symbols.Name::local(name),
@@ -351,7 +351,7 @@ fn show_test_callee(_f : ShowFixture, out : @core.ModuleDecl) -> @symbols.Sym {
 
 ///|
 test "show phase: generates a structural instance and rewrites the call" {
-  let f = show_test_fixture(fn(t) { [t] })
+  let f = show_test_fixture(t => [t])
   let out = @core.show_phase(f.module)
   // the declarations are carried over unchanged
   assert_eq(out.declarations.length(), 1)
@@ -390,7 +390,7 @@ test "show phase: generates a structural instance and rewrites the call" {
 
 ///|
 test "show phase: the generated instance matches on the constructors" {
-  let f = show_test_fixture(fn(t) { [t] })
+  let f = show_test_fixture(t => [t])
   let out = @core.show_phase(f.module)
   let lit = show_test_instance_for(f, out, f.tree_type)
   assert_eq(lit.tparams.length(), 0)
@@ -430,7 +430,7 @@ test "show phase: without type arguments the shown type is recovered from the ar
   // `core.transform` produces calls without type arguments, because
   // `ExplicitCapabilities` rebuilds the call node and the typer's annotation is
   // keyed by uid.
-  let f = show_test_fixture(fn(_t) { [] })
+  let f = show_test_fixture(_t => [])
   let out = @core.show_phase(f.module)
   // the same instances are generated for `Tree` and its `Int` field as with
   // explicit type arguments
@@ -441,7 +441,7 @@ test "show phase: without type arguments the shown type is recovered from the ar
 
 ///|
 test "show phase: a type variable is not rewritten" {
-  let f = show_test_fixture(fn(_t) { [] })
+  let f = show_test_fixture(_t => [])
   // `def entry[A](x: A): String = return show(x)`
   let a = @symbols.Sym::type_param(
     @symbols.Name::local("A"),
@@ -502,7 +502,7 @@ test "show phase: a type variable is not rewritten" {
 
 ///|
 test "show phase: a call to a user function named show is not rewritten" {
-  let f = show_test_fixture(fn(_t) { [] })
+  let f = show_test_fixture(_t => [])
   // `def show(value: Int): String` — like `examples/minilib`
   let user_show = @symbols.Sym::UserFunction({
     base: show_test_base("show"),
@@ -577,7 +577,7 @@ test "show phase: a call to a user function named show is not rewritten" {
 
 ///|
 test "show phase: builtins are shown by showBuiltin" {
-  let f = show_test_fixture(fn(_t) { [] })
+  let f = show_test_fixture(_t => [])
   let x = @symbols.Sym::value_param(
     @symbols.Name::local("x"),
     Some(@symbols.t_int()),
@@ -628,7 +628,7 @@ test "show phase: builtins are shown by showBuiltin" {
 
 ///|
 test "show phase: requiredNames keeps show, showBuiltin and infixPlusPlus" {
-  let f = show_test_fixture(fn(_t) { [] })
+  let f = show_test_fixture(_t => [])
   let names = @core.required_names(f.module)
   assert_eq(names.length(), 3)
   assert_true(@symbols.sym_in(f.show, names))

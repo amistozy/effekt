@@ -1,5 +1,4 @@
 import {
-  "amistozy/effekt/src/util",
   "amistozy/effekt/src/source",
   "amistozy/effekt/src/namer",
   "amistozy/effekt/src/typer",

@@ -168,14 +168,14 @@ pub fn build_precedence_table() -> PrecedenceTable {
   for op in [TEqEqEq, TNotEqEq, TLtEq, TGtEq, TLt, TGt] {
     assoc.push((op, AssocNone))
   }
-  let loosen = fn(looser : Array[TokenKind], tighter : Array[TokenKind]) {
+  let loosen = (looser : Array[TokenKind], tighter : Array[TokenKind]) => {
     for l in looser {
       for t in tighter {
         relations.push((l, t))
       }
     }
   }
-  let same_level = fn(a : Array[TokenKind], b : Array[TokenKind]) {
+  let same_level = (a : Array[TokenKind], b : Array[TokenKind]) => {
     loosen(a, b)
     loosen(b, a)
   }

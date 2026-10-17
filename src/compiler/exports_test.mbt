@@ -21,15 +21,13 @@ fn closure_of(input : String, messages : Array[@util.Message]) -> Array[String] 
   let paths : Ref[Array[String]] = Ref([])
   let pipeline : @compiler.Pipeline = {
     parse: @source.parse_module_decl,
-    resolve: fn(tree, ctx, deps) raise @util.EffektError {
-      @namer.resolve_module(tree, ctx, deps)
-    },
-    typecheck: fn(tree, ctx) raise @util.EffektError {
+    resolve: (tree, ctx, deps) => @namer.resolve_module(tree, ctx, deps),
+    typecheck: (tree, ctx) => {
       let desugared = @typer.unbox_inference(tree, ctx)
       @typer.typecheck(desugared, ctx)
       desugared
     },
-    emit: fn(modules, _ctx) {
+    emit: (modules, _ctx) => {
       let seen : Array[String] = []
       for m in modules {
         seen.push(m.module.path)

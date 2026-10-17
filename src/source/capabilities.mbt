@@ -19,7 +19,7 @@ pub fn explicit_capabilities(
   let hooks : Hooks = {
     expr: Some(capabilities_expr),
     stmt: None,
-    defn: Some(fn(ctx, d) { capabilities_def(ctx, d) }),
+    defn: Some((ctx, d) => capabilities_def(ctx, d)),
   }
   rewrite_module(module, ctx, hooks)
 }
@@ -184,7 +184,7 @@ fn capability_hooks() -> Hooks {
   {
     expr: Some(capabilities_expr),
     stmt: None,
-    defn: Some(fn(ctx, d) { capabilities_def(ctx, d) }),
+    defn: Some((ctx, d) => capabilities_def(ctx, d)),
   }
 }
 

@@ -33,10 +33,8 @@ fn run(args : Array[String]) -> Int32 {
   }
   let pipeline : @compiler.Pipeline = {
     parse: @source.parse_module_decl,
-    resolve: fn(tree, ctx, deps) raise @util.EffektError {
-      @namer.resolve_module(tree, ctx, deps)
-    },
-    typecheck: fn(tree, ctx) raise @util.EffektError {
+    resolve: (tree, ctx, deps) => @namer.resolve_module(tree, ctx, deps),
+    typecheck: (tree, ctx) => {
       // `unbox_inference` desugars uniform function calls (`x.f` becomes
       // `f(x)`) before typing, mirroring upstream's `ParserUntilTyper`.
       let desugared = @typer.unbox_inference(tree, ctx)

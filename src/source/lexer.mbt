@@ -382,7 +382,7 @@ fn Lexer::advance_while(self : Lexer, predicate : (Char, Char) -> Bool) -> Unit 
 
 ///|
 fn Lexer::advance_spaces(self : Lexer) -> TokenKind {
-  self.advance_while(fn(curr, nxt) {
+  self.advance_while((curr, nxt) => {
     if curr == '\r' && nxt == '\n' {
       false
     } else if curr == '\n' {
@@ -583,12 +583,12 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
 ///|
 fn Lexer::number(self : Lexer) -> TokenKind {
   // Consume the integer part
-  self.advance_while(fn(curr, _) { is_digit(curr) })
+  self.advance_while((curr, _) => is_digit(curr))
 
   if self.current_char == '.' && is_digit(self.next_char) {
     let _ = self.advance() // consume '.'
     // Consume fractional part
-    self.advance_while(fn(curr, _) { is_digit(curr) })
+    self.advance_while((curr, _) => is_digit(curr))
     let float_string = self.get_current_slice(0, 0)
     match parse_double_lit(float_string) {
       Some(d) => TFloat(d)
@@ -606,7 +606,7 @@ fn Lexer::number(self : Lexer) -> TokenKind {
 ///|
 fn Lexer::byte(self : Lexer) -> TokenKind {
   // Consume hex digits
-  self.advance_while(fn(curr, _) { is_hex_digit(curr) })
+  self.advance_while((curr, _) => is_hex_digit(curr))
   let hex_string = self.get_current_slice(2, 0)
   match parse_byte_lit(hex_string) {
     Some(b) => TByt(b)
@@ -616,7 +616,7 @@ fn Lexer::byte(self : Lexer) -> TokenKind {
 
 ///|
 fn Lexer::identifier(self : Lexer) -> TokenKind {
-  self.advance_while(fn(curr, _) { is_name_rest(curr) })
+  self.advance_while((curr, _) => is_name_rest(curr))
   let word = self.get_current_slice(0, 0)
   match keyword_kind(word) {
     Some(k) => k
@@ -736,7 +736,7 @@ fn Lexer::lex_unicode_escape(self : Lexer) -> Int32 {
   if c == '{' {
     let _ = self.advance()
     let start = self.offset
-    self.advance_while(fn(curr, _) { curr != '}' })
+    self.advance_while((curr, _) => curr != '}')
     if self.current_char != '}' {
       return -1
     }
@@ -745,7 +745,7 @@ fn Lexer::lex_unicode_escape(self : Lexer) -> Int32 {
     parse_hex_int(hex_str)
   } else if is_hex_digit(c) {
     let start = self.offset
-    self.advance_while(fn(curr, _) { is_hex_digit(curr) })
+    self.advance_while((curr, _) => is_hex_digit(curr))
     let hex_str = self.slice(start, self.offset)
     parse_hex_int(hex_str)
   } else {
@@ -772,7 +772,7 @@ fn parse_hex_int(s : String) -> Int32 {
 ///|
 fn Lexer::singleline_comment(self : Lexer) -> TokenKind {
   let is_doc_comment = self.current_char == '/'
-  self.advance_while(fn(curr, _) { curr != '\n' && curr != '\r' })
+  self.advance_while((curr, _) => curr != '\n' && curr != '\r')
   if is_doc_comment {
     TDocComment(self.get_current_slice(3, 0)) // Remove '///'
   } else {
@@ -807,6 +807,6 @@ fn Lexer::multiline_comment(self : Lexer) -> TokenKind {
 
 ///|
 fn Lexer::shebang(self : Lexer) -> TokenKind {
-  self.advance_while(fn(curr, _) { curr != '\n' && curr != '\r' })
+  self.advance_while((curr, _) => curr != '\n' && curr != '\r')
   TShebang(self.get_current_slice(2, 0)) // Remove `#!`
 }

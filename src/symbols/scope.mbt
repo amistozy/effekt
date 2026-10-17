@@ -181,11 +181,11 @@ fn[T] first(
   match scope {
     Global(bindings) => qualified_first(path, bindings, select)
     Named(_, bindings, outer) =>
-      or_else(qualified_first(path, bindings, select), fn() raise EffektError {
+      or_else(qualified_first(path, bindings, select), () => {
         first(path, outer, select)
       })
     Local(_, bindings, outer) =>
-      or_else(qualified_first(path, bindings, select), fn() raise EffektError {
+      or_else(qualified_first(path, bindings, select), () => {
         first(path, outer, select)
       })
   }
@@ -229,7 +229,7 @@ pub fn Scoping::lookup_first_term_option(
   path : Array[String],
   name : String,
 ) -> Sym? raise EffektError {
-  first(path, self.scope, fn(b) raise EffektError {
+  first(path, self.scope, b => {
     match b.terms.get(name) {
       None => None
       Some(syms) =>
@@ -337,7 +337,7 @@ pub fn Scoping::lookup_first_option(
   path : Array[String],
   name : String,
 ) -> Sym? raise EffektError {
-  first(path, self.scope, fn(b) raise EffektError {
+  first(path, self.scope, b => {
     let terms = b.terms.get(name)
     let tpe = b.types.get(name)
     match (terms, tpe) {

@@ -845,7 +845,7 @@ fn to_js_clause(
     }
   }
   let body = to_js_stmt(clause.body, ctx)
-  (tag, { run: fn(k) raise EffektError { extracted + (body.run)(k) }, })
+  (tag, { run: k => extracted + (body.run)(k), })
 }
 
 // ---------------------------------------------------------------------------
@@ -877,7 +877,7 @@ fn to_js_stmt(
   match s {
     @cps.Stmt::LetDef(id, block, body) =>
       {
-        run: fn(k) raise EffektError {
+        run: k => {
           let stmts : Array[Stmt] = []
 
           // (1) determine all bound function parameters that may be subsequently
@@ -935,7 +935,7 @@ fn to_js_stmt(
       ])
     @cps.Stmt::LetExpr(id, binding, body) =>
       {
-        run: fn(k) raise EffektError {
+        run: k => {
           [js_const(name_def(id), to_js_cps_expr(binding, ctx))] +
           (to_js_stmt(body, ctx).run)(k)
         },
@@ -953,7 +953,7 @@ fn to_js_stmt(
         let ks = binding.ks
         let cont_body = binding.body
         {
-          run: fn(k) raise EffektError {
+          run: k => {
             let out : Array[Stmt] = []
             for p in params {
               out.push(js_let(name_def(p), undefined()))
@@ -975,7 +975,7 @@ fn to_js_stmt(
         let lam = @cps.Cont::ContLam(binding)
         let ks2 = binding.ks
         {
-          run: fn(k) raise EffektError {
+          run: k => {
             [js_const(name_def(id), to_js_cont(lam, ctx.nonrecursive(ks2)))] +
             (requiring_thunk(ctx, c => to_js_stmt(body2, c)).run)(k)
           },
@@ -985,14 +985,14 @@ fn to_js_stmt(
     @cps.Stmt::ImpureApp(id, callee, vargs, bargs, body) =>
       if bargs.length() == 0 {
         {
-          run: fn(k) raise EffektError {
+          run: k => {
             [js_const(name_def(id), inline_extern(callee, vargs, ctx))] +
             (to_js_stmt(body, ctx).run)(k)
           },
         }
       } else {
         {
-          run: fn(k) raise EffektError {
+          run: k => {
             [
               js_const(
                 name_def(id),
@@ -1086,7 +1086,7 @@ fn to_js_stmt(
       match recursive_info_of(callee, ctx) {
         Some(info) =>
           {
-            run: fn(k2) raise EffektError {
+            run: k2 => {
               let stmts : Array[Stmt] = []
               stmts.push(raw_stmt("/* prepare call */"))
               info.used.jumped.val = true
@@ -1259,7 +1259,7 @@ fn to_js_stmt(
     // const r = REGION(ks); body
     @cps.Stmt::Region(id, ks, body) =>
       {
-        run: fn(k) raise EffektError {
+        run: k => {
           [
             Const(
               PatternVariable(name_def(id)),
@@ -1273,7 +1273,7 @@ fn to_js_stmt(
     // const x = r.fresh(init); body
     @cps.Stmt::Alloc(id, init, region, body) =>
       {
-        run: fn(k) raise EffektError {
+        run: k => {
           [
             Const(
               PatternVariable(name_def(id)),
@@ -1289,7 +1289,7 @@ fn to_js_stmt(
     // const x = VAR(1, ks); body
     @cps.Stmt::Var(id, init, ks, body) =>
       {
-        run: fn(k) raise EffektError {
+        run: k => {
           [
             Const(
               PatternVariable(name_def(id)),
@@ -1307,7 +1307,7 @@ fn to_js_stmt(
     // const id = ref.value; body
     @cps.Stmt::Get(ref, id, body) =>
       {
-        run: fn(k) raise EffektError {
+        run: k => {
           [
             Const(
               PatternVariable(name_def(id)),
@@ -1321,7 +1321,7 @@ fn to_js_stmt(
     // ref.set(value); body
     @cps.Stmt::Put(ref, value, body) =>
       {
-        run: fn(k) raise EffektError {
+        run: k => {
           [
             ExprStmt(
               method_call(name_ref(ref), JSName::new("set"), [

@@ -175,7 +175,7 @@ fn[T] Namer::in_namespace_path(
   if path.length() == 0 {
     f()
   } else {
-    self.in_namespace(path[0], fn() raise EffektError {
+    self.in_namespace(path[0], () => {
       self.in_namespace_path(path[1:].to_owned(), f)
     })
   }
@@ -342,7 +342,7 @@ fn Namer::lookup_term(
   match self.scoping.lookup_first_term_option(stripped, name) {
     Some(sym) => Some(sym)
     None =>
-      in_bindings(self.imports, stripped, fn(bindings) raise EffektError {
+      in_bindings(self.imports, stripped, bindings => {
         match bindings.terms.get(name) {
           None => None
           Some(syms) =>
@@ -399,7 +399,7 @@ fn Namer::lookup_overloaded(
 ) -> Array[Array[Sym]] raise EffektError {
   let stripped = self.strip_self(path)
   let groups = self.scoping.lookup_overloaded(stripped, name, filter)
-  let imported = in_bindings(self.imports, stripped, fn(bindings) {
+  let imported = in_bindings(self.imports, stripped, bindings => {
     match bindings.terms.get(name) {
       Some(syms) => Some(syms.filter(filter))
       None => None
@@ -448,7 +448,7 @@ fn Namer::lookup_first_block_param(
   if local.length() > 0 {
     return local
   }
-  let imported = in_bindings(self.imports, stripped, fn(bindings) {
+  let imported = in_bindings(self.imports, stripped, bindings => {
     match bindings.terms.get(name) {
       Some(syms) =>
         Some(
@@ -530,7 +530,7 @@ fn Namer::define_id(
   let is_type = sym.is_type_symbol()
   for i = 0; i <= id.path.length(); i = i + 1 {
     let suffix = id.path[i:].to_owned()
-    self.in_namespace_path(suffix, fn() raise EffektError {
+    self.in_namespace_path(suffix, () => {
       if is_type {
         self.scoping.define_type(id.name, sym)
       } else {
@@ -558,7 +558,7 @@ fn Namer::bind_term(self : Namer, sym : Sym) -> Unit raise EffektError {
   let name = sym.name()
   for i = 0; i <= name.path.length(); i = i + 1 {
     let suffix = name.path[i:].to_owned()
-    self.in_namespace_path(suffix, fn() raise EffektError {
+    self.in_namespace_path(suffix, () => {
       self.scoping.define_term(name.name, sym)
     })
   }
@@ -569,7 +569,7 @@ fn Namer::bind_type(self : Namer, sym : Sym) -> Unit raise EffektError {
   let name = sym.name()
   for i = 0; i <= name.path.length(); i = i + 1 {
     let suffix = name.path[i:].to_owned()
-    self.in_namespace_path(suffix, fn() {
+    self.in_namespace_path(suffix, () => {
       self.scoping.define_type(name.name, sym)
     })
   }
@@ -632,7 +632,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.require_not_toplevel("Mutable variable in a region")
     @source.NamespaceDef(id, definitions) => {
       self.require_toplevel("Namespace")
-      self.in_namespace(id.name, fn() raise EffektError {
+      self.in_namespace(id.name, () => {
         for inner in definitions {
           self.preresolve(inner)
         }
@@ -662,11 +662,11 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
         None => None
       }
       // We create a new scope, since resolving type params introduces them.
-      let sym = self.in_local_scope(fn() raise EffektError {
+      let sym = self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
         let vps = vparams.map(p => self.resolve_value_param(p, true))
         let bps = bparams.map(p => self.resolve_block_param(p))
-        let ret = self.in_local_scope(fn() raise EffektError {
+        let ret = self.in_local_scope(() => {
           self.bind_values(vps)
           self.bind_blocks(bps)
           match annot {
@@ -692,7 +692,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       let name = self.name_for(id)
       // We do not resolve the effect operations here to allow them to refer to
       // types that are defined later in the file.
-      let sym = self.in_local_scope(fn() raise EffektError {
+      let sym = self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
         mk_interface(name, tps, d.span)
       })
@@ -700,10 +700,10 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
     }
     @source.TypeDef(id, tparams, tpe) => {
       self.require_toplevel("Type")
-      let tps = self.in_local_scope(fn() raise EffektError {
+      let tps = self.in_local_scope(() => {
         tparams.map(t => self.resolve_type_param(t))
       })
-      let alias = self.in_local_scope(fn() raise EffektError {
+      let alias = self.in_local_scope(() => {
         for t in tps {
           self.bind_type(t)
         }
@@ -718,10 +718,10 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
     }
     @source.EffectDef(id, tparams, effs) => {
       self.require_toplevel("Effect")
-      let tps = self.in_local_scope(fn() raise EffektError {
+      let tps = self.in_local_scope(() => {
         tparams.map(t => self.resolve_type_param(t))
       })
-      let alias = self.in_local_scope(fn() raise EffektError {
+      let alias = self.in_local_scope(() => {
         for t in tps {
           self.bind_type(t)
         }
@@ -738,7 +738,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.require_toplevel("Datatype")
       // We do not resolve the constructors here to allow them to refer to types
       // that are defined later in the file.
-      let sym = self.in_local_scope(fn() raise EffektError {
+      let sym = self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
         mk_data_type(self.name_for(id), tps, d.span)
       })
@@ -746,7 +746,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
     }
     @source.RecordDef(id, tparams, _) => {
       self.require_toplevel("Record")
-      let sym = self.in_local_scope(fn() raise EffektError {
+      let sym = self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
         mk_record(self.name_for(id), tps, d.span)
       })
@@ -754,7 +754,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
     }
     @source.ExternType(id, tparams, _) => {
       self.require_toplevel("Extern type")
-      let sym = self.in_local_scope(fn() raise EffektError {
+      let sym = self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
         mk_extern_type(self.name_for(id), tps, d.span)
       })
@@ -762,7 +762,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
     }
     @source.ExternInterface(id, tparams, _) => {
       self.require_toplevel("Extern interface")
-      let sym = self.in_local_scope(fn() raise EffektError {
+      let sym = self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
         mk_extern_interface(self.name_for(id), tps, d.span)
       })
@@ -772,11 +772,11 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.require_toplevel("Extern definition")
       let name = self.name_for(id)
       let capt = self.resolve_capture_set(captures).to_array()
-      let sym = self.in_local_scope(fn() raise EffektError {
+      let sym = self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
         let vps = vparams.map(p => self.resolve_value_param(p, true))
         let bps = bparams.map(p => self.resolve_block_param(p))
-        let (tpe, eff) = self.in_local_scope(fn() raise EffektError {
+        let (tpe, eff) = self.in_local_scope(() => {
           self.bind_blocks(bps)
           self.resolve_effectful(ret)
         })
@@ -820,7 +820,7 @@ fn[T] Namer::with_definition(
 
 ///|
 fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
-  self.with_definition(d, fn() raise EffektError {
+  self.with_definition(d, () => {
     match d.kind {
       @source.ValDef(id, annot, binding) => {
         let tpe = match annot {
@@ -892,7 +892,7 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
         let sym = self.symbol_of_node(d.uid)
         match sym.as_callable() {
           Some(callable) =>
-            self.in_named_scope(id.name, fn() raise EffektError {
+            self.in_named_scope(id.name, () => {
               for tp in callable.tparams {
                 self.bind_type(tp)
               }
@@ -910,7 +910,7 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
         let sym = self.symbol_of_node(d.uid)
         match sym.as_callable() {
           Some(callable) =>
-            self.in_named_scope(id.name, fn() raise EffektError {
+            self.in_named_scope(id.name, () => {
               for tp in callable.tparams {
                 self.bind_type(tp)
               }
@@ -940,7 +940,7 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
         set_interface_operations(interface, ops)
       }
       @source.NamespaceDef(id, definitions) =>
-        self.in_namespace(id.name, fn() raise EffektError {
+        self.in_namespace(id.name, () => {
           for inner in definitions {
             self.resolve_def(inner)
           }
@@ -950,13 +950,13 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
         let data = self.symbol_of_node(d.uid)
         let constructors : Array[Sym] = []
         for c in ctors {
-          let ctor = self.in_local_scope(fn() raise EffektError {
+          let ctor = self.in_local_scope(() => {
             let name = self.name_for(c.id)
             let tps = c.tparams.map(t => self.resolve_type_param(t))
             mk_constructor(name, data_tparams(data) + tps, data, c.span)
           })
           // DataType::Constructor()
-          self.in_namespace(id.name, fn() raise EffektError {
+          self.in_namespace(id.name, () => {
             self.define_id(c.id, ctor)
             self.context.assign_symbol(c.uid, ctor)
           })
@@ -997,7 +997,7 @@ fn Namer::resolve_fields(
   ctor : Sym,
   define_accessors : Bool,
 ) -> Array[Sym] raise EffektError {
-  let vps = self.in_local_scope(fn() raise EffektError {
+  let vps = self.in_local_scope(() => {
     // Bind the type parameters
     for t in @symbols.constructor_tparams(ctor) {
       self.bind_type(t)
@@ -1034,7 +1034,7 @@ fn Namer::resolve_operation(
   self.check_implicit_value_params(op.vparams, Optional)
   self.check_implicit_block_params(op.bparams, Optional)
   let name = self.name_for(op.id)
-  let op_sym = self.in_named_scope(op.id.name, fn() raise EffektError {
+  let op_sym = self.in_named_scope(op.id.name, () => {
     // The parameters of the interface are in scope.
     for tp in interface_tparams(interface) {
       self.bind_type(tp)
@@ -1061,7 +1061,7 @@ fn Namer::resolve_operation(
     )
   })
   // Define in namespace ... and bind outside.
-  self.in_namespace(interface_name, fn() raise EffektError {
+  self.in_namespace(interface_name, () => {
     self.define_id(op.id, op_sym)
     self.context.assign_symbol(op.uid, op_sym)
   })
@@ -1089,7 +1089,7 @@ fn Namer::resolve_stmt(self : Namer, s : Stmt) -> Unit raise EffektError {
     }
     @source.Return(term) => self.resolve_term(term)
     @source.BlockStmt(stmts) =>
-      self.in_local_scope(fn() raise EffektError { self.resolve_stmt(stmts) })
+      self.in_local_scope(() => self.resolve_stmt(stmts))
   }
 }
 
@@ -1106,7 +1106,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       self.holes.push(hole)
       self.context.assign_symbol(id.uid, hole)
       self.context.assign_symbol(t.uid, hole)
-      self.in_local_scope(fn() raise EffektError {
+      self.in_local_scope(() => {
         for arg in template.args {
           self.resolve_stmt(arg)
         }
@@ -1121,7 +1121,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       for clause in clauses {
         self.resolve_clause(clause)
       }
-      self.in_local_scope(fn() raise EffektError {
+      self.in_local_scope(() => {
         match default {
           Some(stmt) => self.resolve_stmt(stmt)
           None => ()
@@ -1129,22 +1129,22 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       })
     }
     @source.If(guards, thn, els) => {
-      self.in_local_scope(fn() raise EffektError {
+      self.in_local_scope(() => {
         for g in guards {
           self.resolve_guard(g)
         }
         self.resolve_stmt(thn)
       })
-      self.in_local_scope(fn() raise EffektError { self.resolve_stmt(els) })
+      self.in_local_scope(() => self.resolve_stmt(els))
     }
     @source.While(guards, block, default) => {
-      self.in_local_scope(fn() raise EffektError {
+      self.in_local_scope(() => {
         for g in guards {
           self.resolve_guard(g)
         }
         self.resolve_stmt(block)
       })
-      self.in_local_scope(fn() raise EffektError {
+      self.in_local_scope(() => {
         match default {
           Some(stmt) => self.resolve_stmt(stmt)
           None => ()
@@ -1155,7 +1155,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       for handler in handlers {
         self.resolve_handler(handler)
       }
-      self.in_local_scope(fn() raise EffektError {
+      self.in_local_scope(() => {
         // Bind all annotated capabilities.
         for handler in handlers {
           match handler.capability {
@@ -1176,7 +1176,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
         t.span,
       )
       self.define_id(name, region)
-      self.in_local_scope(fn() raise EffektError {
+      self.in_local_scope(() => {
         self.bind_block(region)
         self.resolve_stmt(body)
       })
@@ -1184,7 +1184,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
     @source.BlockLiteral(tparams, vparams, bparams, stmt) => {
       self.check_implicit_value_params(vparams, Forbidden)
       self.check_implicit_block_params(bparams, Forbidden)
-      self.in_local_scope(fn() raise EffektError {
+      self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
         ignore(tps)
         let vps = vparams.map(p => self.resolve_value_param(p, true))
@@ -1405,7 +1405,7 @@ fn Namer::resolve_clause(
   clause : MatchClause,
 ) -> Unit raise EffektError {
   let ps = self.resolve_pattern(clause.pattern)
-  self.in_local_scope(fn() raise EffektError {
+  self.in_local_scope(() => {
     // Variables bound by patterns are available in the guards.
     for p in ps {
       self.bind_term(p)
@@ -1432,9 +1432,7 @@ fn Namer::resolve_clause(
       }
       names.push(name)
     }
-    self.in_local_scope(fn() raise EffektError {
-      self.resolve_stmt(clause.body)
-    })
+    self.in_local_scope(() => self.resolve_stmt(clause.body))
   })
 }
 
@@ -1488,7 +1486,7 @@ fn Namer::resolve_implementation(
       }
     }
     self.context.assign_symbol(clause.uid, op_sym)
-    self.in_local_scope(fn() raise EffektError {
+    self.in_local_scope(() => {
       let tps = clause.tparams.map(t => self.resolve_type_param(t))
       ignore(tps)
       let vps = clause.vparams.map(p => self.resolve_value_param(p, true))
@@ -1929,7 +1927,7 @@ fn Namer::resolve_value_type(
   tpe : TypeTree,
   is_param : Bool,
 ) -> ValueType raise EffektError {
-  self.resolving_value_type(tpe, fn(t) raise EffektError {
+  self.resolving_value_type(tpe, t => {
     match t.kind {
       @source.TypeRef(id, args) => {
         let sym = self.resolve_type_ref(id, t.uid)
@@ -2032,7 +2030,7 @@ fn Namer::resolve_block_type(
   tpe : TypeTree,
   is_param : Bool,
 ) -> BlockType raise EffektError {
-  self.resolving_block_type(tpe, fn(t) raise EffektError {
+  self.resolving_block_type(tpe, t => {
     match t.kind {
       @source.FunctionType(_, _, _, _, _) => self.resolve_function_type(t)
       @source.BlockTypeTree(eff) => eff
@@ -2083,10 +2081,10 @@ fn Namer::resolve_function_type(
   self : Namer,
   tpe : TypeTree,
 ) -> BlockType raise EffektError {
-  self.resolving_block_type(tpe, fn(t) raise EffektError {
+  self.resolving_block_type(tpe, t => {
     match t.kind {
       @source.FunctionType(tparams, vparams, bparams, ret, effects) =>
-        self.in_local_scope(fn() raise EffektError {
+        self.in_local_scope(() => {
           let tps = tparams.map(tp => self.resolve_type_param(tp))
           let vps = vparams.map(v => self.resolve_value_type(v, false))
           // One capture parameter per block parameter, then one per effect.
@@ -2188,7 +2186,7 @@ fn Namer::resolve_block_ref(
   self : Namer,
   tpe : TypeTree,
 ) -> BlockType raise EffektError {
-  self.resolving_block_type(tpe, fn(t) raise EffektError {
+  self.resolving_block_type(tpe, t => {
     let resolved = self.resolve_with_aliases(t)
     if resolved.length() == 0 {
       self.context.abort(

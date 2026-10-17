@@ -545,15 +545,13 @@ fn ShowContext::generate_show_instance(
   let vparam = ValueParam::new(param_id, vt)
   let param_value_var = ValueVar(param_id, vt)
 
-  let generate_def = fn(stmt : Stmt) -> Toplevel {
+  let generate_def = (stmt : Stmt) => {
     let block = BlockLit(BlockLit::new([], [], [vparam], [], stmt))
     let defn = ToplevelDef(show_id, block)
     self.show_defns.set(value_type_key(vt), defn)
     defn
   }
-  let generate_val_app_ret = fn(
-    value_type : ValueType,
-  ) -> Stmt raise EffektError {
+  let generate_val_app_ret = (value_type : ValueType) => {
     let block_var = find_extern_show_def(dctx, value_type)
     let ret_id = Sym::tmp_value("ret")
     ImpureApp(
@@ -565,7 +563,7 @@ fn ShowContext::generate_show_instance(
       Return(ValueVar(ret_id, t_string())),
     )
   }
-  let generate_show = fn(value_type : ValueType) -> Toplevel raise EffektError {
+  let generate_show = (value_type : ValueType) => {
     generate_def(generate_val_app_ret(value_type))
   }
 
@@ -947,7 +945,7 @@ fn ShowContext::transform_operation(
   dctx : DeclarationContext,
   operation : Operation,
 ) -> Operation raise EffektError {
-  let body = self.without_bindings(fn() raise EffektError {
+  let body = self.without_bindings(() => {
     self.transform_stmt(dctx, operation.body)
   })
   Operation::new(
@@ -966,9 +964,7 @@ fn ShowContext::transform_block_lit(
   dctx : DeclarationContext,
   lit : BlockLit,
 ) -> BlockLit raise EffektError {
-  let body = self.without_bindings(fn() raise EffektError {
-    self.transform_stmt(dctx, lit.body)
-  })
+  let body = self.without_bindings(() => self.transform_stmt(dctx, lit.body))
   BlockLit::new(lit.tparams, lit.cparams, lit.vparams, lit.bparams, body)
 }
 
@@ -1004,7 +1000,7 @@ fn ShowContext::transform_stmt(
           // calls that are now not; this might happen everywhere we directly
           // transform an expression.
           let vargs_ = vargs.map(e => self.transform_expr(dctx, e))
-          self.with_bindings(fn() raise EffektError {
+          self.with_bindings(() => {
             Val(
               id,
               App(BlockVar(self.get_show_block_var(dctx, targ)), [], vargs_, []),
@@ -1017,7 +1013,7 @@ fn ShowContext::transform_stmt(
             dctx,
             PureApp(block_var, targs, vargs),
           )
-          self.with_bindings(fn() raise EffektError {
+          self.with_bindings(() => {
             Let(id, binding_, self.transform_stmt(dctx, body))
           })
         }
@@ -1025,13 +1021,13 @@ fn ShowContext::transform_stmt(
     }
     Let(id, binding, body) => {
       let binding_ = self.transform_expr(dctx, binding)
-      self.with_bindings(fn() raise EffektError {
+      self.with_bindings(() => {
         Let(id, binding_, self.transform_stmt(dctx, body))
       })
     }
     Return(expr) => {
       let expr_ = self.transform_expr(dctx, expr)
-      self.with_bindings(fn() { Return(expr_) })
+      self.with_bindings(() => Return(expr_))
     }
     // let x = show[R](value){...}; body  ==>  val x = show0(value){...}; body
     ImpureApp(id, block_var, targs, vargs, bargs, body) => {
@@ -1044,7 +1040,7 @@ fn ShowContext::transform_stmt(
         Some(targ) => {
           let vargs_ = vargs.map(e => self.transform_expr(dctx, e))
           let bargs_ = bargs.map(b => self.transform_block(dctx, b))
-          self.with_bindings(fn() raise EffektError {
+          self.with_bindings(() => {
             Val(
               id,
               App(
@@ -1060,7 +1056,7 @@ fn ShowContext::transform_stmt(
         None => {
           let vargs_ = vargs.map(e => self.transform_expr(dctx, e))
           let bargs_ = bargs.map(b => self.transform_block(dctx, b))
-          self.with_bindings(fn() raise EffektError {
+          self.with_bindings(() => {
             ImpureApp(
               id,
               block_var,
@@ -1088,14 +1084,14 @@ fn ShowContext::transform_stmt(
     App(callee, targs, vargs, bargs) => {
       let vargs_ = vargs.map(e => self.transform_expr(dctx, e))
       let bargs_ = bargs.map(b => self.transform_block(dctx, b))
-      self.with_bindings(fn() raise EffektError {
+      self.with_bindings(() => {
         App(self.transform_block(dctx, callee), targs, vargs_, bargs_)
       })
     }
     Invoke(callee, method, method_tpe, targs, vargs, bargs) => {
       let vargs_ = vargs.map(e => self.transform_expr(dctx, e))
       let bargs_ = bargs.map(b => self.transform_block(dctx, b))
-      self.with_bindings(fn() raise EffektError {
+      self.with_bindings(() => {
         Invoke(
           self.transform_block(dctx, callee),
           method,
@@ -1108,7 +1104,7 @@ fn ShowContext::transform_stmt(
     }
     If(cond, thn, els) => {
       let cond_ = self.transform_expr(dctx, cond)
-      self.with_bindings(fn() raise EffektError {
+      self.with_bindings(() => {
         If(
           cond_,
           self.transform_stmt(dctx, thn),
@@ -1118,7 +1114,7 @@ fn ShowContext::transform_stmt(
     }
     Match(scrutinee, match_tpe, clauses, default) => {
       let scrutinee_ = self.transform_expr(dctx, scrutinee)
-      self.with_bindings(fn() raise EffektError {
+      self.with_bindings(() => {
         let clauses_ : Array[Clause] = []
         for clause in clauses {
           clauses_.push(
@@ -1136,13 +1132,13 @@ fn ShowContext::transform_stmt(
     Region(body) => Region(self.transform_block_lit(dctx, body))
     Alloc(id, init, region, body) => {
       let init_ = self.transform_expr(dctx, init)
-      self.with_bindings(fn() raise EffektError {
+      self.with_bindings(() => {
         Alloc(id, init_, region, self.transform_stmt(dctx, body))
       })
     }
     Var(ref, init, capture, body) => {
       let init_ = self.transform_expr(dctx, init)
-      self.with_bindings(fn() raise EffektError {
+      self.with_bindings(() => {
         Var(ref, init_, capture, self.transform_stmt(dctx, body))
       })
     }
@@ -1156,7 +1152,7 @@ fn ShowContext::transform_stmt(
       )
     Put(ref, annotated_capt, value, body) => {
       let value_ = self.transform_expr(dctx, value)
-      self.with_bindings(fn() raise EffektError {
+      self.with_bindings(() => {
         Put(ref, annotated_capt, value_, self.transform_stmt(dctx, body))
       })
     }

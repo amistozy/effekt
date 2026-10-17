@@ -262,9 +262,7 @@ fn transform_extern_body(
     @core.StringExternBody(feature_flag, template) =>
       StringExternBody(
         feature_flag,
-        template.map_raise(fn(arg) raise EffektError {
-          transform_expr(arg, ctx)
-        }),
+        template.map_raise(arg => transform_expr(arg, ctx)),
       )
     @core.Unsupported(err) => Unsupported(err)
   }
@@ -334,7 +332,7 @@ fn transform_stmt(
       transform_stmt(
         rhs,
         ks,
-        Static(id, fn(value, ks2) raise EffektError {
+        Static(id, (value, ks2) => {
           transform_stmt(body, ks2, k, ctx.bind_value(id, value))
         }),
         ctx,
@@ -357,7 +355,7 @@ fn transform_stmt(
         k.reify_at(None),
       )
     @core.If(cond, thn, els) =>
-      with_joinpoint(k, fn(k2) raise EffektError {
+      with_joinpoint(k, k2 => {
         If(
           transform_expr(cond, ctx),
           transform_stmt(thn, ks, k2, ctx),
@@ -373,7 +371,7 @@ fn transform_stmt(
             None,
           )
         _ =>
-          with_joinpoint(k, fn(k2) raise EffektError {
+          with_joinpoint(k, k2 => {
             let translated : Array[Clause] = []
             for clause in clauses {
               translated.push(transform_clause(clause, ks, k2, ctx))
@@ -448,7 +446,7 @@ fn transform_stmt(
             transform_stmt(
               block_lit.body,
               ks,
-              Static(fresh_sym("tmp"), fn(x, ks2) raise EffektError {
+              Static(fresh_sym("tmp"), (x, ks2) => {
                 Dealloc(region.id, k.apply(x, ks2))
               }),
               ctx,
@@ -471,9 +469,7 @@ fn transform_stmt(
         transform_stmt(
           body,
           ks,
-          Static(fresh_sym("tmp"), fn(x, ks2) raise EffektError {
-            Dealloc(id, k.apply(x, ks2))
-          }),
+          Static(fresh_sym("tmp"), (x, ks2) => Dealloc(id, k.apply(x, ks2))),
           ctx,
         ),
       )
