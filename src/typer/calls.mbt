@@ -470,8 +470,12 @@ pub fn Typer::check_overloaded_method_call(
       )
     })
     if successes.length() == 1 {
-      let (_, res, state) = successes[0]
+      let (found, res, state) = successes[0]
       self.st = state
+      // Record the operation this method call resolved to: the namer resolves
+      // an operation name to an overloaded `CallTarget`, and the backend needs
+      // the concrete operation to build the `Invoke`.
+      self.ctx.assign_symbol(id.uid, found)
       return TyRes::new(res.tpe, eff_union(res.effs, recv.effs))
     } else if successes.length() > 1 {
       self.abort(call.span, "Ambiguous method call to \{id.name}.")

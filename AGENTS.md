@@ -107,9 +107,14 @@ You can browse and install extra skills here:
   whether to commit: run the checks below, then `git add -A`, commit with a
   descriptive message, and `git push` to `origin/main` on your own.
 - Before every commit, the tree must be green:
-  `moon check`, `moon test --target js` and
-  `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/e2e.ps1`
-  (use `powershell`, not `pwsh`, which is not on PATH here).
+  `moon check`, `moon test --target js`,
+  `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/e2e.ps1` and
+  `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stdlib.ps1`
+  (use `powershell`, not `pwsh`, which is not on PATH here). The last one
+  compiles every standard library module and fails when fewer modules compile
+  than its recorded baseline: phase bugs hide in the standard library long
+  before the small examples reach them, so raise the baseline whenever it
+  improves and never lower it without removing a module.
 - Run `moon info && moon fmt` first, and commit the updated `.mbti` interfaces
   together with the code that changed them.
 - Direct HTTPS access to github.com is unreliable on this machine (`Recv failure:

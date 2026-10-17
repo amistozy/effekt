@@ -287,7 +287,20 @@ pub fn Typer::check_function_argument(
         distinct_effs,
       )
       self.annotate_block(arg.uid, tpe)
-      TyRes::new(tpe, eff_diff(res.effs, distinct_effs))
+      // The handled effects are compared after substitution: a handler for a
+      // polymorphic operation (`with source[A]`, where `source`'s parameter is
+      // declared `() => Unit / next[A]`) is only instantiated *while* the body
+      // is checked, so the effect recorded in `distinct_effs` may still mention
+      // an unsolved unification variable. Prune before subtracting, exactly as
+      // `check_try_handle` does, or the handled operation is left over as
+      // unhandled.
+      TyRes::new(
+        tpe,
+        eff_diff(
+          self.st.u.prune_effects(res.effs),
+          self.st.u.prune_effects(distinct_effs),
+        ),
+      )
     }
     _ => self.abort(arg.span, "Expected a block literal.")
   }

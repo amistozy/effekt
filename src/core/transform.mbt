@@ -439,9 +439,10 @@ fn Transformer::block_type_of_sym(self : Transformer, sym : Sym) -> BlockType {
         ExternResource(r) => r.tpe
         LexicalRegion(_) => t_region()
         // Upstream computes the block type of a reference binder from its
-        // value type: a `var` has type `Ref[S]`, a region is a `Region`.
+        // value type: a `var` (in the current region or in an explicit one)
+        // has type `Ref[S]`, a region is a `Region`.
         VarBinder(v) => t_state(v.tpe.unwrap_or(unknown_value_type()))
-        RegBinder(_) => t_region()
+        RegBinder(r) => t_state(r.tpe.unwrap_or(unknown_value_type()))
         _ => sym.annotated_type().unwrap_or(unknown_block_type())
       }
   }

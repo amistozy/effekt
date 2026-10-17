@@ -308,3 +308,53 @@ test "an instantiated handler is recognised as used" {
   }
   assert_true(warnings.length() == 0)
 }
+
+///|
+/// A handler that is passed as a *function* (`with handler[Int]`, where the
+/// function's block parameter carries the handled effect) must handle a
+/// polymorphic operation. The effect in the expected parameter type is still an
+/// unsolved unification variable when the body starts to be checked, so it has
+/// to be pruned before it is subtracted from the body's effects — otherwise the
+/// operation is reported as unhandled. This is the shape of
+/// `stream::zip`/`zipLongest` (`with source[A] { stream1 }`), which used to
+/// fail to typecheck.
+test "a handler function handles a polymorphic operation" {
+  let text =
+    #|effect tick[A](value: A): Unit
+    #|def handler[A] { body: () => Unit / tick[A] }: Unit =
+    #|  try { body() } with tick[A] { (value) => resume(()) }
+    #|def main(): Unit = {
+    #|  with handler[Int]
+    #|  do tick[Int](1)
+    #|}
+    #|
+  let messages = check_program("handler_function.effekt", text)
+  let errors = messages.filter(m => m.severity == @util.Error)
+  if errors.length() > 0 {
+    println(@compiler.render_messages(errors))
+  }
+  assert_true(errors.length() == 0)
+}
+
+///|
+/// A mutable variable allocated in an explicit region (`var k in r = ...`,
+/// which the namer binds as a `RegBinder`) is a reference like any other: its
+/// block type is `Ref[S]`, not `Region`. `stream::teeing` allocates one, and the
+/// core transformation used to abort when it was selected.
+test "a variable in an explicit region is a reference" {
+  let text =
+    #|def main(): Unit = {
+    #|  region r {
+    #|    var k in r = box { () }
+    #|    k = box { () }
+    #|    k()
+    #|  }
+    #|}
+    #|
+  let messages = check_program("region_var.effekt", text)
+  let errors = messages.filter(m => m.severity == @util.Error)
+  if errors.length() > 0 {
+    println(@compiler.render_messages(errors))
+  }
+  assert_true(errors.length() == 0)
+}

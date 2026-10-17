@@ -61,9 +61,15 @@ pub fn Bindings::import_all(self : Bindings, other : Bindings) -> Unit {
 }
 
 ///|
+/// Binds `sym` under `name`. A scope holds a *set* of symbols per name (upstream
+/// `Bindings.terms` is a `Set`), so binding the same symbol twice is a no-op:
+/// opening one module through two import paths must not make its terms look
+/// ambiguous.
 pub fn Bindings::add_term(self : Bindings, name : String, sym : Sym) -> Unit {
   let existing = self.terms.get(name).unwrap_or([]).copy()
-  existing.push(sym)
+  if !sym_in(sym, existing) {
+    existing.push(sym)
+  }
   self.terms.set(name, existing)
 }
 
