@@ -2047,7 +2047,7 @@ fn Parser::desugar_with_patterns(
   fallback : Stmt?,
   body : Stmt,
   with_span : Span,
-) -> Stmt raise EffektError {
+) -> Stmt {
   // Check if all patterns are simple variable bindings or ignored, with no
   // guards and no fallback.
   let all_simple_vars = guards.length() == 0 &&
@@ -2143,7 +2143,7 @@ fn Parser::desugar_with(
   call : Term,
   block_lit : Term,
   with_span : Span,
-) -> Stmt raise EffektError {
+) -> Stmt {
   match call.kind {
     MethodCall(receiver, id, tps, vargs, bargs) => {
       let new_bargs = bargs.copy()

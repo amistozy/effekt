@@ -32,11 +32,6 @@ description = "An implementation of the Effekt language in MoonBit, compiling to
 //                              Renaming would break that mapping; when MoonBit
 //                              actually reserves the words the rename is
 //                              mechanical, but it has to happen at once.
-//   unused_error_type          22 signatures still carry the upstream Scala
-//                              `raise EffektError` although the port reports
-//                              through `messages` instead. Dropping it is a
-//                              real API change (every `?`/`try` at a call site
-//                              has to go too), tracked as its own task.
 //   implicit_impl_as_method    `impl Eq/Show/Debug` methods are implicitly
 //                              promoted to regular methods; the 20 sites are
 //                              `pub impl`s and `derive`s on public types.
@@ -45,7 +40,7 @@ description = "An implementation of the Effekt language in MoonBit, compiling to
 //                              interface (.mbti) although nothing here calls
 //                              them as methods.
 
-warnings = "-reserved_keyword-unused_error_type-implicit_impl_as_method"
+warnings = "-reserved_keyword-implicit_impl_as_method"
 
 import {
   "moonbitlang/x@0.5.5",

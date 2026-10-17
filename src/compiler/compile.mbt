@@ -71,7 +71,7 @@ pub fn compile_file(
   opts : Options,
   pipeline : Pipeline,
   config : Config,
-) -> CompileResult raise EffektError {
+) -> CompileResult {
   let ctx = Context::new(config)
   let messages : Array[Message] = []
   let result = try {

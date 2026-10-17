@@ -426,7 +426,7 @@ pub fn Scoping::exports(self : Scoping) -> Bindings {
 
 ///|
 /// Runs `f` in a fresh local scope.
-pub fn[T] Scoping::scoped(self : Scoping, f : () -> T) -> T raise EffektError {
+pub fn[T] Scoping::scoped(self : Scoping, f : () -> T) -> T {
   let before = self.scope
   self.scope = Local(None, Bindings::empty(), before)
   let result = f()
@@ -440,7 +440,7 @@ pub fn[T] Scoping::scoped_named(
   self : Scoping,
   name : String,
   f : () -> T,
-) -> T raise EffektError {
+) -> T {
   let before = self.scope
   self.scope = Local(Some(name), Bindings::empty(), before)
   let result = f()
@@ -450,11 +450,7 @@ pub fn[T] Scoping::scoped_named(
 
 ///|
 /// Re-enters a namespace, making previously defined members visible again.
-pub fn[T] Scoping::namespace(
-  self : Scoping,
-  name : String,
-  f : () -> T,
-) -> T raise EffektError {
+pub fn[T] Scoping::namespace(self : Scoping, name : String, f : () -> T) -> T {
   let before = self.scope
   let child = before.bindings().namespace(name)
   self.scope = Named(name, child, before)

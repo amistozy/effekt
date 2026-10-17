@@ -1319,7 +1319,7 @@ fn Transformer::transform_as_control_block(
           let vargs = vparams.map(p => ValueVar(p.id, p.tpe))
 
           // [[ f ]] = { (x) => f(x) }
-          let eta_expand_pure = fn(f : Sym) raise EffektError {
+          let eta_expand_pure = fn(f : Sym) {
             BlockLit(
               BlockLit::new(
                 tparams,
@@ -1332,10 +1332,7 @@ fn Transformer::transform_as_control_block(
           }
 
           // [[ f ]] = { [A](x) => make f[A](x) }
-          let eta_expand_constructor = fn(
-            f : Sym,
-            data : Sym,
-          ) raise EffektError {
+          let eta_expand_constructor = fn(f : Sym, data : Sym) {
             BlockLit(
               BlockLit::new(
                 tparams,
@@ -1348,7 +1345,7 @@ fn Transformer::transform_as_control_block(
           }
 
           // [[ f ]] = { (x){g} => let r = f(x){g}; return r }
-          let eta_expand_direct = fn(f : Sym) raise EffektError {
+          let eta_expand_direct = fn(f : Sym) {
             let bparams : Array[BlockParam] = []
             for t in bparamtps {
               let id = Sym::tmp_block("etaParam")
@@ -2539,10 +2536,7 @@ fn Transformer::inferred_type_of_pattern(
 
 ///|
 /// The equality function for a literal pattern of the given type.
-fn Transformer::equals_for(
-  self : Transformer,
-  tpe : ValueType,
-) -> PMEquals? raise EffektError {
+fn Transformer::equals_for(self : Transformer, tpe : ValueType) -> PMEquals? {
   match self.eq_function {
     None => None
     Some(sym) =>

@@ -11,7 +11,7 @@ import {
 // Values
 pub fn command_line_args() -> Array[String]
 
-pub fn compile_file(Options, Pipeline, @source.Config) -> CompileResult raise @util.EffektError
+pub fn compile_file(Options, Pipeline, @source.Config) -> CompileResult
 
 pub fn default_output(String) -> String
 

@@ -29,7 +29,7 @@ fn closure_of(input : String, messages : Array[@util.Message]) -> Array[String] 
       @typer.typecheck(desugared, ctx)
       desugared
     },
-    emit: fn(modules, _ctx) raise @util.EffektError {
+    emit: fn(modules, _ctx) {
       let seen : Array[String] = []
       for m in modules {
         seen.push(m.module.path)
@@ -38,12 +38,7 @@ fn closure_of(input : String, messages : Array[@util.Message]) -> Array[String] 
       ""
     },
   }
-  let result = @compiler.compile_file(opts, pipeline, @source.Config::default()) catch {
-    _ => {
-      messages.push(@util.Message::info("the driver aborted"))
-      return []
-    }
-  }
+  let result = @compiler.compile_file(opts, pipeline, @source.Config::default())
   for m in result.messages {
     messages.push(m)
   }

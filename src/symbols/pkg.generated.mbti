@@ -361,10 +361,10 @@ pub fn Scoping::lookup_operation(Self, Array[String], String) -> Array[Array[Sym
 pub fn Scoping::lookup_overloaded(Self, Array[String], String, (Sym) -> Bool) -> Array[Array[Sym]]
 pub fn Scoping::lookup_overloaded_method(Self, Array[String], String) -> Array[Array[Sym]]
 pub fn Scoping::lookup_type_option(Self, Array[String], String) -> Sym? raise @util.EffektError
-pub fn[T] Scoping::namespace(Self, String, () -> T) -> T raise @util.EffektError
+pub fn[T] Scoping::namespace(Self, String, () -> T) -> T
 pub fn Scoping::path(Self) -> Array[String]?
-pub fn[T] Scoping::scoped(Self, () -> T) -> T raise @util.EffektError
-pub fn[T] Scoping::scoped_named(Self, String, () -> T) -> T raise @util.EffektError
+pub fn[T] Scoping::scoped(Self, () -> T) -> T
+pub fn[T] Scoping::scoped_named(Self, String, () -> T) -> T
 
 pub(all) struct StateEffect {
   state_param : Sym

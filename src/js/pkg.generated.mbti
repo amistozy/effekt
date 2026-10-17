@@ -81,7 +81,7 @@ pub fn tag_for(@symbols.Sym, @core.DeclarationContext) -> Expr raise @util.Effek
 
 pub fn take_unsupported_messages() -> Array[String]
 
-pub fn[S, T] traverse(Array[S], (S) -> Binding[T] raise @util.EffektError) -> Binding[Array[T]] raise @util.EffektError
+pub fn[S, T] traverse(Array[S], (S) -> Binding[T] raise @util.EffektError) -> Binding[Array[T]]
 
 pub fn undefined() -> Expr
 
@@ -92,8 +92,8 @@ pub(all) struct Binding[A] {
   run : ((A) -> Array[Stmt] raise @util.EffektError) -> Array[Stmt] raise @util.EffektError
 }
 pub fn Binding::block(Self[Array[Stmt]]) -> Stmt raise @util.EffektError
-pub fn[A, B] Binding::flat_map(Self[A], (A) -> Self[B] raise @util.EffektError) -> Self[B] raise @util.EffektError
-pub fn[A, B] Binding::map(Self[A], (A) -> B raise @util.EffektError) -> Self[B] raise @util.EffektError
+pub fn[A, B] Binding::flat_map(Self[A], (A) -> Self[B] raise @util.EffektError) -> Self[B]
+pub fn[A, B] Binding::map(Self[A], (A) -> B raise @util.EffektError) -> Self[B]
 pub fn Binding::stmts(Self[Array[Stmt]]) -> Array[Stmt] raise @util.EffektError
 pub fn Binding::to_expr(Self[Array[Stmt]]) -> Expr raise @util.EffektError
 

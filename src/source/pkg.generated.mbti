@@ -49,7 +49,7 @@ pub fn resolve_extern_defs(ModuleDecl, Context) -> ModuleDecl raise @util.Effekt
 
 pub fn resume_kind() -> TokenKind
 
-pub fn rewrite_capture_set(CaptureSetTree, Context, Hooks) -> CaptureSetTree raise @util.EffektError
+pub fn rewrite_capture_set(CaptureSetTree, Context, Hooks) -> CaptureSetTree
 
 pub fn rewrite_def(Def, Context, Hooks) -> Def raise @util.EffektError
 

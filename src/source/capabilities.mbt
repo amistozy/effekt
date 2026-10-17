@@ -19,7 +19,7 @@ pub fn explicit_capabilities(
   let hooks : Hooks = {
     expr: Some(capabilities_expr),
     stmt: None,
-    defn: Some(capabilities_def),
+    defn: Some(fn(ctx, d) { capabilities_def(ctx, d) }),
   }
   rewrite_module(module, ctx, hooks)
 }
@@ -181,11 +181,15 @@ fn is_field_call(
 /// Hooks used when descending into handler implementations, where the
 /// capabilities bound by the enclosing `try` are already in scope.
 fn capability_hooks() -> Hooks {
-  { expr: Some(capabilities_expr), stmt: None, defn: Some(capabilities_def), }
+  {
+    expr: Some(capabilities_expr),
+    stmt: None,
+    defn: Some(fn(ctx, d) { capabilities_def(ctx, d) }),
+  }
 }
 
 ///|
-fn capabilities_def(ctx : Context, d : Def) -> Def? raise EffektError {
+fn capabilities_def(ctx : Context, d : Def) -> Def? {
   match d.kind {
     FunDef(id, tparams, vparams, bparams, captures, ret, body) => {
       let caps = ctx

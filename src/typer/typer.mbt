@@ -569,7 +569,7 @@ fn[T] Typer::flowing_into(
 }
 
 ///|
-fn Typer::using_capture(self : Typer, c : Captures) -> Unit raise EffektError {
+fn Typer::using_capture(self : Typer, c : Captures) -> Unit {
   self.require_subregion(c, self.st.current, self.focus)
 }
 
@@ -578,7 +578,7 @@ fn Typer::using_capture_without(
   self : Typer,
   c : Captures,
   filter : Array[Sym],
-) -> Unit raise EffektError {
+) -> Unit {
   self.flows_into_without(c, self.st.current, filter, self.focus)
 }
 
@@ -588,7 +588,7 @@ fn Typer::flows_into(
   from : Captures,
   to : Captures,
   span : Span,
-) -> Unit raise EffektError {
+) -> Unit {
   self.require_subregion(from, to, span)
 }
 
@@ -599,7 +599,7 @@ fn Typer::flows_into_without(
   to : Captures,
   filter : Array[Sym],
   span : Span,
-) -> Unit raise EffektError {
+) -> Unit {
   let from = self.without(from, filter)
   self.require_subregion(from, to, span)
 }
@@ -633,7 +633,7 @@ pub fn Typer::require_subregion(
   from : Captures,
   to : Captures,
   span : Span,
-) -> Unit raise EffektError {
+) -> Unit {
   let from = self.st.u.prune_captures(from)
   let to = self.st.u.prune_captures(to)
   if captures_eq(from, to) {
@@ -927,10 +927,7 @@ pub fn Typer::commit(self : Typer) -> Unit {
 /// `main` must be a function without arguments, without effects, returning
 /// Unit. (Upstream `Typer.checkMain`; the parts that need the module symbol
 /// are checked by the driver.)
-pub fn Typer::check_main(
-  _self : Typer,
-  module : ModuleDecl,
-) -> Unit raise EffektError {
+pub fn Typer::check_main(_self : Typer, module : ModuleDecl) -> Unit {
   ignore(module)
   ()
 }
@@ -2119,7 +2116,7 @@ fn Typer::unify_fail(
   tpe1 : ValueType,
   tpe2 : ValueType,
   ctx : ErrCtx,
-) -> Unit raise EffektError {
+) -> Unit {
   self.error(
     self.focus,
     explain_mismatch(show_value_type(tpe1), show_value_type(tpe2), ctx),
@@ -2239,7 +2236,7 @@ pub fn Typer::unify_captures(
   c1 : Captures,
   c2 : Captures,
   ctx : ErrCtx,
-) -> Unit raise EffektError {
+) -> Unit {
   ignore(ctx)
   self.require_subregion(c1, c2, self.focus)
   self.require_subregion(c2, c1, self.focus)

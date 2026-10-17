@@ -463,7 +463,7 @@ pub fn rewrite_capture_set(
   c : CaptureSetTree,
   ctx : Context,
   hooks : Hooks,
-) -> CaptureSetTree raise EffektError {
+) -> CaptureSetTree {
   let _ = ctx
   let _ = hooks
   c

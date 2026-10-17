@@ -45,12 +45,7 @@ fn run(args : Array[String]) -> Int32 {
     },
     emit: @backend.emit,
   }
-  let result = @compiler.compile_file(opts, pipeline, @source.Config::default()) catch {
-    _ => {
-      println("internal compiler error")
-      return 2
-    }
-  }
+  let result = @compiler.compile_file(opts, pipeline, @source.Config::default())
   // Diagnostics go to stderr: stdout carries the program's own output when
   // `--run` is used (and the generated JavaScript with `--show-js`).
   let diagnostics = @compiler.render_messages(result.messages)

@@ -191,9 +191,7 @@ test "frontend rejects ill-typed programs" {
 ///|
 /// Compiles a file with the real driver (loading the standard library from
 /// `libraries/`), stopping before code generation.
-fn frontend_only(
-  input : String,
-) -> @compiler.CompileResult raise @util.EffektError {
+fn frontend_only(input : String) -> @compiler.CompileResult {
   let opts : @compiler.Options = {
     input,
     output: None,
@@ -215,7 +213,7 @@ fn frontend_only(
       @typer.typecheck(desugared, ctx)
       desugared
     },
-    emit: fn(_trees, _ctx) raise @util.EffektError { "" },
+    emit: fn(_trees, _ctx) { "" },
   }
   @compiler.compile_file(opts, pipeline, @source.Config::default())
 }

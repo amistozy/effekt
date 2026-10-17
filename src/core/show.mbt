@@ -1031,7 +1031,7 @@ fn ShowContext::transform_stmt(
     }
     Return(expr) => {
       let expr_ = self.transform_expr(dctx, expr)
-      self.with_bindings(fn() raise EffektError { Return(expr_) })
+      self.with_bindings(fn() { Return(expr_) })
     }
     // let x = show[R](value){...}; body  ==>  val x = show0(value){...}; body
     ImpureApp(id, block_var, targs, vargs, bargs, body) => {

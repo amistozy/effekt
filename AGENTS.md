@@ -109,18 +109,18 @@ You can browse and install extra skills here:
 - The suppressions all live in **one place**, `moon.mod`'s `warnings`, and each
   entry is documented there with why the port produces it on purpose
   (`reserved_keyword` for Effekt's own AST vocabulary — `module`, `local`, `ref`,
-  `constructor`, …; `unused_error_type` for `raise` clauses left over from the
-  Scala signatures; and `implicit_impl_as_method`, which `pub impl` and
-  `derive(Eq, Debug)` trigger — 523 diagnostics in total). Do not add a
+  `constructor`, …; and `implicit_impl_as_method`, which `pub impl` and
+  `derive(Eq, Debug)` trigger — 501 diagnostics in total). Do not add a
   package-level `warnings =` line: `moon.pkg` lists were removed in favour of
   the shared default, and a package that needs an extra suppression should be
   discussed rather than silenced.
 - Fixing one of those classes is always welcome — `unused_package`,
-  `redundant_modifier`, `deprecated`, `unused_mut`, `unused_value` and
-  `unused_type_declaration` were cleaned up that way (the last two by dropping
-  dead declarations and unused `using` entries rather than by renaming) — but
-  drop the entry only after a full clean `moon check -d` (delete `_build`: a
-  cached build hides whole packages).
+  `redundant_modifier`, `deprecated`, `unused_mut`, `unused_value`,
+  `unused_type_declaration` and `unused_error_type` were cleaned up that way
+  (the last three by dropping dead declarations, unused `using` entries and
+  vestigial `raise` clauses rather than by renaming) — but drop the entry only
+  after a full clean `moon check -d` (delete `_build`: a cached build hides
+  whole packages).
 
 ## Git workflow
 

@@ -218,7 +218,7 @@ fn Namer::import_dependency(
   self : Namer,
   path : String,
   span : Span,
-) -> Module? raise EffektError {
+) -> Module? {
   match self.deps.get(path) {
     None => {
       self.context.error(span, "Cannot find module to include: \{path}")
@@ -399,9 +399,7 @@ fn Namer::lookup_overloaded(
 ) -> Array[Array[Sym]] raise EffektError {
   let stripped = self.strip_self(path)
   let groups = self.scoping.lookup_overloaded(stripped, name, filter)
-  let imported = in_bindings(self.imports, stripped, fn(
-    bindings,
-  ) raise EffektError {
+  let imported = in_bindings(self.imports, stripped, fn(bindings) {
     match bindings.terms.get(name) {
       Some(syms) => Some(syms.filter(filter))
       None => None
@@ -450,9 +448,7 @@ fn Namer::lookup_first_block_param(
   if local.length() > 0 {
     return local
   }
-  let imported = in_bindings(self.imports, stripped, fn(
-    bindings,
-  ) raise EffektError {
+  let imported = in_bindings(self.imports, stripped, fn(bindings) {
     match bindings.terms.get(name) {
       Some(syms) =>
         Some(
@@ -573,7 +569,7 @@ fn Namer::bind_type(self : Namer, sym : Sym) -> Unit raise EffektError {
   let name = sym.name()
   for i = 0; i <= name.path.length(); i = i + 1 {
     let suffix = name.path[i:].to_owned()
-    self.in_namespace_path(suffix, fn() raise EffektError {
+    self.in_namespace_path(suffix, fn() {
       self.scoping.define_type(name.name, sym)
     })
   }

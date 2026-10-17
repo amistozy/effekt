@@ -370,7 +370,7 @@ pub fn[A] pure(a : A) -> Binding[A] {
 pub fn[A, B] Binding::flat_map(
   self : Binding[A],
   rest : (A) -> Binding[B] raise EffektError,
-) -> Binding[B] raise EffektError {
+) -> Binding[B] {
   {
     run: k => {
       (self.run)(a => {
@@ -385,7 +385,7 @@ pub fn[A, B] Binding::flat_map(
 pub fn[A, B] Binding::map(
   self : Binding[A],
   f : (A) -> B raise EffektError,
-) -> Binding[B] raise EffektError {
+) -> Binding[B] {
   self.flat_map(a => pure(f(a)))
 }
 
@@ -420,7 +420,7 @@ pub fn Binding::to_expr(self : Binding[Array[Stmt]]) -> Expr raise EffektError {
 pub fn[S, T] traverse(
   l : Array[S],
   f : (S) -> Binding[T] raise EffektError,
-) -> Binding[Array[T]] raise EffektError {
+) -> Binding[Array[T]] {
   let mut acc : Binding[Array[T]] = pure([])
   for x in l {
     acc = acc.flat_map(xs => f(x).map(v => xs + [v]))
