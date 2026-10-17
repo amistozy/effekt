@@ -183,7 +183,7 @@ pub fn Constructor::new(@symbols.Sym, Array[@symbols.Sym], Array[Field]) -> Self
 
 pub(all) struct ConstructorRef {
   data : Declaration
-  constructor : Constructor
+  constructor_ : Constructor
 }
 
 pub(all) enum CoreToplevel {

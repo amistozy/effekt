@@ -379,10 +379,10 @@ pub fn substitute_stmt(
         vargs.map(e => substitute_expr(e, subst)),
         bargs.map(b => substitute_block(b, subst)),
       )
-    Invoke(callee, method, method_tpe, targs, vargs, bargs) =>
+    Invoke(callee, method_, method_tpe, targs, vargs, bargs) =>
       Invoke(
         substitute_block(callee, subst),
-        method,
+        method_,
         substitute_block_type(method_tpe, subst),
         targs.map(t => substitute_value_type(t, subst)),
         vargs.map(e => substitute_expr(e, subst)),

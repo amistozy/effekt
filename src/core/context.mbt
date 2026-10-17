@@ -11,7 +11,7 @@
 pub(all) struct ConstructorRef {
   /// The data declaration this constructor belongs to.
   data : Declaration
-  constructor : Constructor
+  constructor_ : Constructor
 }
 
 ///|
@@ -70,10 +70,10 @@ pub fn DeclarationContext::new(
       DeclarationData(id, _, ctors) => {
         datas.set(id.uid(), i)
         for c in ctors {
-          let ref = { data: declarations[i], constructor: c, }
-          constructors.set(c.id.uid(), ref)
+          let ref_ = { data: declarations[i], constructor_: c, }
+          constructors.set(c.id.uid(), ref_)
           for f in c.fields {
-            fields.set(f.id.uid(), { constructor_ref: ref, field: f, })
+            fields.set(f.id.uid(), { constructor_ref: ref_, field: f, })
           }
         }
       }
@@ -155,10 +155,10 @@ pub fn DeclarationContext::find_data(
 ///|
 pub fn DeclarationContext::find_data_of_constructor(
   self : DeclarationContext,
-  constructor : Constructor,
+  constructor_ : Constructor,
 ) -> Declaration? {
-  match self.constructors.get(constructor.id.uid()) {
-    Some(ref) => Some(ref.data)
+  match self.constructors.get(constructor_.id.uid()) {
+    Some(ref_) => Some(ref_.data)
     None => None
   }
 }
@@ -169,7 +169,7 @@ pub fn DeclarationContext::find_data_of_field(
   field : Field,
 ) -> Declaration? {
   match self.fields.get(field.id.uid()) {
-    Some(ref) => Some(ref.constructor_ref.data)
+    Some(ref_) => Some(ref_.constructor_ref.data)
     None => None
   }
 }
@@ -191,7 +191,7 @@ pub fn DeclarationContext::find_interface_of_property(
   property : Property,
 ) -> Declaration? {
   match self.properties.get(property.id.uid()) {
-    Some(ref) => Some(ref.interface)
+    Some(ref_) => Some(ref_.interface)
     None => None
   }
 }
@@ -202,7 +202,7 @@ pub fn DeclarationContext::find_constructor(
   id : Sym,
 ) -> Constructor? {
   match self.constructors.get(id.uid()) {
-    Some(ref) => Some(ref.constructor)
+    Some(ref_) => Some(ref_.constructor_)
     None => None
   }
 }
@@ -213,7 +213,7 @@ pub fn DeclarationContext::find_constructor_of_field(
   field : Field,
 ) -> Constructor? {
   match self.fields.get(field.id.uid()) {
-    Some(ref) => Some(ref.constructor_ref.constructor)
+    Some(ref_) => Some(ref_.constructor_ref.constructor_)
     None => None
   }
 }
@@ -224,11 +224,11 @@ pub fn DeclarationContext::find_constructor_tag(
   id : Sym,
 ) -> Int32? {
   match self.constructors.get(id.uid()) {
-    Some(ref) =>
-      match ref.data {
+    Some(ref_) =>
+      match ref_.data {
         DeclarationData(_, _, ctors) => {
           for i = 0; i < ctors.length(); i = i + 1 {
-            if ctors[i].id.uid() == ref.constructor.id.uid() {
+            if ctors[i].id.uid() == ref_.constructor_.id.uid() {
               return Some(i)
             }
           }
@@ -246,7 +246,7 @@ pub fn DeclarationContext::find_field(
   id : Sym,
 ) -> Field? {
   match self.fields.get(id.uid()) {
-    Some(ref) => Some(ref.field)
+    Some(ref_) => Some(ref_.field)
     None => None
   }
 }
@@ -257,7 +257,7 @@ pub fn DeclarationContext::find_property(
   id : Sym,
 ) -> Property? {
   match self.properties.get(id.uid()) {
-    Some(ref) => Some(ref.property)
+    Some(ref_) => Some(ref_.property)
     None => None
   }
 }
@@ -268,11 +268,11 @@ pub fn DeclarationContext::find_property_tag(
   id : Sym,
 ) -> Int32? {
   match self.properties.get(id.uid()) {
-    Some(ref) =>
-      match ref.interface {
+    Some(ref_) =>
+      match ref_.interface {
         DeclarationInterface(_, _, props) => {
           for i = 0; i < props.length(); i = i + 1 {
-            if props[i].id.uid() == ref.property.id.uid() {
+            if props[i].id.uid() == ref_.property.id.uid() {
               return Some(i)
             }
           }

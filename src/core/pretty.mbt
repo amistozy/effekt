@@ -484,9 +484,9 @@ fn d_stmts(s : Stmt) -> Doc {
       }
     App(b, targs, vargs, bargs) =>
       doc_cat(d_block(b), d_args(targs, vargs, bargs))
-    Invoke(b, method, _, targs, vargs, bargs) =>
+    Invoke(b, method_, _, targs, vargs, bargs) =>
       doc_cat(
-        doc_cat(d_block(b), doc_cat(text("."), d_id(method))),
+        doc_cat(d_block(b), doc_cat(text("."), d_id(method_))),
         d_args(targs, vargs, bargs),
       )
     If(cond, thn, els) =>

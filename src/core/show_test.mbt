@@ -6,7 +6,7 @@
 
 ///|
 struct ShowFixture {
-  module : @core.ModuleDecl
+  module_ : @core.ModuleDecl
   /// `extern def show[R](value: R): String`
   show : @symbols.Sym
   /// `extern def showBuiltin(value: Int): String`
@@ -29,7 +29,7 @@ struct ShowFixture {
 fn show_test_base(name : String) -> @symbols.SymBase {
   {
     uid: @util.fresh_uid(),
-    name: @symbols.Name::local(name),
+    name: @symbols.Name::local_(name),
     decl: @util.Span::missing(),
   }
 }
@@ -101,29 +101,29 @@ fn show_test_tree() -> (
   let field_v = @symbols.Sym::Field({
     base: show_test_base("v"),
     param: @symbols.Sym::value_param(
-      @symbols.Name::local("v"),
+      @symbols.Name::local_("v"),
       Some(@symbols.t_int()),
       @util.Span::missing(),
     ),
-    constructor: leaf,
+    constructor_: leaf,
   })
   let field_l = @symbols.Sym::Field({
     base: show_test_base("l"),
     param: @symbols.Sym::value_param(
-      @symbols.Name::local("l"),
+      @symbols.Name::local_("l"),
       Some(tree_tpe),
       @util.Span::missing(),
     ),
-    constructor: node,
+    constructor_: node,
   })
   let field_r = @symbols.Sym::Field({
     base: show_test_base("r"),
     param: @symbols.Sym::value_param(
-      @symbols.Name::local("r"),
+      @symbols.Name::local_("r"),
       Some(tree_tpe),
       @util.Span::missing(),
     ),
-    constructor: node,
+    constructor_: node,
   })
   let constructors : Array[@core.Constructor] = [
     @core.Constructor::new(leaf, [], [
@@ -165,12 +165,12 @@ fn show_test_fixture(
 
   // extern def show[R](value: R): String
   let r = @symbols.Sym::type_param(
-    @symbols.Name::local("R"),
+    @symbols.Name::local_("R"),
     @util.Span::missing(),
   )
   let r_param = @core.ValueParam::new(
     @symbols.Sym::value_param(
-      @symbols.Name::local("value"),
+      @symbols.Name::local_("value"),
       Some(@symbols.ValueTypeRef(r)),
       @util.Span::missing(),
     ),
@@ -179,7 +179,7 @@ fn show_test_fixture(
   // extern def showBuiltin(value: Int): String
   let int_param = @core.ValueParam::new(
     @symbols.Sym::value_param(
-      @symbols.Name::local("value"),
+      @symbols.Name::local_("value"),
       Some(@symbols.t_int()),
       @util.Span::missing(),
     ),
@@ -189,7 +189,7 @@ fn show_test_fixture(
   let str_param = (name : String) => {
     @core.ValueParam::new(
       @symbols.Sym::value_param(
-        @symbols.Name::local(name),
+        @symbols.Name::local_(name),
         Some(@symbols.t_string()),
         @util.Span::missing(),
       ),
@@ -209,7 +209,7 @@ fn show_test_fixture(
 
   // the argument of the show call
   let value = @symbols.Sym::value_param(
-    @symbols.Name::local("t"),
+    @symbols.Name::local_("t"),
     Some(tree_type),
     @util.Span::missing(),
   )
@@ -252,7 +252,7 @@ fn show_test_fixture(
       ),
     ),
   )
-  let module = @core.ModuleDecl::new(
+  let module_ = @core.ModuleDecl::new(
     "test",
     [],
     [@core.DeclarationData(tree, [], constructors)],
@@ -261,7 +261,7 @@ fn show_test_fixture(
     [],
   )
   {
-    module,
+    module_,
     show,
     show_builtin,
     concat,
@@ -284,7 +284,9 @@ fn show_test_instance_def(
   out : @core.ModuleDecl,
   tpe : @symbols.ValueType,
 ) -> (@symbols.Sym, @core.BlockLit)? {
-  for i = f.module.definitions.length(); i < out.definitions.length(); i = i + 1 {
+  for i = f.module_.definitions.length()
+      i < out.definitions.length()
+      i = i + 1 {
     match out.definitions[i] {
       @core.ToplevelDef(id, @core.BlockLit(lit)) =>
         if lit.vparams.length() == 1 &&
@@ -352,13 +354,13 @@ fn show_test_callee(_f : ShowFixture, out : @core.ModuleDecl) -> @symbols.Sym {
 ///|
 test "show phase: generates a structural instance and rewrites the call" {
   let f = show_test_fixture(t => [t])
-  let out = @core.show_phase(f.module)
+  let out = @core.show_phase(f.module_)
   // the declarations are carried over unchanged
   assert_eq(out.declarations.length(), 1)
   assert_eq(out.declarations[0].id().uid(), f.tree.uid())
   // two definitions are appended: one for `Tree` and the one its `Leaf` field
   // needs for `Int`
-  assert_eq(out.definitions.length(), f.module.definitions.length() + 2)
+  assert_eq(out.definitions.length(), f.module_.definitions.length() + 2)
   let tree_id = show_test_instance_id(f, out, f.tree_type)
   let _ = show_test_instance_for(f, out, @symbols.t_int())
   // the call is rewritten to a call of the generated instance, with the
@@ -391,7 +393,7 @@ test "show phase: generates a structural instance and rewrites the call" {
 ///|
 test "show phase: the generated instance matches on the constructors" {
   let f = show_test_fixture(t => [t])
-  let out = @core.show_phase(f.module)
+  let out = @core.show_phase(f.module_)
   let lit = show_test_instance_for(f, out, f.tree_type)
   assert_eq(lit.tparams.length(), 0)
   assert_eq(lit.vparams.length(), 1)
@@ -431,10 +433,10 @@ test "show phase: without type arguments the shown type is recovered from the ar
   // `ExplicitCapabilities` rebuilds the call node and the typer's annotation is
   // keyed by uid.
   let f = show_test_fixture(_t => [])
-  let out = @core.show_phase(f.module)
+  let out = @core.show_phase(f.module_)
   // the same instances are generated for `Tree` and its `Int` field as with
   // explicit type arguments
-  assert_eq(out.definitions.length(), f.module.definitions.length() + 2)
+  assert_eq(out.definitions.length(), f.module_.definitions.length() + 2)
   let callee = show_test_callee(f, out)
   assert_eq(callee.uid(), show_test_instance_id(f, out, f.tree_type).uid())
 }
@@ -444,11 +446,11 @@ test "show phase: a type variable is not rewritten" {
   let f = show_test_fixture(_t => [])
   // `def entry[A](x: A): String = return show(x)`
   let a = @symbols.Sym::type_param(
-    @symbols.Name::local("A"),
+    @symbols.Name::local_("A"),
     @util.Span::missing(),
   )
   let polymorphic = @symbols.Sym::value_param(
-    @symbols.Name::local("x"),
+    @symbols.Name::local_("x"),
     Some(@symbols.ValueTypeRef(a)),
     @util.Span::missing(),
   )
@@ -460,11 +462,11 @@ test "show phase: a type variable is not rewritten" {
     [],
     [@core.ValueVar(polymorphic, @symbols.ValueTypeRef(a))],
   )
-  let module = @core.ModuleDecl::new(
-    f.module.path,
-    f.module.includes,
-    f.module.declarations,
-    f.module.externs,
+  let module_ = @core.ModuleDecl::new(
+    f.module_.path,
+    f.module_.includes,
+    f.module_.declarations,
+    f.module_.externs,
     [
       @core.ToplevelDef(
         f.entry,
@@ -479,9 +481,9 @@ test "show phase: a type variable is not rewritten" {
         ),
       ),
     ],
-    f.module.exports,
+    f.module_.exports,
   )
-  let out = @core.show_phase(module)
+  let out = @core.show_phase(module_)
   // no instance can be generated, the extern call is left alone
   assert_eq(out.definitions.length(), 1)
   match out.definitions[0] {
@@ -514,7 +516,7 @@ test "show phase: a call to a user function named show is not rewritten" {
     annotated_effects: None,
   })
   let x = @symbols.Sym::value_param(
-    @symbols.Name::local("x"),
+    @symbols.Name::local_("x"),
     Some(@symbols.t_int()),
     @util.Span::missing(),
   )
@@ -534,11 +536,11 @@ test "show phase: a call to a user function named show is not rewritten" {
     [],
     [@core.ValueVar(x, @symbols.t_int())],
   )
-  let module = @core.ModuleDecl::new(
-    f.module.path,
-    f.module.includes,
-    f.module.declarations,
-    f.module.externs,
+  let module_ = @core.ModuleDecl::new(
+    f.module_.path,
+    f.module_.includes,
+    f.module_.declarations,
+    f.module_.externs,
     [
       @core.ToplevelDef(
         f.entry,
@@ -553,9 +555,9 @@ test "show phase: a call to a user function named show is not rewritten" {
         ),
       ),
     ],
-    f.module.exports,
+    f.module_.exports,
   )
-  let out = @core.show_phase(module)
+  let out = @core.show_phase(module_)
   assert_eq(out.definitions.length(), 1)
   match out.definitions[0] {
     @core.ToplevelDef(_, @core.BlockLit(lit)) =>
@@ -579,7 +581,7 @@ test "show phase: a call to a user function named show is not rewritten" {
 test "show phase: builtins are shown by showBuiltin" {
   let f = show_test_fixture(_t => [])
   let x = @symbols.Sym::value_param(
-    @symbols.Name::local("x"),
+    @symbols.Name::local_("x"),
     Some(@symbols.t_int()),
     @util.Span::missing(),
   )
@@ -591,11 +593,11 @@ test "show phase: builtins are shown by showBuiltin" {
     [],
     [@core.ValueVar(x, @symbols.t_int())],
   )
-  let module = @core.ModuleDecl::new(
-    f.module.path,
-    f.module.includes,
-    f.module.declarations,
-    f.module.externs,
+  let module_ = @core.ModuleDecl::new(
+    f.module_.path,
+    f.module_.includes,
+    f.module_.declarations,
+    f.module_.externs,
     [
       @core.ToplevelDef(
         f.entry,
@@ -610,10 +612,10 @@ test "show phase: builtins are shown by showBuiltin" {
         ),
       ),
     ],
-    f.module.exports,
+    f.module_.exports,
   )
-  let out = @core.show_phase(module)
-  assert_eq(out.definitions.length(), f.module.definitions.length() + 1)
+  let out = @core.show_phase(module_)
+  assert_eq(out.definitions.length(), f.module_.definitions.length() + 1)
   // the instance for `Int` calls `showBuiltin`
   let lit = show_test_instance_for(f, out, @symbols.t_int())
   match lit.body {
@@ -629,7 +631,7 @@ test "show phase: builtins are shown by showBuiltin" {
 ///|
 test "show phase: requiredNames keeps show, showBuiltin and infixPlusPlus" {
   let f = show_test_fixture(_t => [])
-  let names = @core.required_names(f.module)
+  let names = @core.required_names(f.module_)
   assert_eq(names.length(), 3)
   assert_true(@symbols.sym_in(f.show, names))
   assert_true(@symbols.sym_in(f.show_builtin, names))

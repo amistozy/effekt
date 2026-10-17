@@ -50,7 +50,7 @@ pub fn Bindings::import_all(self : Bindings, other : Bindings) -> Unit {
     self.captures.set(name, capt)
   }
   for name, other_ns in other.namespaces {
-    let child = self.namespace(name)
+    let child = self.namespace_(name)
     child.import_all(other_ns)
   }
 }
@@ -84,7 +84,7 @@ pub fn Bindings::set_capture(
 
 ///|
 /// Returns (creating if necessary) the child bindings for `name`.
-pub fn Bindings::namespace(self : Bindings, name : String) -> Bindings {
+pub fn Bindings::namespace_(self : Bindings, name : String) -> Bindings {
   match self.namespaces.get(name) {
     Some(child) => child
     None => {
@@ -148,7 +148,7 @@ pub fn Scoping::import_as(
 ) -> Unit {
   let mut ns = self.scope.bindings()
   for seg in path {
-    ns = ns.namespace(seg)
+    ns = ns.namespace_(seg)
   }
   ns.import_all(bindings)
 }
@@ -450,9 +450,9 @@ pub fn[T] Scoping::scoped_named(
 
 ///|
 /// Re-enters a namespace, making previously defined members visible again.
-pub fn[T] Scoping::namespace(self : Scoping, name : String, f : () -> T) -> T {
+pub fn[T] Scoping::namespace_(self : Scoping, name : String, f : () -> T) -> T {
   let before = self.scope
-  let child = before.bindings().namespace(name)
+  let child = before.bindings().namespace_(name)
   self.scope = Named(name, child, before)
   let result = f()
   self.scope = before

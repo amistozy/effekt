@@ -217,13 +217,14 @@ pub fn Stmt::free(self : Stmt) -> Free {
       .free()
       .union(Free::block(region, t_region(), capture_set(region)))
       .union(body.free().remove_block(id))
-    Var(ref, init, _, body) => init.free().union(body.free().remove_block(ref))
-    Get(id, annotated_tpe, ref, annotated_capt, body) =>
-      Free::block(ref, t_state(annotated_tpe), annotated_capt).union(
+    Var(ref_, init, _, body) =>
+      init.free().union(body.free().remove_block(ref_))
+    Get(id, annotated_tpe, ref_, annotated_capt, body) =>
+      Free::block(ref_, t_state(annotated_tpe), annotated_capt).union(
         body.free().remove_value(id),
       )
-    Put(ref, annotated_capt, value, body) =>
-      Free::block(ref, t_state(expr_type_hint(value)), annotated_capt)
+    Put(ref_, annotated_capt, value, body) =>
+      Free::block(ref_, t_state(expr_type_hint(value)), annotated_capt)
       .union(value.free())
       .union(body.free())
     Reset(body) => body.free()

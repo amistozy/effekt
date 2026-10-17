@@ -117,7 +117,7 @@ pub fn Module::commonjs(self : Module) -> Array[Stmt] {
 ///   // EXPORTS...
 /// }
 /// ```
-pub fn Module::virtual(self : Module) -> Array[Stmt] {
+pub fn Module::virtual_(self : Module) -> Array[Stmt] {
   let effekt = Stmt::Const(
     PatternVariable(JSName::new("$effekt")),
     Expr::Object([]),
@@ -300,10 +300,10 @@ pub fn call(receiver : Expr, args : Array[Expr]) -> Expr {
 ///|
 pub fn method_call(
   receiver : Expr,
-  method : JSName,
+  method_ : JSName,
   args : Array[Expr],
 ) -> Expr {
-  call(Member(receiver, method), args)
+  call(Member(receiver, method_), args)
 }
 
 ///|

@@ -2419,7 +2419,7 @@ fn Parser::operation_implementation(
     bparams,
     ret: None,
     body,
-    resume: resume_def,
+    resume_: resume_def,
   }
   { uid: fresh_uid(), span: self.span(), interface, clauses: [operation], }
 }
@@ -2457,7 +2457,7 @@ fn Parser::op_clause(self : Parser) -> OpClause raise EffektError {
       bparams: bps,
       ret,
       body,
-      resume: resume_def,
+      resume_: resume_def,
     }
   })
 }

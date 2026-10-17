@@ -481,7 +481,7 @@ pub(all) struct OpClause {
   bparams : Array[BlockParam]
   ret : TypeTree?
   body : Stmt
-  resume : IdDef
+  resume_ : IdDef
 }
 
 // ---------------------------------------------------------------------------

@@ -119,7 +119,7 @@ pub fn CapScope::capability_for(self : CapScope, tpe : BlockType) -> Sym? {
           let name = match tpe {
             @symbols.BlockType::InterfaceType(c, _) => c.name()
             @symbols.BlockType::FunctionType(_, _, _, _, _, _) =>
-              Name::local("cap")
+              Name::local_("cap")
           }
           let capture = Sym::capture_param(name)
           let cap = Sym::block_param(

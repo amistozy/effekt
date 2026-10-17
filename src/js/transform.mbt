@@ -8,7 +8,7 @@
 // (the analysis needed for separate compilation / the web backend) is *not*
 // ported. It walks `Module.dependencies` and the `Bindings` of a module, which
 // are not part of this port's `@symbols` package, and it is only needed by
-// `js.Module.virtual`, whereas `compile_cps` renders `js.Module.commonjs`.
+// `js.Module.virtual_`, whereas `compile_cps` renders `js.Module.commonjs`.
 
 ///|
 /// The feature flags supported by the JavaScript backend.
@@ -223,10 +223,10 @@ fn bool_literal(b : Bool) -> Expr {
 
 ///|
 pub fn tag_for(
-  constructor : Sym,
+  constructor_ : Sym,
   declarations : @core.DeclarationContext,
 ) -> Expr raise EffektError {
-  raw_expr(declarations.get_constructor_tag(constructor).to_string())
+  raw_expr(declarations.get_constructor_tag(constructor_).to_string())
 }
 
 ///|
@@ -238,10 +238,10 @@ pub fn tag_for(
 /// }
 /// ```
 pub fn generate_constructor(
-  constructor : @core.Constructor,
+  constructor_ : @core.Constructor,
   tag_value : Int32,
 ) -> Stmt {
-  let fields = constructor.fields
+  let fields = constructor_.fields
   let tag = JSName::new("__tag")
   let data = JSName::new("__data")
   let reflect = JSName::new("__reflect")
@@ -275,7 +275,7 @@ pub fn generate_constructor(
         ObjectProperty::new(tag, raw_expr(tag_value.to_string())),
         ObjectProperty::new(
           JSName::new("__name"),
-          js_string(constructor.id.name().name),
+          js_string(constructor_.id.name().name),
         ),
         ObjectProperty::new(data, ArrayLiteral(reflected_data)),
       ]),
@@ -304,5 +304,5 @@ pub fn generate_constructor(
     [other_exists, compare_tags] + compare_fields + [succeed],
   )
 
-  Class(name_def(constructor.id), [js_constructor, js_reflect, js_equals])
+  Class(name_def(constructor_.id), [js_constructor, js_reflect, js_equals])
 }

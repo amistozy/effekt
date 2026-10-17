@@ -16,11 +16,11 @@ pub struct Unboxer {
 /// Rewrites the module, inserting `Unbox` nodes where blocks are used as
 /// values and `Unbox` nodes where values are used as blocks.
 pub fn unbox_inference(
-  module : ModuleDecl,
+  module_ : ModuleDecl,
   context : Context,
 ) -> ModuleDecl raise EffektError {
   let u = { ctx: context, }
-  u.rewrite_module(module)
+  u.rewrite_module(module_)
 }
 
 ///|

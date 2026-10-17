@@ -22,7 +22,7 @@
 /// Upstream `core.Id(name)` mints an `Id` that is compared by name; here
 /// symbols are compared by `uid`, so every call mints a genuinely fresh symbol.
 fn fresh_sym(name : String) -> Sym {
-  @symbols.Sym::value_param(@symbols.Name::local(name), None, Span::missing())
+  @symbols.Sym::value_param(@symbols.Name::local_(name), None, Span::missing())
 }
 
 ///|
@@ -175,23 +175,23 @@ fn TransformationContext::bind_block(
 
 ///|
 /// Translates a core module into the CPS representation.
-pub fn transform(module : @core.ModuleDecl) -> ModuleDecl raise EffektError {
+pub fn transform(module_ : @core.ModuleDecl) -> ModuleDecl raise EffektError {
   let ctx = TransformationContext::empty()
   let externs : Array[Extern] = []
-  for e in module.externs {
+  for e in module_.externs {
     externs.push(transform_extern(e, ctx))
   }
   let definitions : Array[ToplevelDefinition] = []
-  for d in module.definitions {
+  for d in module_.definitions {
     definitions.push(transform_toplevel(d, ctx))
   }
   ModuleDecl::new(
-    module.path,
-    module.includes,
-    module.declarations,
+    module_.path,
+    module_.includes,
+    module_.declarations,
     externs,
     definitions,
-    module.exports,
+    module_.exports,
   )
 }
 
@@ -345,10 +345,10 @@ fn transform_stmt(
         MetaCont::new(ks),
         k.reify_at(None),
       )
-    @core.Invoke(callee, method, _tpe, _targs, vargs, bargs) =>
+    @core.Invoke(callee, method_, _tpe, _targs, vargs, bargs) =>
       Invoke(
         transform_block(callee, ctx),
-        method,
+        method_,
         vargs.map(e => transform_expr(e, ctx)),
         bargs.map(b => transform_block(b, ctx)),
         MetaCont::new(ks),
@@ -408,12 +408,12 @@ fn transform_stmt(
       }
 
     // Only unidirectional, yet.
-    @core.Shift(prompt, resume, body) => {
+    @core.Shift(prompt, resume_, body) => {
       let ks2 = fresh_sym("ks")
       let k2 = fresh_sym("k")
       let translated_body = BlockLit::new(
         [],
-        [resume.id],
+        [resume_.id],
         ks2,
         k2,
         transform_stmt(body, ks2, Dynamic(k2), ctx),
@@ -473,10 +473,10 @@ fn transform_stmt(
           ctx,
         ),
       )
-    @core.Get(id, _tpe, ref, _capt, body) =>
-      Get(ref, id, transform_stmt(body, ks, k, ctx))
-    @core.Put(ref, _capt, value, body) =>
-      Put(ref, transform_expr(value, ctx), transform_stmt(body, ks, k, ctx))
+    @core.Get(id, _tpe, ref_, _capt, body) =>
+      Get(ref_, id, transform_stmt(body, ks, k, ctx))
+    @core.Put(ref_, _capt, value, body) =>
+      Put(ref_, transform_expr(value, ctx), transform_stmt(body, ks, k, ctx))
   }
 }
 

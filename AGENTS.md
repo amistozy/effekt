@@ -90,6 +90,14 @@ You can browse and install extra skills here:
   `self.with_bindings(() => { … })`. `moon fmt` collapses a single-expression
   body to `x => expr`.
 
+- **Never name a field, parameter or binder with a word MoonBit reserves for
+  future use** — `module`, `local`, `ref`, `constructor`, `method`, `resume`,
+  `alias`, `use`, `namespace`, `final`, `member`, `virtual`. The port keeps
+  Effekt's own vocabulary around such a clash by appending `_` (`module_`,
+  `local_`, `ref_`, `constructor_`, …), which stays searchable against
+  `.reference`. The checker only reports identifier uses, not field or method
+  *selectors* (`.module`, `.constructor`), so a rename has to cover those too.
+
 ## Host access: prefer the standard library over `extern`
 
 - **Do not hand-write JavaScript when `moonbitlang/core` or `moonbitlang/x` has
@@ -118,19 +126,17 @@ You can browse and install extra skills here:
   fix the code.
 - The suppressions all live in **one place**, `moon.mod`'s `warnings`, and each
   entry is documented there with why the port produces it on purpose
-  (`reserved_keyword` for Effekt's own AST vocabulary — `module`, `local`, `ref`,
-  `constructor`, …; and `implicit_impl_as_method`, which `pub impl` and
-  `derive(Eq, Debug)` trigger — 501 diagnostics in total). Do not add a
-  package-level `warnings =` line: `moon.pkg` lists were removed in favour of
-  the shared default, and a package that needs an extra suppression should be
-  discussed rather than silenced.
+  (`implicit_impl_as_method`, which `pub impl` and `derive(Eq, Debug)` trigger —
+  20 diagnostics in total). Do not add a package-level `warnings =` line:
+  `moon.pkg` lists were removed in favour of the shared default, and a package
+  that needs an extra suppression should be discussed rather than silenced.
 - Fixing one of those classes is always welcome — `unused_package`,
   `redundant_modifier`, `deprecated`, `unused_mut`, `unused_value`,
-  `unused_type_declaration` and `unused_error_type` were cleaned up that way
-  (the last three by dropping dead declarations, unused `using` entries and
-  vestigial `raise` clauses rather than by renaming) — but drop the entry only
-  after a full clean `moon check -d` (delete `_build`: a cached build hides
-  whole packages).
+  `unused_type_declaration`, `unused_error_type` and `reserved_keyword` were
+  cleaned up that way (the last four by dropping dead declarations, unused
+  `using` entries, vestigial `raise` clauses and suffixing reserved words with
+  `_`) — but drop the entry only after a full clean `moon check -d` (delete
+  `_build`: a cached build hides whole packages).
 
 ## Git workflow
 

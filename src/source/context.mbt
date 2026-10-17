@@ -248,9 +248,9 @@ pub fn Context::supports(self : Context, flag : String) -> Bool {
 /// Publishes the module symbol produced by the namer phase.
 pub fn Context::set_resolved_module(
   self : Context,
-  module : @symbols.Module,
+  module_ : @symbols.Module,
 ) -> Unit {
-  self.resolved_module = Some(module)
+  self.resolved_module = Some(module_)
 }
 
 ///|

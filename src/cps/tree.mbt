@@ -849,10 +849,10 @@ pub fn substitute_stmt(
         substitute_meta_cont(ks, subst),
         substitute_cont(k, subst),
       )
-    Invoke(callee, method, vargs, bargs, ks, k) =>
+    Invoke(callee, method_, vargs, bargs, ks, k) =>
       Invoke(
         substitute_block(callee, subst),
-        method,
+        method_,
         vargs.map(x => substitute_expr(x, subst)),
         bargs.map(b => substitute_block(b, subst)),
         substitute_meta_cont(ks, subst),

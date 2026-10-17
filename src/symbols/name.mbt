@@ -9,7 +9,7 @@ pub(all) struct Name {
 }
 
 ///|
-pub fn Name::local(name : String) -> Name {
+pub fn Name::local_(name : String) -> Name {
   { path: [], name, }
 }
 

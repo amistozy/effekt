@@ -445,7 +445,7 @@ fn Typer::fresh_capability_for(
 ) -> Sym {
   let name = match tpe {
     @symbols.BlockType::InterfaceType(c, _) => c.name()
-    @symbols.BlockType::FunctionType(_, _, _, _, _, _) => Name::local("cap")
+    @symbols.BlockType::FunctionType(_, _, _, _, _, _) => Name::local_("cap")
   }
   let param = Sym::block_param(name, Some(tpe), capt, false, Span::missing())
   self.bind_block(param, tpe)
@@ -833,13 +833,13 @@ fn Typer::unknowns_captures(self : Typer, c : Captures) -> Array[String] {
 /// walks it) sees the rewritten tree together with the annotations produced
 /// below.
 pub fn typecheck(
-  module : ModuleDecl,
+  module_ : ModuleDecl,
   context : Context,
 ) -> Unit raise EffektError {
-  let rewritten = unbox_inference(module, context)
-  if rewritten.defs.length() == module.defs.length() {
+  let rewritten = unbox_inference(module_, context)
+  if rewritten.defs.length() == module_.defs.length() {
     for i = 0; i < rewritten.defs.length(); i = i + 1 {
-      module.defs[i] = rewritten.defs[i]
+      module_.defs[i] = rewritten.defs[i]
     }
   }
   let t = Typer::new(context)
@@ -849,22 +849,22 @@ pub fn typecheck(
 ///|
 pub fn Typer::check_module(
   self : Typer,
-  module : ModuleDecl,
+  module_ : ModuleDecl,
 ) -> Unit raise EffektError {
   // (1) pre-check: store the annotated types of all definitions, so that
   // mutually recursive and forward references work.
-  for d in module.defs {
+  for d in module_.defs {
     self.precheck_def(d)
   }
   // (2) check
-  for d in module.defs {
+  for d in module_.defs {
     let res = self.synth_def(d)
     if res.effs.non_empty() {
       self.error(d.span, "Unhandled effects \{show_effects(res.effs)}")
     }
   }
   self.commit()
-  self.check_main(module)
+  self.check_main(module_)
 }
 
 ///|
@@ -927,8 +927,8 @@ pub fn Typer::commit(self : Typer) -> Unit {
 /// `main` must be a function without arguments, without effects, returning
 /// Unit. (Upstream `Typer.checkMain`; the parts that need the module symbol
 /// are checked by the driver.)
-pub fn Typer::check_main(_self : Typer, module : ModuleDecl) -> Unit {
-  ignore(module)
+pub fn Typer::check_main(_self : Typer, module_ : ModuleDecl) -> Unit {
+  ignore(module_)
   ()
 }
 
@@ -1043,7 +1043,7 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
       let rec = self.symbol_of_def(id)
       match rec {
         @symbols.Sym::Record(r) => {
-          let ctor = r.constructor
+          let ctor = r.constructor_
           match ctor.annotated_type() {
             Some(tpe) => self.bind_block(ctor, tpe)
             None => ()
@@ -1369,7 +1369,7 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
 fn effect_name(e : BlockType) -> Name {
   match e {
     @symbols.BlockType::InterfaceType(c, _) => c.name()
-    @symbols.BlockType::FunctionType(_, _, _, _, _, _) => Name::local("cap")
+    @symbols.BlockType::FunctionType(_, _, _, _, _, _) => Name::local_("cap")
   }
 }
 
@@ -1704,7 +1704,7 @@ fn Typer::check_expr_kind(
       let reg = self.symbol_of_def(id)
       let capture = match reg {
         @symbols.Sym::RegBinder(r) => r.region
-        _ => Sym::capture_param(Name::local("region"))
+        _ => Sym::capture_param(Name::local_("region"))
       }
       self.bind_capture(reg, @symbols.Captures::CaptureSetOf([capture]))
       let inferred = @symbols.Captures::CaptVar(self.fresh_capt_var("region"))
@@ -2544,9 +2544,9 @@ pub fn Typer::resolve_block_type(
           Some(i) =>
             match self.ctx.symbol_of(i.uid) {
               Some(@symbols.Sym::BlockParam(bp)) => bp.capture
-              _ => Sym::capture_param(Name::local("anon"))
+              _ => Sym::capture_param(Name::local_("anon"))
             }
-          None => Sym::capture_param(Name::local("anon"))
+          None => Sym::capture_param(Name::local_("anon"))
         }
         cps.push(capture)
         capts.push(@symbols.Captures::CaptureSetOf([capture]))

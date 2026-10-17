@@ -100,7 +100,7 @@ pub fn Bindings::empty() -> Self
 pub fn Bindings::fork(Self) -> Self
 pub fn Bindings::get_namespace(Self, String) -> Self?
 pub fn Bindings::import_all(Self, Self) -> Unit
-pub fn Bindings::namespace(Self, String) -> Self
+pub fn Bindings::namespace_(Self, String) -> Self
 pub fn Bindings::set_capture(Self, String, Sym) -> Unit
 pub fn Bindings::set_type(Self, String, Sym) -> Unit
 
@@ -247,7 +247,7 @@ pub(all) struct ExternTypeSym {
 pub(all) struct FieldSym {
   base : SymBase
   param : Sym
-  constructor : Sym
+  constructor_ : Sym
 }
 
 pub(all) struct HoleSym {
@@ -297,7 +297,7 @@ pub(all) struct Name {
 }
 pub fn Name::anon() -> Self
 pub fn Name::is_anon(Self) -> Bool
-pub fn Name::local(String) -> Self
+pub fn Name::local_(String) -> Self
 pub fn Name::qualified(Array[String], String) -> Self
 pub fn Name::qualified_name(Self) -> String
 pub fn Name::rename(Self, (String) -> String) -> Self
@@ -316,7 +316,7 @@ pub(all) struct OperationSym {
 pub(all) struct RecordSym {
   base : SymBase
   tparams : Array[Sym]
-  mut constructor : Sym
+  mut constructor_ : Sym
 }
 
 pub(all) struct RegBinderSym {
@@ -361,7 +361,7 @@ pub fn Scoping::lookup_operation(Self, Array[String], String) -> Array[Array[Sym
 pub fn Scoping::lookup_overloaded(Self, Array[String], String, (Sym) -> Bool) -> Array[Array[Sym]]
 pub fn Scoping::lookup_overloaded_method(Self, Array[String], String) -> Array[Array[Sym]]
 pub fn Scoping::lookup_type_option(Self, Array[String], String) -> Sym? raise @util.EffektError
-pub fn[T] Scoping::namespace(Self, String, () -> T) -> T
+pub fn[T] Scoping::namespace_(Self, String, () -> T) -> T
 pub fn Scoping::path(Self) -> Array[String]?
 pub fn[T] Scoping::scoped(Self, () -> T) -> T
 pub fn[T] Scoping::scoped_named(Self, String, () -> T) -> T

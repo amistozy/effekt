@@ -1,6 +1,6 @@
 // Tests for the contract between the namer and the driver.
 //
-// `ResolvedModule.module.exports` must contain the toplevel terms *and* types
+// `ResolvedModule.module_.exports` must contain the toplevel terms *and* types
 // of a module (so that importers can open it), and the driver must hand the
 // backend every module of the dependency closure, dependencies first.
 
@@ -30,7 +30,7 @@ fn closure_of(input : String, messages : Array[@util.Message]) -> Array[String] 
     emit: (modules, _ctx) => {
       let seen : Array[String] = []
       for m in modules {
-        seen.push(m.module.path)
+        seen.push(m.module_.path)
       }
       paths.val = seen
       ""
@@ -64,11 +64,11 @@ test "the exception module exports its interface as a type" {
   let tree = loader.load_tree("exception", ctx, @source.parse_module_decl)
   let resolved = @namer.resolve_module(tree, ctx, deps)
   let type_names : Array[String] = []
-  for name, _ in resolved.module.exports.types {
+  for name, _ in resolved.module_.exports.types {
     type_names.push(name)
   }
   let term_names : Array[String] = []
-  for name, _ in resolved.module.exports.terms {
+  for name, _ in resolved.module_.exports.terms {
     term_names.push(name)
   }
   assert_true(type_names.any(n => n == "Exception"))

@@ -8,7 +8,7 @@
 ///|
 fn sym(name : String) -> @symbols.Sym {
   @symbols.Sym::value_param(
-    @symbols.Name::local(name),
+    @symbols.Name::local_(name),
     None,
     @util.Span::missing(),
   )
@@ -23,7 +23,7 @@ fn vparam(name : String) -> @core.ValueParam {
 fn bparam(name : String) -> @core.BlockParam {
   @core.BlockParam::new(
     @symbols.Sym::block_param(
-      @symbols.Name::local(name),
+      @symbols.Name::local_(name),
       None,
       sym("\{name}_cap"),
       false,
@@ -67,7 +67,7 @@ fn compile(
   block : @core.Block,
   core_module : @core.ModuleDecl,
 ) -> String raise @util.EffektError {
-  let module = @core.ModuleDecl::new(
+  let module_ = @core.ModuleDecl::new(
     "test",
     [],
     core_module.declarations,
@@ -75,8 +75,8 @@ fn compile(
     [@core.ToplevelDef(main, block)],
     [main],
   )
-  let cps_module = @cps.contify(@cps.transform(module))
-  @js.compile_cps(cps_module, module, main)
+  let cps_module = @cps.contify(@cps.transform(module_))
+  @js.compile_cps(cps_module, module_, main)
 }
 
 ///|
@@ -91,7 +91,7 @@ fn compile_cps_block(
   main : @symbols.Sym,
   block : @cps.Block,
 ) -> String raise @util.EffektError {
-  let module = @cps.ModuleDecl::new(
+  let module_ = @cps.ModuleDecl::new(
     "test",
     [],
     [],
@@ -99,7 +99,7 @@ fn compile_cps_block(
     [@cps.ToplevelDef(main, block)],
     [main],
   )
-  @js.compile_cps(module, empty_core_module(), main)
+  @js.compile_cps(module_, empty_core_module(), main)
 }
 
 // ---------------------------------------------------------------------------
@@ -135,7 +135,7 @@ test "js: a toplevel val is run by RUN_TOPLEVEL" {
   let main = sym("main")
   let ks = sym("ks")
   let k = sym("k")
-  let module = @cps.ModuleDecl::new(
+  let module_ = @cps.ModuleDecl::new(
     "test",
     [],
     [],
@@ -150,7 +150,7 @@ test "js: a toplevel val is run by RUN_TOPLEVEL" {
     ],
     [main],
   )
-  let js = @js.compile_cps(module, empty_core_module(), main)
+  let js = @js.compile_cps(module_, empty_core_module(), main)
   assert_true(
     js.contains("RUN_TOPLEVEL("),
     msg="expected a RUN_TOPLEVEL call:\n\{js}",
@@ -200,14 +200,14 @@ test "js: a reset compiles to a RESET call" {
 test "js: a shift compiles to a SHIFT call" {
   let main = sym("main")
   let prompt = sym("p")
-  let resume = bparam("resume")
+  let resume_ = bparam("resume")
   let shift = @core.Stmt::Shift(
     @core.BlockVar::new(
       prompt,
       @core.unknown_block_type(),
       @symbols.Captures::empty(),
     ),
-    resume,
+    resume_,
     @core.Stmt::Return(int_expr(1)),
   )
   let js = compile(main, unit_block(shift), empty_core_module())
@@ -217,7 +217,7 @@ test "js: a shift compiles to a SHIFT call" {
     msg="expected the prompt to be passed:\n\{js}",
   )
   assert_true(
-    js.contains(@js.name_def(resume.id).name),
+    js.contains(@js.name_def(resume_.id).name),
     msg="expected the resume parameter:\n\{js}",
   )
 }
@@ -506,7 +506,7 @@ test "js: an extern with value parameters only is inlined" {
     false,
     @cps.StringExternBody(@source.Default, template),
   )
-  let module = @cps.ModuleDecl::new(
+  let module_ = @cps.ModuleDecl::new(
     "test",
     [],
     [],
@@ -531,7 +531,7 @@ test "js: an extern with value parameters only is inlined" {
     ],
     [main],
   )
-  let js = @js.compile_cps(module, empty_core_module(), main)
+  let js = @js.compile_cps(module_, empty_core_module(), main)
   // the raw template is spliced with the substituted argument; like upstream,
   // `RawExpr` parenthesises its arguments
   assert_true(
@@ -557,7 +557,7 @@ test "js: an async extern is not inlined" {
     true,
     @cps.StringExternBody(@source.Default, template),
   )
-  let module = @cps.ModuleDecl::new(
+  let module_ = @cps.ModuleDecl::new(
     "test",
     [],
     [],
@@ -582,7 +582,7 @@ test "js: an async extern is not inlined" {
     ],
     [main],
   )
-  let js = @js.compile_cps(module, empty_core_module(), main)
+  let js = @js.compile_cps(module_, empty_core_module(), main)
   let name = @js.name_def(ext).name
   let p_name = @js.name_def(p).name
   assert_true(
@@ -764,7 +764,7 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
       ),
     ),
   )
-  let module = @cps.ModuleDecl::new(
+  let module_ = @cps.ModuleDecl::new(
     "test",
     [],
     [],
@@ -772,16 +772,16 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
     [@cps.ToplevelDef(main, block)],
     [main],
   )
-  (module, raise_op)
+  (module_, raise_op)
 }
 
 ///|
 test "js: a try whose body completes normally" {
-  let module = handled_body_module()
+  let module_ = handled_body_module()
   let js = @js.compile_cps(
-    module,
+    module_,
     empty_core_module(),
-    module.definitions[0].id(),
+    module_.definitions[0].id(),
   )
   assert_true(js.contains("RESET("), msg="expected a RESET call:\n\{js}")
   assert_true(
@@ -794,11 +794,11 @@ test "js: a try whose body completes normally" {
 
 ///|
 test "js: a handler operation whose body performs an effectful call" {
-  let (module, raise_op) = handler_with_effect_module()
+  let (module_, raise_op) = handler_with_effect_module()
   let js = @js.compile_cps(
-    module,
+    module_,
     empty_core_module(),
-    module.definitions[0].id(),
+    module_.definitions[0].id(),
   )
   assert_true(js.contains("RESET("), msg="expected a RESET call:\n\{js}")
   assert_true(js.contains("SHIFT("), msg="expected a SHIFT call:\n\{js}")
@@ -838,7 +838,7 @@ test "js: a main with capability parameters is rejected" {
   let main = sym("main")
   let exc = @core.BlockParam::new(
     @symbols.Sym::block_param(
-      @symbols.Name::local("Exception"),
+      @symbols.Name::local_("Exception"),
       None,
       sym("Exception_cap"),
       false,
@@ -1035,7 +1035,7 @@ test "js: golden output" {
   // 6. effects: reset, shift, var and region
   println("===NEXT-JS===")
   let prompt = bparam("prompt")
-  let resume = bparam("resume")
+  let resume_ = bparam("resume")
   let effects = @core.Stmt::Region(
     @core.BlockLit::new(
       [],
@@ -1058,7 +1058,7 @@ test "js: golden output" {
                 @core.unknown_block_type(),
                 @symbols.Captures::empty(),
               ),
-              resume,
+              resume_,
               @core.Stmt::Return(int_expr(1)),
             ),
           ),

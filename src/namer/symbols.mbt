@@ -23,7 +23,7 @@ fn clone_id_def(id : IdDef) -> IdDef {
 /// namespace path. Mirrors upstream's `Name(id)`.
 fn name_of_id(id : IdDef) -> Name {
   if id.path.length() == 0 {
-    Name::local(id.name)
+    Name::local_(id.name)
   } else {
     Name::qualified(id.path, id.name)
   }
@@ -214,8 +214,8 @@ fn mk_constructor(
 }
 
 ///|
-fn mk_field(name : Name, param : Sym, constructor : Sym, decl : Span) -> Sym {
-  @symbols.Sym::Field({ base: mk_base(name, decl), param, constructor, })
+fn mk_field(name : Name, param : Sym, constructor_ : Sym, decl : Span) -> Sym {
+  @symbols.Sym::Field({ base: mk_base(name, decl), param, constructor_, })
 }
 
 // Types
@@ -256,7 +256,7 @@ fn mk_record(name : Name, tparams : Array[Sym], decl : Span) -> Sym {
   @symbols.Sym::Record({
     base: mk_base(name, decl),
     tparams,
-    constructor: @symbols.Sym::wildcard(),
+    constructor_: @symbols.Sym::wildcard(),
   })
 }
 
@@ -348,7 +348,7 @@ fn set_constructor_fields(sym : Sym, fields : Array[Sym]) -> Unit {
 ///|
 fn set_record_constructor(sym : Sym, ctor : Sym) -> Unit {
   match sym {
-    @symbols.Sym::Record(r) => r.constructor = ctor
+    @symbols.Sym::Record(r) => r.constructor_ = ctor
     _ => ()
   }
 }

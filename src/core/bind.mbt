@@ -31,11 +31,11 @@ pub fn Binding::to_stmt(self : Binding, rest : Stmt) -> Stmt {
       ImpureApp(id, callee, targs, vargs, bargs, rest)
     BindingDef(id, binding) => Def(id, binding, rest)
     BindingAlloc(id, init, region) => Alloc(id, init, region, rest)
-    BindingVar(ref, init, capture) => Var(ref, init, capture, rest)
-    BindingGet(id, annotated_tpe, ref, annotated_capt) =>
-      Get(id, annotated_tpe, ref, annotated_capt, rest)
-    BindingPut(ref, annotated_capt, value) =>
-      Put(ref, annotated_capt, value, rest)
+    BindingVar(ref_, init, capture) => Var(ref_, init, capture, rest)
+    BindingGet(id, annotated_tpe, ref_, annotated_capt) =>
+      Get(id, annotated_tpe, ref_, annotated_capt, rest)
+    BindingPut(ref_, annotated_capt, value) =>
+      Put(ref_, annotated_capt, value, rest)
   }
 }
 

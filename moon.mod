@@ -23,15 +23,6 @@ description = "An implementation of the Effekt language in MoonBit, compiling to
 // purpose; everything else is expected to be clean, and `moon check -d`
 // (warnings as errors) is part of the pre-commit gate.
 //
-//   reserved_keyword           The port keeps Effekt's own vocabulary for AST
-//                              fields, constructors and binders (`module`,
-//                              `local`, `ref`, `constructor`, `method`,
-//                              `resume`, `alias`, `use`, `namespace`, `final`,
-//                              `member`, `virtual`; 481 sites) so that a source
-//                              file can still be read next to `.reference`.
-//                              Renaming would break that mapping; when MoonBit
-//                              actually reserves the words the rename is
-//                              mechanical, but it has to happen at once.
 //   implicit_impl_as_method    `impl Eq/Show/Debug` methods are implicitly
 //                              promoted to regular methods; the 20 sites are
 //                              `pub impl`s and `derive`s on public types.
@@ -40,7 +31,7 @@ description = "An implementation of the Effekt language in MoonBit, compiling to
 //                              interface (.mbti) although nothing here calls
 //                              them as methods.
 
-warnings = "-reserved_keyword-implicit_impl_as_method"
+warnings = "-implicit_impl_as_method"
 
 import {
   "moonbitlang/x@0.5.5",

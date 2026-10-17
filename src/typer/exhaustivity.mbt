@@ -13,7 +13,7 @@ pub fn datatype_constructors(t : ValueType) -> Array[Sym] {
     @symbols.ValueType::ValueTypeApp(ctor, _) =>
       match ctor {
         @symbols.Sym::DataType(d) => d.constructors
-        @symbols.Sym::Record(r) => [r.constructor]
+        @symbols.Sym::Record(r) => [r.constructor_]
         _ => []
       }
     _ => []
