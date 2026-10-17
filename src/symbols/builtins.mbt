@@ -288,6 +288,11 @@ pub fn t_state_extract(s : BlockType) -> ValueType raise EffektError {
 
 ///|
 /// The built-in map of names visible in every module.
+///
+/// Like upstream's `builtins.rootBindings`, this does *not* contain the core
+/// `Ref` interface: `Ref` is a core builtin only (see `core_builtins`), so that
+/// a program can define and import its own value type `Ref` (the standard
+/// library's `ref` module does exactly that).
 pub fn root_bindings() -> Bindings {
   let types : Map[String, Sym] = {
     "Unit": unit_symbol,
@@ -301,7 +306,6 @@ pub fn root_bindings() -> Bindings {
     "Nothing": bottom_symbol,
     "IO": io_symbol,
     "Region": region_symbol,
-    "Ref": state_effect.interface,
   }
   let captures : Map[String, Sym] = {
     "io": io_capture(),

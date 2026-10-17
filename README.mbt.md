@@ -1,4 +1,4 @@
-﻿# Effekt in MoonBit
+# Effekt in MoonBit
 
 A reimplementation of the [Effekt](https://effekt-lang.org) programming language
 in [MoonBit](https://www.moonbitlang.com), targeting the **JavaScript** backend
@@ -108,18 +108,18 @@ These are deliberate and are documented at the point of use in the sources:
 ## Known limitations
 
 - The core language, the effect system, handlers with multi-shot resumptions and
-  the prelude all work (see the test table below). Of the 49 modules of the
-  bundled standard library, 22 compile (they are library modules, so they stop
-  at "no `main`" after code generation); the rest are blocked by a handful of
-  frontend gaps, which `scripts/stdlib.ps1` reports grouped by cause. The
-  largest group — 22 modules — is that only the `effekt` prelude module is
-  injected into every module, so the names the other prelude modules define
-  (`Option`, `Exception`, `fail`, `List`) do not resolve; then three functions
-  whose result is a block type (`Ref`), a missing Chez include (`regex`) and one
-  inference gap for `emit[?A]` (`string`). Everything the prelude itself
-  needs — `println`, `show` (including the compiler-generated structural
+  the whole prelude all work: **all 49 modules of the bundled standard library
+  compile** (they are library modules, so they stop at "no `main`" after code
+  generation), and `scripts/stdlib.ps1` keeps them compiling. Everything the
+  prelude needs — `println`, `show` (including the compiler-generated structural
   instances), `ref`, `region`, `loop`/`each`/`stop`, and `stream`'s handlers —
-  compiles and runs.
+  compiles and runs. The implicit prelude mirrors upstream `Runner.prelude`
+  (`effekt`, `option`, `partial`, `stream`, `control`, `list`, `result`,
+  `exception`, `array`, `char`, `bytearray`, `stringbuffer`, `string`, `ref`):
+  every module gets those includes, the prelude modules themselves do not, and a
+  program file that happens to be named like one of them (`exception.effekt`)
+  still gets the real module. `extern include` directives are only read for the
+  current backend's feature flags, as upstream's `Namer` does.
 - The parser wraps *every* annotated result type in `Effectful(t, {})`, exactly
   like upstream's `Parser.effectful` ("if it's not a `${tpe} / ${effs}`, then
   pretend the effect set is empty"). An annotation without `/ …` therefore means
@@ -133,9 +133,9 @@ These are deliberate and are documented at the point of use in the sources:
 
 | Command | What it covers |
 |---|---|
-| `moon test --target js` | 201 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output), the driver's host layer |
-| `powershell -File scripts/e2e.ps1` | 12 example programs (22 runs across two standard libraries), compiled and executed with `node`, output compared |
-| `powershell -File scripts/stdlib.ps1` | every module under `libraries/` compiled, with the failures grouped by cause; fails when fewer modules compile than the recorded baseline (22) — this is what catches phase bugs the small examples never reach |
+| `moon test --target js` | 206 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output), the driver's host layer |
+| `powershell -File scripts/e2e.ps1` | 13 example programs (25 runs across two standard libraries), compiled and executed with `node`, output compared |
+| `powershell -File scripts/stdlib.ps1` | every module under `libraries/` compiled, with the failures grouped by cause; fails when fewer modules compile than the recorded baseline (49) — this is what catches phase bugs the small examples never reach |
 | `src/source/parser_test.mbt` | additionally validated out of band against all 575 `.effekt` files of the upstream checkout |
 
 The end-to-end cases exercise, among others: recursion (`fib`), first-class

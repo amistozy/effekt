@@ -1,0 +1,12 @@
+// The whole prelude is injected into every module (upstream `Runner.prelude`),
+// so `Option` and `List` are available without importing `option` or `list`.
+def firstOf[A](xs: List[A]): Option[A] = xs match {
+  case Nil() => None()
+  case Cons(head, _) => Some(head)
+}
+
+def main() = {
+  val xs = [1, 2, 3]
+  println(firstOf(xs).show)
+  println(firstOf([4]).show)
+}

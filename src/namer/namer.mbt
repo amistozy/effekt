@@ -317,10 +317,12 @@ fn[T] in_bindings(
 /// Strips the module's own namespace from a path, so that `<module>::foo` can
 /// stand for `foo` inside the module (upstream: `Context.importSelfAs`).
 /// The module's bindings are the toplevel scope, so the remaining path is
-/// looked up as usual and stays up to date.
+/// looked up as usual and stays up to date. A path that *is* the module
+/// namespace (`set::collect` in module `set`) strips to the empty path, i.e.
+/// the toplevel scope.
 fn Namer::strip_self(self : Namer, path : Array[String]) -> Array[String] {
   let ns = self.self_namespace
-  if path.length() <= ns.length() {
+  if path.length() < ns.length() {
     return path
   }
   for i = 0; i < ns.length(); i = i + 1 {

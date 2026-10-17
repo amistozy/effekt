@@ -1764,9 +1764,9 @@ fn Transformer::transform_as_stmt(
             @source.Unbox(expr) => {
               let (fun_tpe, capture) = match self.inferred_type_of(expr) {
                 BoxedType(s, c) => (s, c)
-                _ =>
+                got =>
                   raise EffektError::Internal(
-                    "Should be a boxed function type with a known capture set.",
+                    "Should be a boxed function type with a known capture set, but got \{describe_value_type(got)}.",
                   )
               }
               let _ = fun_tpe
@@ -1799,6 +1799,24 @@ fn Transformer::transform_as_stmt(
     | @source.BlockLiteral(_, _, _, _)
     | @source.Assign(_, _)
     | @source.Do(_, _, _, _) => Return(self.transform_as_expr(tree))
+  }
+}
+
+///|
+/// A short description of a value type, for internal error messages.
+fn describe_value_type(t : ValueType) -> String {
+  match t {
+    ValueTypeRef(sym) => "the value type \{sym.name().name}"
+    ValueTypeApp(sym, _) => "the value type \{sym.name().name}"
+    BoxedType(block, _) => "a boxed type (\{show_block_kind(block)})"
+  }
+}
+
+///|
+fn show_block_kind(t : BlockType) -> String {
+  match t {
+    @symbols.BlockType::InterfaceType(sym, _) => "interface \{sym.name().name}"
+    @symbols.BlockType::FunctionType(_, _, _, _, _, _) => "function type"
   }
 }
 

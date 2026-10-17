@@ -20,19 +20,25 @@ fn resolve_includes_def(d : Def, source : Source, ctx : Context) -> Def {
   let kind = match d.kind {
     @source.ExternInclude(flag, path, contents) =>
       match contents {
-        Some(_) => @source.ExternInclude(flag, path, contents)
-        None => {
-          let base = dirname(source.name)
-          let full = join_path(base, path)
-          let loaded = read_file(full)
-          if loaded is None {
-            ctx.error(
-              d.span,
-              "Cannot find extern include '\{path}' (looked at \{full}).",
-            )
+        Some(_) => d.kind
+        None =>
+          // Only load the include when it is needed by the current backend
+          // (upstream `Namer`: `if (ff matches supportedFeatureFlags)`), so that
+          // e.g. a Chez-only include does not have to exist for the JS backend.
+          if !flag.matches_any(@source.supported_flags(ctx)) {
+            d.kind
+          } else {
+            let base = dirname(source.name)
+            let full = join_path(base, path)
+            let loaded = read_file(full)
+            if loaded is None {
+              ctx.error(
+                d.span,
+                "Cannot find extern include '\{path}' (looked at \{full}).",
+              )
+            }
+            @source.ExternInclude(flag, path, loaded)
           }
-          @source.ExternInclude(flag, path, loaded)
-        }
       }
     @source.NamespaceDef(id, defs) =>
       @source.NamespaceDef(

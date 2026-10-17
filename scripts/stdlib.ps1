@@ -1,4 +1,4 @@
-﻿# Regression gate for the Effekt standard library.
+# Regression gate for the Effekt standard library.
 #
 # The port's own tests (`moon test`) and `scripts/e2e.ps1` cover the language
 # with a few small programs; the standard library is a much larger corpus, and
@@ -22,7 +22,7 @@ moon build --target js 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { Pop-Location; exit 1 }
 
 $cli = Join-Path $root "_build/js/debug/build/cmd/main/main.js"
-$baseline = 22
+$baseline = 49
 
 $ok = 0
 $failures = @{}

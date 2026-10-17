@@ -202,33 +202,46 @@ pub fn Context::effects_of(self : Context, uid : Int32) -> Effects? {
 }
 
 ///|
+/// Copies a single annotation entry, keeping an existing annotation at `to`
+/// (upstream `copyAnnotations`: `annotate(to, source ++ existing)`).
+fn[V] copy_entry(
+  from_map : Map[Int32, V],
+  to_map : Map[Int32, V],
+  from : Int32,
+  to : Int32,
+) -> Unit {
+  if to_map.get(to) is None {
+    match from_map.get(from) {
+      Some(v) => to_map.set(to, v)
+      None => ()
+    }
+  }
+}
+
+///|
 /// Copies all annotations from one tree node to another (used by tree
-/// rewriting passes that create new nodes).
+/// rewriting passes that create new nodes, upstream `Context.copyAnnotations`).
+/// Annotations the target already has are kept: a pass that replaced a node
+/// with a more specific one wins over the node it replaces.
 pub fn Context::copy_annotations(
   self : Context,
   from : Int32,
   to : Int32,
 ) -> Unit {
-  match self.symbols.get(from) {
-    Some(s) => self.symbols.set(to, s)
-    None => ()
+  if from == to {
+    return
   }
-  match self.value_types.get(from) {
-    Some(t) => self.value_types.set(to, t)
-    None => ()
-  }
-  match self.block_types.get(from) {
-    Some(t) => self.block_types.set(to, t)
-    None => ()
-  }
-  match self.captures.get(from) {
-    Some(c) => self.captures.set(to, c)
-    None => ()
-  }
-  match self.effects.get(from) {
-    Some(e) => self.effects.set(to, e)
-    None => ()
-  }
+  copy_entry(self.symbols, self.symbols, from, to)
+  copy_entry(self.value_types, self.value_types, from, to)
+  copy_entry(self.block_types, self.block_types, from, to)
+  copy_entry(self.captures, self.captures, from, to)
+  copy_entry(self.effects, self.effects, from, to)
+  copy_entry(self.bound_capabilities, self.bound_capabilities, from, to)
+  copy_entry(self.implicit_value_args, self.implicit_value_args, from, to)
+  copy_entry(self.implicit_block_args, self.implicit_block_args, from, to)
+  copy_entry(self.capability_receiver, self.capability_receiver, from, to)
+  copy_entry(self.capability_arguments, self.capability_arguments, from, to)
+  copy_entry(self.type_arguments, self.type_arguments, from, to)
 }
 
 ///|

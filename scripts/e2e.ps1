@@ -33,6 +33,9 @@ $cases = [ordered]@{
   "exception"               = @{ out = "division by zero`n-1";   libs = $all }
   "toplevel_val"            = @{ out = "1";                      libs = $all }
   "char"                    = @{ out = "A`nok";                  libs = $all }
+  "field_call"              = @{ out = "3";                     libs = $all }
+  # The implicit prelude (Option, List, …) needs the real standard library.
+  "prelude_access"          = @{ out = "Some(1)`nSome(4)";         libs = $stdlib_only }
   # `import exception` needs the real standard library.
   "import_handler"          = @{ out = "boom`n0";                libs = $stdlib_only }
   "import_handler_qualified" = @{ out = "boom`n0";               libs = $stdlib_only }

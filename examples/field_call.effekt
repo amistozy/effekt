@@ -1,0 +1,12 @@
+// Regression: a function stored in a record field is called through the field.
+//
+// `(b.f)(x, y)` becomes `unbox(b.f)(x, y)`, so the inferred type of the field
+// selection has to survive the rewriting passes (`explicit_capabilities`
+// replaces `f(b)` by a `Select`).
+record Box(f: (Int, Int) => Int at {})
+
+def main() = {
+  val b = Box(box { (x: Int, y: Int) => x - y })
+  val r = (b.f)(5, 2)
+  println(r.show)
+}

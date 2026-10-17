@@ -34,6 +34,17 @@ pub(all) struct CompileResult {
 }
 
 ///|
+/// The directories the *library* provides: `--lib` and its `common`
+/// subdirectory. The implicit prelude is looked up here only.
+pub fn library_roots(opts : Options) -> Array[String] {
+  let lib = resolve_path(opts.lib_path)
+  let roots : Array[String] = [lib]
+  let common = join_path(lib, "common")
+  roots.push(common)
+  roots
+}
+
+///|
 /// The default module search path for a program at `input`.
 ///
 /// The order mirrors upstream's `EffektConfig.includes()`
@@ -46,11 +57,7 @@ pub(all) struct CompileResult {
 /// `libraries/common/exception.effekt` (interface `Exception`) from
 /// `examples/t_import.effekt`.
 pub fn search_paths(input : String, opts : Options) -> Array[String] {
-  let roots : Array[String] = []
-  let lib = resolve_path(opts.lib_path)
-  roots.push(lib)
-  let common = join_path(lib, "common")
-  roots.push(common)
+  let roots = library_roots(opts)
   for p in opts.include_paths {
     let resolved = resolve_path(p)
     if !roots.any(r => r == resolved) {
@@ -83,32 +90,28 @@ pub fn compile_file(
       }
     }
     let loader = Loader::new(search_paths(opts.input, opts))
+    // The prelude is provided by the library, never by the input's directory.
+    loader.set_prelude_roots(library_roots(opts))
     let parsed = (pipeline.parse)(source, ctx)
     if parsed is None {
       return { output: None, messages: ctx.messages.copy(), failed: true, }
     }
     let tree = resolve_includes(parsed.unwrap(), source, ctx)
     let main_path = module_path_of(opts.input)
-    loader.sources.set(main_path, source)
-    loader.trees.set(
-      main_path,
-      if main_path == "effekt" {
-        tree
-      } else {
-        {
-          ..tree,
-          includes: [
-            { path: "effekt", span: Span::missing(), },
-            ..tree.includes,
-          ],
-        }
-      },
-    )
+    // The main module is registered under a collision-free key: a program file
+    // may be called `exception.effekt` and the prelude module of that name has
+    // to remain resolvable (see `main_module_key`).
+    let main_key = main_module_key(main_path)
+    loader.sources.set(main_key, source)
+    loader.trees.set(main_key, {
+      ..tree,
+      includes: loader.implicit_includes(main_key) + tree.includes,
+    })
 
     // Topologically order the main module and all its dependencies.
     let order : Array[String] = []
     let visited : Array[String] = []
-    collect_order(loader, main_path, pipeline, ctx, visited, order)
+    collect_order(loader, main_key, pipeline, ctx, visited, order)
 
     // Name resolution and type checking, dependencies first. Each resolved
     // module is remembered so that its importers can open its exports.

@@ -58,6 +58,56 @@ fn apply_def(hooks : Hooks, ctx : Context, d : Def) -> Def raise EffektError {
 // ---------------------------------------------------------------------------
 
 ///|
+/// Applies the hooks to an already rewritten node and keeps the annotations
+/// reachable when a hook *replaces* the node by a new one.
+///
+/// Upstream's `Rewrite.visit` copies the position and every annotation from the
+/// source node to the target node; the type checker's annotations are keyed by
+/// uid here, so a replacement node needs them copied explicitly. Without this
+/// the later phases lose e.g. the inferred type of the `Select` that
+/// `explicit_capabilities` builds for a field call.
+fn rewrite_hooked_expr(
+  ctx : Context,
+  hooks : Hooks,
+  original : Term,
+  rewritten : Term,
+) -> Term raise EffektError {
+  let result = apply_expr(hooks, ctx, rewritten)
+  if result.uid != original.uid {
+    ctx.copy_annotations(original.uid, result.uid)
+  }
+  result
+}
+
+///|
+fn rewrite_hooked_stmt(
+  ctx : Context,
+  hooks : Hooks,
+  original : Stmt,
+  rewritten : Stmt,
+) -> Stmt raise EffektError {
+  let result = apply_stmt(hooks, ctx, rewritten)
+  if result.uid != original.uid {
+    ctx.copy_annotations(original.uid, result.uid)
+  }
+  result
+}
+
+///|
+fn rewrite_hooked_def(
+  ctx : Context,
+  hooks : Hooks,
+  original : Def,
+  rewritten : Def,
+) -> Def raise EffektError {
+  let result = apply_def(hooks, ctx, rewritten)
+  if result.uid != original.uid {
+    ctx.copy_annotations(original.uid, result.uid)
+  }
+  result
+}
+
+///|
 pub fn rewrite_module(
   m : ModuleDecl,
   ctx : Context,
@@ -132,7 +182,7 @@ pub fn rewrite_def(
     ExternInclude(flag, path, contents) => ExternInclude(flag, path, contents)
   }
   let d2 = { ..d, kind, }
-  apply_def(hooks, ctx, d2)
+  rewrite_hooked_def(ctx, hooks, d, d2)
 }
 
 ///|
@@ -205,7 +255,7 @@ pub fn rewrite_stmt(
     Return(t) => Return(rewrite_term(t, ctx, hooks))
     BlockStmt(inner) => BlockStmt(rewrite_stmt(inner, ctx, hooks))
   }
-  apply_stmt(hooks, ctx, { ..s, kind, })
+  rewrite_hooked_stmt(ctx, hooks, s, { ..s, kind, })
 }
 
 ///|
@@ -285,7 +335,7 @@ pub fn rewrite_term(
     New(implementation) =>
       New(rewrite_implementation(implementation, ctx, hooks))
   }
-  apply_expr(hooks, ctx, { ..t, kind, })
+  rewrite_hooked_expr(ctx, hooks, t, { ..t, kind, })
 }
 
 ///|

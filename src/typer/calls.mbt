@@ -95,8 +95,16 @@ pub fn Typer::check_call_to(
   }
 
   // (5) check block arguments; the capture of the block argument flows into
-  // the instantiated capture parameter
-  for i = 0; i < bargs.length(); i = i + 1 {
+  // the instantiated capture parameter.
+  //
+  // Upstream checks the block arguments whose expected type carries an effect
+  // with type arguments *last*: capabilities can only be bound for fully known
+  // effects, and the other arguments are what solves the type arguments — in
+  // `for[A] { emit[A] } { (c: Char) => … }` the parameter annotation `Char`
+  // makes the effect of the first argument `emit[Char]` concrete.
+  let (without_effects, with_effects) = block_argument_order(inst.bparams)
+  let order = without_effects + with_effects
+  for i in order {
     let capt = capt_args[i]
     self.flows_into(capt, callsite, span)
     let res = self.flowing_into(capt, () => {
@@ -132,6 +140,34 @@ pub fn Typer::check_call_to(
   )
 
   TyRes::new(inst.ret, effs)
+}
+
+///|
+/// The order in which block arguments have to be checked: the indices whose
+/// expected type carries an effect with type arguments go last (upstream
+/// `checkCallTo`). Their capabilities can only be bound once those type
+/// arguments are solved, and the earlier arguments are what solves them.
+fn block_argument_order(bps : Array[BlockType]) -> (Array[Int32], Array[Int32]) {
+  let without : Array[Int32] = []
+  let with_effects : Array[Int32] = []
+  for i = 0; i < bps.length(); i = i + 1 {
+    let needs_concrete_effect = match bps[i] {
+      @symbols.BlockType::FunctionType(_, _, _, _, _, effs) =>
+        effs.effects.any(e => {
+          match e {
+            @symbols.BlockType::InterfaceType(_, args) => args.length() > 0
+            _ => false
+          }
+        })
+      _ => false
+    }
+    if needs_concrete_effect {
+      with_effects.push(i)
+    } else {
+      without.push(i)
+    }
+  }
+  (without, with_effects)
 }
 
 ///|

@@ -406,3 +406,54 @@ test "a library module that uses cross-module inferred types type-checks" {
   let result = frontend_only("libraries/common/list.effekt")
   assert_true(!result.failed)
 }
+
+///|
+/// Checks a file with the real driver and prints the diagnostics when it fails.
+fn frontend_accepts(input : String) -> Bool {
+  let result = frontend_only(input)
+  if result.failed {
+    println("frontend rejected \{input}:")
+    println(@compiler.render_messages(result.messages))
+  }
+  !result.failed
+}
+
+///|
+/// `for[A] { stream: () => Unit / emit[A] } { action: A => Unit }` has to check
+/// `action` *first*: its parameter annotation is what makes the effect of the
+/// first block argument (`emit[Char]`) concrete before capabilities are bound
+/// for it (upstream `checkCallTo` checks the arguments that do not subtract
+/// effects first).
+test "a block argument solves the effect argument of an earlier argument" {
+  assert_true(frontend_accepts("libraries/common/string.effekt"))
+}
+
+///|
+/// A program file may be named like a prelude module. The prelude module of the
+/// same name still has to be loaded from the library instead of resolving to
+/// the main module.
+test "a program named like a prelude module still gets the prelude" {
+  assert_true(frontend_accepts("examples/exception.effekt"))
+}
+
+///|
+/// `<module>::foo` refers to `foo` inside the module, for a single-segment
+/// module path as well (`set::collect` in `set.effekt`).
+test "a module can qualify its own definitions" {
+  assert_true(frontend_accepts("libraries/common/set.effekt"))
+}
+
+///|
+/// The standard library's `ref` module defines a *value* type `Ref`, which must
+/// not be shadowed by the core `Ref` state interface (a core builtin only, like
+/// upstream's `builtins.coreBuiltins`).
+test "a value type named Ref is not shadowed by the core Ref" {
+  assert_true(frontend_accepts("libraries/common/dictionary.effekt"))
+}
+
+///|
+/// `extern include chez "text/pregexp.scm"` is only needed by the Chez backend:
+/// the file is not read (and does not have to exist) for JavaScript.
+test "a Chez-only extern include is not loaded for JavaScript" {
+  assert_true(frontend_accepts("libraries/common/regex.effekt"))
+}
