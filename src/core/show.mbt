@@ -155,9 +155,9 @@ pub(all) struct ShowContext {
 ///|
 pub fn ShowContext::new() -> ShowContext {
   {
-    show_names: Map::new(),
-    show_defns: Map::new(),
-    tparam_lookup: Map::new(),
+    show_names: Map([]),
+    show_defns: Map([]),
+    tparam_lookup: Map([]),
     bindings: [],
   }
 }
@@ -294,7 +294,7 @@ fn recover_make_type(
     Some(DeclarationData(_, tparams, _)) => tparams
     _ => []
   }
-  let bindings : Map[Int32, ValueType] = Map::new()
+  let bindings : Map[Int32, ValueType] = Map([])
   match dctx.find_constructor(tag) {
     Some(constr) =>
       for i = 0; i < constr.fields.length() && i < vargs.length(); i = i + 1 {

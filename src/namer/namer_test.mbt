@@ -155,7 +155,7 @@ fn resolve_ok(
   module : @source.ModuleDecl,
   context : @source.Context,
 ) -> @namer.ResolvedModule? {
-  resolve_with(module, context, Map::new())
+  resolve_with(module, context, Map([]))
 }
 
 ///|

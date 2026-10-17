@@ -76,8 +76,8 @@ fn char_at(s : String, i : Int32) -> Char {
       let v = s[i + 1]
       if v.is_trailing_surrogate() {
         let code_point = 65536 +
-          ((u.to_uint().to_int() - 55296) << 10) +
-          (v.to_uint().to_int() - 56320)
+          ((u.to_uint().reinterpret_as_int() - 55296) << 10) +
+          (v.to_uint().reinterpret_as_int() - 56320)
         code_point.unsafe_to_char()
       } else {
         '\u{FFFD}'

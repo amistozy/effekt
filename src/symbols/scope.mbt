@@ -17,12 +17,7 @@ pub(all) struct Bindings {
 
 ///|
 pub fn Bindings::empty() -> Bindings {
-  {
-    terms: Map::new(),
-    types: Map::new(),
-    captures: Map::new(),
-    namespaces: Map::new(),
-  }
+  { terms: Map([]), types: Map([]), captures: Map([]), namespaces: Map([]), }
 }
 
 ///|

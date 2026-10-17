@@ -41,16 +41,16 @@ pub(all) struct Annotations {
 ///|
 pub fn Annotations::new() -> Annotations {
   {
-    value: Map::new(),
-    block: Map::new(),
-    effect: Map::new(),
-    capt: Map::new(),
-    type_args: Map::new(),
-    bound_caps: Map::new(),
-    cap_receiver: Map::new(),
-    cap_args: Map::new(),
-    impl_vargs: Map::new(),
-    impl_bargs: Map::new(),
+    value: Map([]),
+    block: Map([]),
+    effect: Map([]),
+    capt: Map([]),
+    type_args: Map([]),
+    bound_caps: Map([]),
+    cap_receiver: Map([]),
+    cap_args: Map([]),
+    impl_vargs: Map([]),
+    impl_bargs: Map([]),
   }
 }
 
@@ -132,9 +132,9 @@ pub fn Typer::new(ctx : Context) -> Typer {
       scope: GlobalScope,
       cap_scope: GlobalCap,
       current: Captures::empty(),
-      vt: Map::new(),
-      bt: Map::new(),
-      ct: Map::new(),
+      vt: Map([]),
+      bt: Map([]),
+      ct: Map([]),
       ann: Annotations::new(),
     },
     muting: false,
@@ -505,7 +505,7 @@ fn[T] Typer::binding_capabilities(
   f : () -> T raise EffektError,
 ) -> T raise EffektError {
   self.bind_capabilities(uid, caps)
-  let map : Map[String, Sym] = Map::new()
+  let map : Map[String, Sym] = Map([])
   for cap in caps {
     match self.st.bt.get(cap.uid()) {
       Some(t) => map.set(interface_key(t), cap)
@@ -543,7 +543,7 @@ fn[T] Typer::binding_all_capabilities(
   f : () -> T raise EffektError,
 ) -> (T, Map[String, Sym]) raise EffektError {
   let parent = self.st.cap_scope
-  let caps : Map[String, Sym] = Map::new()
+  let caps : Map[String, Sym] = Map([])
   self.st.cap_scope = BindAll(caps, parent)
   let result = f()
   self.st.cap_scope = parent

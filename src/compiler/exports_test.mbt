@@ -66,7 +66,7 @@ test "the exception module exports its interface as a type" {
   }
   let loader = @compiler.Loader::new(@compiler.search_paths(opts.input, opts))
   let prelude_tree = loader.load_tree("effekt", ctx, @source.parse_module_decl)
-  let prelude = @namer.resolve_module(prelude_tree, ctx, Map::new())
+  let prelude = @namer.resolve_module(prelude_tree, ctx, Map([]))
   let deps : Map[String, @namer.ResolvedModule] = { "effekt": prelude }
   let tree = loader.load_tree("exception", ctx, @source.parse_module_decl)
   let resolved = @namer.resolve_module(tree, ctx, deps)

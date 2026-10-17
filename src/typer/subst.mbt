@@ -12,7 +12,7 @@ pub struct Substitutions {
 
 ///|
 pub fn Substitutions::empty() -> Substitutions {
-  { values: Map::new(), captures: Map::new(), }
+  { values: Map([]), captures: Map([]), }
 }
 
 ///|
@@ -20,11 +20,11 @@ pub fn Substitutions::types(
   keys : Array[Sym],
   values : Array[ValueType],
 ) -> Substitutions {
-  let m : Map[Int32, ValueType] = Map::new()
+  let m : Map[Int32, ValueType] = Map([])
   for i = 0; i < keys.length() && i < values.length(); i = i + 1 {
     m.set(keys[i].uid(), values[i])
   }
-  { values: m, captures: Map::new(), }
+  { values: m, captures: Map([]), }
 }
 
 ///|
@@ -32,16 +32,16 @@ pub fn Substitutions::captures(
   keys : Array[Sym],
   values : Array[Captures],
 ) -> Substitutions {
-  let m : Map[Int32, Captures] = Map::new()
+  let m : Map[Int32, Captures] = Map([])
   for i = 0; i < keys.length() && i < values.length(); i = i + 1 {
     m.set(keys[i].uid(), values[i])
   }
-  { values: Map::new(), captures: m, }
+  { values: Map([]), captures: m, }
 }
 
 ///|
 pub fn Substitutions::is_empty(self : Substitutions) -> Bool {
-  self.values.size() == 0 && self.captures.size() == 0
+  self.values.length() == 0 && self.captures.length() == 0
 }
 
 ///|
@@ -86,13 +86,13 @@ pub fn Substitutions::without(
   tps : Array[Sym],
   cps : Array[Sym],
 ) -> Substitutions {
-  let values : Map[Int32, ValueType] = Map::new()
+  let values : Map[Int32, ValueType] = Map([])
   for k, v in self.values {
     if !tps.any(t => t.uid() == k) {
       values.set(k, v)
     }
   }
-  let captures : Map[Int32, Captures] = Map::new()
+  let captures : Map[Int32, Captures] = Map([])
   for k, v in self.captures {
     if !cps.any(c => c.uid() == k) {
       captures.set(k, v)

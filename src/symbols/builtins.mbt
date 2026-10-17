@@ -309,13 +309,13 @@ pub fn root_bindings() -> Bindings {
     "global": global_capture(),
   }
   let inner : Bindings = {
-    terms: Map::new(),
+    terms: Map([]),
     types,
     captures,
-    namespaces: Map::new(),
+    namespaces: Map([]),
   }
   let namespaces : Map[String, Bindings] = { "effekt": inner }
-  { terms: Map::new(), types, captures, namespaces, }
+  { terms: Map([]), types, captures, namespaces, }
 }
 
 ///|

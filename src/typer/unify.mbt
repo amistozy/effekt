@@ -34,13 +34,13 @@ pub struct Unification {
 ///|
 pub fn Unification::new() -> Unification {
   {
-    types: Map::new(),
-    capts: Map::new(),
-    lower: Map::new(),
-    upper: Map::new(),
+    types: Map([]),
+    capts: Map([]),
+    lower: Map([]),
+    upper: Map([]),
     links: [],
-    var_of: Map::new(),
-    capt_var: Map::new(),
+    var_of: Map([]),
+    capt_var: Map([]),
   }
 }
 

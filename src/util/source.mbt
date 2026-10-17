@@ -144,10 +144,10 @@ pub(all) enum Origin {
 ///|
 /// A region of a source file.
 pub(all) struct Span {
-  pub source : Source
-  pub start : Int32
-  pub end : Int32
-  pub origin : Origin
+  source : Source
+  start : Int32
+  end : Int32
+  origin : Origin
 }
 
 ///|

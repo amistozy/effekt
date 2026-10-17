@@ -101,13 +101,32 @@ You can browse and install extra skills here:
   `MODULE_TYPELESS_PACKAGE_JSON` warning on every run. Keep that option (and
   the CommonJS `require` it allows) if you touch the linker settings.
 
+## Warnings
+
+- **Warnings are errors here:** the gate runs `moon check -d`, so any *enabled*
+  warning fails the build. Do not silence a new warning class to get green —
+  fix the code.
+- The suppressions all live in **one place**, `moon.mod`'s `warnings`, and each
+  entry is documented there with why the port produces it on purpose
+  (`reserved_keyword` for the `module` field name, the `unused_*` family for
+  definitions ported for fidelity to the Scala sources, and
+  `implicit_impl_as_method`, which `derive(Eq, Debug)` triggers whether we want
+  it or not — ~685 diagnostics in total). Do not add a package-level
+  `warnings =` line: `moon.pkg` lists were removed in favour of the shared
+  default, and a package that needs an extra suppression should be discussed
+  rather than silenced.
+- Fixing one of those classes is always welcome — `unused_package`,
+  `redundant_modifier`, `deprecated` and `unused_mut` were cleaned up that way —
+  but drop the entry only after a full clean `moon check -d` (delete `_build`:
+  a cached build hides whole packages).
+
 ## Git workflow
 
 - **Commit and push automatically.** After finishing a change, do not stop to ask
   whether to commit: run the checks below, then `git add -A`, commit with a
   descriptive message, and `git push` to `origin/main` on your own.
 - Before every commit, the tree must be green:
-  `moon check`, `moon test --target js`,
+  `moon check --target js -d` (warnings as errors), `moon test --target js`,
   `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/e2e.ps1` and
   `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stdlib.ps1`
   (use `powershell`, not `pwsh`, which is not on PATH here). The last one

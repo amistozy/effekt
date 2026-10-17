@@ -1,4 +1,2 @@
 // The `util` package provides source positions, spans, diagnostics and a
 // Wadler-style pretty printer, mirroring `effekt/util/*.scala` upstream.
-
-warnings = "-deprecated-unused_type_declaration-unused_mut-implicit_impl_as_method-redundant_modifier-unused_value-unused_constructor-unused_error_type-reserved_keyword-unused_package-missing_priv"

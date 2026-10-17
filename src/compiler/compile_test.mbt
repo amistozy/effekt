@@ -101,7 +101,7 @@ test "the help text documents every option" {
     assert_true(help.contains(flag))
   }
   // `usage` is printed with `println`, so it must not end in a newline.
-  assert_true(!help.ends_with("\n"))
+  assert_true(!help.has_suffix("\n"))
 }
 
 ///|

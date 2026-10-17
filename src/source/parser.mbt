@@ -397,7 +397,7 @@ fn Parser::recover(
         EmptyCharLiteral => TChr('?'.to_int())
         MultipleCodePointsInChar => TChr('?'.to_int())
         InvalidIntegerFormat => TInteger(0)
-        InvalidDoubleFormat => TFloat(Double::nan())
+        InvalidDoubleFormat => TFloat(@double.not_a_number)
         _ => self.fail(err.message())
       }
       // NOTE: this relies on the fact that the `fail` above throws!

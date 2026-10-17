@@ -60,7 +60,7 @@ test "core pretty: module" {
     #|def f(x: Int) = {
     #|  return x
     #|}
-  assert_true(rendered.starts_with("module test"))
+  assert_true(rendered.has_prefix("module test"))
   assert_true(rendered.contains(expected))
 }
 

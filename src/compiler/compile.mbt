@@ -112,10 +112,10 @@ pub fn compile_file(
 
     // Name resolution and type checking, dependencies first. Each resolved
     // module is remembered so that its importers can open its exports.
-    let resolved : Map[String, @namer.ResolvedModule] = Map::new()
+    let resolved : Map[String, @namer.ResolvedModule] = Map([])
     for path in order {
       let t = loader.tree_of(path).unwrap()
-      let deps : Map[String, @namer.ResolvedModule] = Map::new()
+      let deps : Map[String, @namer.ResolvedModule] = Map([])
       for inc in t.includes {
         match resolved.get(inc.path) {
           Some(dep) => deps.set(inc.path, dep)

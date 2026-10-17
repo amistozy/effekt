@@ -20,19 +20,11 @@ pub struct Loader {
   sources : Map[String, Source]
   trees : Map[String, ModuleDecl]
   modules : Map[String, @symbols.Module]
-  /// Modules currently being loaded, for cycle detection.
-  mut loading : Array[String]
 }
 
 ///|
 pub fn Loader::new(roots : Array[String]) -> Loader {
-  {
-    roots,
-    sources: Map::new(),
-    trees: Map::new(),
-    modules: Map::new(),
-    loading: [],
-  }
+  { roots, sources: Map([]), trees: Map([]), modules: Map([]), }
 }
 
 ///|

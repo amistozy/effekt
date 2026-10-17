@@ -418,7 +418,7 @@ pub fn Typer::check_implementation(
       "Missing definitions for operations: \{names.join(", ")}",
     )
   }
-  let mut seen : Array[Sym] = []
+  let seen : Array[Sym] = []
   for c in covered {
     if sym_in(c, seen) {
       self.error(implementation.span, "Duplicate definitions of operations")

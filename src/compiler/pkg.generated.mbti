@@ -73,7 +73,6 @@ pub struct Loader {
   sources : Map[String, @util.Source]
   trees : Map[String, @source.ModuleDecl]
   modules : Map[String, @symbols.Module]
-  mut loading : Array[String]
 }
 pub fn Loader::closure(Self, String, @source.Context, (@util.Source, @source.Context) -> @source.ModuleDecl? raise @util.EffektError) -> Array[String] raise @util.EffektError
 pub fn Loader::load_tree(Self, String, @source.Context, (@util.Source, @source.Context) -> @source.ModuleDecl? raise @util.EffektError) -> @source.ModuleDecl raise @util.EffektError

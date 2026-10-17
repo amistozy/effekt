@@ -261,7 +261,7 @@ pub fn compile_cps(
       lambda([], call(run_toplevel(), [name_ref(main)])),
     ),
   ]
-  let extern_defs : Map[Int32, @cps.Extern] = Map::new()
+  let extern_defs : Map[Int32, @cps.Extern] = Map([])
   for e in module.externs {
     match e {
       @cps.ExternDef(id, _, _, _, _) => extern_defs.set(id.uid(), e)
@@ -711,7 +711,7 @@ fn extern_inline_template(
 
 ///|
 fn can_inline(extern_def : @cps.Extern) -> Bool {
-  extern_inline_template(extern_def).is_some()
+  extern_inline_template(extern_def) is Some(_)
 }
 
 ///|

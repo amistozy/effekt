@@ -51,7 +51,7 @@ pub fn resolve(
   module : @source.ModuleDecl,
   context : @source.Context,
 ) -> Unit raise EffektError {
-  let resolved = resolve_module(module, context, Map::new())
+  let resolved = resolve_module(module, context, Map([]))
   context.set_resolved_module(resolved.module)
 }
 
@@ -104,7 +104,7 @@ fn new_namer(
     self_namespace: namespace,
     imports: Bindings::empty(),
     parent_definitions: [],
-    hole_count: Map::new(),
+    hole_count: Map([]),
     holes: [],
     deps,
     imported: [],
