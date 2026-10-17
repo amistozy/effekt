@@ -14,7 +14,7 @@ pub fn block_captures(Block) -> @symbols.Captures
 
 pub fn capture_set(@symbols.Sym) -> @symbols.Captures
 
-pub fn clear_pattern_equality_function() -> Unit
+pub fn clear_pattern_equality_functions() -> Unit
 
 pub fn deadcode(ModuleDecl, Array[@symbols.Sym]) -> ModuleDecl
 
@@ -30,7 +30,7 @@ pub fn pm_normalize(PMClause) -> PMClause raise @util.EffektError
 
 pub fn required_names(ModuleDecl) -> Array[@symbols.Sym]
 
-pub fn set_pattern_equality_function(@symbols.Sym) -> Unit
+pub fn set_pattern_equality_functions(Array[@symbols.Sym]) -> Unit
 
 pub fn show_core(ModuleDecl) -> String
 
@@ -454,13 +454,13 @@ pub fn Toplevel::id(Self) -> @symbols.Sym
 pub(all) struct Transformer {
   ctx : @source.Context
   module_path : String
-  eq_function : @symbols.Sym?
+  eq_functions : Array[@symbols.Sym]
   mut bindings : Array[Binding]
   mut capture_substitution : Map[Int, @symbols.Captures]
   region_captures : Map[Int, @symbols.Sym]
   prompt_ctor : @symbols.Sym
 }
-pub fn Transformer::new(@source.Context, String, @symbols.Sym?) -> Self
+pub fn Transformer::new(@source.Context, String, Array[@symbols.Sym]) -> Self
 
 pub(all) struct ValueParam {
   id : @symbols.Sym

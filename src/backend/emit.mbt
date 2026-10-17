@@ -27,6 +27,14 @@ pub fn emit(
   if modules.length() == 0 {
     ctx.abort(Span::missing(), "No module to compile.")
   }
+  // 0. Bind the `infixEq` overloads used to compile literal patterns. This has
+  //    to happen *before* the core transformation, which is where patterns are
+  //    compiled (upstream: the core `Transformer` looks the prelude's `infixEq`
+  //    up while visiting a literal pattern).
+  match find_infix_eqs(modules) {
+    [] => @core.clear_pattern_equality_functions()
+    syms => @core.set_pattern_equality_functions(syms)
+  }
   // 1. Resolve externs, make capability passing explicit, then translate to
   //    core. Dependencies come first; the main module is last.
   let cores : Array[@core.ModuleDecl] = []
@@ -62,14 +70,7 @@ pub fn emit(
   //     show definitions.
   let aggregated = @core.show_phase(aggregated)
 
-  // 3. Bind the `infixEq` used by the pattern matching compiler to the one
-  //    from the prelude.
-  match find_infix_eq(modules) {
-    Some(sym) => @core.set_pattern_equality_function(sym)
-    None => ()
-  }
-
-  // 4. CPS conversion and code generation.
+  // 3. CPS conversion and code generation.
   let cps_module = @cps.transform(aggregated)
   let contified = @cps.contify(cps_module)
   let js = @js.compile_cps(contified, aggregated, main_sym)
@@ -119,15 +120,15 @@ pub fn find_main(modules : Array[@namer.ResolvedModule]) -> Sym? {
 }
 
 ///|
-/// The prelude's `infixEq`, used to compile literal patterns.
-pub fn find_infix_eq(modules : Array[@namer.ResolvedModule]) -> Sym? {
+/// The prelude's `infixEq` overloads, used to compile literal patterns.
+pub fn find_infix_eqs(modules : Array[@namer.ResolvedModule]) -> Array[Sym] {
   for m in modules {
-    match find_exported(m.module, "infixEq") {
-      Some(s) => return Some(s)
+    match m.module.exports.terms.get("infixEq") {
+      Some(syms) => if syms.length() > 0 { return syms }
       None => ()
     }
   }
-  None
+  []
 }
 
 ///|

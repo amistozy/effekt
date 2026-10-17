@@ -51,6 +51,7 @@ using @symbols {
   core_builtin_to_string,
   // type queries (mirrors the parts of `core/Type.scala` we do port)
   field_return_type,
+  value_type_equal,
 }
 
 ///|

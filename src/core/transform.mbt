@@ -27,21 +27,23 @@ pub(all) enum CoreToplevel {
 }
 
 ///|
-/// The `infixEq` used to compile literal patterns. Since neither the source
-/// module nor the source `Context` give access to the prelude's exports, the
-/// driver can install the symbol here; `transform` additionally looks for an
-/// `infixEq` extern in the module being transformed.
-let pattern_equality_function : Ref[Sym?] = Ref(None)
+/// The `infixEq` overloads used to compile literal patterns. Neither the source
+/// module nor the source `Context` give access to the prelude's exports, so the
+/// driver installs them here before the core transformation; `transform`
+/// additionally looks for an `infixEq` extern in the module being transformed.
+let pattern_equality_functions : Ref[Array[Sym]] = Ref([])
 
 ///|
-/// Installs the prelude's `infixEq`, used to compare literals in patterns.
-pub fn set_pattern_equality_function(sym : Sym) -> Unit {
-  pattern_equality_function.val = Some(sym)
+/// Installs the prelude's `infixEq` overloads, used to compare literals in
+/// patterns. The overload matching the literal's type is picked per pattern
+/// (upstream `Transformer.equalsFor`).
+pub fn set_pattern_equality_functions(syms : Array[Sym]) -> Unit {
+  pattern_equality_functions.val = syms
 }
 
 ///|
-pub fn clear_pattern_equality_function() -> Unit {
-  pattern_equality_function.val = None
+pub fn clear_pattern_equality_functions() -> Unit {
+  pattern_equality_functions.val = []
 }
 
 ///|
@@ -68,7 +70,7 @@ pub fn transform_with_exports(
   ctx : @source.Context,
   exports : Array[Sym],
 ) -> ModuleDecl raise EffektError {
-  let t = Transformer::new(ctx, module_path, find_equality_function(module))
+  let t = Transformer::new(ctx, module_path, find_equality_functions(module))
   let toplevels : Array[CoreToplevel] = []
   for d in module.defs {
     for x in t.transform_toplevel(d) {
@@ -92,38 +94,33 @@ pub fn transform_with_exports(
 }
 
 ///|
-/// The equality function to use for literal patterns: the one installed by the
-/// driver, or an `infixEq` extern declared in the module itself.
-fn find_equality_function(module : @source.ModuleDecl) -> Sym? {
-  match pattern_equality_function.val {
-    Some(sym) => Some(sym)
-    None => {
-      for d in module.defs {
-        match d.kind {
-          @source.ExternDef(id, _, _, _, _, _, _) =>
-            if id.name == "infixEq" {
-              return Some(
-                Sym::ExternFunction({
-                  base: {
-                    uid: d.uid,
-                    name: Name::local(id.name),
-                    decl: d.span,
-                  },
-                  tparams: [],
-                  vparams: [],
-                  bparams: [],
-                  result: t_bool(),
-                  effects: Effects::empty(),
-                  capture: [],
-                }),
-              )
-            }
-          _ => ()
+/// The equality functions to use for literal patterns: the ones installed by
+/// the driver, or an `infixEq` extern declared in the module itself.
+fn find_equality_functions(module : @source.ModuleDecl) -> Array[Sym] {
+  let out : Array[Sym] = pattern_equality_functions.val.copy()
+  if out.length() > 0 {
+    return out
+  }
+  for d in module.defs {
+    match d.kind {
+      @source.ExternDef(id, _, _, _, _, _, _) =>
+        if id.name == "infixEq" {
+          out.push(
+            Sym::ExternFunction({
+              base: { uid: d.uid, name: Name::local(id.name), decl: d.span, },
+              tparams: [],
+              vparams: [],
+              bparams: [],
+              result: t_bool(),
+              effects: Effects::empty(),
+              capture: [],
+            }),
+          )
         }
-      }
-      None
+      _ => ()
     }
   }
+  out
 }
 
 ///|
@@ -180,8 +177,8 @@ pub(all) struct Transformer {
   ctx : @source.Context
   /// The Effekt include path of the module, used for qualified signatures.
   module_path : String
-  /// The prelude's `infixEq`, if known.
-  eq_function : Sym?
+  /// The prelude's `infixEq` overloads, if known.
+  eq_functions : Array[Sym]
   /// Bindings to be inserted at the current scope (upstream's mutable
   /// `ListBuffer` of the same name).
   mut bindings : Array[Binding]
@@ -199,12 +196,12 @@ pub(all) struct Transformer {
 pub fn Transformer::new(
   ctx : @source.Context,
   module_path : String,
-  eq_function : Sym?,
+  eq_functions : Array[Sym],
 ) -> Transformer {
   {
     ctx,
     module_path,
-    eq_function,
+    eq_functions,
     bindings: [],
     capture_substitution: Map([]),
     region_captures: Map([]),
@@ -2505,19 +2502,58 @@ fn Transformer::inferred_type_of_pattern(
 
 ///|
 /// The equality function for a literal pattern of the given type.
+///
+/// Upstream `Transformer.equalsFor`: the prelude exports one `infixEq` per
+/// builtin type plus a generic one, and the one matching the literal's type is
+/// used (specialized `(T, T) => Bool` first, then `[A](A, A) => Bool` with the
+/// literal's type as type argument).
 fn Transformer::equals_for(self : Transformer, tpe : ValueType) -> PMEquals? {
-  match self.eq_function {
-    None => None
-    Some(sym) =>
-      match sym.as_callable() {
-        // generic version: pass the type of the literal
-        Some(c) =>
-          if c.tparams.length() == 1 {
-            Some(PMEquals::new(sym, [self.transform_value_type(tpe)]))
-          } else {
-            Some(PMEquals::new(sym, []))
+  let tpe = self.transform_value_type(tpe)
+  let mut generic : PMEquals? = None
+  for sym in self.eq_functions {
+    match sym.annotated_type() {
+      Some(@symbols.BlockType::FunctionType(tparams, _, vps, bps, ret, _)) =>
+        if bps.length() == 0 &&
+          vps.length() == 2 &&
+          value_type_equal(ret, t_bool()) {
+          // specialized version: (T, T) => Bool
+          if value_type_equal(vps[0], tpe) && value_type_equal(vps[1], tpe) {
+            return Some(PMEquals::new(sym, []))
           }
-        None => None
+          // generic version: [A](A, A) => Bool
+          if tparams.length() == 1 &&
+            value_type_equal(
+              vps[0],
+              @symbols.ValueType::ValueTypeRef(tparams[0]),
+            ) &&
+            value_type_equal(
+              vps[1],
+              @symbols.ValueType::ValueTypeRef(tparams[0]),
+            ) &&
+            generic is None {
+            generic = Some(PMEquals::new(sym, [tpe]))
+          }
+        }
+      _ => ()
+    }
+  }
+  match generic {
+    Some(_) => generic
+    None =>
+      // Hand-built symbols (a module that declares its own `infixEq`) carry no
+      // annotation: use the only candidate, as before.
+      match self.eq_functions {
+        [only] =>
+          match only.as_callable() {
+            Some(c) =>
+              if c.tparams.length() == 1 {
+                Some(PMEquals::new(only, [tpe]))
+              } else {
+                Some(PMEquals::new(only, []))
+              }
+            None => None
+          }
+        _ => None
       }
   }
 }

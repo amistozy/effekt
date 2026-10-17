@@ -429,7 +429,7 @@ fn pm_split_on_literal(
           None =>
             raise EffektError::Internal(
               "Pattern matching: cannot compile literal patterns without an equality function. " +
-              "Call `set_pattern_equality_function` with the prelude's `infixEq`.",
+              "Call `set_pattern_equality_functions` with the prelude's `infixEq` overloads.",
             )
         }
         If(
