@@ -45,7 +45,10 @@ The command line is declared with `moonbitlang/core/argparse`
 declaration and malformed arguments are reported by argparse with the same
 usage text. `--lib <dir>` selects a different standard library;
 `examples/minilib` contains a stripped-down prelude that avoids the
-slow-to-check parts of the real one.
+slow-to-check parts of the real one. `--show-js` prints the generated
+JavaScript instead of writing it, and `--show-core` prints the core program
+(the middle-end's output, i.e. what CPS conversion consumes) and compiles
+nothing.
 
 The compiler depends on [`moonbitlang/x`](https://mooncakes.io/docs/moonbitlang/x)
 for everything it needs from its host: `moonbitlang/x/fs` reads and writes the
@@ -134,7 +137,7 @@ These are deliberate and are documented at the point of use in the sources:
 | Command | What it covers |
 |---|---|
 | `moon test --target js` | 206 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output), the driver's host layer |
-| `powershell -File scripts/e2e.ps1` | 13 example programs (25 runs across two standard libraries), compiled and executed with `node`, output compared |
+| `powershell -File scripts/e2e.ps1` | 13 example programs (25 runs across two standard libraries) plus a `--show-core` dump check, compiled and executed with `node`, output compared |
 | `powershell -File scripts/stdlib.ps1` | every module under `libraries/` compiled, with the failures grouped by cause; fails when fewer modules compile than the recorded baseline (49) — this is what catches phase bugs the small examples never reach |
 | `src/source/parser_test.mbt` | additionally validated out of band against all 575 `.effekt` files of the upstream checkout |
 

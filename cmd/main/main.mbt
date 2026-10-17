@@ -31,6 +31,7 @@ fn run(args : Array[String]) -> Int32 {
     }
     return 1
   }
+  let mut core_dump : String? = None
   let pipeline : @compiler.Pipeline = {
     parse: @source.parse_module_decl,
     resolve: (tree, ctx, deps) => @namer.resolve_module(tree, ctx, deps),
@@ -41,7 +42,16 @@ fn run(args : Array[String]) -> Int32 {
       @typer.typecheck(desugared, ctx)
       desugared
     },
-    emit: @backend.emit,
+    emit: (trees, ctx) => {
+      if opts.show_core {
+        // `--show-core` is a dump mode: the middle-end runs, but no code is
+        // generated and no file is written.
+        core_dump = Some(@backend.show_core(trees, ctx))
+        ""
+      } else {
+        @backend.emit(trees, ctx)
+      }
+    },
   }
   let result = @compiler.compile_file(opts, pipeline, @source.Config::default())
   // Diagnostics go to stderr: stdout carries the program's own output when
@@ -49,6 +59,13 @@ fn run(args : Array[String]) -> Int32 {
   let diagnostics = @compiler.render_messages(result.messages)
   if diagnostics != "" {
     @compiler.eprintln(diagnostics.trim_end().to_owned())
+  }
+  if opts.show_core {
+    match core_dump {
+      Some(ir) => println(ir)
+      None => ()
+    }
+    return if result.failed { 1 } else { 0 }
   }
   match result.output {
     None => if result.failed { 1 } else { 0 }

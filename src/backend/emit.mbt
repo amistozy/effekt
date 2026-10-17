@@ -18,12 +18,16 @@ pub fn main_name() -> String {
 }
 
 ///|
-/// Compiles the already typechecked modules (dependencies first, main module
-/// last) into a single JavaScript source file.
-pub fn emit(
+/// The middle-end: the already typechecked modules (dependencies first, main
+/// module last) become one core module, after dead-code elimination and the
+/// compiler-generated structural `show` instances.
+///
+/// This is what `--show-core` prints and what CPS conversion consumes, together
+/// with the entry point's symbol.
+pub fn middle_end(
   modules : Array[@namer.ResolvedModule],
   ctx : Context,
-) -> String raise EffektError {
+) -> (@core.ModuleDecl, Sym) raise EffektError {
   if modules.length() == 0 {
     ctx.abort(Span::missing(), "No module to compile.")
   }
@@ -69,6 +73,27 @@ pub fn emit(
   // 2c. Replace the prelude's `show` extern by compiler-generated structural
   //     show definitions.
   let aggregated = @core.show_phase(aggregated)
+  (aggregated, main_sym)
+}
+
+///|
+/// The core program of `modules`, for `--show-core`.
+pub fn show_core(
+  modules : Array[@namer.ResolvedModule],
+  ctx : Context,
+) -> String raise EffektError {
+  let (aggregated, _) = middle_end(modules, ctx)
+  @core.show_core(aggregated)
+}
+
+///|
+/// Compiles the already typechecked modules (dependencies first, main module
+/// last) into a single JavaScript source file.
+pub fn emit(
+  modules : Array[@namer.ResolvedModule],
+  ctx : Context,
+) -> String raise EffektError {
+  let (aggregated, main_sym) = middle_end(modules, ctx)
 
   // 3. CPS conversion and code generation.
   let cps_module = @cps.transform(aggregated)

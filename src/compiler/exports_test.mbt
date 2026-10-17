@@ -14,7 +14,6 @@ fn closure_of(input : String, messages : Array[@util.Message]) -> Array[String] 
     lib_path: "libraries",
     show_help: false,
     show_core: false,
-    show_cps: false,
     show_js: false,
     run: false,
   }
@@ -53,7 +52,6 @@ test "the exception module exports its interface as a type" {
     lib_path: "libraries",
     show_help: false,
     show_core: false,
-    show_cps: false,
     show_js: false,
     run: false,
   }

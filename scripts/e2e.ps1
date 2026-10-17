@@ -63,6 +63,17 @@ foreach ($lib in @("libraries", "examples/minilib")) {
   }
 }
 
+# --show-core dumps the middle-end (the core program) instead of compiling.
+Write-Host "compiler dumps" -ForegroundColor Cyan
+$core = (& node $cli --show-core "examples/hello.effekt" 2>$null | Out-String)
+if ($core -match 'def main\(\)' -and $core -match 'println' -and $core -notmatch 'const \$effekt') {
+  Write-Host "  ok    show-core" -ForegroundColor Green
+  $passed++
+} else {
+  Write-Host "  FAIL  show-core" -ForegroundColor Red
+  $failed++
+}
+
 Pop-Location
 if ($failed -gt 0) {
   Write-Host "$failed of $($failed + $passed) end-to-end test(s) failed" -ForegroundColor Red

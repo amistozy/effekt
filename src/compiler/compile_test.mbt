@@ -71,13 +71,12 @@ test "command line defaults" {
 ///|
 test "command line parsing collects repeated options and all flags" {
   let (opts, errors) = @compiler.parse_args([
-    "-I", "a", "--include", "b", "-I", "c", "--show-core", "--show-cps", "--show-js",
-    "--run", "main.effekt",
+    "-I", "a", "--include", "b", "-I", "c", "--show-core", "--show-js", "--run",
+    "main.effekt",
   ])
   assert_eq(errors.length(), 0)
   assert_eq(opts.include_paths, ["a", "b", "c"])
   assert_true(opts.show_core)
-  assert_true(opts.show_cps)
   assert_true(opts.show_js)
   assert_true(opts.run)
   assert_eq(opts.input, "main.effekt")
@@ -95,8 +94,8 @@ test "the help text documents every option" {
   let help = @compiler.usage()
   for
     flag in [
-      "-h, --help", "--show-core", "--show-cps", "--show-js", "--run", "-o, --output",
-      "-I, --include", "--lib", "input",
+      "-h, --help", "--show-core", "--show-js", "--run", "-o, --output", "-I, --include",
+      "--lib", "input",
     ] {
     assert_true(help.contains(flag))
   }
@@ -199,7 +198,6 @@ fn frontend_only(input : String) -> @compiler.CompileResult {
     lib_path: "libraries",
     show_help: false,
     show_core: false,
-    show_cps: false,
     show_js: false,
     run: false,
   }

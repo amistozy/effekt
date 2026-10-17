@@ -24,6 +24,10 @@ pub fn find_main(Array[@namer.ResolvedModule]) -> @symbols.Sym?
 
 pub fn main_name() -> String
 
+pub fn middle_end(Array[@namer.ResolvedModule], @source.Context) -> (@core.ModuleDecl, @symbols.Sym) raise @util.EffektError
+
+pub fn show_core(Array[@namer.ResolvedModule], @source.Context) -> String raise @util.EffektError
+
 // Errors
 
 // Types and methods

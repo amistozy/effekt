@@ -100,7 +100,6 @@ pub(all) struct Options {
   mut lib_path : String
   mut show_help : Bool
   mut show_core : Bool
-  mut show_cps : Bool
   mut show_js : Bool
   mut run : Bool
 }

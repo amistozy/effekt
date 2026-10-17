@@ -12,7 +12,6 @@ pub(all) struct Options {
   mut lib_path : String
   mut show_help : Bool
   mut show_core : Bool
-  mut show_cps : Bool
   mut show_js : Bool
   mut run : Bool
 }
@@ -26,7 +25,6 @@ pub fn Options::default() -> Options {
     lib_path: "libraries",
     show_help: false,
     show_core: false,
-    show_cps: false,
     show_js: false,
     run: false,
   }
@@ -68,10 +66,6 @@ fn command() -> @argparse.Command {
       @argparse.FlagArg(
         "show-core",
         about="Print the core IR instead of compiling",
-      ),
-      @argparse.FlagArg(
-        "show-cps",
-        about="Print the contified CPS IR instead of compiling",
       ),
       @argparse.FlagArg(
         "show-js",
@@ -138,7 +132,6 @@ pub fn parse_args(args : Array[String]) -> (Options, Array[String]) {
   }
   opts.show_help = flag(matches, "help")
   opts.show_core = flag(matches, "show-core")
-  opts.show_cps = flag(matches, "show-cps")
   opts.show_js = flag(matches, "show-js")
   opts.run = flag(matches, "run")
   opts.output = option(matches, "output")
