@@ -109,14 +109,14 @@ These are deliberate and are documented at the point of use in the sources:
 
 - The core language, the effect system, handlers with multi-shot resumptions and
   the prelude all work (see the test table below). Of the 49 modules of the
-  bundled standard library, 15 compile (they are library modules, so they stop
+  bundled standard library, 21 compile (they are library modules, so they stop
   at "no `main`" after code generation); the rest are blocked by a handful of
-  frontend bugs, which `scripts/stdlib.ps1` reports grouped by cause. The
-  largest group is overload resolution ("Cannot typecheck call to `each`", 19
-  modules, all of which reach it through `stream`/`list`); then a few
-  unresolved type names (`Option`, `Exception`, `fail`, `List`), two functions
-  whose result is a block type, a missing Chez include (`regex`) and one
-  pattern-matching hole for `Char` literals. Everything the prelude itself
+  frontend gaps, which `scripts/stdlib.ps1` reports grouped by cause. The
+  largest group is that only the `effekt` prelude module is injected into every
+  module, so the names the other prelude modules define (`Option`, `Exception`,
+  `fail`, `List`) do not resolve; then three functions whose result is a block
+  type, a missing Chez include (`regex`), one pattern-matching hole for `Char`
+  literals and one inference gap for `emit[?A]`. Everything the prelude itself
   needs — `println`, `show` (including the compiler-generated structural
   instances), `ref`, `region`, `loop`/`each`/`stop`, and `stream`'s handlers —
   compiles and runs.
@@ -135,7 +135,7 @@ These are deliberate and are documented at the point of use in the sources:
 |---|---|
 | `moon test --target js` | 198 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output), the driver's host layer |
 | `powershell -File scripts/e2e.ps1` | 12 example programs (22 runs across two standard libraries), compiled and executed with `node`, output compared |
-| `powershell -File scripts/stdlib.ps1` | every module under `libraries/` compiled, with the failures grouped by cause; fails when fewer modules compile than the recorded baseline (15) — this is what catches phase bugs the small examples never reach |
+| `powershell -File scripts/stdlib.ps1` | every module under `libraries/` compiled, with the failures grouped by cause; fails when fewer modules compile than the recorded baseline (21) — this is what catches phase bugs the small examples never reach |
 | `src/source/parser_test.mbt` | additionally validated out of band against all 575 `.effekt` files of the upstream checkout |
 
 The end-to-end cases exercise, among others: recursion (`fib`), first-class

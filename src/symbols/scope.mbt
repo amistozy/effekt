@@ -316,7 +316,11 @@ pub fn Scoping::lookup_first_block_param(
 ) -> Array[Sym] raise EffektError {
   first(path, self.scope, b => {
     match b.terms.get(name) {
-      None => Some([])
+      // The name is not bound in this scope: keep looking in the outer ones
+      // (upstream `lookupFirstBlockParam` only stops at the innermost scope
+      // that *binds* the name, which is what makes a block parameter of an
+      // enclosing definition visible inside a nested block literal).
+      None => None
       Some(syms) =>
         Some(
           syms.filter(s => {

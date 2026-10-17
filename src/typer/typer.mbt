@@ -284,10 +284,19 @@ fn symbol_block_type(s : Sym) -> BlockType? {
 }
 
 ///|
+/// Types of a symbol are looked up in the local typing context first, then on
+/// the symbol itself (declared annotations), and finally in the context
+/// annotations committed by the module that *defined* it. The last step is what
+/// makes a definition without an explicit result type usable across modules:
+/// its inferred type was recorded by its own module's `commit`.
 pub fn Typer::lookup_first_value(self : Typer, s : Sym) -> ValueType? {
   match self.st.vt.get(s.uid()) {
     Some(t) => Some(t)
-    None => symbol_value_type(s)
+    None =>
+      match symbol_value_type(s) {
+        Some(t) => Some(t)
+        None => self.ctx.value_type_of(s.uid())
+      }
   }
 }
 
@@ -316,7 +325,12 @@ pub fn Typer::lookup_block(
     None =>
       match symbol_block_type(s) {
         Some(t) => t
-        None => self.abort(s.decl(), "Cannot find type for \{s.name().name}.")
+        None =>
+          match self.ctx.block_type_of(s.uid()) {
+            Some(t) => t
+            None =>
+              self.abort(s.decl(), "Cannot find type for \{s.name().name}.")
+          }
       }
   }
 }
@@ -463,6 +477,100 @@ fn capture_of_capability(cap : Sym) -> Sym {
 }
 
 ///|
+/// Checks whether two value types can be unified without recording anything
+/// (upstream `DummyUnifier.checkSubtype`): the state and the diagnostics are
+/// restored afterwards.
+fn Typer::types_compatible(
+  self : Typer,
+  inferred : ValueType,
+  concrete : ValueType,
+) -> Bool {
+  let before = self.st.backup()
+  let muting_before = self.muting
+  let error_before = self.muted_error
+  let messages_before = self.muted_messages
+  self.muting = true
+  self.muted_error = false
+  self.muted_messages = []
+  let mut ok = true
+  self.unify_value_types(inferred, concrete, MergeTypes(inferred, concrete)) catch {
+    _ => ok = false
+  }
+  if self.muted_error {
+    ok = false
+  }
+  self.st = before
+  self.muting = muting_before
+  self.muted_error = error_before
+  self.muted_messages = messages_before
+  ok
+}
+
+///|
+/// Upstream `BindSome.tryLexicalCapabilityFor` (PR #1194): a capability can be
+/// requested while a type argument of the effect is still an unsolved
+/// unification variable (`do emit(Nil())` performs `emit[List[?T]]` although
+/// the declaration says `emit[List[A]]`). If exactly one capability in scope
+/// has the same type constructor and its arguments unify with the requested
+/// ones, use it and commit the constraints so the effect becomes concrete.
+fn Typer::lexical_capability(
+  self : Typer,
+  tpe : BlockType,
+) -> Sym? raise EffektError {
+  let target = self.st.u.prune_block(tpe)
+  let (ctor, args) = match target {
+    @symbols.BlockType::InterfaceType(c, a) => (c, a)
+    _ => return None
+  }
+  if self.unknowns_block(target).length() == 0 {
+    return None
+  }
+  let compatible : Array[Sym] = []
+  for cap in self.st.cap_scope.all_capabilities() {
+    match capability_type(cap) {
+      Some(cap_tpe) =>
+        match self.st.u.prune_block(cap_tpe) {
+          @symbols.BlockType::InterfaceType(c2, args2) =>
+            if sym_eq(ctor, c2) && args.length() == args2.length() {
+              let mut ok = true
+              for i = 0; i < args.length() && ok; i = i + 1 {
+                if !self.types_compatible(args[i], args2[i]) {
+                  ok = false
+                }
+              }
+              if ok {
+                compatible.push(cap)
+              }
+            }
+          _ => ()
+        }
+      None => ()
+    }
+  }
+  if compatible.length() != 1 {
+    return None
+  }
+  let cap = compatible[0]
+  // Commit the argument constraints (upstream `C.requireSubtype`).
+  match capability_type(cap) {
+    Some(cap_tpe) =>
+      match self.st.u.prune_block(cap_tpe) {
+        @symbols.BlockType::InterfaceType(_, args2) =>
+          for i = 0; i < args.length(); i = i + 1 {
+            self.unify_value_types(
+              args[i],
+              args2[i],
+              MergeTypes(args[i], args2[i]),
+            )
+          }
+        _ => ()
+      }
+    None => ()
+  }
+  Some(cap)
+}
+
+///|
 fn Typer::capability_for(
   self : Typer,
   tpe : BlockType,
@@ -472,26 +580,31 @@ fn Typer::capability_for(
   match self.st.cap_scope.capability_for(target) {
     Some(cap) => cap
     None =>
-      // The capability may have been created while a type argument of the
-      // effect was still an unsolved unification variable (`emit[?T]`); compare
-      // the substituted types before giving up.
-      match
-        self.st.cap_scope.capability_for_matching(target, t => {
-          self.st.u.prune_block(t)
-        }) {
+      // The effect may still contain an unsolved type argument (`emit[?T]`):
+      // try the lexical resolution upstream uses for exactly that case.
+      match self.lexical_capability(target) {
         Some(cap) => cap
-        None => {
-          for hint in self.st.cap_scope.relevant_in_scope_for(tpe) {
-            self.info(
-              "Did you mean to use an operation of the concrete interface \{hint}?",
-            )
+        None =>
+          // Otherwise the capability may have been created while a type
+          // argument was still unsolved; compare the substituted types.
+          match
+            self.st.cap_scope.capability_for_matching(target, t => {
+              self.st.u.prune_block(t)
+            }) {
+            Some(cap) => cap
+            None => {
+              for hint in self.st.cap_scope.relevant_in_scope_for(tpe) {
+                self.info(
+                  "Did you mean to use an operation of the concrete interface \{hint}?",
+                )
+              }
+              let message =
+                $|Effect \{show_block_type(tpe)} is not allowed in this context.
+                $|
+                $|Maybe try annotating the function with the effect?
+              self.abort(span, message)
+            }
           }
-          let message =
-            $|Effect \{show_block_type(tpe)} is not allowed in this context.
-            $|
-            $|Maybe try annotating the function with the effect?
-          self.abort(span, message)
-        }
       }
   }
 }

@@ -22,7 +22,7 @@ moon build --target js 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { Pop-Location; exit 1 }
 
 $cli = Join-Path $root "_build/js/debug/build/cmd/main/main.js"
-$baseline = 15
+$baseline = 21
 
 $ok = 0
 $failures = @{}

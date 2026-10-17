@@ -354,3 +354,55 @@ test "a variable in an explicit region is a reference" {
   }
   assert_true(errors.length() == 0)
 }
+
+///|
+/// Uniform function call syntax on a *block parameter* has to keep looking in
+/// the enclosing scopes: `lookupFirstBlockParam` only stops at the innermost
+/// scope that *binds* the name, so `eq` of `contains` stays visible inside the
+/// nested block literal (`list.contains` in the standard library does this).
+test "a block parameter is visible inside a nested block literal" {
+  let text =
+    #|def apply[A](x: A) { f: A => Bool }: Bool = f(x)
+    #|def contains[A](x: A) { eq: (A, A) => Bool }: Bool = apply(x) { y => y.eq(x) }
+    #|def main() = contains(1) { (a, b) => true }
+    #|
+  let messages = check_program("ufcs_block_param.effekt", text)
+  let errors = messages.filter(m => m.severity == @util.Error)
+  if errors.length() > 0 {
+    println(@compiler.render_messages(errors))
+  }
+  assert_true(errors.length() == 0)
+}
+
+///|
+/// `do emit(Empty())` performs `emit[Box[?T]]` because `Empty()` has no
+/// argument to infer `T` from. The declaration says `emit[Box[A]]`, so the
+/// capability has to be found by unifying against the capabilities in scope
+/// (upstream `BindSome.tryLexicalCapabilityFor`).
+test "an unsolved effect argument is solved from the declaration" {
+  let text =
+    #|type Box[A] {
+    #|  Empty()
+    #|  Full(value: A)
+    #|}
+    #|interface emit[T] {
+    #|  def emit(value: T): Unit
+    #|}
+    #|def produce[A](): Unit / emit[Box[A]] = { do emit(Empty()) }
+    #|
+  let messages = check_program("effect_arg.effekt", text)
+  let errors = messages.filter(m => m.severity == @util.Error)
+  if errors.length() > 0 {
+    println(@compiler.render_messages(errors))
+  }
+  assert_true(errors.length() == 0)
+}
+
+///|
+/// `list.effekt` defines `each` and `contains` without result annotations and
+/// uses them across modules (`list::each`, `list::any`); their inferred types
+/// only exist in the context annotations of the module that defined them.
+test "a library module that uses cross-module inferred types type-checks" {
+  let result = frontend_only("libraries/common/list.effekt")
+  assert_true(!result.failed)
+}
