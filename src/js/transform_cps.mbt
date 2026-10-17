@@ -248,7 +248,7 @@ pub fn compile_cps(
 ) -> String raise EffektError {
   reset_naming()
   check_main_signature(core_module, main)
-  let module_ = input
+  let module = input
   let declarations = @core.DeclarationContext::new(
     core_module.declarations,
     core_module.externs,
@@ -262,7 +262,7 @@ pub fn compile_cps(
     ),
   ]
   let extern_defs : Map[Int32, @cps.Extern] = Map([])
-  for e in module_.externs {
+  for e in module.externs {
     match e {
       @cps.ExternDef(id, _, _, _, _) => extern_defs.set(id.uid(), e)
       _ => ()
@@ -278,21 +278,21 @@ pub fn compile_cps(
     declarations,
   }
   let js_externs : Array[Stmt] = []
-  for e in module_.externs {
+  for e in module.externs {
     if !can_inline(e) {
       js_externs.push(to_js_extern(e, ctx))
     }
   }
   let js_declarations : Array[Stmt] = []
-  for d in module_.declarations {
+  for d in module.declarations {
     js_declarations.append(to_js_declaration(d))
   }
   let stmts : Array[Stmt] = []
-  for d in module_.definitions {
+  for d in module.definitions {
     stmts.push(to_js_toplevel(d, ctx))
   }
   let js_module = Module::new(
-    JSName::new(js_module_name(module_.path)),
+    JSName::new(js_module_name(module.path)),
     [],
     exports,
     js_declarations + js_externs + stmts,
@@ -1243,12 +1243,12 @@ fn to_js_stmt(
             ),
           ])
       }
-    @cps.Stmt::Invoke(callee, method_, vargs, bargs, ks, k) =>
+    @cps.Stmt::Invoke(callee, method, vargs, bargs, ks, k) =>
       pure([
         Return(
           method_call(
             to_js_block_expr(callee, ctx),
-            member_name_ref(method_),
+            member_name_ref(method),
             vargs.map(v => to_js_cps_expr(v, ctx)) +
             bargs.map(b => argument_to_js(b, ctx)) +
             [to_js_metacont(ks, ctx), to_js_cont(k, ctx)],
@@ -1305,13 +1305,13 @@ fn to_js_stmt(
     @cps.Stmt::Dealloc(_ref, body) => to_js_stmt(body, ctx)
 
     // const id = ref.value; body
-    @cps.Stmt::Get(ref_, id, body) =>
+    @cps.Stmt::Get(ref, id, body) =>
       {
         run: k => {
           [
             Const(
               PatternVariable(name_def(id)),
-              Member(name_ref(ref_), JSName::new("value")),
+              Member(name_ref(ref), JSName::new("value")),
             ),
           ] +
           (to_js_stmt(body, ctx).run)(k)
@@ -1319,12 +1319,12 @@ fn to_js_stmt(
       }
 
     // ref.set(value); body
-    @cps.Stmt::Put(ref_, value, body) =>
+    @cps.Stmt::Put(ref, value, body) =>
       {
         run: k => {
           [
             ExprStmt(
-              method_call(name_ref(ref_), JSName::new("set"), [
+              method_call(name_ref(ref), JSName::new("set"), [
                 to_js_cps_expr(value, ctx),
               ]),
             ),

@@ -9,7 +9,7 @@
 ///|
 test "binding the same symbol twice is a no-op" {
   let b = @symbols.Bindings::empty()
-  let sym = @symbols.Sym::capture_param(@symbols.Name::local_("Tuple2"))
+  let sym = @symbols.Sym::capture_param(@symbols.Name::local("Tuple2"))
   b.add_term("Tuple2", sym)
   b.add_term("Tuple2", sym)
   assert_true(b.terms.get("Tuple2") is Some([s]) && @symbols.sym_eq(s, sym))
@@ -18,8 +18,8 @@ test "binding the same symbol twice is a no-op" {
 ///|
 test "binding different symbols under one name stays ambiguous" {
   let b = @symbols.Bindings::empty()
-  let first = @symbols.Sym::capture_param(@symbols.Name::local_("Tuple2"))
-  let second = @symbols.Sym::capture_param(@symbols.Name::local_("Tuple2"))
+  let first = @symbols.Sym::capture_param(@symbols.Name::local("Tuple2"))
+  let second = @symbols.Sym::capture_param(@symbols.Name::local("Tuple2"))
   b.add_term("Tuple2", first)
   b.add_term("Tuple2", second)
   let bound = b.terms.get("Tuple2").unwrap()
@@ -30,7 +30,7 @@ test "binding different symbols under one name stays ambiguous" {
 ///|
 test "importing a module twice does not duplicate its terms" {
   let source = @symbols.Bindings::empty()
-  let sym = @symbols.Sym::capture_param(@symbols.Name::local_("Nil"))
+  let sym = @symbols.Sym::capture_param(@symbols.Name::local("Nil"))
   source.add_term("Nil", sym)
   let target = @symbols.Bindings::empty()
   target.import_all(source)

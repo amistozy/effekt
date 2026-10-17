@@ -209,10 +209,10 @@ fn contify_in_stmt(id : Sym, s : Stmt) -> Stmt {
         ks,
         contify_in_cont(id, k),
       )
-    Invoke(callee, method_, vargs, bargs, ks, k) =>
+    Invoke(callee, method, vargs, bargs, ks, k) =>
       Invoke(
         contify_in_block(id, callee),
-        method_,
+        method,
         vargs.map(e => contify_in_expr(id, e)),
         bargs.map(b => contify_in_block(id, b)),
         ks,
@@ -259,10 +259,10 @@ fn contify_in_stmt(id : Sym, s : Stmt) -> Stmt {
       Alloc(id2, contify_in_expr(id, init), region, contify_in_stmt(id, body))
     Var(id2, init, ks, body) =>
       Var(id2, contify_in_expr(id, init), ks, contify_in_stmt(id, body))
-    Dealloc(ref_, body) => Dealloc(ref_, contify_in_stmt(id, body))
-    Get(ref_, id2, body) => Get(ref_, id2, contify_in_stmt(id, body))
-    Put(ref_, value, body) =>
-      Put(ref_, contify_in_expr(id, value), contify_in_stmt(id, body))
+    Dealloc(ref, body) => Dealloc(ref, contify_in_stmt(id, body))
+    Get(ref, id2, body) => Get(ref, id2, contify_in_stmt(id, body))
+    Put(ref, value, body) =>
+      Put(ref, contify_in_expr(id, value), contify_in_stmt(id, body))
     Reset(prog, ks, k) =>
       Reset(contify_in_block_lit(id, prog), ks, contify_in_cont(id, k))
     Shift(prompt, body, ks, k) =>
@@ -435,10 +435,10 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
         ks,
         rewrite_cont(k),
       )
-    Invoke(callee, method_, vargs, bargs, ks, k) =>
+    Invoke(callee, method, vargs, bargs, ks, k) =>
       Invoke(
         rewrite_block(callee),
-        method_,
+        method,
         vargs.map(e => rewrite_expr(e)),
         bargs.map(b => rewrite_block(b)),
         ks,
@@ -477,9 +477,9 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
       Alloc(id, rewrite_expr(init), region, rewrite_stmt(body))
     Var(id, init, ks, body) =>
       Var(id, rewrite_expr(init), ks, rewrite_stmt(body))
-    Dealloc(ref_, body) => Dealloc(ref_, rewrite_stmt(body))
-    Get(ref_, id, body) => Get(ref_, id, rewrite_stmt(body))
-    Put(ref_, value, body) => Put(ref_, rewrite_expr(value), rewrite_stmt(body))
+    Dealloc(ref, body) => Dealloc(ref, rewrite_stmt(body))
+    Get(ref, id, body) => Get(ref, id, rewrite_stmt(body))
+    Put(ref, value, body) => Put(ref, rewrite_expr(value), rewrite_stmt(body))
     Reset(prog, ks, k) => Reset(rewrite_block_lit(prog), ks, rewrite_cont(k))
     Shift(prompt, body, ks, k) =>
       Shift(prompt, rewrite_block_lit(body), ks, rewrite_cont(k))
@@ -607,21 +607,21 @@ fn rewrite_toplevel(
 
 ///|
 /// Rewrites a CPS module, contifying calls where possible.
-pub fn contify(module_ : ModuleDecl) -> ModuleDecl raise EffektError {
+pub fn contify(module : ModuleDecl) -> ModuleDecl raise EffektError {
   let externs : Array[Extern] = []
-  for e in module_.externs {
+  for e in module.externs {
     externs.push(rewrite_extern(e))
   }
   let definitions : Array[ToplevelDefinition] = []
-  for d in module_.definitions {
+  for d in module.definitions {
     definitions.push(rewrite_toplevel(d))
   }
   ModuleDecl::new(
-    module_.path,
-    module_.includes,
-    module_.declarations,
+    module.path,
+    module.includes,
+    module.declarations,
     externs,
     definitions,
-    module_.exports,
+    module.exports,
   )
 }

@@ -67,12 +67,12 @@ let show_string_concat_name : String = "infixPlusPlus"
 /// Mirrors `Show.requiredNames`; the backend passes the result to
 /// `core.deadcode` as entry points (see `@backend.emit`). It is also used by the
 /// tests to check the extern lookup.
-pub fn required_names(module_ : ModuleDecl) -> Array[Sym] {
+pub fn required_names(module : ModuleDecl) -> Array[Sym] {
   let required : Array[String] = [
     show_function_name, show_builtin_function_name, show_string_concat_name,
   ]
   let out : Array[Sym] = []
-  for e in module_.externs {
+  for e in module.externs {
     match e {
       ExternDef(id, _, _, _, _, _, _, _, _) =>
         if required.any(name => name == id.name().name) && !sym_in(id, out) {
@@ -877,23 +877,23 @@ fn ShowContext::field_pure(
 ///
 /// The generated definitions are appended to the definitions of the module,
 /// exactly like upstream's `Toplevel.Def`s.
-pub fn show_phase(module_ : ModuleDecl) -> ModuleDecl raise EffektError {
+pub fn show_phase(module : ModuleDecl) -> ModuleDecl raise EffektError {
   let ctx = ShowContext::new()
-  let dctx = DeclarationContext::new(module_.declarations, module_.externs)
+  let dctx = DeclarationContext::new(module.declarations, module.externs)
   let definitions : Array[Toplevel] = []
-  for d in module_.definitions {
+  for d in module.definitions {
     definitions.push(ctx.transform_toplevel(dctx, d))
   }
   for defn in ctx.all_show_defs() {
     definitions.push(defn)
   }
   ModuleDecl::new(
-    module_.path,
-    module_.includes,
-    module_.declarations,
-    module_.externs,
+    module.path,
+    module.includes,
+    module.declarations,
+    module.externs,
     definitions,
-    module_.exports,
+    module.exports,
   )
 }
 
@@ -1088,13 +1088,13 @@ fn ShowContext::transform_stmt(
         App(self.transform_block(dctx, callee), targs, vargs_, bargs_)
       })
     }
-    Invoke(callee, method_, method_tpe, targs, vargs, bargs) => {
+    Invoke(callee, method, method_tpe, targs, vargs, bargs) => {
       let vargs_ = vargs.map(e => self.transform_expr(dctx, e))
       let bargs_ = bargs.map(b => self.transform_block(dctx, b))
       self.with_bindings(() => {
         Invoke(
           self.transform_block(dctx, callee),
-          method_,
+          method,
           method_tpe,
           targs,
           vargs_,
@@ -1136,24 +1136,24 @@ fn ShowContext::transform_stmt(
         Alloc(id, init_, region, self.transform_stmt(dctx, body))
       })
     }
-    Var(ref_, init, capture, body) => {
+    Var(ref, init, capture, body) => {
       let init_ = self.transform_expr(dctx, init)
       self.with_bindings(() => {
-        Var(ref_, init_, capture, self.transform_stmt(dctx, body))
+        Var(ref, init_, capture, self.transform_stmt(dctx, body))
       })
     }
-    Get(id, annotated_tpe, ref_, annotated_capt, body) =>
+    Get(id, annotated_tpe, ref, annotated_capt, body) =>
       Get(
         id,
         annotated_tpe,
-        ref_,
+        ref,
         annotated_capt,
         self.transform_stmt(dctx, body),
       )
-    Put(ref_, annotated_capt, value, body) => {
+    Put(ref, annotated_capt, value, body) => {
       let value_ = self.transform_expr(dctx, value)
       self.with_bindings(() => {
-        Put(ref_, annotated_capt, value_, self.transform_stmt(dctx, body))
+        Put(ref, annotated_capt, value_, self.transform_stmt(dctx, body))
       })
     }
     Reset(body) => Reset(self.transform_block_lit(dctx, body))

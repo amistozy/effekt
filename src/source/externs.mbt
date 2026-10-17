@@ -61,14 +61,14 @@ fn unsupported_error(bodies : Array[ExternBody], ctx : Context) -> ExternBody {
 ///|
 /// Rewrites the module, selecting the extern body that applies to this backend.
 pub fn resolve_extern_defs(
-  module_ : ModuleDecl,
+  module : ModuleDecl,
   ctx : Context,
 ) -> ModuleDecl raise EffektError {
   let defs : Array[Def] = []
-  for d in module_.defs {
+  for d in module.defs {
     defs.append(resolve_extern_def(d, ctx))
   }
-  { ..module_, defs, }
+  { ..module, defs, }
 }
 
 ///|

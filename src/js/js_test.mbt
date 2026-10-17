@@ -44,7 +44,7 @@ test "js pretty: module skeleton (virtual)" {
     #|  return RUN_TOPLEVEL(main_1);
     #|};
     #|module.exports = {};
-  assert_eq(@js.show_stmts(m.virtual_()), expected)
+  assert_eq(@js.show_stmts(m.virtual()), expected)
 }
 
 ///|
@@ -83,7 +83,7 @@ test "js pretty: import statements" {
     #|const {x,y} = load("other.js");
     #|const mymod = {};
     #|module.exports = {};
-  assert_eq(@js.show_stmts(m.virtual_()), expected)
+  assert_eq(@js.show_stmts(m.virtual()), expected)
 }
 
 ///|

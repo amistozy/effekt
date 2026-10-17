@@ -55,7 +55,7 @@ fn Typer::check_expr_as_block_kind(
                   vps.push(
                     @symbols.ValueType::ValueTypeRef(
                       self.fresh_type_var(
-                        Sym::type_param(Name::local_("_"), Span::missing()),
+                        Sym::type_param(Name::local("_"), Span::missing()),
                       ),
                     ),
                   )
@@ -226,7 +226,7 @@ pub fn Typer::check_function_argument(
         let sym = self.symbol_of_def(p.id)
         let capture = match sym {
           @symbols.Sym::BlockParam(bp) => bp.capture
-          _ => Sym::capture_param(Name::local_("anon"))
+          _ => Sym::capture_param(Name::local("anon"))
         }
         let tpe = match symbol_block_type(sym) {
           Some(got) => {
@@ -246,7 +246,7 @@ pub fn Typer::check_function_argument(
         self.fresh_capability_for(e, Sym::capture_param(effect_name(e)))
       })
       let capt_params = block_types.map(_ => {
-        Sym::capture_param(Name::local_("x"))
+        Sym::capture_param(Name::local("x"))
       })
       ignore(capt_params)
 
@@ -254,7 +254,7 @@ pub fn Typer::check_function_argument(
       for i = 0; i < bparams.length(); i = i + 1 {
         match self.symbol_of_def(bparams[i].id) {
           @symbols.Sym::BlockParam(bp) => capt_param_syms.push(bp.capture)
-          _ => capt_param_syms.push(Sym::capture_param(Name::local_("anon")))
+          _ => capt_param_syms.push(Sym::capture_param(Name::local("anon")))
         }
       }
       for c in capabilities {
@@ -364,7 +364,7 @@ pub fn Typer::infer_function_argument(
       for p in bparams {
         match self.symbol_of_def(p.id) {
           @symbols.Sym::BlockParam(bp) => capt_param_syms.push(bp.capture)
-          _ => capt_param_syms.push(Sym::capture_param(Name::local_("anon")))
+          _ => capt_param_syms.push(Sym::capture_param(Name::local("anon")))
         }
       }
       for c in capabilities {
@@ -539,7 +539,7 @@ fn Typer::check_op_clause(
       for p in clause.bparams {
         match self.symbol_of_def(p.id) {
           @symbols.Sym::BlockParam(bp) => cparams_for_blocks.push(bp.capture)
-          _ => cparams_for_blocks.push(Sym::capture_param(Name::local_("anon")))
+          _ => cparams_for_blocks.push(Sym::capture_param(Name::local("anon")))
         }
       }
       let cparams_for_effects = canonical.map(t => {
@@ -567,7 +567,7 @@ fn Typer::check_op_clause(
         let sym = self.symbol_of_def(p.id)
         let capture = match sym {
           @symbols.Sym::BlockParam(bp) => bp.capture
-          _ => Sym::capture_param(Name::local_("anon"))
+          _ => Sym::capture_param(Name::local("anon"))
         }
         let annotated = symbol_block_type(sym)
         match annotated {
@@ -639,7 +639,7 @@ fn Typer::check_op_clause(
           tpe,
           effs.distinct(),
         )
-        let resume_capt = Sym::capture_param(Name::local_("resumeBlock"))
+        let resume_capt = Sym::capture_param(Name::local("resumeBlock"))
         @symbols.BlockType::FunctionType(
           [],
           captures_of_params([resume_capt]),
@@ -658,7 +658,7 @@ fn Typer::check_op_clause(
           Effects::empty(),
         )
       }
-      let resume_sym = self.symbol_of_def(clause.resume_)
+      let resume_sym = self.symbol_of_def(clause.resume)
       self.bind_block(resume_sym, resume_type)
       self.bind_capture(
         resume_sym,

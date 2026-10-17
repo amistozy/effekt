@@ -33,13 +33,13 @@ pub fn emit(
   for m in modules {
     let tree = @source.resolve_extern_defs(m.tree, ctx)
     let tree = @source.explicit_capabilities(tree, ctx)
-    let exports = exports_of(m.module_)
-    let core = @core.transform_with_exports(tree, m.module_.path, ctx, exports)
+    let exports = exports_of(m.module)
+    let core = @core.transform_with_exports(tree, m.module.path, ctx, exports)
     cores.push(core)
   }
   // 2. Aggregate into a single core module.
   let main_module = modules[modules.length() - 1]
-  let aggregated = aggregate(cores, main_module.module_.path)
+  let aggregated = aggregate(cores, main_module.module.path)
   // 2b. Remove the definitions and externs that `main` cannot reach (upstream:
   //     `Aggregate andThen Deadcode andThen core.Show andThen ...`). This keeps
   //     unreachable externs — e.g. the llvm-only ones of the prelude — from
@@ -50,7 +50,7 @@ pub fn emit(
   if main_sym is None {
     ctx.abort(
       Span::missing(),
-      "Cannot find the entry point 'main' in module \{main_module.module_.path}.",
+      "Cannot find the entry point 'main' in module \{main_module.module.path}.",
     )
   }
   let main_sym = main_sym.unwrap()
@@ -88,9 +88,9 @@ pub fn emit(
 
 ///|
 /// All term symbols exported by a module.
-pub fn exports_of(module_ : @symbols.Module) -> Array[Sym] {
+pub fn exports_of(module : @symbols.Module) -> Array[Sym] {
   let out : Array[Sym] = []
-  for _name, syms in module_.exports.terms {
+  for _name, syms in module.exports.terms {
     for s in syms {
       if !sym_in(s, out) {
         out.push(s)
@@ -102,8 +102,8 @@ pub fn exports_of(module_ : @symbols.Module) -> Array[Sym] {
 
 ///|
 /// Finds a term by name among the exported terms of a module.
-pub fn find_exported(module_ : @symbols.Module, name : String) -> Sym? {
-  match module_.exports.terms.get(name) {
+pub fn find_exported(module : @symbols.Module, name : String) -> Sym? {
+  match module.exports.terms.get(name) {
     Some(syms) => if syms.length() == 0 { None } else { Some(syms[0]) }
     None => None
   }
@@ -115,14 +115,14 @@ pub fn find_main(modules : Array[@namer.ResolvedModule]) -> Sym? {
   if modules.length() == 0 {
     return None
   }
-  find_exported(modules[modules.length() - 1].module_, main_name())
+  find_exported(modules[modules.length() - 1].module, main_name())
 }
 
 ///|
 /// The prelude's `infixEq`, used to compile literal patterns.
 pub fn find_infix_eq(modules : Array[@namer.ResolvedModule]) -> Sym? {
   for m in modules {
-    match find_exported(m.module_, "infixEq") {
+    match find_exported(m.module, "infixEq") {
       Some(s) => return Some(s)
       None => ()
     }

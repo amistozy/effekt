@@ -129,7 +129,7 @@ pub(all) struct Module {
 }
 pub fn Module::commonjs(Self) -> Array[Stmt]
 pub fn Module::new(@symbols.JSName, Array[Import], Array[Export], Array[Stmt]) -> Self
-pub fn Module::virtual_(Self) -> Array[Stmt]
+pub fn Module::virtual(Self) -> Array[Stmt]
 
 pub(all) struct ObjectProperty {
   name : @symbols.JSName

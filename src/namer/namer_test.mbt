@@ -152,19 +152,19 @@ fn module_decl(
 
 ///|
 fn resolve_ok(
-  module_ : @source.ModuleDecl,
+  module : @source.ModuleDecl,
   context : @source.Context,
 ) -> @namer.ResolvedModule? {
-  resolve_with(module_, context, Map([]))
+  resolve_with(module, context, Map([]))
 }
 
 ///|
 fn resolve_with(
-  module_ : @source.ModuleDecl,
+  module : @source.ModuleDecl,
   context : @source.Context,
   deps : Map[String, @namer.ResolvedModule],
 ) -> @namer.ResolvedModule? {
-  Some(@namer.resolve_module(module_, context, deps)) catch {
+  Some(@namer.resolve_module(module, context, deps)) catch {
     _ => None
   }
 }
@@ -337,8 +337,8 @@ test "resolves a function definition and a forward call" {
     Some(pure(type_ref("Int"))),
     returns(x_use),
   )
-  let module_ = module_decl("test", [], [main, foo])
-  match resolve_ok(module_, context) {
+  let module = module_decl("test", [], [main, foo])
+  match resolve_ok(module, context) {
     Some(_) => {
       assert_true(is_user_function_named(context, foo_id.uid, ["test"], "foo"))
       assert_eq(symbol_kind(context, x_id.uid), "ValueParam")
@@ -367,28 +367,28 @@ test "a local val shadows a toplevel val" {
   let context = fresh_context()
   let toplevel_id = id_def("x")
   let local_id = id_def("x")
-  let use_ = var_ref("x")
+  let use = var_ref("x")
   let body = @source.mk_stmt(
     sp(),
     @source.StmtKind::DefStmt(
       val_def(local_id, returns(int_lit(2))),
-      returns(use_),
+      returns(use),
     ),
   )
   let main = fun_def(id_def("main"), [], None, body)
-  let module_ = module_decl("test", [], [
+  let module = module_decl("test", [], [
     val_def(toplevel_id, returns(int_lit(1))),
     main,
   ])
-  match resolve_ok(module_, context) {
+  match resolve_ok(module, context) {
     Some(_) => {
       assert_eq(symbol_kind(context, toplevel_id.uid), "ValBinder")
       assert_eq(symbol_kind(context, local_id.uid), "ValBinder")
       // the two binders are different symbols ...
       assert_true(!same_symbol(context, toplevel_id.uid, local_id.uid))
       // ... and the use refers to the local one
-      assert_true(same_symbol(context, use_.uid, local_id.uid))
-      assert_true(!same_symbol(context, use_.uid, toplevel_id.uid))
+      assert_true(same_symbol(context, use.uid, local_id.uid))
+      assert_true(!same_symbol(context, use.uid, toplevel_id.uid))
     }
     None => {
       println(messages(context))
@@ -407,7 +407,7 @@ test "resolves type and data declarations and type references" {
   let cons_id = id_def("Cons")
   let param_tpe = type_ref("Num")
   let n_id = id_def("n")
-  let use_ = var_ref("n")
+  let use = var_ref("n")
   let type_def = @source.mk_def(
     sp(),
     @source.Info::empty(),
@@ -442,10 +442,10 @@ test "resolves type and data declarations and type references" {
     id_def("f"),
     [vparam(n_id, Some(param_tpe))],
     Some(pure(type_ref("Num"))),
-    returns(use_),
+    returns(use),
   )
-  let module_ = module_decl("test", [], [type_def, data_def, fun])
-  match resolve_ok(module_, context) {
+  let module = module_decl("test", [], [type_def, data_def, fun])
+  match resolve_ok(module, context) {
     Some(_) => {
       assert_eq(symbol_kind(context, num_id.uid), "TypeAlias")
       assert_eq(symbol_kind(context, list_id.uid), "DataType")
@@ -527,7 +527,7 @@ test "resolves an effect declaration, its operations and a handler with resume" 
     bparams: [],
     ret: None,
     body: returns(resume_call),
-    resume_: resume_id,
+    resume: resume_id,
   }
   let handler = @source.Handler::{
     uid: @util.fresh_uid(),
@@ -545,8 +545,8 @@ test "resolves an effect declaration, its operations and a handler with resume" 
     @source.TermKind::TryHandle(expr(do_call, returns(int_lit(0))), [handler]),
   )
   let main = fun_def(id_def("main"), [], None, returns(try_handle))
-  let module_ = module_decl("test", [], [effect_def, main])
-  match resolve_ok(module_, context) {
+  let module = module_decl("test", [], [effect_def, main])
+  match resolve_ok(module, context) {
     Some(_) => {
       assert_eq(symbol_kind(context, exc_id.uid), "Interface")
       assert_eq(symbol_kind(context, op_id.uid), "Operation")
@@ -612,8 +612,8 @@ test "resolves dotted references into a namespace" {
     None,
     expr(dotted, expr(fully_dotted, returns(int_lit(0)))),
   )
-  let module_ = module_decl("test", [], [namespace_def, main])
-  match resolve_ok(module_, context) {
+  let module = module_decl("test", [], [namespace_def, main])
+  match resolve_ok(module, context) {
     Some(_) => {
       assert_true(
         is_user_function_named(context, bar_id.uid, ["test", "foo"], "bar"),
@@ -662,15 +662,15 @@ test "imports an included module's exports" {
         None,
         expr(opened, expr(qualified, returns(int_lit(0)))),
       )
-      let module_ = module_decl(
+      let module = module_decl(
         "app",
         [@source.Include::{ path: "lib", span: sp(), }],
         [main],
       )
       let deps : Map[String, @namer.ResolvedModule] = { "lib": lib }
-      match resolve_with(module_, context, deps) {
+      match resolve_with(module, context, deps) {
         Some(resolved) => {
-          assert_eq(resolved.module_.includes.length(), 1)
+          assert_eq(resolved.module.includes.length(), 1)
           // the symbol lives in the *dependency's* context
           match lib_context.symbol_of(inc_id.uid) {
             Some(inc_sym) => {
@@ -680,7 +680,7 @@ test "imports an included module's exports" {
             None => assert_true(false)
           }
           // the module does not re-export what it imports
-          match resolved.module_.exports.terms.get("inc") {
+          match resolved.module.exports.terms.get("inc") {
             Some(_) => assert_true(false)
             None => assert_true(true)
           }
@@ -711,24 +711,24 @@ test "a local definition shadows an imported name" {
       // module `app` defines its own `answer` and uses it
       let context = fresh_context()
       let local_answer_id = id_def("answer")
-      let use_ = var_ref("answer")
-      let module_ = module_decl(
+      let use = var_ref("answer")
+      let module = module_decl(
         "app",
         [@source.Include::{ path: "lib", span: sp(), }],
         [
           val_def(local_answer_id, returns(int_lit(2))),
-          fun_def(id_def("main"), [], None, returns(use_)),
+          fun_def(id_def("main"), [], None, returns(use)),
         ],
       )
       let deps : Map[String, @namer.ResolvedModule] = { "lib": lib }
-      match resolve_with(module_, context, deps) {
+      match resolve_with(module, context, deps) {
         Some(_) => {
           // the definition shadows the imported name instead of being ambiguous
           assert_true(!context.has_errors())
-          assert_true(same_symbol(context, use_.uid, local_answer_id.uid))
+          assert_true(same_symbol(context, use.uid, local_answer_id.uid))
           match lib_context.symbol_of(lib_answer_id.uid) {
             Some(imported) =>
-              assert_true(!same_symbol(context, use_.uid, imported.uid()))
+              assert_true(!same_symbol(context, use.uid, imported.uid()))
             None => assert_true(false)
           }
         }
@@ -764,8 +764,8 @@ test "resolves a record, its constructor and field selectors" {
     Some(pure(type_ref("Int"))),
     returns(select),
   )
-  let module_ = module_decl("test", [], [record_def, fun])
-  match resolve_ok(module_, context) {
+  let module = module_decl("test", [], [record_def, fun])
+  match resolve_ok(module, context) {
     Some(_) => {
       assert_eq(symbol_kind(context, point_id.uid), "Record")
       // the field accessor resolves through a call target containing the Field
@@ -799,8 +799,8 @@ test "resolves a def (block) definition and a call to it" {
     None,
     expr(the_call, returns(int_lit(0))),
   )
-  let module_ = module_decl("test", [], [bar, main])
-  match resolve_ok(module_, context) {
+  let module = module_decl("test", [], [bar, main])
+  match resolve_ok(module, context) {
     Some(_) => {
       assert_eq(symbol_kind(context, bar_id.uid), "DefBinder")
       match context.symbol_of(bar_id.uid) {
@@ -828,8 +828,8 @@ test "resolves a hole and numbers it after the enclosing definition" {
     ),
   )
   let main = fun_def(id_def("main"), [], None, returns(hole))
-  let module_ = module_decl("test", [], [main])
-  match resolve_ok(module_, context) {
+  let module = module_decl("test", [], [main])
+  match resolve_ok(module, context) {
     Some(resolved) => {
       assert_eq(symbol_kind(context, hole_id.uid), "Hole")
       match context.symbol_of(hole_id.uid) {
@@ -849,14 +849,14 @@ test "resolves a hole and numbers it after the enclosing definition" {
 ///|
 test "a missing include is reported and skipped" {
   let context = fresh_context()
-  let module_ = module_decl(
+  let module = module_decl(
     "app",
     [@source.Include::{ path: "missing", span: sp(), }],
     [fun_def(id_def("main"), [], None, returns(int_lit(0)))],
   )
-  match resolve_ok(module_, context) {
+  match resolve_ok(module, context) {
     Some(resolved) => {
-      assert_eq(resolved.module_.includes.length(), 0)
+      assert_eq(resolved.module.includes.length(), 0)
       assert_true(context.has_errors())
     }
     None => assert_true(false)
@@ -867,10 +867,10 @@ test "a missing include is reported and skipped" {
 test "the `resolve` entry point publishes the module in the context" {
   let context = fresh_context()
   let main_id = id_def("main")
-  let module_ = module_decl("test", [], [
+  let module = module_decl("test", [], [
     fun_def(main_id, [], None, returns(int_lit(0))),
   ])
-  @namer.resolve(module_, context) catch {
+  @namer.resolve(module, context) catch {
     _ => {
       println(messages(context))
       assert_true(false)
@@ -893,10 +893,10 @@ test "the `resolve` entry point publishes the module in the context" {
 ///|
 test "reports unresolved names instead of silently accepting them" {
   let context = fresh_context()
-  let module_ = module_decl("test", [], [
+  let module = module_decl("test", [], [
     fun_def(id_def("main"), [], None, returns(var_ref("doesNotExist"))),
   ])
-  assert_true(resolve_ok(module_, context) is None)
+  assert_true(resolve_ok(module, context) is None)
   assert_true(context.has_errors())
 }
 
@@ -952,9 +952,9 @@ test "an importer resolved after its dependency sees its terms and types" {
     }
     Some(lib) => {
       // the dependency itself exports its interface and its function
-      assert_true(has_type(lib.module_.exports, "Box"))
-      assert_true(has_type(lib.module_.exports, "Pair"))
-      assert_true(has_term(lib.module_.exports, "make"))
+      assert_true(has_type(lib.module.exports, "Box"))
+      assert_true(has_type(lib.module.exports, "Pair"))
+      assert_true(has_term(lib.module.exports, "make"))
       let box_uid = match context.symbol_of(box_id.uid) {
         Some(sym) => sym.uid()
         None => -1
@@ -988,7 +988,7 @@ test "an importer resolved after its dependency sees its terms and types" {
               bparams: [],
               ret: None,
               body: returns(unit_lit()),
-              resume_: id_def("resume"),
+              resume: id_def("resume"),
             },
           ],
         },
@@ -1017,7 +1017,7 @@ test "an importer resolved after its dependency sees its terms and types" {
       match resolve_with(app_module, context, deps) {
         Some(app) => {
           // including a module twice imports it once
-          assert_eq(app.module_.includes.length(), 1)
+          assert_eq(app.module.includes.length(), 1)
           assert_true(!context.has_errors())
           // the *type* `Box[Int]` of the dependency resolves to the same symbol
           match context.symbol_of(box_int.uid) {
@@ -1041,9 +1041,9 @@ test "an importer resolved after its dependency sees its terms and types" {
             None => assert_true(false)
           }
           // resolving the importer did not corrupt the dependency's exports
-          assert_true(has_type(lib.module_.exports, "Box"))
-          assert_true(has_type(lib.module_.exports, "Pair"))
-          assert_true(has_term(lib.module_.exports, "make"))
+          assert_true(has_type(lib.module.exports, "Box"))
+          assert_true(has_type(lib.module.exports, "Pair"))
+          assert_true(has_term(lib.module.exports, "make"))
         }
         None => {
           println(messages(context))

@@ -399,7 +399,7 @@ pub(all) struct OpClause {
   bparams : Array[BlockParam]
   ret : TypeTree?
   body : Stmt
-  resume_ : IdDef
+  resume : IdDef
 }
 
 pub(all) struct Operation {

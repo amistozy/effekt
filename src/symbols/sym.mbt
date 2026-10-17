@@ -21,7 +21,7 @@ fn base(name : Name, decl : Span) -> SymBase {
 
 ///|
 fn anon_base(name : String) -> SymBase {
-  { uid: fresh_uid(), name: Name::local_(name), decl: Span::missing(), }
+  { uid: fresh_uid(), name: Name::local(name), decl: Span::missing(), }
 }
 
 // ---------------------------------------------------------------------------
@@ -153,7 +153,7 @@ pub(all) struct ConstructorSym {
 pub(all) struct FieldSym {
   base : SymBase
   param : Sym
-  constructor_ : Sym
+  constructor : Sym
 }
 
 ///|
@@ -205,7 +205,7 @@ pub(all) struct DataTypeSym {
 pub(all) struct RecordSym {
   base : SymBase
   tparams : Array[Sym]
-  mut constructor_ : Sym
+  mut constructor : Sym
 }
 
 ///|
@@ -660,11 +660,11 @@ pub fn Sym::as_callable(self : Sym) -> CallableView? {
       })
     Field(f) =>
       Some({
-        tparams: constructor_tparams(f.constructor_),
+        tparams: constructor_tparams(f.constructor),
         vparams: [
           Sym::value_param(
-            f.constructor_.name(),
-            Some(constructor_applied_datatype(f.constructor_)),
+            f.constructor.name(),
+            Some(constructor_applied_datatype(f.constructor)),
             Span::missing(),
           ),
         ],

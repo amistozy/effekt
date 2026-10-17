@@ -50,11 +50,11 @@ pub fn clear_pattern_equality_function() -> Unit {
 /// `module_path` is the Effekt include path, e.g. "examples/hello". It is used
 /// when the source module does not carry a path itself.
 pub fn transform(
-  module_ : @source.ModuleDecl,
+  module : @source.ModuleDecl,
   module_path : String,
   ctx : @source.Context,
 ) -> ModuleDecl raise EffektError {
-  transform_with_exports(module_, module_path, ctx, [])
+  transform_with_exports(module, module_path, ctx, [])
 }
 
 ///|
@@ -63,14 +63,14 @@ pub fn transform(
 /// Upstream takes the exports from the namer's `Module` (`mod.exports`), which
 /// is not reachable from the source tree; use this entry point to pass them.
 pub fn transform_with_exports(
-  module_ : @source.ModuleDecl,
+  module : @source.ModuleDecl,
   module_path : String,
   ctx : @source.Context,
   exports : Array[Sym],
 ) -> ModuleDecl raise EffektError {
-  let t = Transformer::new(ctx, module_path, find_equality_function(module_))
+  let t = Transformer::new(ctx, module_path, find_equality_function(module))
   let toplevels : Array[CoreToplevel] = []
-  for d in module_.defs {
+  for d in module.defs {
     for x in t.transform_toplevel(d) {
       toplevels.push(x)
     }
@@ -86,19 +86,19 @@ pub fn transform_with_exports(
     }
   }
   t.assert_no_bindings()
-  let path = if module_.path != "" { module_.path } else { module_path }
-  let includes = module_.includes.map(i => i.path)
+  let path = if module.path != "" { module.path } else { module_path }
+  let includes = module.includes.map(i => i.path)
   ModuleDecl::new(path, includes, declarations, externs, definitions, exports)
 }
 
 ///|
 /// The equality function to use for literal patterns: the one installed by the
 /// driver, or an `infixEq` extern declared in the module itself.
-fn find_equality_function(module_ : @source.ModuleDecl) -> Sym? {
+fn find_equality_function(module : @source.ModuleDecl) -> Sym? {
   match pattern_equality_function.val {
     Some(sym) => Some(sym)
     None => {
-      for d in module_.defs {
+      for d in module.defs {
         match d.kind {
           @source.ExternDef(id, _, _, _, _, _, _) =>
             if id.name == "infixEq" {
@@ -106,7 +106,7 @@ fn find_equality_function(module_ : @source.ModuleDecl) -> Sym? {
                 Sym::ExternFunction({
                   base: {
                     uid: d.uid,
-                    name: Name::local_(id.name),
+                    name: Name::local(id.name),
                     decl: d.span,
                   },
                   tparams: [],
@@ -211,7 +211,7 @@ pub fn Transformer::new(
     prompt_ctor: Sym::ErrorBlockType({
       base: {
         uid: @util.fresh_uid(),
-        name: Name::local_("Prompt"),
+        name: Name::local("Prompt"),
         decl: Span::missing(),
       },
       tparams: [],
@@ -672,7 +672,7 @@ fn Transformer::transform_value_param(
 ) -> ValueParam {
   let sym = match self.ctx.symbol_of(p.id.uid) {
     Some(s) => s
-    None => Sym::value_param(Name::local_(p.id.name), None, p.id.span)
+    None => Sym::value_param(Name::local(p.id.name), None, p.id.span)
   }
   ValueParam::new(sym, self.transform_value_type(self.value_type_of_sym(sym)))
 }
@@ -686,9 +686,9 @@ fn Transformer::transform_block_param(
     Some(s) => s
     None =>
       Sym::block_param(
-        Name::local_(p.id.name),
+        Name::local(p.id.name),
         None,
-        Sym::capture_param(Name::local_(p.id.name)),
+        Sym::capture_param(Name::local(p.id.name)),
         false,
         p.id.span,
       )
@@ -936,7 +936,7 @@ fn Transformer::block_param_capture(
     Some(s) => s
     None =>
       Sym::block_param(
-        Name::local_(b.id.name),
+        Name::local(b.id.name),
         None,
         Sym::wildcard(),
         false,
@@ -978,7 +978,7 @@ fn type_constructor_tparams(sym : Sym) -> Array[Sym] {
 fn type_constructor_constructors(sym : Sym) -> Array[Sym] {
   match sym {
     DataType(d) => d.constructors
-    Record(r) => [r.constructor_]
+    Record(r) => [r.constructor]
     _ => []
   }
 }
@@ -1608,14 +1608,14 @@ fn Transformer::transform_as_stmt(
     // [[ sc.field ]] = val x = sc match { tag: { (_, _, x, _) => return x } }; ...
     @source.Select(receiver, selector) => {
       let field = self.sym_of_ref(selector)
-      let constructor_ = match field {
-        Field(f) => f.constructor_
+      let constructor = match field {
+        Field(f) => f.constructor
         _ => raise EffektError::Internal("Selection should refer to a field.")
       }
       let universals = type_constructor_tparams(
-        match constructor_ {
+        match constructor {
           Constructor(c) => c.tpe
-          _ => constructor_
+          _ => constructor
         },
       )
       let scrutinee_type_args = match self.inferred_type_of(receiver) {
@@ -1631,10 +1631,10 @@ fn Transformer::transform_as_stmt(
           vsubst.set(universals[i].uid(), scrutinee_type_args[i])
         }
       }
-      let selected = Sym::value_param(Name::local_("x"), None, tree.span)
+      let selected = Sym::value_param(Name::local("x"), None, tree.span)
       let tpe = self.transform_value_type(self.inferred_type_of(tree))
       let params : Array[ValueParam] = []
-      for f in constructor_fields(constructor_) {
+      for f in constructor_fields(constructor) {
         let ftpe = self.transform_value_type(
           substitute_value_type_with(field_return_type(f), vsubst, Map([])),
         )
@@ -1643,14 +1643,14 @@ fn Transformer::transform_as_stmt(
         } else {
           params.push(
             ValueParam::new(
-              Sym::value_param(Name::local_("_"), Some(ftpe), tree.span),
+              Sym::value_param(Name::local("_"), Some(ftpe), tree.span),
               ftpe,
             ),
           )
         }
       }
       let clause = Clause::new(
-        constructor_,
+        constructor,
         BlockLit::new([], [], params, [], Return(ValueVar(selected, tpe))),
       )
       Match(self.transform_as_expr(receiver), tpe, [clause], None)
@@ -1672,7 +1672,7 @@ fn Transformer::transform_as_stmt(
       // create a fresh prompt, a variable referring to it, and a parameter
       // binding it
       let prompt_id = Sym::tmp_block("p")
-      let prompt_capt = Sym::capture_param(Name::local_("pCapt"))
+      let prompt_capt = Sym::capture_param(Name::local("pCapt"))
       let prompt_tpe = self.prompt_type(answer_type)
       let prompt_var = BlockVar::new(
         prompt_id,
@@ -1996,7 +1996,7 @@ fn Transformer::transform_op_clause(
 
   match prompt {
     Some(prompt) => {
-      let resume_symbol = self.sym_of_id_def(cl.resume_)
+      let resume_symbol = self.sym_of_id_def(cl.resume)
       match self.block_type_of_sym(resume_symbol) {
         // uni-directional
         // ---------------
@@ -2118,7 +2118,7 @@ fn Transformer::transform_op_clause(
 
           // (2) eta-expand and bind continuation as a function
           let resume_arg_id = Sym::tmp_block("h")
-          let resume_arg_capture = Sym::capture_param(Name::local_("h"))
+          let resume_arg_capture = Sym::capture_param(Name::local("h"))
           let resume_arg_param = BlockParam::new(
             resume_arg_id,
             arg_tpe_core,
@@ -2201,11 +2201,11 @@ fn Transformer::transform_op_clause(
 fn Transformer::operation_at_callsite(
   self : Transformer,
   receiver : BlockType,
-  member_ : Sym,
+  member : Sym,
 ) -> BlockType raise EffektError {
   match receiver {
     InterfaceType(_i, targs) =>
-      match member_ {
+      match member {
         Operation(o) => {
           let vsubst : Map[Int32, ValueType] = Map([])
           for idx = 0; idx < o.tparams.length(); idx = idx + 1 {
@@ -2420,7 +2420,7 @@ fn Transformer::bound_in_pattern(
     @source.AnyPattern(id) => {
       let sym = match self.ctx.symbol_of(id.uid) {
         Some(s) => s
-        None => Sym::value_param(Name::local_(id.name), None, id.span)
+        None => Sym::value_param(Name::local(id.name), None, id.span)
       }
       [
         ValueParam::new(
@@ -2465,7 +2465,7 @@ fn Transformer::transform_pattern(
         Constructor(c) =>
           match c.tpe {
             DataType(dt) => dt.constructors
-            Record(r) => [r.constructor_]
+            Record(r) => [r.constructor]
             _ =>
               raise EffektError::Internal(
                 "Constructors can only be part of data types or records.",

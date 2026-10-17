@@ -447,10 +447,10 @@ fn pm_split_on_literal(
 /// The names of the fields of a constructor, padded with `"y"` when the symbol
 /// does not carry them (which only happens for hand-built trees).
 fn pm_constructor_field_names(
-  constructor_ : Sym,
+  constructor : Sym,
   arity : Int32,
 ) -> Array[String] {
-  let names : Array[String] = match constructor_ {
+  let names : Array[String] = match constructor {
     Constructor(c) => c.fields.map(f => f.name().name)
     _ => []
   }
@@ -494,7 +494,7 @@ fn pm_split_on_tag(
     match pm_split_clause(c, scrutinee) {
       Some(
         (
-          PMTag(constructor_, tparams, _, patterns_and_types),
+          PMTag(constructor, tparams, _, patterns_and_types),
           rest_patterns,
           rest_conds,
         )
@@ -502,9 +502,9 @@ fn pm_split_on_tag(
         // NOTE: Ideally, we would use a `DeclarationContext` here, but we
         // cannot: we're currently in the Source->Core transformer, so we do not
         // have all of the details yet.
-        if !vars_for.contains(constructor_.uid()) {
+        if !vars_for.contains(constructor.uid()) {
           let field_names = pm_constructor_field_names(
-            constructor_,
+            constructor,
             patterns_and_types.length(),
           )
           let vars : Array[PMVar] = []
@@ -518,15 +518,15 @@ fn pm_split_on_tag(
             }
             vars.push(
               PMVar::new(
-                Sym::value_param(Name::local_(name), Some(tpe), Span::missing()),
+                Sym::value_param(Name::local(name), Some(tpe), Span::missing()),
                 tpe,
               ),
             )
           }
-          vars_for.set(constructor_.uid(), vars)
-          tvars_for.set(constructor_.uid(), tparams)
+          vars_for.set(constructor.uid(), vars)
+          tvars_for.set(constructor.uid(), tparams)
         }
-        let field_vars = match vars_for.get(constructor_.uid()) {
+        let field_vars = match vars_for.get(constructor.uid()) {
           Some(v) => v
           None => ([] : Array[PMVar])
         }
@@ -547,9 +547,9 @@ fn pm_split_on_tag(
           conds.push(cond)
         }
         let cl = PMClause::new(conds, c.label, c.targs, c.args)
-        match clauses_for.get(constructor_.uid()) {
+        match clauses_for.get(constructor.uid()) {
           Some(list) => list.push(cl)
-          None => clauses_for.set(constructor_.uid(), [cl])
+          None => clauses_for.set(constructor.uid(), [cl])
         }
       }
       _ => {

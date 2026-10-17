@@ -25,7 +25,7 @@ pub fn Module::new(path : String, source : Span) -> Module {
   } else {
     segments[0:segments.length() - 1].to_owned()
   }
-  let local_ = if segments.length() == 0 {
+  let local = if segments.length() == 0 {
     path
   } else {
     segments[segments.length() - 1]
@@ -33,7 +33,7 @@ pub fn Module::new(path : String, source : Span) -> Module {
   {
     uid: fresh_uid(),
     path,
-    name: Name::qualified(prefix, local_),
+    name: Name::qualified(prefix, local),
     includes: [],
     exports: Bindings::empty(),
     source,

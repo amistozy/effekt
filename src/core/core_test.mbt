@@ -4,7 +4,7 @@
 ///|
 fn xsym(name : String) -> @symbols.Sym {
   @symbols.Sym::value_param(
-    @symbols.Name::local_(name),
+    @symbols.Name::local(name),
     Some(@symbols.t_int()),
     @util.Span::missing(),
   )
@@ -13,9 +13,9 @@ fn xsym(name : String) -> @symbols.Sym {
 ///|
 fn bsym(name : String) -> @symbols.Sym {
   @symbols.Sym::block_param(
-    @symbols.Name::local_(name),
+    @symbols.Name::local(name),
     None,
-    @symbols.Sym::capture_param(@symbols.Name::local_("cap")),
+    @symbols.Sym::capture_param(@symbols.Name::local("cap")),
     false,
     @util.Span::missing(),
   )

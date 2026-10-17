@@ -14,7 +14,7 @@
 /// The result of running the namer on one module.
 pub(all) struct ResolvedModule {
   /// The resolved module symbol: its exports and includes.
-  module_ : Module
+  module : Module
   /// The tree the module was resolved from.
   tree : @source.ModuleDecl
   /// The holes (`???`) of the module, in the order they were resolved.
@@ -31,15 +31,15 @@ pub(all) struct ResolvedModule {
 /// upstream's `importDependency`. Includes that are not in `deps` are reported
 /// as errors; a module without includes can be resolved with an empty map.
 pub fn resolve_module(
-  module_ : @source.ModuleDecl,
+  module : @source.ModuleDecl,
   context : @source.Context,
   deps : Map[String, ResolvedModule],
 ) -> ResolvedModule raise EffektError {
-  let mod = Module::new(module_.path, module_.span)
+  let mod = Module::new(module.path, module.span)
   let namer = new_namer(context, mod, deps)
-  namer.resolve_toplevel(module_)
+  namer.resolve_toplevel(module)
   mod.exports = namer.scoping.exports()
-  { module_: mod, tree: module_, holes: namer.holes, }
+  { module: mod, tree: module, holes: namer.holes, }
 }
 
 ///|
@@ -48,11 +48,11 @@ pub fn resolve_module(
 /// drivers that only need the annotations on the tree; use `resolve_module`
 /// when you also need the exports, includes or holes.
 pub fn resolve(
-  module_ : @source.ModuleDecl,
+  module : @source.ModuleDecl,
   context : @source.Context,
 ) -> Unit raise EffektError {
-  let resolved = resolve_module(module_, context, Map([]))
-  context.set_resolved_module(resolved.module_)
+  let resolved = resolve_module(module, context, Map([]))
+  context.set_resolved_module(resolved.module)
 }
 
 // ---------------------------------------------------------------------------
@@ -64,7 +64,7 @@ pub fn resolve(
 priv struct Namer {
   context : @source.Context
   scoping : Scoping
-  module_ : Module
+  module : Module
   /// The namespace of the module itself, e.g. `["examples", "hello"]`. Used to
   /// resolve `<module>::foo` to `foo` (upstream: `Context.importSelfAs`).
   self_namespace : Array[String]
@@ -92,16 +92,16 @@ priv struct Namer {
 ///|
 fn new_namer(
   context : @source.Context,
-  module_ : Module,
+  module : Module,
   deps : Map[String, ResolvedModule],
 ) -> Namer {
   // The toplevel scope is the namespace of the module, e.g. `examples::hello`.
-  let namespace_ = module_.name.path + [module_.name.name]
+  let namespace = module.name.path + [module.name.name]
   {
     context,
-    scoping: @symbols.toplevel(namespace_, @symbols.root_bindings()),
-    module_,
-    self_namespace: namespace_,
+    scoping: @symbols.toplevel(namespace, @symbols.root_bindings()),
+    module,
+    self_namespace: namespace,
     imports: Bindings::empty(),
     parent_definitions: [],
     hole_count: Map([]),
@@ -159,7 +159,7 @@ fn[T] Namer::in_namespace(
   f : () -> T raise EffektError,
 ) -> T raise EffektError {
   let before = self.scoping.scope
-  let child = before.bindings().namespace_(name)
+  let child = before.bindings().namespace(name)
   self.scoping.scope = @symbols.Scope::Named(name, child, before)
   let result = f()
   self.scoping.scope = before
@@ -201,7 +201,7 @@ fn Namer::resolve_toplevel(
       None => ()
     }
   }
-  self.module_.includes = includes
+  self.module.includes = includes
   self.hole_count.clear()
   // To allow mutually recursive definitions, we first only resolve the
   // declarations, not the bodies of functions.
@@ -225,17 +225,17 @@ fn Namer::import_dependency(
       None
     }
     Some(dep) => {
-      let included = dep.module_
+      let included = dep.module
       // Importing the same module twice is a no-op (the driver prepends the
       // implicit prelude include, so `import effekt` occurs twice).
       if self.imported.any(p => p == path) {
         return Some(included)
       }
       self.imported.push(path)
-      let namespace_ = included.name.path + [included.name.name]
+      let namespace = included.name.path + [included.name.name]
       // Fully qualified:
       //   include "foo/bar/baz" as foo::bar::baz
-      self.import_as(included.exports, namespace_)
+      self.import_as(included.exports, namespace)
       // Bind the module itself:
       //   include "foo/bar/baz" as baz
       self.import_as(included.exports, [included.name.name])
@@ -266,7 +266,7 @@ fn Namer::import_as(
 ) -> Unit {
   let mut target = self.imports
   for segment in path {
-    target = target.namespace_(segment)
+    target = target.namespace(segment)
   }
   merge_bindings(target, bindings)
 }
@@ -292,7 +292,7 @@ fn merge_bindings(target : Bindings, source : Bindings) -> Unit {
     target.set_capture(name, capt)
   }
   for name, child in namespaces {
-    merge_bindings(target.namespace_(name), child)
+    merge_bindings(target.namespace(name), child)
   }
 }
 
@@ -444,9 +444,9 @@ fn Namer::lookup_first_block_param(
   name : String,
 ) -> Array[Sym] raise EffektError {
   let stripped = self.strip_self(path)
-  let local_ = self.scoping.lookup_first_block_param(stripped, name)
-  if local_.length() > 0 {
-    return local_
+  let local = self.scoping.lookup_first_block_param(stripped, name)
+  if local.length() > 0 {
+    return local
   }
   let imported = in_bindings(self.imports, stripped, bindings => {
     match bindings.terms.get(name) {
@@ -487,7 +487,7 @@ fn Namer::name_for(self : Namer, id : IdDef) -> Name {
   }
   let full = prefix + id.path
   if full.length() == 0 {
-    Name::local_(id.name)
+    Name::local(id.name)
   } else {
     Name::qualified(full, id.name)
   }
@@ -703,7 +703,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       let tps = self.in_local_scope(() => {
         tparams.map(t => self.resolve_type_param(t))
       })
-      let alias_ = self.in_local_scope(() => {
+      let alias = self.in_local_scope(() => {
         for t in tps {
           self.bind_type(t)
         }
@@ -714,14 +714,14 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
           d.span,
         )
       })
-      self.define_def(d, id, alias_)
+      self.define_def(d, id, alias)
     }
     @source.EffectDef(id, tparams, effs) => {
       self.require_toplevel("Effect")
       let tps = self.in_local_scope(() => {
         tparams.map(t => self.resolve_type_param(t))
       })
-      let alias_ = self.in_local_scope(() => {
+      let alias = self.in_local_scope(() => {
         for t in tps {
           self.bind_type(t)
         }
@@ -732,7 +732,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
           d.span,
         )
       })
-      self.define_def(d, id, alias_)
+      self.define_def(d, id, alias)
     }
     @source.DataDef(id, tparams, _) => {
       self.require_toplevel("Datatype")
@@ -1102,7 +1102,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
   match t.kind {
     @source.Literal(_, _) => ()
     @source.Hole(id, template) => {
-      let hole = mk_hole(Name::local_(self.fresh_hole_id()), t.span)
+      let hole = mk_hole(Name::local(self.fresh_hole_id()), t.span)
       self.holes.push(hole)
       self.context.assign_symbol(id.uid, hole)
       self.context.assign_symbol(t.uid, hole)
@@ -1167,7 +1167,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       })
     }
     @source.Region(name, body) => {
-      let region_name = Name::local_(name.name)
+      let region_name = Name::local(name.name)
       let region = mk_block_param(
         region_name,
         Some(@symbols.t_region()),
@@ -1493,7 +1493,7 @@ fn Namer::resolve_implementation(
       let bps = clause.bparams.map(p => self.resolve_block_param(p))
       self.bind_values(vps)
       self.bind_blocks(bps)
-      self.define_id(clause.resume_, @symbols.Sym::resume_param())
+      self.define_id(clause.resume, @symbols.Sym::resume_param())
       self.resolve_stmt(clause.body)
     })
   }
@@ -1932,15 +1932,15 @@ fn Namer::resolve_value_type(
       @source.TypeRef(id, args) => {
         let sym = self.resolve_type_ref(id, t.uid)
         match sym {
-          @symbols.Sym::TypeAlias(alias_) => {
+          @symbols.Sym::TypeAlias(alias) => {
             let targs = args.map(a => self.resolve_value_type(a, false))
-            if alias_.tparams.length() != targs.length() {
+            if alias.tparams.length() != targs.length() {
               self.context.abort(
                 t.span,
-                "Type alias \{alias_.base.name.name} expects \{alias_.tparams.length()} type arguments, but got \{targs.length()}.",
+                "Type alias \{alias.base.name.name} expects \{alias.tparams.length()} type arguments, but got \{targs.length()}.",
               )
             }
-            TypeSubst::new(alias_.tparams, targs).value_type(alias_.tpe)
+            TypeSubst::new(alias.tparams, targs).value_type(alias.tpe)
           }
           _ =>
             if sym.is_value_type_constructor() {
@@ -2139,16 +2139,16 @@ fn Namer::resolve_with_aliases(
     @source.TypeRef(id, args) => {
       let sym = self.resolve_type_ref(id, tpe.uid)
       match sym {
-        @symbols.Sym::EffectAlias(alias_) => {
-          if alias_.tparams.length() != args.length() {
+        @symbols.Sym::EffectAlias(alias) => {
+          if alias.tparams.length() != args.length() {
             self.context.abort(
               tpe.span,
-              "Effect alias \{alias_.base.name.name} expects \{alias_.tparams.length()} type arguments, but got \{args.length()}.",
+              "Effect alias \{alias.base.name.name} expects \{alias.tparams.length()} type arguments, but got \{args.length()}.",
             )
           }
           let targs = args.map(a => self.resolve_value_type(a, false))
-          let subst = TypeSubst::new(alias_.tparams, targs)
-          alias_.effs.to_list().map(e => subst.block_type(e))
+          let subst = TypeSubst::new(alias.tparams, targs)
+          alias.effs.to_list().map(e => subst.block_type(e))
         }
         _ =>
           if sym.is_block_type_constructor() {

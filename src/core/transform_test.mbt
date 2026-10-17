@@ -78,7 +78,7 @@ fn value_param(name : String, _tpe : @symbols.ValueType) -> @source.ValueParam {
 
 ///|
 fn value_param_sym(name : String, tpe : @symbols.ValueType) -> @symbols.Sym {
-  @symbols.Sym::value_param(@symbols.Name::local_(name), Some(tpe), missing())
+  @symbols.Sym::value_param(@symbols.Name::local(name), Some(tpe), missing())
 }
 
 ///|
@@ -88,7 +88,7 @@ fn block_param_sym(
   capture : @symbols.Sym,
 ) -> @symbols.Sym {
   @symbols.Sym::block_param(
-    @symbols.Name::local_(name),
+    @symbols.Name::local(name),
     Some(tpe),
     capture,
     false,
@@ -101,7 +101,7 @@ fn user_function_sym(name : String) -> @symbols.Sym {
   @symbols.Sym::UserFunction({
     base: {
       uid: @util.fresh_uid(),
-      name: @symbols.Name::local_(name),
+      name: @symbols.Name::local(name),
       decl: missing(),
     },
     tparams: [],
@@ -122,7 +122,7 @@ fn extern_function_sym(
   @symbols.Sym::ExternFunction({
     base: {
       uid: @util.fresh_uid(),
-      name: @symbols.Name::local_(name),
+      name: @symbols.Name::local(name),
       decl: missing(),
     },
     tparams: [],
@@ -161,8 +161,8 @@ fn module_with(defs : Array[@source.Def]) -> @source.ModuleDecl {
 
 ///|
 /// The body of the `i`th toplevel block definition.
-fn body_of(module_ : @core.ModuleDecl, i : Int32) -> @core.Stmt {
-  match module_.definitions[i] {
+fn body_of(module : @core.ModuleDecl, i : Int32) -> @core.Stmt {
+  match module.definitions[i] {
     @core.ToplevelDef(_, @core.BlockLit(lit)) => lit.body
     _ => abort("expected a toplevel block definition")
   }
@@ -178,13 +178,13 @@ fn skip_defs(s : @core.Stmt) -> @core.Stmt {
 }
 
 ///|
-fn only_toplevel_def(module_ : @core.ModuleDecl) -> @core.Toplevel {
-  if module_.definitions.length() != 1 {
+fn only_toplevel_def(module : @core.ModuleDecl) -> @core.Toplevel {
+  if module.definitions.length() != 1 {
     abort(
-      "expected exactly one toplevel definition, got \{module_.definitions.length()}",
+      "expected exactly one toplevel definition, got \{module.definitions.length()}",
     )
   }
-  module_.definitions[0]
+  module.definitions[0]
 }
 
 // ---------------------------------------------------------------------------
@@ -387,7 +387,7 @@ test "match on a two-constructor data type produces tags 0 and 1" {
   let data_sym = @symbols.Sym::DataType({
     base: {
       uid: @util.fresh_uid(),
-      name: @symbols.Name::local_("Bool2"),
+      name: @symbols.Name::local("Bool2"),
       decl: missing(),
     },
     tparams: [],
@@ -396,7 +396,7 @@ test "match on a two-constructor data type produces tags 0 and 1" {
   let tt_sym = @symbols.Sym::Constructor({
     base: {
       uid: @util.fresh_uid(),
-      name: @symbols.Name::local_("TT"),
+      name: @symbols.Name::local("TT"),
       decl: missing(),
     },
     tparams: [],
@@ -406,7 +406,7 @@ test "match on a two-constructor data type produces tags 0 and 1" {
   let ff_sym = @symbols.Sym::Constructor({
     base: {
       uid: @util.fresh_uid(),
-      name: @symbols.Name::local_("FF"),
+      name: @symbols.Name::local("FF"),
       decl: missing(),
     },
     tparams: [],
@@ -516,7 +516,7 @@ test "try/handle becomes Reset/Shift" {
   let op_iface = @symbols.Sym::Interface({
     base: {
       uid: @util.fresh_uid(),
-      name: @symbols.Name::local_("Op"),
+      name: @symbols.Name::local("Op"),
       decl: missing(),
     },
     tparams: [],
@@ -525,7 +525,7 @@ test "try/handle becomes Reset/Shift" {
   let op_sym = @symbols.Sym::Operation({
     base: {
       uid: @util.fresh_uid(),
-      name: @symbols.Name::local_("op"),
+      name: @symbols.Name::local("op"),
       decl: missing(),
     },
     tparams: [],
@@ -544,7 +544,7 @@ test "try/handle becomes Reset/Shift" {
   let cap_sym = block_param_sym(
     "cap",
     @symbols.InterfaceType(op_iface, []),
-    @symbols.Sym::capture_param(@symbols.Name::local_("cap")),
+    @symbols.Sym::capture_param(@symbols.Name::local("cap")),
   )
   let cap_id = id_def("cap")
   ctx.assign_symbol(cap_id.uid, cap_sym)
@@ -560,7 +560,7 @@ test "try/handle becomes Reset/Shift" {
       @symbols.t_int(),
       @symbols.Effects::empty(),
     ),
-    @symbols.Sym::capture_param(@symbols.Name::local_("resume")),
+    @symbols.Sym::capture_param(@symbols.Name::local("resume")),
   )
   let resume_id = id_def("resume")
   ctx.assign_symbol(resume_id.uid, resume_sym)
@@ -576,7 +576,7 @@ test "try/handle becomes Reset/Shift" {
     bparams: [],
     ret: None,
     body: ret_stmt(lit_term(@source.LInt(1), @symbols.t_int())),
-    resume_: resume_id,
+    resume: resume_id,
   }
   let implementation = @source.Implementation::{
     uid: @util.fresh_uid(),
@@ -644,8 +644,8 @@ test "try/handle becomes Reset/Shift" {
               // the resumption is eta-expanded into a block definition that
               // resumes on the captured continuation `k`
               match shared {
-                @core.Def(resume_, @core.BlockLit(resume_lit), _) => {
-                  assert_eq(resume_.uid(), resume_sym.uid())
+                @core.Def(resume, @core.BlockLit(resume_lit), _) => {
+                  assert_eq(resume.uid(), resume_sym.uid())
                   assert_eq(resume_lit.vparams.length(), 1)
                   match resume_lit.body {
                     @core.Resume(k_var, @core.Return(@core.ValueVar(arg, _))) => {
@@ -709,7 +709,7 @@ fn handler_fixture(
   let op_iface = @symbols.Sym::Interface({
     base: {
       uid: @util.fresh_uid(),
-      name: @symbols.Name::local_("Op"),
+      name: @symbols.Name::local("Op"),
       decl: missing(),
     },
     tparams: [],
@@ -718,7 +718,7 @@ fn handler_fixture(
   let op_sym = @symbols.Sym::Operation({
     base: {
       uid: @util.fresh_uid(),
-      name: @symbols.Name::local_("op"),
+      name: @symbols.Name::local("op"),
       decl: missing(),
     },
     tparams: [],
@@ -737,7 +737,7 @@ fn handler_fixture(
   let cap_sym = block_param_sym(
     "cap",
     @symbols.InterfaceType(op_iface, []),
-    @symbols.Sym::capture_param(@symbols.Name::local_("cap")),
+    @symbols.Sym::capture_param(@symbols.Name::local("cap")),
   )
   let cap_id = id_def("cap")
   ctx.assign_symbol(cap_id.uid, cap_sym)
@@ -756,7 +756,7 @@ fn handler_fixture(
     bparams: [],
     ret: None,
     body: clause_body,
-    resume_: resume_id,
+    resume: resume_id,
   }
   let implementation = @source.Implementation::{
     uid: @util.fresh_uid(),
@@ -872,8 +872,8 @@ test "unidirectional resume of an operation with a value parameter" {
       assert_true(prompt.id.uid() != k.id.uid())
       // [[ def resume(a) = resume(k) { return a } ]]
       match shared {
-        @core.Def(resume_, @core.BlockLit(resume_lit), body) => {
-          assert_eq(resume_.uid(), resume_sym.uid())
+        @core.Def(resume, @core.BlockLit(resume_lit), body) => {
+          assert_eq(resume.uid(), resume_sym.uid())
           assert_eq(resume_lit.vparams.length(), 1)
           assert_eq(resume_lit.bparams.length(), 0)
           match resume_lit.body {
@@ -918,7 +918,7 @@ test "unidirectional resume of an operation with a value parameter" {
 test "bidirectional resume of an operation" {
   let ctx = tctx()
   // the continuation takes a block: `({Int} => Int) => Int`
-  let k_capt = @symbols.Sym::capture_param(@symbols.Name::local_("k"))
+  let k_capt = @symbols.Sym::capture_param(@symbols.Name::local("k"))
   let inner_param = @symbols.FunctionType(
     [],
     [],
@@ -936,7 +936,7 @@ test "bidirectional resume of an operation" {
     @symbols.Effects::empty(),
   )
   let resume_capt = @symbols.Sym::capture_param(
-    @symbols.Name::local_("resumeBlock"),
+    @symbols.Name::local("resumeBlock"),
   )
   let resume_type = @symbols.FunctionType(
     [],
@@ -989,8 +989,8 @@ test "bidirectional resume of an operation" {
   match op.body {
     @core.Shift(_, k, shared) =>
       match shared {
-        @core.Def(resume_, @core.BlockLit(resume_lit), _) => {
-          assert_eq(resume_.uid(), resume_sym.uid())
+        @core.Def(resume, @core.BlockLit(resume_lit), _) => {
+          assert_eq(resume.uid(), resume_sym.uid())
           // [[ def resume {h} = resume(k) { h {g} } ]]
           assert_eq(resume_lit.cparams.length(), 1)
           assert_eq(resume_lit.vparams.length(), 0)
@@ -1039,11 +1039,11 @@ test "var and assignment become Var/Get/Put" {
   let add_ref = id_ref("infixAdd")
   ctx.assign_symbol(add_ref.uid, add_sym)
 
-  let var_capture = @symbols.Sym::capture_param(@symbols.Name::local_("x"))
+  let var_capture = @symbols.Sym::capture_param(@symbols.Name::local("x"))
   let var_sym = @symbols.Sym::VarBinder({
     base: {
       uid: @util.fresh_uid(),
-      name: @symbols.Name::local_("x"),
+      name: @symbols.Name::local("x"),
       decl: missing(),
     },
     tpe: Some(@symbols.t_int()),
@@ -1162,7 +1162,7 @@ test "var and assignment become Var/Get/Put" {
 test "regions become Region and Alloc" {
   let ctx = tctx()
   let region_sym = @symbols.Sym::lexical_region(
-    @symbols.Name::local_("r"),
+    @symbols.Name::local("r"),
     missing(),
   )
   let region_id = id_def("r")
@@ -1181,7 +1181,7 @@ test "regions become Region and Alloc" {
   let r2_sym = @symbols.Sym::RegBinder({
     base: {
       uid: @util.fresh_uid(),
-      name: @symbols.Name::local_("r2"),
+      name: @symbols.Name::local("r2"),
       decl: missing(),
     },
     tpe: Some(@symbols.t_int()),

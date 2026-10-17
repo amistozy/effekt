@@ -204,15 +204,15 @@ fn Typer::try_candidates(
     self.muted_error = error_before
     self.muted_messages = messages_before
     let recorded = if err != "" { err } else { muted.join("; ") }
-    let final_ = if recorded == "" { "Type error" } else { recorded }
+    let final = if recorded == "" { "Type error" } else { recorded }
     match res {
       Some(r) =>
         if failed {
-          failures.push((c, final_))
+          failures.push((c, final))
         } else {
           successes.push((c, r, after))
         }
-      None => failures.push((c, final_))
+      None => failures.push((c, final))
     }
   }
   self.st = before

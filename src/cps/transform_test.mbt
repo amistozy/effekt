@@ -43,8 +43,8 @@ test "cps.transform: dealiases a let-bound variable" {
     @core.Expr::ValueVar(y, @symbols.t_int()),
     @core.Stmt::Return(@core.Expr::ValueVar(x, @symbols.t_int())),
   )
-  let module_ = @cps.transform(core_module(@core.ToplevelVal(main, stmt), main))
-  match module_.definitions[0] {
+  let module = @cps.transform(core_module(@core.ToplevelVal(main, stmt), main))
+  match module.definitions[0] {
     @cps.ToplevelVal(_id, _ks, _k, binding) =>
       match binding {
         @cps.Jump(_k2, vargs, _ks2) => {
@@ -72,8 +72,8 @@ test "cps.transform: inlines a value binding (static continuation)" {
     @core.Stmt::Return(int_expr(42)),
     @core.Stmt::Return(@core.Expr::ValueVar(x, @symbols.t_int())),
   )
-  let module_ = @cps.transform(core_module(@core.ToplevelVal(main, stmt), main))
-  match module_.definitions[0] {
+  let module = @cps.transform(core_module(@core.ToplevelVal(main, stmt), main))
+  match module.definitions[0] {
     @cps.ToplevelVal(_id, _ks, _k, binding) =>
       match binding {
         @cps.Jump(_k2, vargs, _ks2) => {
@@ -114,8 +114,8 @@ test "cps.transform: an application passes metacont and continuation" {
       [],
     ),
   )
-  let module_ = @cps.transform(core_module(@core.ToplevelVal(main, stmt), main))
-  match module_.definitions[0] {
+  let module = @cps.transform(core_module(@core.ToplevelVal(main, stmt), main))
+  match module.definitions[0] {
     @cps.ToplevelVal(_id, ks, k, binding) =>
       match binding {
         @cps.LetDef(id, _block, body) => {
@@ -176,7 +176,7 @@ test "cps.contify: a block that always returns to the same continuation becomes 
     @cps.MetaCont::new(ks),
     @cps.ContVar(k2),
   )
-  let module_ = @cps.ModuleDecl::new(
+  let module = @cps.ModuleDecl::new(
     "test",
     [],
     [],
@@ -191,7 +191,7 @@ test "cps.contify: a block that always returns to the same continuation becomes 
     ],
     [main],
   )
-  let rewritten = @cps.contify(module_)
+  let rewritten = @cps.contify(module)
   match rewritten.definitions[0] {
     @cps.ToplevelVal(_id, _ks, _k, binding) =>
       match binding {
@@ -249,7 +249,7 @@ test "cps.contify: a block used as a value is not contified" {
     @cps.MetaCont::new(ks),
     @cps.ContVar(k2),
   )
-  let module_ = @cps.ModuleDecl::new(
+  let module = @cps.ModuleDecl::new(
     "test",
     [],
     [],
@@ -264,7 +264,7 @@ test "cps.contify: a block used as a value is not contified" {
     ],
     [main],
   )
-  let rewritten = @cps.contify(module_)
+  let rewritten = @cps.contify(module)
   match rewritten.definitions[0] {
     @cps.ToplevelVal(_id, _ks, _k, binding) =>
       match binding {

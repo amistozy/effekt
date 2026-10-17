@@ -16,7 +16,7 @@ pub fn resolve_module(@source.ModuleDecl, @source.Context, Map[String, ResolvedM
 
 // Types and methods
 pub(all) struct ResolvedModule {
-  module_ : @symbols.Module
+  module : @symbols.Module
   tree : @source.ModuleDecl
   holes : Array[@symbols.Sym]
 }

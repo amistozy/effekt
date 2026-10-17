@@ -13,7 +13,7 @@
 
 ///|
 pub fn explicit_capabilities(
-  module_ : ModuleDecl,
+  module : ModuleDecl,
   ctx : Context,
 ) -> ModuleDecl raise EffektError {
   let hooks : Hooks = {
@@ -21,7 +21,7 @@ pub fn explicit_capabilities(
     stmt: None,
     defn: Some((ctx, d) => capabilities_def(ctx, d)),
   }
-  rewrite_module(module_, ctx, hooks)
+  rewrite_module(module, ctx, hooks)
 }
 
 ///|

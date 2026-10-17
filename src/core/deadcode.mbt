@@ -398,10 +398,10 @@ fn Reachable::process_stmt(self : Reachable, s : Stmt) -> Unit {
         self.process_block(barg)
       }
     }
-    Invoke(callee, method_, method_tpe, targs, vargs, bargs) => {
+    Invoke(callee, method, method_tpe, targs, vargs, bargs) => {
       self.process_block(callee)
       self.process_block_tpe(callee)
-      self.process_id(method_)
+      self.process_id(method)
       self.process_block_type(method_tpe)
       for targ in targs {
         self.process_value_type(targ)
@@ -440,13 +440,13 @@ fn Reachable::process_stmt(self : Reachable, s : Stmt) -> Unit {
       self.process_expr(init)
       self.process_stmt(body)
     }
-    Get(_, tpe, ref_, _, body) => {
-      self.process_id(ref_)
+    Get(_, tpe, ref, _, body) => {
+      self.process_id(ref)
       self.process_value_type(tpe)
       self.process_stmt(body)
     }
-    Put(ref_, _, value, body) => {
-      self.process_id(ref_)
+    Put(ref, _, value, body) => {
+      self.process_id(ref)
       self.process_expr(value)
       self.process_stmt(body)
     }
@@ -767,10 +767,10 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
         vargs.map(v => self.rewrite_expr(v)),
         bargs.map(b => self.rewrite_block(b)),
       )
-    Invoke(callee, method_, method_tpe, targs, vargs, bargs) =>
+    Invoke(callee, method, method_tpe, targs, vargs, bargs) =>
       Invoke(
         self.rewrite_block(callee),
-        method_,
+        method,
         method_tpe,
         targs,
         vargs.map(v => self.rewrite_expr(v)),
@@ -785,13 +785,13 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
     Region(body) => Region(self.rewrite_block_lit(body))
     Alloc(id, init, region, body) =>
       Alloc(id, self.rewrite_expr(init), region, self.rewrite_stmt(body))
-    Var(ref_, init, capture, body) =>
-      Var(ref_, self.rewrite_expr(init), capture, self.rewrite_stmt(body))
-    Get(id, annotated_tpe, ref_, annotated_capt, body) =>
-      Get(id, annotated_tpe, ref_, annotated_capt, self.rewrite_stmt(body))
-    Put(ref_, annotated_capt, value, body) =>
+    Var(ref, init, capture, body) =>
+      Var(ref, self.rewrite_expr(init), capture, self.rewrite_stmt(body))
+    Get(id, annotated_tpe, ref, annotated_capt, body) =>
+      Get(id, annotated_tpe, ref, annotated_capt, self.rewrite_stmt(body))
+    Put(ref, annotated_capt, value, body) =>
       Put(
-        ref_,
+        ref,
         annotated_capt,
         self.rewrite_expr(value),
         self.rewrite_stmt(body),
@@ -813,11 +813,11 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
 /// The entry points themselves are always kept, and their usage is `Recursive`
 /// from the start (Reachable.scala:202); pass `core.required_names` alongside
 /// the entry point of the module to keep the names that `core.Show` needs.
-pub fn deadcode(module_ : ModuleDecl, entrypoints : Array[Sym]) -> ModuleDecl {
-  let analysis = reachable_new(entrypoints, module_)
+pub fn deadcode(module : ModuleDecl, entrypoints : Array[Sym]) -> ModuleDecl {
+  let analysis = reachable_new(entrypoints, module)
   for id in entrypoints {
     analysis.process_id(id)
   }
   let rewrite : Deadcode = { reachable: analysis.reachable, }
-  rewrite.rewrite_module(module_)
+  rewrite.rewrite_module(module)
 }

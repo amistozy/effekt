@@ -20,7 +20,7 @@ fn test_ctx() -> @source.Context {
 fn base(name : String) -> @symbols.SymBase {
   {
     uid: @util.fresh_uid(),
-    name: @symbols.Name::local_(name),
+    name: @symbols.Name::local(name),
     decl: @util.Span::missing(),
   }
 }
@@ -118,11 +118,11 @@ fn module_of(defs : Array[@source.Def]) -> @source.ModuleDecl {
 ///|
 /// Runs the type checker and reports the collected diagnostics when it fails.
 fn run_typecheck(
-  module_ : @source.ModuleDecl,
+  module : @source.ModuleDecl,
   ctx : @source.Context,
 ) -> Unit raise {
   let mut failure = ""
-  @typer.typecheck(module_, ctx) catch {
+  @typer.typecheck(module, ctx) catch {
     @util.EffektError::Fatal(m) => failure = m
     @util.EffektError::Internal(m) => failure = m
   }
@@ -153,12 +153,12 @@ fn run_typecheck(
 ///|
 fn extern_add_def(ctx : @source.Context) -> (@source.Def, @symbols.Sym) {
   let a_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("a"),
+    @symbols.Name::local("a"),
     Some(@symbols.t_int()),
     test_span(),
   )
   let b_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("b"),
+    @symbols.Name::local("b"),
     Some(@symbols.t_int()),
     test_span(),
   )
@@ -220,8 +220,8 @@ test "1 + 2 : Int" {
       @source.mk_stmt(test_span(), @source.StmtKind::Return(call)),
     ),
   )
-  let module_ = module_of([add_def, x_def])
-  run_typecheck(module_, ctx)
+  let module = module_of([add_def, x_def])
+  run_typecheck(module, ctx)
   match ctx.value_type_of(x_def.uid) {
     Some(t) => assert_true(@typer.value_type_eq(t, @symbols.t_int()))
     None => fail("no type inferred for x")
@@ -245,9 +245,9 @@ test "lambda has an inferred function type" {
     @symbols.t_int(),
     @symbols.Effects::empty(),
   )
-  let f_capture = @symbols.Sym::capture_param(@symbols.Name::local_("f"))
+  let f_capture = @symbols.Sym::capture_param(@symbols.Name::local("f"))
   let f_sym = @symbols.Sym::block_param(
-    @symbols.Name::local_("f"),
+    @symbols.Name::local("f"),
     Some(fun_type),
     f_capture,
     false,
@@ -291,7 +291,7 @@ test "lambda has an inferred function type" {
   )
   // { (x: Int) => x }
   let x_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("x"),
+    @symbols.Name::local("x"),
     Some(@symbols.t_int()),
     test_span(),
   )
@@ -346,7 +346,7 @@ test "pure function has empty effect" {
   let ctx = test_ctx()
   // def f(x: Int): Int = x
   let x_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("x"),
+    @symbols.Name::local("x"),
     Some(@symbols.t_int()),
     test_span(),
   )
@@ -394,7 +394,7 @@ test "declared effects flow through calls" {
     operations: [],
   })
   let msg_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("msg"),
+    @symbols.Name::local("msg"),
     Some(@symbols.t_string()),
     test_span(),
   )
@@ -461,7 +461,7 @@ test "declared effects flow through calls" {
   )
   // def g(x: Int): Int / {Exc} = { f(); x }
   let x_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("x"),
+    @symbols.Name::local("x"),
     Some(@symbols.t_int()),
     test_span(),
   )
@@ -524,8 +524,8 @@ test "declared effects flow through calls" {
 test "effect polymorphism" {
   let ctx = test_ctx()
   // def h[A]() { k: () => A }: A = k()
-  let a_sym = @symbols.Sym::type_param(@symbols.Name::local_("A"), test_span())
-  let k_capture = @symbols.Sym::capture_param(@symbols.Name::local_("k"))
+  let a_sym = @symbols.Sym::type_param(@symbols.Name::local("A"), test_span())
+  let k_capture = @symbols.Sym::capture_param(@symbols.Name::local("k"))
   let k_type = @symbols.BlockType::FunctionType(
     [],
     [],
@@ -535,7 +535,7 @@ test "effect polymorphism" {
     @symbols.Effects::empty(),
   )
   let k_sym = @symbols.Sym::block_param(
-    @symbols.Name::local_("k"),
+    @symbols.Name::local("k"),
     Some(k_type),
     k_capture,
     false,
@@ -617,7 +617,7 @@ test "effect operation call gets a capability" {
     operations: [],
   })
   let msg_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("msg"),
+    @symbols.Name::local("msg"),
     Some(@symbols.t_string()),
     test_span(),
   )
@@ -697,10 +697,10 @@ test "effect operation call gets a capability" {
 /// Runs the type checker, returning the rendered error messages (the checker is
 /// expected to report errors).
 fn run_typecheck_expecting_errors(
-  module_ : @source.ModuleDecl,
+  module : @source.ModuleDecl,
   ctx : @source.Context,
 ) -> String {
-  @typer.typecheck(module_, ctx) catch {
+  @typer.typecheck(module, ctx) catch {
     @util.EffektError::Fatal(_) => ()
     @util.EffektError::Internal(_) => ()
   }
@@ -727,7 +727,7 @@ test "non-exhaustive match is reported" {
     tpe: option_sym,
   })
   let some_field = @symbols.Sym::value_param(
-    @symbols.Name::local_("value"),
+    @symbols.Name::local("value"),
     Some(@symbols.t_int()),
     test_span(),
   )
@@ -738,7 +738,7 @@ test "non-exhaustive match is reported" {
       @symbols.Sym::Field({
         base: base("value"),
         param: some_field,
-        constructor_: some_sym_placeholder(),
+        constructor: some_sym_placeholder(),
       }),
     ],
     tpe: option_sym,
@@ -887,7 +887,7 @@ fn extern_fn(
 ) -> (@source.Def, @symbols.Sym) {
   let vparams : Array[@symbols.Sym] = params.map(p => {
     let (n, t) = p
-    @symbols.Sym::value_param(@symbols.Name::local_(n), Some(t), test_span())
+    @symbols.Sym::value_param(@symbols.Name::local(n), Some(t), test_span())
   })
   let id = @source.IdDef::new(name, test_span())
   let sym : @symbols.Sym = @symbols.ExternFunction({
@@ -984,13 +984,13 @@ fn return_of(t : @source.Term) -> @source.Stmt {
 /// Runs the *full* transformation the driver uses: unbox inference followed by
 /// type checking of the rewritten tree.
 fn run_frontend(
-  module_ : @source.ModuleDecl,
+  module : @source.ModuleDecl,
   ctx : @source.Context,
 ) -> @source.ModuleDecl raise {
   let mut failure = ""
   let mut rewritten : @source.ModuleDecl? = None
   try {
-    let tree2 = @typer.unbox_inference(module_, ctx)
+    let tree2 = @typer.unbox_inference(module, ctx)
     rewritten = Some(tree2)
     @typer.typecheck(tree2, ctx)
   } catch {
@@ -1016,7 +1016,7 @@ fn run_frontend(
 ///|
 test "method call on a value is desugared to a call" {
   let ctx = test_ctx()
-  let r = @symbols.Sym::type_param(@symbols.Name::local_("R"), test_span())
+  let r = @symbols.Sym::type_param(@symbols.Name::local("R"), test_span())
   // extern def show[R](value: R) at {}: String
   let (show_def, show_sym) = extern_fn(
     ctx,
@@ -1027,7 +1027,7 @@ test "method call on a value is desugared to a call" {
   )
   // def f(x: Int): String = x.show
   let x_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("x"),
+    @symbols.Name::local("x"),
     Some(@symbols.t_int()),
     test_span(),
   )
@@ -1080,7 +1080,7 @@ test "overload resolution retries and picks the second candidate" {
   // def show(value: Bool): String = "bool"      (fails for an Int argument)
   // def show(value: Int): String = "int"        (succeeds)
   let b_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("value"),
+    @symbols.Name::local("value"),
     Some(@symbols.t_bool()),
     test_span(),
   )
@@ -1101,7 +1101,7 @@ test "overload resolution retries and picks the second candidate" {
     ),
   )
   let i_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("value"),
+    @symbols.Name::local("value"),
     Some(@symbols.t_int()),
     test_span(),
   )
@@ -1178,7 +1178,7 @@ test "overload resolution retries and picks the second candidate" {
 test "generic extern is instantiated with an inferred type argument" {
   let ctx = test_ctx()
   // extern def id[R](x: R) at {}: R
-  let r = @symbols.Sym::type_param(@symbols.Name::local_("R"), test_span())
+  let r = @symbols.Sym::type_param(@symbols.Name::local("R"), test_span())
   let (id_extern, id_sym) = extern_fn(
     ctx,
     "id",
@@ -1217,7 +1217,7 @@ test "generic extern is instantiated with an inferred type argument" {
 test "a rigid type parameter is passed to a generic function" {
   let ctx = test_ctx()
   // extern def show[R](value: R) at {}: String
-  let r = @symbols.Sym::type_param(@symbols.Name::local_("R"), test_span())
+  let r = @symbols.Sym::type_param(@symbols.Name::local("R"), test_span())
   let (show_def, show_sym) = extern_fn(
     ctx,
     "show",
@@ -1228,9 +1228,9 @@ test "a rigid type parameter is passed to a generic function" {
   // def describe[A](x: A): String = show(x)
   // (the argument has the *rigid* type A, the parameter of `show` a fresh
   //  unification variable -- this used to be rejected)
-  let a = @symbols.Sym::type_param(@symbols.Name::local_("A"), test_span())
+  let a = @symbols.Sym::type_param(@symbols.Name::local("A"), test_span())
   let x_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("x"),
+    @symbols.Name::local("x"),
     Some(@symbols.ValueType::ValueTypeRef(a)),
     test_span(),
   )
@@ -1269,13 +1269,13 @@ test "a rigid type parameter is passed to a generic function" {
 /// rewritten definitions back into the module), otherwise uniform function
 /// call syntax (`x.f`) never reaches the type checker in desugared form.
 fn run_typecheck_dropping_unbox(
-  module_ : @source.ModuleDecl,
+  module : @source.ModuleDecl,
   ctx : @source.Context,
 ) -> Unit raise {
   let mut failure = ""
   try {
-    let _ = @typer.unbox_inference(module_, ctx)
-    @typer.typecheck(module_, ctx)
+    let _ = @typer.unbox_inference(module, ctx)
+    @typer.typecheck(module, ctx)
   } catch {
     @util.EffektError::Fatal(m) => failure = m
     @util.EffektError::Internal(m) => failure = m
@@ -1295,7 +1295,7 @@ fn run_typecheck_dropping_unbox(
 ///|
 test "method call is desugared even when the driver drops the unboxed tree" {
   let ctx = test_ctx()
-  let r = @symbols.Sym::type_param(@symbols.Name::local_("R"), test_span())
+  let r = @symbols.Sym::type_param(@symbols.Name::local("R"), test_span())
   // extern def show[R](value: R) at {}: String
   let (show_def, show_sym) = extern_fn(
     ctx,
@@ -1341,15 +1341,15 @@ test "method call is desugared even when the driver drops the unboxed tree" {
       ),
     ),
   )
-  let module_ = module_of([show_def, println_def, main_def])
-  run_typecheck_dropping_unbox(module_, ctx)
+  let module = module_of([show_def, println_def, main_def])
+  run_typecheck_dropping_unbox(module, ctx)
   // the call is annotated with its type (the uid is preserved by the rewrite)
   match ctx.value_type_of(method_call.uid) {
     Some(t) => assert_true(@typer.value_type_eq(t, @symbols.t_string()))
     None => fail("no type inferred for the desugared method call")
   }
   // ... and the module the driver holds now contains the desugared call
-  match module_.defs[2].kind {
+  match module.defs[2].kind {
     @source.DefKind::FunDef(_, _, _, _, _, _, body) =>
       match body.kind {
         @source.StmtKind::Return(e) =>
@@ -1382,7 +1382,7 @@ test "Nothing coerces to the expected type" {
     operations: [],
   })
   let m_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("m"),
+    @symbols.Name::local("m"),
     Some(@symbols.t_string()),
     test_span(),
   )
@@ -1403,7 +1403,7 @@ test "Nothing coerces to the expected type" {
   // def f(y: Int): Int / E = if (y == 0) do raise("boom") else y
   // (the `then` branch has type Nothing and has to coerce to Int)
   let y_sym = @symbols.Sym::value_param(
-    @symbols.Name::local_("y"),
+    @symbols.Name::local("y"),
     Some(@symbols.t_int()),
     test_span(),
   )
