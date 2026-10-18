@@ -343,11 +343,7 @@ pub fn Typer::lookup_function_type(
   let t = self.st.u.prune_block(self.lookup_block(s))
   match t {
     @symbols.BlockType::FunctionType(_, _, _, _, _, _) => t
-    _ =>
-      self.abort(
-        s.decl(),
-        "Expected function type, but got \{show_block_type(t)}.",
-      )
+    _ => self.abort(s.decl(), "Expected function type, but got \{t}.")
   }
 }
 
@@ -531,7 +527,7 @@ fn Typer::lexical_capability(
       Some(cap_tpe) =>
         match self.st.u.prune_block(cap_tpe) {
           @symbols.BlockType::InterfaceType(c2, args2) =>
-            if sym_eq(ctor, c2) && args.length() == args2.length() {
+            if ctor == c2 && args.length() == args2.length() {
               let mut ok = true
               for i = 0; i < args.length() && ok; i = i + 1 {
                 if !self.types_compatible(args[i], args2[i]) {
@@ -599,7 +595,7 @@ fn Typer::capability_for(
                 )
               }
               let message =
-                $|Effect \{show_block_type(tpe)} is not allowed in this context.
+                $|Effect \{tpe} is not allowed in this context.
                 $|
                 $|Maybe try annotating the function with the effect?
               self.abort(span, message)
@@ -729,7 +725,7 @@ fn Typer::without(
   }
   match caps {
     @symbols.Captures::CaptureSetOf(cs) =>
-      @symbols.Captures::CaptureSetOf(cs.filter(c => !sym_in(c, others)))
+      @symbols.Captures::CaptureSetOf(cs.filter(c => !others.contains(c)))
     @symbols.Captures::CaptVar(x) => {
       let y = self.fresh_capt_var("without")
       self.st.u.link(y.uid(), x.uid(), others.copy())
@@ -749,17 +745,17 @@ pub fn Typer::require_subregion(
 ) -> Unit {
   let from = self.st.u.prune_captures(from)
   let to = self.st.u.prune_captures(to)
-  if captures_eq(from, to) {
+  if from == to {
     return
   }
   match (from, to) {
     (@symbols.Captures::CaptureSetOf(ls), _) if ls.length() == 0 => return
     (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptureSetOf(us)) => {
-      let not_allowed = ls.filter(c => !sym_in(c, us))
+      let not_allowed = ls.filter(c => !us.contains(c))
       if not_allowed.length() > 0 {
         self.error(
           span,
-          "Used captures \{show_captures(@symbols.Captures::CaptureSetOf(not_allowed))} are not in the allowed set \{show_captures(to)}",
+          "Used captures \{@symbols.Captures::CaptureSetOf(not_allowed)} are not in the allowed set \{to}",
         )
       }
     }
@@ -798,7 +794,7 @@ pub fn Typer::assert_concrete_effect(
   match self.unknowns_block(eff) {
     us if us.length() > 0 => {
       let message =
-        $|Effects need to be fully known, but effect \{show_block_type(eff)}'s type parameter(s) \{us.join(", ")} could not be inferred.
+        $|Effects need to be fully known, but effect \{eff}'s type parameter(s) \{us.join(", ")} could not be inferred.
         $|
         $|Maybe try annotating them?
       self.abort(span, message)
@@ -826,10 +822,7 @@ fn Typer::assert_concrete_function(
 ) -> Unit raise EffektError {
   match self.unknowns_block(tpe) {
     us if us.length() > 0 =>
-      self.abort(
-        id.span,
-        "Cannot fully infer type for \{id.name}: \{show_block_type(tpe)}",
-      )
+      self.abort(id.span, "Cannot fully infer type for \{id.name}: \{tpe}")
     _ => ()
   }
 }
@@ -973,7 +966,7 @@ pub fn Typer::check_module(
   for d in module.defs {
     let res = self.synth_def(d)
     if res.effs.non_empty() {
-      self.error(d.span, "Unhandled effects \{show_effects(res.effs)}")
+      self.error(d.span, "Unhandled effects \{res.effs}")
     }
   }
   self.commit()
@@ -1098,7 +1091,7 @@ pub fn Typer::check_main(
         if effects.non_empty() {
           self.abort(
             main.decl(),
-            "Main cannot have effects, but includes effects: \{show_effects(effects)}",
+            "Main cannot have effects, but includes effects: \{effects}",
           )
         }
         if value_type_equal(result, t_int()) {
@@ -2235,7 +2228,7 @@ pub fn Typer::unify_value_types(
   tpe2 : ValueType,
   ctx : ErrCtx,
 ) -> Unit raise EffektError {
-  if value_type_eq(tpe1, tpe2) {
+  if tpe1 == tpe2 {
     return
   }
   // solve the unification variable, whichever side it is on
@@ -2258,7 +2251,7 @@ pub fn Typer::unify_value_types(
   // coercions: `Nothing <: T` and `T <: Any`. Upstream only admits these in
   // covariant positions and records a coercion; we accept them everywhere and
   // do not record them (see the report).
-  if value_type_eq(tpe1, t_bottom()) || value_type_eq(tpe2, t_top()) {
+  if tpe1 == t_bottom() || tpe2 == t_top() {
     return
   }
   match (tpe1, tpe2) {
@@ -2266,12 +2259,12 @@ pub fn Typer::unify_value_types(
       @symbols.ValueType::ValueTypeApp(c1, args1),
       @symbols.ValueType::ValueTypeApp(c2, args2),
     ) =>
-      if !sym_eq(c1, c2) {
+      if !(c1 == c2) {
         self.unify_fail(tpe1, tpe2, ctx)
       } else if args1.length() != args2.length() {
         self.abort(
           self.focus,
-          "Argument count does not match \{show_value_type(tpe1)} vs. \{show_value_type(tpe2)}",
+          "Argument count does not match \{tpe1} vs. \{tpe2}",
         )
       } else {
         for i = 0; i < args1.length(); i = i + 1 {
@@ -2286,7 +2279,7 @@ pub fn Typer::unify_value_types(
       self.unify_captures(c1, c2, ctx)
     }
     _ =>
-      if value_type_eq(tpe1, t_bottom()) || value_type_eq(tpe2, t_top()) {
+      if tpe1 == t_bottom() || tpe2 == t_top() {
         ()
       } else {
         self.unify_fail(tpe1, tpe2, ctx)
@@ -2301,10 +2294,7 @@ fn Typer::unify_fail(
   tpe2 : ValueType,
   ctx : ErrCtx,
 ) -> Unit {
-  self.error(
-    self.focus,
-    explain_mismatch(show_value_type(tpe1), show_value_type(tpe2), ctx),
-  )
+  self.error(self.focus, explain_mismatch("\{tpe1}", "\{tpe2}", ctx))
 }
 
 ///|
@@ -2345,13 +2335,13 @@ pub fn Typer::unify_block_types(
       if vps1.length() != vps2.length() {
         self.abort(
           self.focus,
-          "Value parameter count does not match \{show_block_type(tpe1)} vs. \{show_block_type(tpe2)}",
+          "Value parameter count does not match \{tpe1} vs. \{tpe2}",
         )
       }
       if bps1.length() != bps2.length() {
         self.abort(
           self.focus,
-          "Block parameter count does not match \{show_block_type(tpe1)} vs. \{show_block_type(tpe2)}",
+          "Block parameter count does not match \{tpe1} vs. \{tpe2}",
         )
       }
       if capts1.length() != capts2.length() {
@@ -2373,21 +2363,14 @@ pub fn Typer::unify_block_types(
       @symbols.BlockType::InterfaceType(c1, args1),
       @symbols.BlockType::InterfaceType(c2, args2),
     ) =>
-      if !sym_eq(c1, c2) {
-        self.error(
-          self.focus,
-          explain_mismatch(show_block_type(tpe1), show_block_type(tpe2), ctx),
-        )
+      if !(c1 == c2) {
+        self.error(self.focus, explain_mismatch("\{tpe1}", "\{tpe2}", ctx))
       } else {
         for i = 0; i < args1.length() && i < args2.length(); i = i + 1 {
           self.unify_value_types(args1[i], args2[i], ctx)
         }
       }
-    _ =>
-      self.error(
-        self.focus,
-        explain_mismatch(show_block_type(tpe1), show_block_type(tpe2), ctx),
-      )
+    _ => self.error(self.focus, explain_mismatch("\{tpe1}", "\{tpe2}", ctx))
   }
 }
 
@@ -2406,11 +2389,8 @@ pub fn Typer::unify_effects(
   let l2 = self.st.u.prune_effects(effs2).distinct()
   let has_unknowns = l1.effects.any(e => self.unknowns_block(e).length() > 0) ||
     l2.effects.any(e => self.unknowns_block(e).length() > 0)
-  if !effects_eq(l1, l2) && !has_unknowns {
-    self.error(
-      self.focus,
-      explain_mismatch(show_effects(l1), show_effects(l2), ctx),
-    )
+  if !(l1 == l2) && !has_unknowns {
+    self.error(self.focus, explain_mismatch("\{l1}", "\{l2}", ctx))
   }
 }
 
@@ -2463,16 +2443,16 @@ pub fn Typer::merge_value_types(
 ) -> ValueType raise EffektError {
   let old = self.st.u.prune_value(old)
   let new = self.st.u.prune_value(new)
-  if value_type_eq(old, new) {
+  if old == new {
     return old
   }
-  if value_type_eq(old, t_top()) || value_type_eq(new, t_top()) {
+  if old == t_top() || new == t_top() {
     return t_top()
   }
-  if value_type_eq(old, t_bottom()) {
+  if old == t_bottom() {
     return new
   }
-  if value_type_eq(new, t_bottom()) {
+  if new == t_bottom() {
     return old
   }
   match (old, new) {
@@ -2488,16 +2468,9 @@ pub fn Typer::merge_value_types(
               self.learn(y, old, ctx)
               new
             } else {
-              self.abort(
-                self.focus,
-                explain_mismatch(show_value_type(old), show_value_type(t), ctx),
-              )
+              self.abort(self.focus, explain_mismatch("\{old}", "\{t}", ctx))
             }
-          _ =>
-            self.abort(
-              self.focus,
-              explain_mismatch(show_value_type(old), show_value_type(t), ctx),
-            )
+          _ => self.abort(self.focus, explain_mismatch("\{old}", "\{t}", ctx))
         }
       }
     (t, @symbols.ValueType::ValueTypeRef(x)) =>
@@ -2505,19 +2478,16 @@ pub fn Typer::merge_value_types(
         self.learn(x, t, ctx)
         new
       } else {
-        self.abort(
-          self.focus,
-          explain_mismatch(show_value_type(old), show_value_type(t), ctx),
-        )
+        self.abort(self.focus, explain_mismatch("\{old}", "\{t}", ctx))
       }
     (
       @symbols.ValueType::ValueTypeApp(c1, args1),
       @symbols.ValueType::ValueTypeApp(c2, args2),
     ) => {
-      if !sym_eq(c1, c2) {
+      if !(c1 == c2) {
         self.abort(
           self.focus,
-          "Cannot merge different constructors: \{show_value_type(old)} vs. \{show_value_type(new)}",
+          "Cannot merge different constructors: \{old} vs. \{new}",
         )
       }
       for i = 0; i < args1.length() && i < args2.length(); i = i + 1 {
@@ -2533,11 +2503,7 @@ pub fn Typer::merge_value_types(
       self.unify_captures(c1, c2, ctx)
       old
     }
-    _ =>
-      self.abort(
-        self.focus,
-        "Cannot merge \{show_value_type(old)} with \{show_value_type(new)}",
-      )
+    _ => self.abort(self.focus, "Cannot merge \{old} with \{new}")
   }
 }
 
@@ -2580,8 +2546,7 @@ pub fn Typer::instantiate(
       if capts.length() != bps.length() + effs.distinct().size() {
         self.abort(
           self.focus,
-          "Capture param count \{capts.length()} is not equal to bparam \{bps.length()} + control effects \{effs.distinct().size()}.\n  " +
-          show_block_type(tpe),
+          "Capture param count \{capts.length()} is not equal to bparam \{bps.length()} + control effects \{effs.distinct().size()}.\n  \{tpe}",
         )
       }
       let params : Array[Sym] = []
@@ -2696,19 +2661,13 @@ pub fn Typer::resolve_block_type(
       } else {
         match self.type_symbol_application(sym, resolved, t.span) {
           @symbols.ValueType::ValueTypeApp(_) as v =>
-            self.abort(
-              t.span,
-              "Expected a block type, but got \{show_value_type(v)}.",
-            )
+            self.abort(t.span, "Expected a block type, but got \{v}.")
           @symbols.ValueType::BoxedType(_, _) as v =>
-            self.abort(
-              t.span,
-              "Expected a block type, but got \{show_value_type(v)}.",
-            )
+            self.abort(t.span, "Expected a block type, but got \{v}.")
           @symbols.ValueType::ValueTypeRef(s) =>
             self.abort(
               t.span,
-              "Expected a block type, but got \{show_value_type(@symbols.ValueType::ValueTypeRef(s))}.",
+              "Expected a block type, but got \{@symbols.ValueType::ValueTypeRef(s)}.",
             )
         }
       }
@@ -2802,11 +2761,7 @@ pub fn Typer::resolve_block_ref(
   let b = self.resolve_block_type(t)
   match b {
     @symbols.BlockType::InterfaceType(_, _) => b
-    _ =>
-      self.abort(
-        t.span,
-        "Expected an interface type, but got \{show_block_type(b)}.",
-      )
+    _ => self.abort(t.span, "Expected an interface type, but got \{b}.")
   }
 }
 
@@ -2815,7 +2770,7 @@ pub fn Typer::resolve_captures(self : Typer, c : CaptureSetTree) -> Captures {
   let out : Array[Sym] = []
   for id in c.captures {
     match self.ctx.symbol_of(id.uid) {
-      Some(s) => if !sym_in(s, out) { out.push(s) }
+      Some(s) => if !out.contains(s) { out.push(s) }
       None => ()
     }
   }

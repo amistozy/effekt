@@ -10,8 +10,6 @@ pub fn async_capability_sym() -> Sym
 
 pub fn async_capture() -> Sym
 
-pub fn block_type_equal(BlockType, BlockType) -> Bool
-
 pub fn canonical_compare(BlockType, BlockType) -> Int
 
 pub fn canonical_compare_value(ValueType, ValueType) -> Int
@@ -49,10 +47,6 @@ pub fn[T] or_else(T?, () -> T? raise @util.EffektError) -> T? raise @util.Effekt
 pub fn root_bindings() -> Bindings
 
 pub fn state_effect_sym() -> Sym
-
-pub fn sym_eq(Sym, Sym) -> Bool
-
-pub fn sym_in(Sym, Array[Sym]) -> Bool
 
 pub fn t_bool() -> ValueType
 
@@ -118,6 +112,8 @@ pub(all) enum BlockType {
 pub fn BlockType::interface_ctor(Self) -> Sym?
 pub fn BlockType::interface_name(Self) -> Name?
 pub fn BlockType::is_interface(Self) -> Bool
+pub impl Eq for BlockType
+pub impl Show for BlockType
 
 pub(all) struct CallTargetSym {
   base : SymBase
@@ -167,6 +163,8 @@ pub fn Captures::empty() -> Self
 pub fn Captures::is_pure(Self) -> Bool
 pub fn Captures::to_array(Self) -> Array[Sym]
 pub fn Captures::union(Self, Self) -> Self
+pub impl Eq for Captures
+pub impl Show for Captures
 
 pub(all) struct ConstructorSym {
   base : SymBase
@@ -207,6 +205,8 @@ pub fn Effects::non_empty(Self) -> Bool
 pub fn Effects::size(Self) -> Int
 pub fn Effects::to_list(Self) -> Array[BlockType]
 pub fn Effects::union(Self, Self) -> Self
+pub impl Eq for Effects
+pub impl Show for Effects
 
 pub(all) struct ErrorBlockTypeSym {
   base : SymBase
@@ -301,6 +301,7 @@ pub fn Name::local(String) -> Self
 pub fn Name::qualified(Array[String], String) -> Self
 pub fn Name::qualified_name(Self) -> String
 pub fn Name::rename(Self, (String) -> String) -> Self
+pub impl Eq for Name
 pub impl Show for Name
 
 pub(all) struct OperationSym {
@@ -499,6 +500,8 @@ pub(all) enum ValueType {
   ValueTypeRef(Sym)
   ValueTypeApp(Sym, Array[ValueType])
 }
+pub impl Eq for ValueType
+pub impl Show for ValueType
 
 pub(all) struct VarBinderSym {
   base : SymBase

@@ -8,19 +8,11 @@ import {
 }
 
 // Values
-pub fn block_type_eq(@symbols.BlockType, @symbols.BlockType) -> Bool
-
-pub fn block_types_eq(Array[@symbols.BlockType], Array[@symbols.BlockType]) -> Bool
-
 pub fn capability_type(@symbols.Sym) -> @symbols.BlockType?
 
 pub fn capture_param_of(@symbols.Captures) -> @symbols.Sym?
 
 pub fn capture_params_of(Array[@symbols.Captures]) -> Array[@symbols.Sym]
-
-pub fn captures_eq(@symbols.Captures, @symbols.Captures) -> Bool
-
-pub fn captures_list_eq(Array[@symbols.Captures], Array[@symbols.Captures]) -> Bool
 
 pub fn captures_of_params(Array[@symbols.Sym]) -> Array[@symbols.Captures]
 
@@ -33,8 +25,6 @@ pub fn eff_diff(@symbols.Effects, @symbols.Effects) -> @symbols.Effects
 pub fn eff_union(@symbols.Effects, @symbols.Effects) -> @symbols.Effects
 
 pub fn eff_union_of(Array[@symbols.Effects]) -> @symbols.Effects
-
-pub fn effects_eq(@symbols.Effects, @symbols.Effects) -> Bool
 
 pub fn effects_of(Array[@symbols.BlockType]) -> @symbols.Effects
 
@@ -50,25 +40,11 @@ pub fn free_types_value(@symbols.ValueType, Array[@symbols.Sym]) -> Array[@symbo
 
 pub fn interface_key(@symbols.BlockType) -> String
 
-pub fn show_block_type(@symbols.BlockType) -> String
-
-pub fn show_captures(@symbols.Captures) -> String
-
-pub fn show_effects(@symbols.Effects) -> String
-
-pub fn show_value_type(@symbols.ValueType) -> String
-
-pub fn syms_eq(Array[@symbols.Sym], Array[@symbols.Sym]) -> Bool
-
 pub fn typecheck(@source.ModuleDecl, @source.Context) -> Unit raise @util.EffektError
 
 pub fn unbox_inference(@source.ModuleDecl, @source.Context) -> @source.ModuleDecl raise @util.EffektError
 
-pub fn value_type_eq(@symbols.ValueType, @symbols.ValueType) -> Bool
-
 pub fn value_type_key(@symbols.ValueType) -> String
-
-pub fn value_types_eq(Array[@symbols.ValueType], Array[@symbols.ValueType]) -> Bool
 
 // Errors
 

@@ -4,7 +4,7 @@
 using @util {type Span, type EffektError}
 
 ///|
-using @symbols {type Sym, sym_in}
+using @symbols {type Sym}
 
 ///|
 using @source {type Context}

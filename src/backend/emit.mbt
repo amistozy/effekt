@@ -122,7 +122,7 @@ pub fn exports_of(module : @symbols.Module) -> Array[Sym] {
   let out : Array[Sym] = []
   for _name, syms in module.exports.terms {
     for s in syms {
-      if !sym_in(s, out) {
+      if !out.contains(s) {
         out.push(s)
       }
     }
@@ -182,7 +182,7 @@ pub fn aggregate(
     externs.append(c.externs)
     definitions.append(c.definitions)
     for e in c.exports {
-      if !sym_in(e, exports) {
+      if !exports.contains(e) {
         exports.push(e)
       }
     }

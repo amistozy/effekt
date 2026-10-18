@@ -223,12 +223,12 @@ test "1 + 2 : Int" {
   let module = module_of([add_def, x_def])
   run_typecheck(module, ctx)
   match ctx.value_type_of(x_def.uid) {
-    Some(t) => assert_true(@typer.value_type_eq(t, @symbols.t_int()))
+    Some(t) => assert_true(t == @symbols.t_int())
     None => fail("no type inferred for x")
   }
   // the call itself is annotated with its type
   match ctx.value_type_of(call.uid) {
-    Some(t) => assert_true(@typer.value_type_eq(t, @symbols.t_int()))
+    Some(t) => assert_true(t == @symbols.t_int())
     None => fail("no type inferred for the call")
   }
 }
@@ -331,9 +331,9 @@ test "lambda has an inferred function type" {
   match ctx.block_type_of(lambda.uid) {
     Some(@symbols.BlockType::FunctionType(_, _, vps, bps, ret, effs)) => {
       assert_eq(vps.length(), 1)
-      assert_true(@typer.value_type_eq(vps[0], @symbols.t_int()))
+      assert_true(vps[0] == @symbols.t_int())
       assert_eq(bps.length(), 0)
-      assert_true(@typer.value_type_eq(ret, @symbols.t_int()))
+      assert_true(ret == @symbols.t_int())
       assert_true(effs.is_empty())
     }
     Some(_) => fail("lambda was not given a function type")
@@ -597,9 +597,7 @@ test "effect polymorphism" {
     Some(@symbols.BlockType::FunctionType(_, _, vps, bps, ret, effs)) => {
       assert_eq(vps.length(), 0)
       assert_eq(bps.length(), 1)
-      assert_true(
-        @typer.value_type_eq(ret, @symbols.ValueType::ValueTypeRef(a_sym)),
-      )
+      assert_true(ret == @symbols.ValueType::ValueTypeRef(a_sym))
       assert_true(effs.is_empty())
     }
     Some(_) => fail("h was not given a function type")
@@ -1163,13 +1161,13 @@ test "overload resolution retries and picks the second candidate" {
   run_typecheck(module_of([bool_def, int_def, wrap_def, y_def]), ctx)
   // the failing candidate is skipped and the successful one is annotated
   match ctx.symbol_of(show_ref.uid) {
-    Some(s) => assert_true(@symbols.sym_eq(s, int_show))
+    Some(s) => assert_true(s == int_show)
     None => fail("no symbol for the call")
   }
   // ... and the enclosing call still type checks (its verdict is not poisoned
   // by the failing candidate of the nested overload resolution)
   match ctx.value_type_of(outer.uid) {
-    Some(t) => assert_true(@typer.value_type_eq(t, @symbols.t_string()))
+    Some(t) => assert_true(t == @symbols.t_string())
     None => fail("no type for the outer call")
   }
 }
@@ -1204,13 +1202,13 @@ test "generic extern is instantiated with an inferred type argument" {
   )
   run_typecheck(module_of([id_extern, v_def]), ctx)
   match ctx.value_type_of(call.uid) {
-    Some(t) => assert_true(@typer.value_type_eq(t, @symbols.t_int()))
+    Some(t) => assert_true(t == @symbols.t_int())
     None => fail("no type inferred for the call")
   }
   // the inferred type argument is recorded for ExplicitCapabilities
   let targs = ctx.type_arguments_of(call.uid)
   assert_eq(targs.length(), 1)
-  assert_true(@typer.value_type_eq(targs[0], @symbols.t_int()))
+  assert_true(targs[0] == @symbols.t_int())
 }
 
 ///|
@@ -1253,7 +1251,7 @@ test "a rigid type parameter is passed to a generic function" {
   )
   run_typecheck(module_of([show_def, describe_def]), ctx)
   match ctx.value_type_of(call.uid) {
-    Some(t) => assert_true(@typer.value_type_eq(t, @symbols.t_string()))
+    Some(t) => assert_true(t == @symbols.t_string())
     None => fail("no type inferred for the show call")
   }
 }
@@ -1345,7 +1343,7 @@ test "method call is desugared even when the driver drops the unboxed tree" {
   run_typecheck_dropping_unbox(module, ctx)
   // the call is annotated with its type (the uid is preserved by the rewrite)
   match ctx.value_type_of(method_call.uid) {
-    Some(t) => assert_true(@typer.value_type_eq(t, @symbols.t_string()))
+    Some(t) => assert_true(t == @symbols.t_string())
     None => fail("no type inferred for the desugared method call")
   }
   // ... and the module the driver holds now contains the desugared call
@@ -1473,7 +1471,7 @@ test "Nothing coerces to the expected type" {
   )
   run_typecheck(module_of([f_def]), ctx)
   match ctx.value_type_of(if_term.uid) {
-    Some(t) => assert_true(@typer.value_type_eq(t, @symbols.t_int()))
+    Some(t) => assert_true(t == @symbols.t_int())
     None => fail("no type inferred for the if")
   }
   match ctx.effects_of(f_def.uid) {

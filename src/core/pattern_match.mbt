@@ -474,7 +474,7 @@ fn pm_split_on_tag(
   for c in normalized {
     match pm_split_clause(c, scrutinee) {
       Some((PMTag(cid, _, _, _), _, _)) =>
-        if !sym_in(cid, variants) {
+        if !variants.contains(cid) {
           variants.push(cid)
         }
       _ => ()
@@ -562,7 +562,7 @@ fn pm_split_on_tag(
           }
         }
         // only if the variants do not cover the data type, add a default!
-        if all_variants.any(v => !sym_in(v, variants)) {
+        if all_variants.any(v => !variants.contains(v)) {
           defaults.push(c)
         }
       }

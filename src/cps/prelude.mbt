@@ -4,7 +4,7 @@
 using @util {type Span, type EffektError, type Template}
 
 ///|
-using @symbols {type Sym, type ValueType, type BlockType, sym_eq}
+using @symbols {type Sym, type ValueType, type BlockType}
 
 ///|
 using @source {type FeatureFlag, type LiteralValue}

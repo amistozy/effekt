@@ -11,8 +11,7 @@ pub fn interface_key(t : BlockType) -> String {
   match t {
     @symbols.BlockType::InterfaceType(c, args) =>
       "\{c.uid()}[\{args.map(value_type_key).join(",")}]"
-    @symbols.BlockType::FunctionType(_, _, _, _, _, _) =>
-      "fn:\{show_block_type(t)}"
+    @symbols.BlockType::FunctionType(_, _, _, _, _, _) => "fn:\{t}"
   }
 }
 
@@ -23,7 +22,7 @@ pub fn value_type_key(t : ValueType) -> String {
     @symbols.ValueType::ValueTypeApp(c, args) =>
       "c\{c.uid()}[\{args.map(value_type_key).join(",")}]"
     @symbols.ValueType::BoxedType(b, c) =>
-      "@source.TermKind::Box(\{interface_key(b)},\{show_captures(c)})"
+      "@source.TermKind::Box(\{interface_key(b)},\{c})"
   }
 }
 
@@ -158,8 +157,8 @@ pub fn CapScope::relevant_in_scope_for(
             for _, cap in caps {
               match cap_type(cap) {
                 Some(@symbols.BlockType::InterfaceType(other, _)) =>
-                  if sym_eq(other, c) {
-                    out.push(show_block_type(cap_type(cap).unwrap()))
+                  if other == c {
+                    out.push("\{cap_type(cap).unwrap()}")
                   }
                 _ => ()
               }

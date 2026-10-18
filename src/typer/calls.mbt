@@ -318,7 +318,7 @@ pub fn Typer::check_overloaded_function_call(
       }
       let names : Array[String] = best.map(s => {
         let (s, _, _) = s
-        show_block_type(self.lookup_block(s))
+        "\{self.lookup_block(s)}"
       })
       self.abort(
         call.span,
@@ -462,19 +462,19 @@ pub fn Typer::check_overloaded_method_call(
     _ =>
       self.abort(
         receiver.span,
-        "Expected an interface type as receiver, but got \{show_block_type(recv.tpe)}.",
+        "Expected an interface type as receiver, but got \{recv.tpe}.",
       )
   }
   let candidates = methods.filter(m => {
     match operation_interface(m) {
-      Some(ctor) => sym_eq(ctor, iface_ctor)
+      Some(ctor) => ctor == iface_ctor
       None => false
     }
   })
   if candidates.length() == 0 {
     self.abort(
       id.span,
-      "Method \{id.name} not found for receiver of type \{show_block_type(recv.tpe)}.",
+      "Method \{id.name} not found for receiver of type \{recv.tpe}.",
     )
   }
   // manual type arguments have to be consistent with the receiver

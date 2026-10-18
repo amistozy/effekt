@@ -153,11 +153,11 @@ pub fn Unification::prune_captures(
         match self.capts.get(s.uid()) {
           Some(sol) =>
             for y in self.prune_captures(sol).to_array() {
-              if !sym_in(y, out) {
+              if !out.contains(y) {
                 out.push(y)
               }
             }
-          None => if !sym_in(s, out) { out.push(s) }
+          None => if !out.contains(s) { out.push(s) }
         }
       }
       @symbols.Captures::CaptureSetOf(out)
@@ -214,13 +214,13 @@ pub fn Unification::update_substitution(self : Unification) -> Unit {
   let subst = self.substitution()
   for k, v in self.types {
     let updated = subst.substitute_value(v)
-    if !value_type_eq(updated, v) {
+    if !(updated == v) {
       self.types.set(k, updated)
     }
   }
   for k, v in self.capts {
     let updated = subst.substitute_captures(v)
-    if !captures_eq(updated, v) {
+    if !(updated == v) {
       self.capts.set(k, updated)
     }
   }
@@ -261,7 +261,7 @@ pub fn Unification::propagate(self : Unification) -> String? {
       let (a, b, filter) = link
       // lower(a) - filter flows into lower(b)
       for c in self.lower_of(a) {
-        if !sym_in(c, filter) && !sym_in(c, self.lower_of(b)) {
+        if !filter.contains(c) && !self.lower_of(b).contains(c) {
           let next = self.lower_of(b).copy()
           next.push(c)
           self.lower.set(b, next)
@@ -277,7 +277,7 @@ pub fn Unification::propagate(self : Unification) -> String? {
             target.push(c)
           }
           for c in filter {
-            if !sym_in(c, target) {
+            if !target.contains(c) {
               target.push(c)
             }
           }
@@ -287,7 +287,7 @@ pub fn Unification::propagate(self : Unification) -> String? {
               changed = true
             }
             Some(ua) => {
-              let intersection = ua.filter(c => sym_in(c, target))
+              let intersection = ua.filter(c => target.contains(c))
               if intersection.length() != ua.length() {
                 self.upper.set(a, intersection)
                 changed = true
@@ -303,7 +303,7 @@ pub fn Unification::propagate(self : Unification) -> String? {
     match self.upper.get(uid) {
       Some(up) =>
         for c in lo {
-          if !sym_in(c, up) {
+          if !up.contains(c) {
             return Some(
               "Capture \{c.name().name} is not allowed in the inferred capture set",
             )
@@ -326,10 +326,8 @@ pub fn Unification::require_lower(
     Some(sol) => {
       let solved = sol.to_array()
       for c in bounds {
-        if !sym_in(c, solved) {
-          return Some(
-            "Capture \{c.name().name} is not included in \{show_captures(sol)}",
-          )
+        if !solved.contains(c) {
+          return Some("Capture \{c.name().name} is not included in \{sol}")
         }
       }
       None
@@ -338,7 +336,7 @@ pub fn Unification::require_lower(
       match self.upper.get(x.uid()) {
         Some(up) =>
           for c in bounds {
-            if !sym_in(c, up) {
+            if !up.contains(c) {
               return Some(
                 "Used capture \{c.name().name} is not in the allowed set {\{up.map(s => s.name().name).join(", ")}}",
               )
@@ -349,7 +347,7 @@ pub fn Unification::require_lower(
       let current = self.lower_of(x.uid())
       let next = current.copy()
       for c in bounds {
-        if !sym_in(c, next) {
+        if !next.contains(c) {
           next.push(c)
         }
       }
@@ -370,7 +368,7 @@ pub fn Unification::require_upper(
     Some(sol) => {
       let solved = sol.to_array()
       for c in solved {
-        if !sym_in(c, bounds) {
+        if !bounds.contains(c) {
           return Some(
             "Used capture \{c.name().name} is not in the allowed set {\{bounds.map(s => s.name().name).join(", ")}}",
           )
@@ -382,7 +380,7 @@ pub fn Unification::require_upper(
       match self.lower.get(x.uid()) {
         Some(lo) =>
           for c in lo {
-            if !sym_in(c, bounds) {
+            if !bounds.contains(c) {
               return Some(
                 "Used capture \{c.name().name} is not in the allowed set {\{bounds.map(s => s.name().name).join(", ")}}",
               )
@@ -392,7 +390,7 @@ pub fn Unification::require_upper(
       }
       match self.upper.get(x.uid()) {
         Some(up) => {
-          let intersection = up.filter(c => sym_in(c, bounds))
+          let intersection = up.filter(c => bounds.contains(c))
           self.upper.set(x.uid(), intersection)
         }
         None => self.upper.set(x.uid(), bounds.copy())
@@ -412,7 +410,7 @@ pub fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
   match self.upper.get(x.uid()) {
     Some(up) =>
       for c in bounds {
-        if !sym_in(c, up) {
+        if !up.contains(c) {
           return Some(
             "Used capture \{c.name().name} is not in the allowed set {\{up.map(s => s.name().name).join(", ")}}",
           )

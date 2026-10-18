@@ -1419,7 +1419,7 @@ fn Namer::resolve_clause(
     let names : Array[Name] = []
     for p in ps {
       let name = p.name()
-      if names.any(n => name_eq(n, name)) {
+      if names.any(n => n == name) {
         self.context.error(
           clause.span,
           "Patterns have to be linear: names can only occur once, but \{name.name} shows up multiple times.",

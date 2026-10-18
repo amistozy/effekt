@@ -39,8 +39,8 @@ You can browse and install extra skills here:
     expression is allowed inside (calls, `if`, nested braces, quotes); a
     literal `{` needs no escape, a literal `\{` must be written `\\{`. The
     expression needs a `Show` instance, so interpolate things that are already
-    `String` (`show_value_type(t)`, `sym.name().name`) or scalars; avoid
-    interpolating `Array`/`Option`.
+    `String` (`\{t}` for the types in `src/symbols`, `sym.name().name`) or
+    scalars; avoid interpolating `Array`/`Option`.
   - **Multi-line strings** `#|` for any string spanning two or more lines:
     ```moonbit
     let js = #|function f() {
@@ -89,6 +89,19 @@ You can browse and install extra skills here:
   one spelling covers both the pure and the raising case — e.g.
   `self.with_bindings(() => { … })`. `moon fmt` collapses a single-expression
   body to `x => expr`.
+
+- **Equality and printing go through the traits, not helper functions.** `Sym`,
+  `Name`, `ValueType`, `BlockType`, `Captures` and `Effects` all implement
+  `Eq`/`Show` in `src/symbols`, so write `a == b`, `xs.contains(x)` and
+  `"\{t}"` instead of a `*_eq`/`show_*` function. Such an `impl` is only
+  visible to other packages when it is `pub` — a missing `pub` is what once
+  forced `namer` to reimplement `Name` equality as `name_eq`.
+  The one relation that deliberately stays a function is the effect-set
+  membership check: `interface_type_equal`/`value_type_equal` compare effect
+  types up to capture sets and are not reflexive on function types, so they
+  cannot be `Eq`; their doc comments say so. `@core`'s `Doc`-based
+  pretty printer (`show_core_*`) is likewise not `Show`: it lays out a whole
+  module at a fixed width.
 
 ## Host access: prefer the standard library over `extern`
 

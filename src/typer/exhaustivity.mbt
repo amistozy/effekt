@@ -56,7 +56,7 @@ pub fn Typer::check_exhaustive(
         }
     }
   }
-  let missing = constructors.filter(c => !sym_in(c, covered))
+  let missing = constructors.filter(c => !covered.contains(c))
   if missing.length() > 0 {
     let names : Array[String] = missing.map(c => c.name().name)
     self.error(

@@ -37,7 +37,7 @@ pub fn Bindings::import_all(self : Bindings, other : Bindings) -> Unit {
     let existing = self.terms.get(name).unwrap_or([])
     let combined = existing.copy()
     for sym in syms {
-      if !sym_in(sym, combined) {
+      if !combined.contains(sym) {
         combined.push(sym)
       }
     }
@@ -62,7 +62,7 @@ pub fn Bindings::import_all(self : Bindings, other : Bindings) -> Unit {
 /// ambiguous.
 pub fn Bindings::add_term(self : Bindings, name : String, sym : Sym) -> Unit {
   let existing = self.terms.get(name).unwrap_or([]).copy()
-  if !sym_in(sym, existing) {
+  if !existing.contains(sym) {
     existing.push(sym)
   }
   self.terms.set(name, existing)

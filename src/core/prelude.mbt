@@ -35,7 +35,6 @@ using @symbols {
   type BlockType,
   type Captures,
   type Effects,
-  sym_in,
   dedup_syms,
   // built-in types and effects
   t_unit,

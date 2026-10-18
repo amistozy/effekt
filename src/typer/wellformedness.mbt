@@ -79,7 +79,7 @@ pub fn free_captures_block(t : BlockType) -> Array[Sym] {
         push_new(out, free_captures(c))
       }
       push_new(out, free_captures_value(ret))
-      out.filter(c => !sym_in(c, bound))
+      out.filter(c => !bound.contains(c))
     }
   }
 }
@@ -89,7 +89,7 @@ pub fn free_captures_block(t : BlockType) -> Array[Sym] {
 pub fn free_types_value(t : ValueType, bound : Array[Sym]) -> Array[Sym] {
   match t {
     @symbols.ValueType::ValueTypeRef(x) =>
-      if sym_in(x, bound) {
+      if bound.contains(x) {
         []
       } else {
         match x {
@@ -139,7 +139,7 @@ pub fn free_types_block(t : BlockType, bound : Array[Sym]) -> Array[Sym] {
 ///|
 fn push_new(out : Array[Sym], xs : Array[Sym]) -> Unit {
   for x in xs {
-    if !sym_in(x, out) {
+    if !out.contains(x) {
       out.push(x)
     }
   }
@@ -155,11 +155,11 @@ pub fn Typer::check_no_capture_escape(
   span : Span,
   msg : String,
 ) -> Unit {
-  let escaping = free.filter(c => sym_in(c, bound))
+  let escaping = free.filter(c => bound.contains(c))
   if escaping.length() > 0 {
     self.error(
       span,
-      "\{msg} Escaping: \{show_captures(@symbols.Captures::CaptureSetOf(escaping))}",
+      "\{msg} Escaping: \{@symbols.Captures::CaptureSetOf(escaping)}",
     )
   }
 }

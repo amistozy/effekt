@@ -241,7 +241,7 @@ fn transform_extern(
       }
       let is_async = annotated_capture
         .to_array()
-        .any(c => sym_eq(c, @symbols.async_capture()))
+        .any(c => c == @symbols.async_capture())
       ExternDef(id, vps, bps, is_async, transform_extern_body(body, ctx))
     }
     @core.ExternInclude(feature_flag, contents) =>

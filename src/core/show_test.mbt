@@ -631,7 +631,7 @@ test "show phase: requiredNames keeps show, showBuiltin and infixPlusPlus" {
   let f = show_test_fixture(_t => [])
   let names = @core.required_names(f.module)
   assert_eq(names.length(), 3)
-  assert_true(@symbols.sym_in(f.show, names))
-  assert_true(@symbols.sym_in(f.show_builtin, names))
-  assert_true(@symbols.sym_in(f.concat, names))
+  assert_true(names.contains(f.show))
+  assert_true(names.contains(f.show_builtin))
+  assert_true(names.contains(f.concat))
 }

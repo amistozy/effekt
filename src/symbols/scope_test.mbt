@@ -12,7 +12,7 @@ test "binding the same symbol twice is a no-op" {
   let sym = @symbols.Sym::capture_param(@symbols.Name::local("Tuple2"))
   b.add_term("Tuple2", sym)
   b.add_term("Tuple2", sym)
-  assert_true(b.terms.get("Tuple2") is Some([s]) && @symbols.sym_eq(s, sym))
+  assert_true(b.terms.get("Tuple2") is Some([s]) && s == sym)
 }
 
 ///|
@@ -24,7 +24,7 @@ test "binding different symbols under one name stays ambiguous" {
   b.add_term("Tuple2", second)
   let bound = b.terms.get("Tuple2").unwrap()
   assert_eq(bound.length(), 2)
-  assert_false(@symbols.sym_eq(bound[0], bound[1]))
+  assert_false(bound[0] == bound[1])
 }
 
 ///|

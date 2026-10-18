@@ -43,7 +43,7 @@ pub fn Name::qualified_name(self : Name) -> String {
 }
 
 ///|
-impl Eq for Name with fn equal(self, other) {
+pub impl Eq for Name with fn equal(self, other) {
   self.name == other.name && self.path == other.path
 }
 

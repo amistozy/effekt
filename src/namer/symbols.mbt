@@ -39,13 +39,6 @@ fn id_text(id : IdRef) -> String {
   }
 }
 
-///|
-/// Structural equality of names. (`Name` has an `impl Eq`, but it is not
-/// exported from the `symbols` package.)
-fn name_eq(a : Name, b : Name) -> Bool {
-  a.name == b.name && a.path == b.path
-}
-
 // Values
 // ------
 

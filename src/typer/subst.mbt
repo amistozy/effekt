@@ -133,15 +133,15 @@ pub fn Substitutions::substitute_captures(
         match self.captures.get(s.uid()) {
           Some(@symbols.Captures::CaptureSetOf(ys)) =>
             for y in ys {
-              if !sym_in(y, out) {
+              if !out.contains(y) {
                 out.push(y)
               }
             }
           Some(@symbols.Captures::CaptVar(y)) =>
-            if !sym_in(y, out) {
+            if !out.contains(y) {
               out.push(y)
             }
-          None => if !sym_in(s, out) { out.push(s) }
+          None => if !out.contains(s) { out.push(s) }
         }
       }
       @symbols.Captures::CaptureSetOf(out)

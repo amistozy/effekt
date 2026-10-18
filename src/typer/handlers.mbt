@@ -82,20 +82,17 @@ fn Typer::check_expr_as_block_kind(
               None =>
                 self.abort(
                   e.span,
-                  "Unbox requires a boxed type, but got \{show_value_type(res.tpe)}.",
+                  "Unbox requires a boxed type, but got \{res.tpe}.",
                 )
             }
           } else {
             self.abort(
               e.span,
-              "Unbox requires a boxed type, but got \{show_value_type(res.tpe)}.",
+              "Unbox requires a boxed type, but got \{res.tpe}.",
             )
           }
         _ =>
-          self.abort(
-            e.span,
-            "Unbox requires a boxed type, but got \{show_value_type(res.tpe)}.",
-          )
+          self.abort(e.span, "Unbox requires a boxed type, but got \{res.tpe}.")
       }
     }
     @source.TermKind::Var(id) => {
@@ -134,7 +131,7 @@ fn Typer::check_expr_as_block_kind(
             _ =>
               self.abort(
                 e.span,
-                "Block literal has a function type, but expected type is: \{show_block_type(t)}",
+                "Block literal has a function type, but expected type is: \{t}",
               )
           }
         None => self.infer_function_argument(e)
@@ -410,7 +407,7 @@ pub fn Typer::check_implementation(
   let covered : Array[Sym] = implementation.clauses.map(c => {
     self.symbol_of_id(c.id)
   })
-  let not_covered = operations.filter(o => !covered.any(c => sym_eq(c, o)))
+  let not_covered = operations.filter(o => !covered.any(c => c == o))
   if not_covered.length() > 0 {
     let names : Array[String] = not_covered.map(o => o.name().name)
     self.error(
@@ -420,7 +417,7 @@ pub fn Typer::check_implementation(
   }
   let seen : Array[Sym] = []
   for c in covered {
-    if sym_in(c, seen) {
+    if seen.contains(c) {
       self.error(implementation.span, "Duplicate definitions of operations")
     }
     seen.push(c)
@@ -771,7 +768,7 @@ pub fn Typer::check_try_handle(
     bound_captures,
     free_captures_value(prog_res.tpe),
     prog.span,
-    "The return type \{show_value_type(prog_res.tpe)} of the handled statement is not allowed to refer to any of the bound capabilities.",
+    "The return type \{prog_res.tpe} of the handled statement is not allowed to refer to any of the bound capabilities.",
   )
 
   // the captures of the handler continue flowing into the outer scope
@@ -816,7 +813,7 @@ fn Typer::warn_about_handlers(
     for j = 0; j < effects.length(); j = j + 1 {
       if interface_type_equal(effects[i], effects[j]) {
         count = count + 1
-        if sym_in(capabilities[j], explicit) {
+        if explicit.contains(capabilities[j]) {
           all_implicit = false
         } else {
           all_explicit = false
@@ -825,14 +822,14 @@ fn Typer::warn_about_handlers(
     }
     if count > 1 && !all_explicit {
       let message =
-        $|There are multiple handlers for effect \{show_block_type(effects[i])}; this might not be intended.
+        $|There are multiple handlers for effect \{effects[i]}; this might not be intended.
         $|Maybe bind capabilities explicitly (e.g. `try { ... } with c: MyEffect { ... }`)?
       self.warning(handlers[0].span, message)
     }
     if all_implicit && !eff_contains(used, effects[i]) {
       self.warning(
         handlers[0].span,
-        "Handling effect \{show_block_type(effects[i])}, which seems not to be used by the program.",
+        "Handling effect \{effects[i]}, which seems not to be used by the program.",
       )
     }
   }

@@ -389,6 +389,7 @@ pub fn Sym::decl(self : Sym) -> Span {
 }
 
 ///|
+/// Symbols are compared by identity (`uid`), not by name.
 pub impl Eq for Sym with fn equal(self, other) {
   self.uid() == other.uid()
 }
@@ -396,17 +397,6 @@ pub impl Eq for Sym with fn equal(self, other) {
 ///|
 pub impl Show for Sym with fn output(self, logger) {
   self.name().output(logger)
-}
-
-///|
-/// Are these symbols the same? (Identity, not name equality.)
-pub fn sym_eq(a : Sym, b : Sym) -> Bool {
-  a.uid() == b.uid()
-}
-
-///|
-pub fn sym_in(x : Sym, xs : Array[Sym]) -> Bool {
-  xs.any(y => sym_eq(x, y))
 }
 
 // Kind predicates, standing in for the trait hierarchy.
@@ -828,10 +818,34 @@ pub fn Captures::union(self : Captures, other : Captures) -> Captures {
 }
 
 ///|
+/// Structural equality on capture sets. A capture set is unordered, so this
+/// is set equality; a capture variable only ever equals itself.
+pub impl Eq for Captures with fn equal(self, other) {
+  match (self, other) {
+    (CaptureSetOf(xs), CaptureSetOf(ys)) =>
+      xs.all(x => ys.contains(x)) && ys.all(y => xs.contains(y))
+    (CaptVar(x), CaptVar(y)) => x == y
+    _ => false
+  }
+}
+
+///|
+/// Capture sets print as `{a, b}`; an unsolved capture variable as `?x`.
+pub impl Show for Captures with fn output(self, logger) {
+  match self {
+    CaptureSetOf(cs) => {
+      let rendered = cs.map(s => s.name().qualified_name()).join(", ")
+      logger.write_string("{\{rendered}}")
+    }
+    CaptVar(x) => logger.write_string("?\{x.name().qualified_name()}")
+  }
+}
+
+///|
 pub fn dedup_syms(xs : Array[Sym]) -> Array[Sym] {
   let out : Array[Sym] = []
   for x in xs {
-    if !sym_in(x, out) {
+    if !out.contains(x) {
       out.push(x)
     }
   }
@@ -842,7 +856,7 @@ pub fn dedup_syms(xs : Array[Sym]) -> Array[Sym] {
 pub fn Captures::diff(self : Captures, other : Captures) -> Captures {
   match (self, other) {
     (CaptureSetOf(a), CaptureSetOf(b)) =>
-      CaptureSetOf(a.filter(x => !sym_in(x, b)))
+      CaptureSetOf(a.filter(x => !b.contains(x)))
     (CaptVar(c), _) => CaptVar(c)
     (self, _) => self
   }

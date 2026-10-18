@@ -33,7 +33,7 @@ fn TypeSubst::without(self : TypeSubst, shadowed : Array[Sym]) -> TypeSubst {
   let keys : Array[Sym] = []
   let values : Array[ValueType] = []
   for i = 0; i < self.keys.length(); i = i + 1 {
-    if !@symbols.sym_in(self.keys[i], shadowed) {
+    if !shadowed.contains(self.keys[i]) {
       keys.push(self.keys[i])
       values.push(self.values[i])
     }

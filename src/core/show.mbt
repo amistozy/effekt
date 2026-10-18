@@ -75,7 +75,7 @@ pub fn required_names(module : ModuleDecl) -> Array[Sym] {
   for e in module.externs {
     match e {
       ExternDef(id, _, _, _, _, _, _, _, _) =>
-        if required.any(name => name == id.name().name) && !sym_in(id, out) {
+        if required.any(name => name == id.name().name) && !out.contains(id) {
           out.push(id)
         }
       _ => ()

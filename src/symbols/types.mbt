@@ -124,7 +124,7 @@ pub fn Effects::distinct(self : Effects) -> Effects {
 fn dedup_blocks(xs : Array[BlockType]) -> Array[BlockType] {
   let out : Array[BlockType] = []
   for x in xs {
-    if !out.any(y => block_type_equal(x, y)) {
+    if !out.any(y => interface_type_equal(x, y)) {
       out.push(x)
     }
   }
@@ -132,14 +132,11 @@ fn dedup_blocks(xs : Array[BlockType]) -> Array[BlockType] {
 }
 
 ///|
-/// Structural equality on block types.
-pub fn block_type_equal(a : BlockType, b : BlockType) -> Bool {
-  interface_type_equal(a, b)
-}
-
-///|
-/// Structural equality specialised to interface (effect) types. Used for
-/// effect-set membership and for the canonical ordering substitute.
+/// The effect-set membership relation. It is *coarser* than `Eq`:
+/// capture sets are ignored, and function types compare as false even to
+/// themselves (they never occur in effect sets, and unfolding them here can
+/// loop). Keep it separate from `Eq` — an equivalence relation has to be
+/// reflexive, this one is not.
 pub fn interface_type_equal(a : BlockType, b : BlockType) -> Bool {
   match (a, b) {
     (InterfaceType(c1, args1), InterfaceType(c2, args2)) =>
@@ -163,6 +160,9 @@ pub fn value_types_equal(a : Array[ValueType], b : Array[ValueType]) -> Bool {
 }
 
 ///|
+/// Equality up to capture sets, used by `interface_type_equal` for the
+/// arguments of an effect. This is *not* the structural `Eq` (see below):
+/// it ignores captures and treats boxed function types as never equal.
 pub fn value_type_equal(a : ValueType, b : ValueType) -> Bool {
   match (a, b) {
     (ValueTypeRef(s1), ValueTypeRef(s2)) => s1.uid() == s2.uid()
@@ -229,4 +229,102 @@ pub fn canonical_compare_value(a : ValueType, b : ValueType) -> Int32 {
     (_, ValueTypeApp(_, _)) => 1
     (BoxedType(t1, _), BoxedType(t2, _)) => canonical_compare(t1, t2)
   }
+}
+
+// ---------------------------------------------------------------------------
+// Structural equality and printing
+//
+// These are `Eq` / `Show` instead of ad-hoc helpers so that `==` and
+// `"\{t}"` work at every call site. `value_type_equal` and
+// `interface_type_equal` above are a *different*, coarser relation: they
+// ignore capture sets and are not reflexive on function types, so they cannot
+// be `Eq` without breaking its laws.
+// ---------------------------------------------------------------------------
+
+///|
+/// Structural equality: same constructor, symbols by identity, capture sets
+/// compared as sets (see `Eq for Captures`).
+pub impl Eq for ValueType with fn equal(self, other) {
+  match (self, other) {
+    (ValueTypeRef(x), ValueTypeRef(y)) => x == y
+    (ValueTypeApp(c1, args1), ValueTypeApp(c2, args2)) =>
+      c1 == c2 && args1 == args2
+    (BoxedType(b1, c1), BoxedType(b2, c2)) => b1 == b2 && c1 == c2
+    _ => false
+  }
+}
+
+///|
+/// Structural equality, including function types (which the effect-set
+/// relation refuses to compare at all).
+pub impl Eq for BlockType with fn equal(self, other) {
+  match (self, other) {
+    (InterfaceType(c1, args1), InterfaceType(c2, args2)) =>
+      c1 == c2 && args1 == args2
+    (
+      FunctionType(cps1, capts1, vps1, bps1, ret1, effs1),
+      FunctionType(cps2, capts2, vps2, bps2, ret2, effs2),
+    ) =>
+      cps1 == cps2 &&
+      capts1 == capts2 &&
+      vps1 == vps2 &&
+      bps1 == bps2 &&
+      ret1 == ret2 &&
+      effs1 == effs2
+    _ => false
+  }
+}
+
+///|
+/// Effect sets are unordered and keep duplicates, so equality is set equality
+/// of their interfaces.
+pub impl Eq for Effects with fn equal(self, other) {
+  let xs = self.distinct().effects
+  let ys = other.distinct().effects
+  xs.length() == ys.length() &&
+  xs.all(x => ys.any(y => interface_type_equal(x, y)))
+}
+
+///|
+fn show_type_application(name : Name, args : Array[ValueType]) -> String {
+  if args.length() == 0 {
+    name.qualified_name()
+  } else {
+    let rendered = args.map(a => "\{a}")
+    "\{name.qualified_name()}[\{rendered.join(", ")}]"
+  }
+}
+
+///|
+/// Effekt surface syntax, qualified and on one line: this is what diagnostics
+/// print. It is not what `--show-core` prints — that is `@core.pretty`, which
+/// lays out a whole module through `Doc` at a fixed width.
+pub impl Show for ValueType with fn output(self, logger) {
+  match self {
+    ValueTypeRef(s) => logger.write_string(s.name().qualified_name())
+    ValueTypeApp(c, args) =>
+      logger.write_string(show_type_application(c.name(), args))
+    BoxedType(b, c) => logger.write_string("box \{b} at \{c}")
+  }
+}
+
+///|
+pub impl Show for BlockType with fn output(self, logger) {
+  match self {
+    InterfaceType(c, args) =>
+      logger.write_string(show_type_application(c.name(), args))
+    FunctionType(_, _, vps, bps, ret, effs) => {
+      let args : Array[String] = vps.map(v => "\{v}")
+      for b in bps {
+        args.push("{\{b}}")
+      }
+      logger.write_string("(\{args.join(", ")} => \{ret} / \{effs})")
+    }
+  }
+}
+
+///|
+pub impl Show for Effects with fn output(self, logger) {
+  let names = self.distinct().effects.map(e => "\{e}")
+  logger.write_string("{\{names.join(", ")}}")
 }
