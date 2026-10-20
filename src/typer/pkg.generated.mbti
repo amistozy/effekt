@@ -78,7 +78,6 @@ pub(all) enum CapScope {
 pub fn CapScope::all_capabilities(Self) -> Array[@symbols.Sym]
 pub fn CapScope::capability_for(Self, @symbols.BlockType) -> @symbols.Sym?
 pub fn CapScope::capability_for_matching(Self, @symbols.BlockType, (@symbols.BlockType) -> @symbols.BlockType) -> @symbols.Sym?
-pub fn CapScope::copy(Self) -> Self
 pub fn CapScope::is_global(Self) -> Bool
 pub fn CapScope::parent(Self) -> Self
 pub fn CapScope::relevant_in_scope_for(Self, @symbols.BlockType) -> Array[String]

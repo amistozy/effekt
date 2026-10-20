@@ -48,15 +48,6 @@ pub fn CapScope::parent(self : CapScope) -> CapScope {
 }
 
 ///|
-pub fn CapScope::copy(self : CapScope) -> CapScope {
-  match self {
-    GlobalCap => GlobalCap
-    BindSome(caps, parent) => BindSome(caps.copy(), parent.copy())
-    BindAll(caps, parent) => BindAll(caps.copy(), parent.copy())
-  }
-}
-
-///|
 /// All capabilities bound by the frames of this scope, innermost first.
 pub fn CapScope::all_capabilities(self : CapScope) -> Array[Sym] {
   let out : Array[Sym] = []

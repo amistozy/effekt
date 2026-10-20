@@ -88,7 +88,13 @@ pub fn TyperState::backup(self : TyperState) -> TyperState {
   {
     u: self.u.copy(),
     scope: self.scope.deep_copy(),
-    cap_scope: self.cap_scope.copy(),
+    // The capability scope is monotone (capabilities are only ever added), so
+    // it is shared between a state and its backups: a candidate that is rolled
+    // back may leave a capability behind, but the successful path binds every
+    // capability it used from the enclosing frame's map anyway. Copying it
+    // would orphan the frame installed by `binding_all_capabilities`, because
+    // installing a successful candidate replaces the whole state.
+    cap_scope: self.cap_scope,
     current: self.current,
     vt: self.vt.copy(),
     bt: self.bt.copy(),
@@ -606,7 +612,8 @@ fn Typer::capability_for(
 }
 
 ///|
-/// Binds capabilities and remembers them for `ExplicitCapabilities`.
+/// Binds `caps` and runs `f` with a capability scope that resolves their
+/// effects to them.
 fn[T] Typer::binding_capabilities(
   self : Typer,
   uid : Int32,
@@ -616,10 +623,10 @@ fn[T] Typer::binding_capabilities(
   self.bind_capabilities(uid, caps)
   let map : Map[String, Sym] = Map([])
   for cap in caps {
-    match self.st.bt.get(cap.uid()) {
-      // The capability's own type may still mention a unification variable
-      // that has been solved since it was created; lookups prune, so the key
-      // has to be computed on the pruned type as well.
+    // The capability's own type may still mention a unification variable that
+    // has been solved since it was created; lookups prune, so the key has to
+    // be computed on the pruned type as well.
+    match capability_type(cap) {
       Some(t) => map.set(interface_key(self.st.u.prune_block(t)), cap)
       None => ()
     }
@@ -632,14 +639,21 @@ fn[T] Typer::binding_capabilities(
 }
 
 ///|
+/// Binds capabilities and remembers them for `ExplicitCapabilities`.
 fn Typer::bind_capabilities(
   self : Typer,
   uid : Int32,
   caps : Array[Sym],
 ) -> Unit raise EffektError {
   for cap in caps {
-    match self.st.bt.get(cap.uid()) {
-      Some(t) => self.assert_concrete_effect(t, cap.decl())
+    // A capability handed out by `CapScope::capability_for` has never been
+    // registered in the typing context (the scope cannot reach it); take the
+    // type from the symbol and register it.
+    match capability_type(cap) {
+      Some(t) => {
+        self.bind_block(cap, t)
+        self.assert_concrete_effect(t, cap.decl())
+      }
       None => self.panic("Capability type needs to be known.")
     }
   }
@@ -658,7 +672,15 @@ fn[T] Typer::binding_all_capabilities(
   let caps : Map[String, Sym] = Map([])
   self.st.cap_scope = BindAll(caps, parent)
   let result = f()
-  self.st.cap_scope = parent
+  // Installing a successful overload candidate replaces the whole state, so the
+  // frame installed above is not necessarily the one that is current now; read
+  // the map back from the live frame. (The capability scope itself is shared
+  // between a state and its backups, so this is normally the very same map.)
+  let (caps, frame_parent) = match self.st.cap_scope {
+    BindAll(caps, parent) => (caps, parent)
+    _ => (caps, parent)
+  }
+  self.st.cap_scope = frame_parent
   self.st.ann.bound_caps.set(uid, [])
   (result, caps)
 }
@@ -1353,21 +1375,28 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
                   let (res, caps) = self.binding_all_capabilities(d.uid, () => {
                     self.check_stmt(body, None)
                   })
-                  let capabilities = canonical_order(
-                    res.effs.distinct().effects,
-                  ).map(e => {
-                    match caps.get(interface_key(e)) {
-                      Some(cap) => cap
-                      None =>
-                        self.fresh_capability_for(
-                          e,
-                          Sym::capture_param(effect_name(e)),
-                        )
-                    }
-                  })
+                  // The capabilities in `caps` were created (and keyed) by the
+                  // *pruned* effect type the body asked for, while `res.effs`
+                  // may still mention a unification variable that has been
+                  // solved since. Prune before matching: otherwise the lookup
+                  // misses, a second capability is created for the definition,
+                  // and the body keeps referring to the first one — which then
+                  // is never bound in the generated code.
+                  let effects = self.st.u.prune_effects(res.effs)
+                  let capabilities = canonical_order(effects.distinct().effects).map(e => {
+                      match caps.get(interface_key(e)) {
+                        Some(cap) => cap
+                        None =>
+                          self.fresh_capability_for(
+                            e,
+                            Sym::capture_param(effect_name(e)),
+                          )
+                      }
+                    },
+                  )
                   self.bind_capabilities(d.uid, capabilities)
                   self.annotate_value(d.uid, res.tpe)
-                  self.annotate_effects(d.uid, res.effs)
+                  self.annotate_effects(d.uid, effects)
                   let filter = match view {
                     Some(v) => v.bparams.map(b => capture_of_capability(b))
                     None => []
@@ -1382,7 +1411,7 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
                   let fun_type = self.user_function_type(
                     sym,
                     res.tpe,
-                    res.effs,
+                    effects,
                     capabilities,
                   )
                   (Effects::empty(), fun_type)

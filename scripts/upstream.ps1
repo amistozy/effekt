@@ -26,7 +26,7 @@ Push-Location $root
 # Compiling one file loads the whole prelude, so the corpus is split across a
 # few background jobs to keep the wall-clock time reasonable.
 $jobs = 6
-$positiveBaseline = 298
+$positiveBaseline = 318
 $negativeBaseline = 112
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
