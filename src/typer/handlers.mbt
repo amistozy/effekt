@@ -238,7 +238,15 @@ pub fn Typer::check_function_argument(
       }
 
       // (3) the effects are handled by this function
-      let distinct_effs = effs.distinct()
+      //
+      // The expected type was instantiated with fresh unification variables,
+      // and the call's type arguments may have solved some of them by now
+      // (`for[Int] { … }` instantiates `emit[A]` as `emit[?A]`, then solves
+      // `?A := Int`). Capacity types have to be concrete: prune before
+      // allocating the capabilities, otherwise the capability is keyed by
+      // `emit[?A]` while the body looks it up as `emit[Int]` and a *second*
+      // capability is created in an outer scope.
+      let distinct_effs = self.st.u.prune_effects(effs).distinct()
       let capabilities = canonical_order(distinct_effs.effects).map(e => {
         self.fresh_capability_for(e, Sym::capture_param(effect_name(e)))
       })

@@ -617,7 +617,10 @@ fn[T] Typer::binding_capabilities(
   let map : Map[String, Sym] = Map([])
   for cap in caps {
     match self.st.bt.get(cap.uid()) {
-      Some(t) => map.set(interface_key(t), cap)
+      // The capability's own type may still mention a unification variable
+      // that has been solved since it was created; lookups prune, so the key
+      // has to be computed on the pruned type as well.
+      Some(t) => map.set(interface_key(self.st.u.prune_block(t)), cap)
       None => ()
     }
   }
@@ -1287,29 +1290,19 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
             self.flowing_into(inferred, () => {
               match sym.annotated_type() {
                 Some(annotated) => {
-                  // The declared effects are bound by this function -- and so
-                  // are the effects declared by its *block parameters*: calling
-                  // a block parameter performs them, so the function has to
-                  // bind a capability for each of them (upstream: the effects
-                  // of a block parameter are part of the capability scope of
-                  // the function that takes it).
-                  let (cps, annotated_effs, ret_t) = match annotated {
+                  // Upstream `Typer.synthDef`: `val bound = annotated.effects`
+                  // — *only* the effects the function declares. The effects
+                  // of a block parameter are not bound by the function that
+                  // takes it: whoever calls the block provides the capability,
+                  // and an effect the body performs without declaring it has
+                  // to be handled inside the body (otherwise the effect would
+                  // escape). Folding the parameter effects in here used to add
+                  // capability parameters that the call sites never passed,
+                  // so the generated JavaScript was one argument short.
+                  let (cps, bound, ret_t) = match annotated {
                     @symbols.BlockType::FunctionType(_, capts, _, _, ret, effs) =>
                       (capture_params_of(capts), effs, ret)
                     _ => ([], Effects::empty(), t_unit())
-                  }
-                  let mut bound = annotated_effs
-                  for bp in v.bparams {
-                    match symbol_block_type(bp) {
-                      Some(
-                        @symbols.BlockType::FunctionType(_, _, _, _, _, bp_effs)
-                      ) =>
-                        bound = eff_union(
-                          bound,
-                          self.st.u.prune_effects(bp_effs),
-                        )
-                      _ => ()
-                    }
                   }
                   let capabilities = canonical_order(bound.distinct().effects).map(e => {
                       self.fresh_capability_for(
