@@ -68,13 +68,13 @@ pub fn substitute_block_param(BlockParam, Substitution) -> BlockParam
 
 pub fn substitute_block_type(@symbols.BlockType, Substitution) -> @symbols.BlockType
 
-pub fn substitute_block_type_with(@symbols.BlockType, Map[Int, @symbols.ValueType], Map[Int, @symbols.Captures]) -> @symbols.BlockType
+pub fn substitute_block_type_with(@symbols.BlockType, Map[Int32, @symbols.ValueType], Map[Int32, @symbols.Captures]) -> @symbols.BlockType
 
 pub fn substitute_block_var(BlockVar, Substitution) -> BlockVar raise @util.EffektError
 
 pub fn substitute_captures(@symbols.Captures, Substitution) -> @symbols.Captures
 
-pub fn substitute_captures_with(@symbols.Captures, Map[Int, @symbols.Captures]) -> @symbols.Captures
+pub fn substitute_captures_with(@symbols.Captures, Map[Int32, @symbols.Captures]) -> @symbols.Captures
 
 pub fn substitute_expr(Expr, Substitution) -> Expr raise @util.EffektError
 
@@ -88,7 +88,7 @@ pub fn substitute_value_param(ValueParam, Substitution) -> ValueParam
 
 pub fn substitute_value_type(@symbols.ValueType, Substitution) -> @symbols.ValueType
 
-pub fn substitute_value_type_with(@symbols.ValueType, Map[Int, @symbols.ValueType], Map[Int, @symbols.Captures]) -> @symbols.ValueType
+pub fn substitute_value_type_with(@symbols.ValueType, Map[Int32, @symbols.ValueType], Map[Int32, @symbols.Captures]) -> @symbols.ValueType
 
 pub fn transform(@source.ModuleDecl, String, @source.Context) -> ModuleDecl raise @util.EffektError
 
@@ -201,18 +201,18 @@ pub fn Declaration::id(Self) -> @symbols.Sym
 pub(all) struct DeclarationContext {
   declarations : Array[Declaration]
   externs : Array[Extern]
-  datas : Map[Int, Int]
-  interfaces : Map[Int, Int]
-  constructors : Map[Int, ConstructorRef]
-  fields : Map[Int, FieldRef]
-  properties : Map[Int, PropertyRef]
-  extern_defs : Map[Int, Int]
-  extern_datas : Map[Int, Int]
-  extern_defs_by_name : Map[String, Int]
+  datas : Map[Int32, Int32]
+  interfaces : Map[Int32, Int32]
+  constructors : Map[Int32, ConstructorRef]
+  fields : Map[Int32, FieldRef]
+  properties : Map[Int32, PropertyRef]
+  extern_defs : Map[Int32, Int32]
+  extern_datas : Map[Int32, Int32]
+  extern_defs_by_name : Map[String, Int32]
 }
 pub fn DeclarationContext::find_constructor(Self, @symbols.Sym) -> Constructor?
 pub fn DeclarationContext::find_constructor_of_field(Self, Field) -> Constructor?
-pub fn DeclarationContext::find_constructor_tag(Self, @symbols.Sym) -> Int?
+pub fn DeclarationContext::find_constructor_tag(Self, @symbols.Sym) -> Int32?
 pub fn DeclarationContext::find_data(Self, @symbols.Sym) -> Declaration?
 pub fn DeclarationContext::find_data_of_constructor(Self, Constructor) -> Declaration?
 pub fn DeclarationContext::find_data_of_field(Self, Field) -> Declaration?
@@ -224,9 +224,9 @@ pub fn DeclarationContext::find_field(Self, @symbols.Sym) -> Field?
 pub fn DeclarationContext::find_interface(Self, @symbols.Sym) -> Declaration?
 pub fn DeclarationContext::find_interface_of_property(Self, Property) -> Declaration?
 pub fn DeclarationContext::find_property(Self, @symbols.Sym) -> Property?
-pub fn DeclarationContext::find_property_tag(Self, @symbols.Sym) -> Int?
+pub fn DeclarationContext::find_property_tag(Self, @symbols.Sym) -> Int32?
 pub fn DeclarationContext::get_constructor(Self, @symbols.Sym) -> Constructor raise @util.EffektError
-pub fn DeclarationContext::get_constructor_tag(Self, @symbols.Sym) -> Int raise @util.EffektError
+pub fn DeclarationContext::get_constructor_tag(Self, @symbols.Sym) -> Int32 raise @util.EffektError
 pub fn DeclarationContext::get_data(Self, @symbols.Sym) -> Declaration raise @util.EffektError
 pub fn DeclarationContext::get_declaration(Self, @symbols.Sym) -> Declaration raise @util.EffektError
 pub fn DeclarationContext::get_extern_data(Self, @symbols.Sym) -> Extern raise @util.EffektError
@@ -234,7 +234,7 @@ pub fn DeclarationContext::get_extern_def(Self, @symbols.Sym) -> Extern raise @u
 pub fn DeclarationContext::get_field(Self, @symbols.Sym) -> Field raise @util.EffektError
 pub fn DeclarationContext::get_interface(Self, @symbols.Sym) -> Declaration raise @util.EffektError
 pub fn DeclarationContext::get_property(Self, @symbols.Sym) -> Property raise @util.EffektError
-pub fn DeclarationContext::get_property_tag(Self, @symbols.Sym) -> Int raise @util.EffektError
+pub fn DeclarationContext::get_property_tag(Self, @symbols.Sym) -> Int32 raise @util.EffektError
 pub fn DeclarationContext::new(Array[Declaration], Array[Extern]) -> Self
 
 pub(all) enum Expr {
@@ -272,8 +272,8 @@ pub(all) struct FieldRef {
 }
 
 pub(all) struct Free {
-  values : Map[Int, FreeValue]
-  blocks : Map[Int, FreeBlock]
+  values : Map[Int32, FreeValue]
+  blocks : Map[Int32, FreeBlock]
 }
 pub fn Free::block(@symbols.Sym, @symbols.BlockType, @symbols.Captures) -> Self
 pub fn Free::contains(Self, @symbols.Sym) -> Bool
@@ -338,7 +338,7 @@ pub(all) struct PMClause {
 pub fn PMClause::new(Array[PMCondition], BlockVar, Array[@symbols.ValueType], Array[PMVar]) -> Self
 
 pub(all) enum PMCondition {
-  PMPatterns(Map[Int, PMVarPattern])
+  PMPatterns(Map[Int32, PMVarPattern])
   PMPredicate(Expr)
   PMRun(Binding)
 }
@@ -403,7 +403,7 @@ pub(all) struct ScrutineePattern {
 pub(all) struct ShowContext {
   show_names : Map[String, @symbols.Sym]
   show_defns : Map[String, Toplevel]
-  tparam_lookup : Map[Int, @symbols.ValueType]
+  tparam_lookup : Map[Int32, @symbols.ValueType]
   mut bindings : Array[Binding]
 }
 pub fn ShowContext::new() -> Self
@@ -431,13 +431,13 @@ pub(all) enum Stmt {
 pub fn Stmt::free(Self) -> Free
 
 pub(all) struct Substitution {
-  vtypes : Map[Int, @symbols.ValueType]
-  captures : Map[Int, @symbols.Captures]
-  values : Map[Int, Expr]
-  blocks : Map[Int, Block]
+  vtypes : Map[Int32, @symbols.ValueType]
+  captures : Map[Int32, @symbols.Captures]
+  values : Map[Int32, Expr]
+  blocks : Map[Int32, Block]
 }
 pub fn Substitution::empty() -> Self
-pub fn Substitution::new(Map[Int, @symbols.ValueType], Map[Int, @symbols.Captures], Map[Int, Expr], Map[Int, Block]) -> Self
+pub fn Substitution::new(Map[Int32, @symbols.ValueType], Map[Int32, @symbols.Captures], Map[Int32, Expr], Map[Int32, Block]) -> Self
 pub fn Substitution::shadow_blocks(Self, Array[@symbols.Sym]) -> Self
 pub fn Substitution::shadow_captures(Self, Array[@symbols.Sym]) -> Self
 pub fn Substitution::shadow_params(Self, Array[ValueParam], Array[BlockParam]) -> Self
@@ -456,8 +456,8 @@ pub(all) struct Transformer {
   module_path : String
   eq_functions : Array[@symbols.Sym]
   mut bindings : Array[Binding]
-  mut capture_substitution : Map[Int, @symbols.Captures]
-  region_captures : Map[Int, @symbols.Sym]
+  mut capture_substitution : Map[Int32, @symbols.Captures]
+  region_captures : Map[Int32, @symbols.Sym]
   prompt_ctor : @symbols.Sym
 }
 pub fn Transformer::new(@source.Context, String, Array[@symbols.Sym]) -> Self

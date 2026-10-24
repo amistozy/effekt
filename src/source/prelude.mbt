@@ -18,6 +18,7 @@ using @symbols {
   type Effects,
   type Sym,
   type Captures,
+  type Scope,
   t_unit,
   t_bool,
   t_int,

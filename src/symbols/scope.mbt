@@ -284,6 +284,45 @@ pub fn Scoping::lookup_overloaded_method(
 }
 
 ///|
+/// Looks a term up in a scope chain. The type checker needs this for
+/// name-based implicit arguments: the name only becomes known once the
+/// callee's parameter list is, which is after the namer has run.
+pub fn Scope::lookup_term_option(
+  self : Scope,
+  path : Array[String],
+  name : String,
+) -> Sym? raise EffektError {
+  first(path, self, b => {
+    match b.terms.get(name) {
+      None => None
+      Some(syms) =>
+        if syms.length() > 1 {
+          raise EffektError::Fatal("Ambiguous reference to \{name}")
+        } else if syms.length() == 0 {
+          None
+        } else {
+          Some(syms[0])
+        }
+    }
+  })
+}
+
+///|
+/// All scopes that bind `name` to a callable (non-operation) symbol,
+/// innermost first. Used to eta-expand an implicit block argument.
+pub fn Scope::lookup_functions(
+  self : Scope,
+  name : String,
+) -> Array[Array[Sym]] {
+  all([], self, b => {
+    b.terms
+    .get(name)
+    .unwrap_or([])
+    .filter(s => s.is_callable() && !s.is_operation())
+  }).filter(ns => ns.length() > 0)
+}
+
+///|
 pub fn Scoping::lookup_operation(
   self : Scoping,
   path : Array[String],

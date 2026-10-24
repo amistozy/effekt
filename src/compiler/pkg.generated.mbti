@@ -19,7 +19,7 @@ pub fn dirname(String) -> String
 
 pub fn eprintln(String) -> Unit
 
-pub fn exit(Int) -> Unit
+pub fn exit(Int32) -> Unit
 
 pub fn file_exists(String) -> Bool
 
@@ -49,7 +49,7 @@ pub fn resolve_includes(@source.ModuleDecl, @util.Source, @source.Context) -> @s
 
 pub fn resolve_path(String) -> String
 
-pub fn run_node(String) -> Int
+pub fn run_node(String) -> Int32
 
 pub fn runner_contents(String) -> String
 

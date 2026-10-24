@@ -23,6 +23,7 @@ using @symbols {
   t_unit,
   t_bool,
   t_int,
+  t_string,
   value_type_equal,
   t_top,
   t_bottom,
@@ -52,6 +53,8 @@ using @source {
   type OpClause,
   type ModuleDecl,
   mk_term,
+  mk_type,
+  mk_stmt,
 }
 
 ///|

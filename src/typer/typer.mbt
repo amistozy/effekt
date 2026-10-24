@@ -30,6 +30,10 @@ pub(all) struct Annotations {
   bound_caps : Map[Int32, Array[Sym]]
   /// The capability a `Do` dispatches on.
   cap_receiver : Map[Int32, Sym]
+  /// Call sites generated while instantiating an implicit argument. Overload
+  /// resolution reports an ambiguity for those instead of picking the most
+  /// specific candidate (upstream `GenerateImplicitArgs`).
+  implicit_calls : Map[Int32, Bool]
   /// Capabilities passed to a call (bidirectional effects).
   cap_args : Map[Int32, Array[Sym]]
   /// Implicit value arguments inserted at a call site.
@@ -48,6 +52,7 @@ pub fn Annotations::new() -> Annotations {
     type_args: Map([]),
     bound_caps: Map([]),
     cap_receiver: Map([]),
+    implicit_calls: Map([]),
     cap_args: Map([]),
     impl_vargs: Map([]),
     impl_bargs: Map([]),
@@ -64,6 +69,7 @@ pub fn Annotations::copy(self : Annotations) -> Annotations {
     type_args: self.type_args.copy(),
     bound_caps: self.bound_caps.copy(),
     cap_receiver: self.cap_receiver.copy(),
+    implicit_calls: self.implicit_calls.copy(),
     cap_args: self.cap_args.copy(),
     impl_vargs: self.impl_vargs.copy(),
     impl_bargs: self.impl_bargs.copy(),
@@ -77,6 +83,10 @@ pub(all) struct TyperState {
   mut scope : UnifScope
   mut cap_scope : CapScope
   mut current : Captures
+  /// How deep the generation of name-based implicit arguments is nested;
+  /// the recursion guard aborts before the type substitution chains grow
+  /// without bound.
+  mut implicit_depth : Int32
   vt : Map[Int32, ValueType]
   bt : Map[Int32, BlockType]
   ct : Map[Int32, Captures]
@@ -96,6 +106,7 @@ pub fn TyperState::backup(self : TyperState) -> TyperState {
     // installing a successful candidate replaces the whole state.
     cap_scope: self.cap_scope,
     current: self.current,
+    implicit_depth: self.implicit_depth,
     vt: self.vt.copy(),
     bt: self.bt.copy(),
     ct: self.ct.copy(),
@@ -138,6 +149,7 @@ pub fn Typer::new(ctx : Context) -> Typer {
       scope: GlobalScope,
       cap_scope: GlobalCap,
       current: Captures::empty(),
+      implicit_depth: 0,
       vt: Map([]),
       bt: Map([]),
       ct: Map([]),

@@ -50,6 +50,10 @@ pub(all) struct Context {
   capability_arguments : Map[Int32, Array[Sym]]
   /// Type arguments to be inserted at a call site.
   type_arguments : Map[Int32, Array[ValueType]]
+  /// The lexical scope at a call site. The namer records it so that the type
+  /// checker can resolve name-based implicit arguments, which is the only
+  /// phase that needs to look a name up without an `IdRef`.
+  call_scopes : Map[Int32, Scope]
   /// The module produced by the namer phase (exports and includes), if the
   /// namer has run. See `resolve`/`resolve_module` in `src/namer`.
   mut resolved_module : @symbols.Module?
@@ -72,6 +76,7 @@ pub fn Context::new(config : Config) -> Context {
     capability_receiver: Map([]),
     capability_arguments: Map([]),
     type_arguments: Map([]),
+    call_scopes: Map([]),
     resolved_module: None,
     config,
   }
@@ -328,6 +333,20 @@ pub fn Context::implicit_block_args_of(
   uid : Int32,
 ) -> Array[Term] {
   self.implicit_block_args.get(uid).unwrap_or([])
+}
+
+///|
+pub fn Context::assign_call_scope(
+  self : Context,
+  uid : Int32,
+  scope : Scope,
+) -> Unit {
+  self.call_scopes.set(uid, scope)
+}
+
+///|
+pub fn Context::call_scope_of(self : Context, uid : Int32) -> Scope? {
+  self.call_scopes.get(uid)
 }
 
 ///|

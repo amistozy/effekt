@@ -12,7 +12,7 @@ pub fn Typer::check_call_to(
   call : CallLike,
   tparams : Array[Sym],
   known_vps : Array[Sym],
-  _known_bps : Array[Sym],
+  known_bps : Array[Sym],
   fun_tpe : BlockType,
   targs : Array[ValueType],
   vargs : Array[ValueArg],
@@ -35,13 +35,13 @@ pub fn Typer::check_call_to(
       "Wrong number of type arguments to \{call.name}: expected \{tparams.length()}, but got \{targs.length()}",
     )
   }
-  if vargs.length() != fun_vps.length() {
+  if !implicit_tail_matches(vargs.length(), fun_vps.length(), known_vps) {
     self.abort(
       span,
       "Wrong number of arguments to \{call.name}: expected \{describe_args(0, fun_vps.length(), fun_bps.length())}, but got \{describe_args(targs.length(), vargs.length(), bargs.length())}.",
     )
   }
-  if bargs.length() != fun_bps.length() {
+  if !implicit_tail_matches(bargs.length(), fun_bps.length(), known_bps) {
     self.abort(
       span,
       "Wrong number of arguments to \{call.name}: expected \{describe_args(0, fun_vps.length(), fun_bps.length())}, but got \{describe_args(targs.length(), vargs.length(), bargs.length())}.",
@@ -102,7 +102,12 @@ pub fn Typer::check_call_to(
   // effects, and the other arguments are what solves the type arguments — in
   // `for[A] { emit[A] } { (c: Char) => … }` the parameter annotation `Char`
   // makes the effect of the first argument `emit[Char]` concrete.
-  let (without_effects, with_effects) = block_argument_order(inst.bparams)
+  //
+  // Only the *explicit* block parameters are ordered here; the implicit ones
+  // are generated below.
+  let (without_effects, with_effects) = block_argument_order(
+    inst.bparams[0:bargs.length()].to_owned(),
+  )
   let order = without_effects + with_effects
   for i in order {
     let capt = capt_args[i]
@@ -112,6 +117,68 @@ pub fn Typer::check_call_to(
     })
     effs = eff_union(effs, res.effs)
   }
+
+  // (5b) fill in the name-based implicit arguments for the parameters the
+  // caller left out (upstream `GenerateImplicitArgs`). They are checked like
+  // ordinary arguments and only recorded in the annotations; the call tree is
+  // extended by `ExplicitCapabilities`.
+  //
+  // Generating an implicit argument can itself type check a call that needs
+  // implicit arguments (`?myShow: A => String` applied to a `List[A]`), so the
+  // generation is bounded. Without the bound, a recursive implicit whose type
+  // is still an unsolved unification variable keeps solving `?A := List[?B]`
+  // and the substitution chain grows without bound (upstream: the recursion
+  // guard in `GenerateImplicitArgs`).
+  let implicit_vargs : Array[Term] = []
+  for i = vargs.length(); i < fun_vps.length(); i = i + 1 {
+    self.st.implicit_depth = self.st.implicit_depth + 1
+    if self.st.implicit_depth > 20 {
+      self.abort(
+        span,
+        "Aborting recursive instantiation of the implicit argument \{known_vps[i].name().name}.",
+      )
+    }
+    let term = self.implicit_value_term(call, known_vps[i], inst.vparams[i])
+    let res = self.check_expr(term, Some(inst.vparams[i]))
+    match inst.vparams[i] {
+      @symbols.ValueType::BoxedType(_, capt) =>
+        if capt.is_pure() && res.effs.non_empty() {
+          self.abort(
+            call.span,
+            "Cannot instantiate the implicit argument \{call.name}: its type is pure, but the block that would be instantiated performs \{res.effs}.",
+          )
+        }
+      _ => ()
+    }
+    effs = eff_union(effs, res.effs)
+    implicit_vargs.push(term)
+  }
+  let implicit_bargs : Array[Term] = []
+  for j = bargs.length(); j < fun_bps.length(); j = j + 1 {
+    self.st.implicit_depth = self.st.implicit_depth + 1
+    if self.st.implicit_depth > 20 {
+      self.abort(
+        span,
+        "Aborting recursive instantiation of the implicit argument \{known_bps[j].name().name}.",
+      )
+    }
+    let capt = capt_args[j]
+    self.flows_into(capt, callsite, span)
+    let term = self.implicit_block_arg_term(call, known_bps[j], inst.bparams[j])
+    let res = self.flowing_into(capt, () => {
+      self.check_expr_as_block(term, Some(inst.bparams[j]), None)
+    })
+    effs = eff_union(effs, res.effs)
+    implicit_bargs.push(term)
+  }
+  if implicit_vargs.length() > 0 {
+    self.st.ann.impl_vargs.set(call.uid, implicit_vargs)
+  }
+  if implicit_bargs.length() > 0 {
+    self.st.ann.impl_bargs.set(call.uid, implicit_bargs)
+  }
+  self.st.implicit_depth = self.st.implicit_depth -
+    (implicit_vargs.length() + implicit_bargs.length())
 
   // (6) the declared effects of the callee are effects of this call
   effs = eff_union(effs, inst.effs)
@@ -125,7 +192,7 @@ pub fn Typer::check_call_to(
   })
   self.st.ann.cap_args.set(call.uid, capabilities)
 
-  let capt_params = capt_args[bargs.length():].to_owned()
+  let capt_params = capt_args[bargs.length() + implicit_bargs.length():].to_owned()
   for i = 0; i < capt_params.length() && i < capabilities.length(); i = i + 1 {
     self.flows_into(
       @symbols.Captures::CaptureSetOf([capture_of_capability(capabilities[i])]),
@@ -256,6 +323,32 @@ fn Typer::try_candidates(
 }
 
 ///|
+/// Can `provided` arguments be aligned with `total` parameters? This is the
+/// case when the counts match, or when every left-out parameter is a
+/// name-based implicit (`?name`) of a callee whose parameters are known.
+fn implicit_tail_matches(
+  provided : Int32,
+  total : Int32,
+  params : Array[Sym],
+) -> Bool {
+  if provided > total {
+    return false
+  }
+  if provided == total {
+    return true
+  }
+  if params.length() != total {
+    return false
+  }
+  for i = provided; i < total; i = i + 1 {
+    if !params[i].is_implicit() {
+      return false
+    }
+  }
+  true
+}
+
+///|
 /// Checks a (potentially overloaded) function call.
 pub fn Typer::check_overloaded_function_call(
   self : Typer,
@@ -303,6 +396,20 @@ pub fn Typer::check_overloaded_function_call(
       self.ctx.assign_symbol(id.uid, found)
       return res
     } else if successes.length() > 1 {
+      // An implicit argument is instantiated by an eta-expanded call to a
+      // function with the parameter's name. If several overloads type check,
+      // the name is ambiguous — upstream reports exactly that instead of
+      // choosing one (see `examples/neg/name-based-implicits`).
+      if self.st.ann.implicit_calls.get(call.uid) is Some(_) {
+        let names : Array[String] = successes.map(s => {
+          let (sym, _, _) = s
+          "\{sym.name().qualified_name()}"
+        })
+        self.abort(
+          call.span,
+          "Cannot instantiate the implicit argument \{call.name}: the overload is ambiguous. Could be: \{names.join(", ")}.",
+        )
+      }
       // Same scope, several candidates typecheck. Upstream reports an
       // ambiguity error here; we additionally prefer the *most specific*
       // candidates (those with the fewest type parameters), which is what a

@@ -410,6 +410,16 @@ pub fn Sym::is_value_symbol(self : Sym) -> Bool {
 }
 
 ///|
+/// Is this parameter declared with `?`, i.e. filled in by name at call sites?
+pub fn Sym::is_implicit(self : Sym) -> Bool {
+  match self {
+    ValueParam(p) => p.is_implicit
+    BlockParam(p) => p.is_implicit
+    _ => false
+  }
+}
+
+///|
 pub fn Sym::is_block_symbol(self : Sym) -> Bool {
   match self {
     BlockParam(_)

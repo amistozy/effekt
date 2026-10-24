@@ -19,7 +19,7 @@ pub fn find_preferred(Array[ExternBody], Context) -> ExternBody?
 
 pub fn in_kind() -> TokenKind
 
-pub fn index_of(Array[String], String) -> Int?
+pub fn index_of(Array[String], String) -> Int32?
 
 pub fn keyword_kind(String) -> TokenKind?
 
@@ -115,7 +115,7 @@ pub(all) struct Config {
 pub fn Config::default() -> Self
 
 pub(all) struct Constructor {
-  uid : Int
+  uid : Int32
   span : @util.Span
   id : IdDef
   tparams : Array[IdDef]
@@ -125,45 +125,48 @@ pub(all) struct Constructor {
 
 pub(all) struct Context {
   mut messages : Array[@util.Message]
-  symbols : Map[Int, @symbols.Sym]
-  value_types : Map[Int, @symbols.ValueType]
-  block_types : Map[Int, @symbols.BlockType]
-  types : Map[Int, @symbols.Sym]
-  captures : Map[Int, @symbols.Captures]
-  effects : Map[Int, @symbols.Effects]
-  bound_capabilities : Map[Int, Array[@symbols.Sym]]
-  implicit_value_args : Map[Int, Array[Term]]
-  implicit_block_args : Map[Int, Array[Term]]
-  capability_receiver : Map[Int, @symbols.Sym]
-  capability_arguments : Map[Int, Array[@symbols.Sym]]
-  type_arguments : Map[Int, Array[@symbols.ValueType]]
+  symbols : Map[Int32, @symbols.Sym]
+  value_types : Map[Int32, @symbols.ValueType]
+  block_types : Map[Int32, @symbols.BlockType]
+  types : Map[Int32, @symbols.Sym]
+  captures : Map[Int32, @symbols.Captures]
+  effects : Map[Int32, @symbols.Effects]
+  bound_capabilities : Map[Int32, Array[@symbols.Sym]]
+  implicit_value_args : Map[Int32, Array[Term]]
+  implicit_block_args : Map[Int32, Array[Term]]
+  capability_receiver : Map[Int32, @symbols.Sym]
+  capability_arguments : Map[Int32, Array[@symbols.Sym]]
+  type_arguments : Map[Int32, Array[@symbols.ValueType]]
+  call_scopes : Map[Int32, @symbols.Scope]
   mut resolved_module : @symbols.Module?
   config : Config
 }
 pub fn Context::abort(Self, @util.Span, String) -> Unit raise @util.EffektError
-pub fn Context::assign_block_type(Self, Int, @symbols.BlockType) -> Unit
-pub fn Context::assign_bound_capabilities(Self, Int, Array[@symbols.Sym]) -> Unit
-pub fn Context::assign_capability_arguments(Self, Int, Array[@symbols.Sym]) -> Unit
-pub fn Context::assign_capability_receiver(Self, Int, @symbols.Sym) -> Unit
-pub fn Context::assign_capture(Self, Int, @symbols.Captures) -> Unit
-pub fn Context::assign_effects(Self, Int, @symbols.Effects) -> Unit
-pub fn Context::assign_implicit_block_args(Self, Int, Array[Term]) -> Unit
-pub fn Context::assign_implicit_value_args(Self, Int, Array[Term]) -> Unit
-pub fn Context::assign_symbol(Self, Int, @symbols.Sym) -> Unit
-pub fn Context::assign_type_arguments(Self, Int, Array[@symbols.ValueType]) -> Unit
-pub fn Context::assign_value_type(Self, Int, @symbols.ValueType) -> Unit
-pub fn Context::block_type_of(Self, Int) -> @symbols.BlockType?
-pub fn Context::bound_capabilities_of(Self, Int) -> Array[@symbols.Sym]
-pub fn Context::capability_arguments_of(Self, Int) -> Array[@symbols.Sym]
-pub fn Context::capability_receiver_of(Self, Int) -> @symbols.Sym?
-pub fn Context::capture_of(Self, Int) -> @symbols.Captures?
-pub fn Context::copy_annotations(Self, Int, Int) -> Unit
-pub fn Context::effects_of(Self, Int) -> @symbols.Effects?
+pub fn Context::assign_block_type(Self, Int32, @symbols.BlockType) -> Unit
+pub fn Context::assign_bound_capabilities(Self, Int32, Array[@symbols.Sym]) -> Unit
+pub fn Context::assign_call_scope(Self, Int32, @symbols.Scope) -> Unit
+pub fn Context::assign_capability_arguments(Self, Int32, Array[@symbols.Sym]) -> Unit
+pub fn Context::assign_capability_receiver(Self, Int32, @symbols.Sym) -> Unit
+pub fn Context::assign_capture(Self, Int32, @symbols.Captures) -> Unit
+pub fn Context::assign_effects(Self, Int32, @symbols.Effects) -> Unit
+pub fn Context::assign_implicit_block_args(Self, Int32, Array[Term]) -> Unit
+pub fn Context::assign_implicit_value_args(Self, Int32, Array[Term]) -> Unit
+pub fn Context::assign_symbol(Self, Int32, @symbols.Sym) -> Unit
+pub fn Context::assign_type_arguments(Self, Int32, Array[@symbols.ValueType]) -> Unit
+pub fn Context::assign_value_type(Self, Int32, @symbols.ValueType) -> Unit
+pub fn Context::block_type_of(Self, Int32) -> @symbols.BlockType?
+pub fn Context::bound_capabilities_of(Self, Int32) -> Array[@symbols.Sym]
+pub fn Context::call_scope_of(Self, Int32) -> @symbols.Scope?
+pub fn Context::capability_arguments_of(Self, Int32) -> Array[@symbols.Sym]
+pub fn Context::capability_receiver_of(Self, Int32) -> @symbols.Sym?
+pub fn Context::capture_of(Self, Int32) -> @symbols.Captures?
+pub fn Context::copy_annotations(Self, Int32, Int32) -> Unit
+pub fn Context::effects_of(Self, Int32) -> @symbols.Effects?
 pub fn Context::error(Self, @util.Span, String) -> Unit
 pub fn Context::feature_flags(Self) -> Array[String]
 pub fn Context::has_errors(Self) -> Bool
-pub fn Context::implicit_block_args_of(Self, Int) -> Array[Term]
-pub fn Context::implicit_value_args_of(Self, Int) -> Array[Term]
+pub fn Context::implicit_block_args_of(Self, Int32) -> Array[Term]
+pub fn Context::implicit_value_args_of(Self, Int32) -> Array[Term]
 pub fn Context::info(Self, String) -> Unit
 pub fn Context::messages(Self) -> Array[@util.Message]
 pub fn Context::new(Config) -> Self
@@ -172,14 +175,14 @@ pub fn Context::report(Self, @util.Message) -> Unit
 pub fn Context::resolved_module(Self) -> @symbols.Module?
 pub fn Context::set_resolved_module(Self, @symbols.Module) -> Unit
 pub fn Context::supports(Self, String) -> Bool
-pub fn Context::symbol_of(Self, Int) -> @symbols.Sym?
-pub fn Context::symbol_of_or(Self, Int, @symbols.Sym) -> @symbols.Sym
-pub fn Context::type_arguments_of(Self, Int) -> Array[@symbols.ValueType]
-pub fn Context::value_type_of(Self, Int) -> @symbols.ValueType?
+pub fn Context::symbol_of(Self, Int32) -> @symbols.Sym?
+pub fn Context::symbol_of_or(Self, Int32, @symbols.Sym) -> @symbols.Sym
+pub fn Context::type_arguments_of(Self, Int32) -> Array[@symbols.ValueType]
+pub fn Context::value_type_of(Self, Int32) -> @symbols.ValueType?
 pub fn Context::warning(Self, @util.Span, String) -> Unit
 
 pub(all) struct Def {
-  uid : Int
+  uid : Int32
   span : @util.Span
   info : Info
   kind : DefKind
@@ -245,7 +248,7 @@ pub(all) enum GuardKind {
 }
 
 pub(all) struct Handler {
-  uid : Int
+  uid : Int32
   span : @util.Span
   capability : BlockParam?
   implementation : Implementation
@@ -259,7 +262,7 @@ pub(all) struct Hooks {
 pub fn Hooks::none() -> Self
 
 pub(all) struct IdDef {
-  uid : Int
+  uid : Int32
   path : Array[String]
   name : String
   span : @util.Span
@@ -268,7 +271,7 @@ pub fn IdDef::new(String, @util.Span) -> Self
 pub fn IdDef::qualified(Array[String], String, @util.Span) -> Self
 
 pub(all) struct IdRef {
-  uid : Int
+  uid : Int32
   path : Array[String]
   name : String
   span : @util.Span
@@ -277,7 +280,7 @@ pub fn IdRef::new(String, @util.Span) -> Self
 pub fn IdRef::qualified(Array[String], String, @util.Span) -> Self
 
 pub(all) struct Implementation {
-  uid : Int
+  uid : Int32
   span : @util.Span
   interface : TypeTree
   clauses : Array[OpClause]
@@ -299,13 +302,13 @@ pub struct Lexer {
   content : String
   mut current_char : Char
   mut next_char : Char
-  mut offset : Int
-  mut token_start : Int
+  mut offset : Int32
+  mut token_start : Int32
   delimiters : Array[Delimiter]
-  mut parens : Int
-  mut braces : Int
-  mut brackets : Int
-  interpolation_depths : Array[Int]
+  mut parens : Int32
+  mut braces : Int32
+  mut brackets : Int32
+  interpolation_depths : Array[Int32]
   mut resume_string_next : Bool
   mut eof : Bool
 }
@@ -325,18 +328,18 @@ pub(all) enum LexerError {
   InvalidIntegerFormat
   InvalidDoubleFormat
   InvalidByteFormat
-  UnterminatedInterpolation(Int)
+  UnterminatedInterpolation(Int32)
 } derive(Eq)
 pub fn LexerError::message(Self) -> String
 
 pub(all) enum LiteralValue {
   LUnit
   LBool(Bool)
-  LInt(Int)
+  LInt(Int32)
   LDouble(Double)
   LString(String)
-  LChar(Int)
-  LByte(Int)
+  LChar(Int32)
+  LByte(Int32)
 }
 pub impl Show for LiteralValue
 
@@ -346,11 +349,11 @@ pub struct Many[T] {
 }
 pub fn[T] Many::empty(@util.Span) -> Self[T]
 pub fn[T] Many::new(Array[T], @util.Span) -> Self[T]
-pub fn[T] Many::size(Self[T]) -> Int
+pub fn[T] Many::size(Self[T]) -> Int32
 pub fn[T] Many::unspan(Self[T]) -> Array[T]
 
 pub(all) struct MatchClause {
-  uid : Int
+  uid : Int32
   span : @util.Span
   pattern : MatchPattern
   guards : Array[MatchGuard]
@@ -358,13 +361,13 @@ pub(all) struct MatchClause {
 }
 
 pub(all) struct MatchGuard {
-  uid : Int
+  uid : Int32
   span : @util.Span
   kind : GuardKind
 }
 
 pub(all) struct MatchPattern {
-  uid : Int
+  uid : Int32
   span : @util.Span
   kind : PatternKind
 }
@@ -382,7 +385,7 @@ pub fn[T] Maybe::or_else(Self[T], () -> Self[T] raise @util.EffektError) -> Self
 pub fn[T] Maybe::some(T, @util.Span) -> Self[T]
 
 pub(all) struct ModuleDecl {
-  uid : Int
+  uid : Int32
   span : @util.Span
   path : String
   includes : Array[Include]
@@ -391,7 +394,7 @@ pub(all) struct ModuleDecl {
 }
 
 pub(all) struct OpClause {
-  uid : Int
+  uid : Int32
   span : @util.Span
   id : IdRef
   tparams : Array[IdDef]
@@ -403,7 +406,7 @@ pub(all) struct OpClause {
 }
 
 pub(all) struct Operation {
-  uid : Int
+  uid : Int32
   span : @util.Span
   id : IdDef
   tparams : Array[IdDef]
@@ -417,11 +420,11 @@ pub struct Parser {
   tokens : Array[Token]
   source : @util.Source
   context : Context
-  mut position : Int
+  mut position : Int32
   mut previous : Token?
   mut current_label : String?
-  mut start : Int
-  mut fail_position : Int
+  mut start : Int32
+  mut fail_position : Int32
   diagnostics : Array[RecoverableDiagnostic]
   precedence : PrecedenceTable
 }
@@ -450,8 +453,8 @@ pub struct PrecedenceTable {
 pub struct RecoverableDiagnostic {
   kind : @util.Severity
   message : String
-  start : Int
-  end : Int
+  start : Int32
+  end : Int32
 }
 
 pub struct Spanned[T] {
@@ -465,7 +468,7 @@ pub struct SpannedTemplate[T] {
 }
 
 pub(all) struct Stmt {
-  uid : Int
+  uid : Int32
   span : @util.Span
   kind : StmtKind
 }
@@ -478,7 +481,7 @@ pub(all) enum StmtKind {
 }
 
 pub(all) struct Term {
-  uid : Int
+  uid : Int32
   span : @util.Span
   kind : TermKind
 }
@@ -504,24 +507,24 @@ pub(all) enum TermKind {
 }
 
 pub struct Token {
-  start : Int
-  end : Int
+  start : Int32
+  end : Int32
   kind : TokenKind
 }
 pub fn Token::is_error(Self) -> Bool
-pub fn Token::new(Int, Int, TokenKind) -> Self
+pub fn Token::new(Int32, Int32, TokenKind) -> Self
 pub impl Show for Token
 
 pub(all) enum TokenKind {
   TEOF
   TError(LexerError)
   TNewline
-  TInteger(Int)
+  TInteger(Int32)
   TFloat(Double)
   TStr(String, Bool)
   THoleStr(String)
-  TChr(Int)
-  TByt(Int)
+  TChr(Int32)
+  TByt(Int32)
   TIdent(String)
   TComment(String)
   TDocComment(String)
@@ -628,7 +631,7 @@ pub(all) enum TypeKind {
 }
 
 pub(all) struct TypeTree {
-  uid : Int
+  uid : Int32
   span : @util.Span
   kind : TypeKind
 }

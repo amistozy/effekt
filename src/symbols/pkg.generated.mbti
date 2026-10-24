@@ -10,9 +10,9 @@ pub fn async_capability_sym() -> Sym
 
 pub fn async_capture() -> Sym
 
-pub fn canonical_compare(BlockType, BlockType) -> Int
+pub fn canonical_compare(BlockType, BlockType) -> Int32
 
-pub fn canonical_compare_value(ValueType, ValueType) -> Int
+pub fn canonical_compare_value(ValueType, ValueType) -> Int32
 
 pub fn canonical_order(Array[BlockType]) -> Array[BlockType]
 
@@ -202,7 +202,7 @@ pub fn Effects::forall(Self, (BlockType) -> Bool) -> Bool
 pub fn Effects::is_empty(Self) -> Bool
 pub fn Effects::new(Array[BlockType]) -> Self
 pub fn Effects::non_empty(Self) -> Bool
-pub fn Effects::size(Self) -> Int
+pub fn Effects::size(Self) -> Int32
 pub fn Effects::to_list(Self) -> Array[BlockType]
 pub fn Effects::union(Self, Self) -> Self
 pub impl Eq for Effects
@@ -278,7 +278,7 @@ pub(all) struct LexicalRegionSym {
 }
 
 pub(all) struct Module {
-  uid : Int
+  uid : Int32
   path : String
   name : Name
   mut includes : Array[Module]
@@ -340,6 +340,8 @@ pub(all) enum Scope {
   Local(String?, Bindings, Scope)
 }
 pub fn Scope::bindings(Self) -> Bindings
+pub fn Scope::lookup_functions(Self, String) -> Array[Array[Sym]]
+pub fn Scope::lookup_term_option(Self, Array[String], String) -> Sym? raise @util.EffektError
 
 pub(all) struct Scoping {
   module_path : Array[String]
@@ -424,6 +426,7 @@ pub fn Sym::is_block_symbol(Self) -> Bool
 pub fn Sym::is_block_type_constructor(Self) -> Bool
 pub fn Sym::is_callable(Self) -> Bool
 pub fn Sym::is_capture(Self) -> Bool
+pub fn Sym::is_implicit(Self) -> Bool
 pub fn Sym::is_operation(Self) -> Bool
 pub fn Sym::is_ref_binder(Self) -> Bool
 pub fn Sym::is_synthetic(Self) -> Bool
@@ -439,14 +442,14 @@ pub fn Sym::resume_param() -> Self
 pub fn Sym::tmp_block(String) -> Self
 pub fn Sym::tmp_value(String) -> Self
 pub fn Sym::type_param(Name, @util.Span) -> Self
-pub fn Sym::uid(Self) -> Int
+pub fn Sym::uid(Self) -> Int32
 pub fn Sym::value_param(Name, ValueType?, @util.Span) -> Self
 pub fn Sym::wildcard() -> Self
 pub impl Eq for Sym
 pub impl Show for Sym
 
 pub(all) struct SymBase {
-  uid : Int
+  uid : Int32
   name : Name
   decl : @util.Span
 }

@@ -50,22 +50,23 @@ pub fn value_type_key(@symbols.ValueType) -> String
 
 // Types and methods
 pub(all) struct Annotations {
-  value : Map[Int, @symbols.ValueType]
-  block : Map[Int, @symbols.BlockType]
-  effect : Map[Int, @symbols.Effects]
-  capt : Map[Int, @symbols.Captures]
-  type_args : Map[Int, Array[@symbols.ValueType]]
-  bound_caps : Map[Int, Array[@symbols.Sym]]
-  cap_receiver : Map[Int, @symbols.Sym]
-  cap_args : Map[Int, Array[@symbols.Sym]]
-  impl_vargs : Map[Int, Array[@source.Term]]
-  impl_bargs : Map[Int, Array[@source.Term]]
+  value : Map[Int32, @symbols.ValueType]
+  block : Map[Int32, @symbols.BlockType]
+  effect : Map[Int32, @symbols.Effects]
+  capt : Map[Int32, @symbols.Captures]
+  type_args : Map[Int32, Array[@symbols.ValueType]]
+  bound_caps : Map[Int32, Array[@symbols.Sym]]
+  cap_receiver : Map[Int32, @symbols.Sym]
+  implicit_calls : Map[Int32, Bool]
+  cap_args : Map[Int32, Array[@symbols.Sym]]
+  impl_vargs : Map[Int32, Array[@source.Term]]
+  impl_bargs : Map[Int32, Array[@source.Term]]
 }
 pub fn Annotations::copy(Self) -> Self
 pub fn Annotations::new() -> Self
 
 pub struct CallLike {
-  uid : Int
+  uid : Int32
   span : @util.Span
   name : String
 }
@@ -99,8 +100,8 @@ pub(all) struct Instantiated {
 }
 
 pub struct Substitutions {
-  values : Map[Int, @symbols.ValueType]
-  captures : Map[Int, @symbols.Captures]
+  values : Map[Int32, @symbols.ValueType]
+  captures : Map[Int32, @symbols.Captures]
 }
 pub fn Substitutions::bind_captures(Self, @symbols.Sym, @symbols.Captures) -> Unit
 pub fn Substitutions::bind_value(Self, @symbols.Sym, @symbols.ValueType) -> Unit
@@ -131,10 +132,10 @@ pub struct Typer {
   mut muted_messages : Array[String]
   mut focus : @util.Span
 }
-pub fn Typer::annotate_block(Self, Int, @symbols.BlockType) -> Unit
-pub fn Typer::annotate_capture(Self, Int, @symbols.Captures) -> Unit
-pub fn Typer::annotate_effects(Self, Int, @symbols.Effects) -> Unit
-pub fn Typer::annotate_value(Self, Int, @symbols.ValueType) -> Unit
+pub fn Typer::annotate_block(Self, Int32, @symbols.BlockType) -> Unit
+pub fn Typer::annotate_capture(Self, Int32, @symbols.Captures) -> Unit
+pub fn Typer::annotate_effects(Self, Int32, @symbols.Effects) -> Unit
+pub fn Typer::annotate_value(Self, Int32, @symbols.ValueType) -> Unit
 pub fn Typer::assert_concrete_effect(Self, @symbols.BlockType, @util.Span) -> Unit raise @util.EffektError
 pub fn Typer::assert_concrete_effects(Self, @symbols.Effects, @util.Span) -> Unit raise @util.EffektError
 pub fn Typer::bind_block(Self, @symbols.Sym, @symbols.BlockType) -> Unit
@@ -143,7 +144,7 @@ pub fn Typer::bind_value(Self, @symbols.Sym, @symbols.ValueType) -> Unit
 pub fn Typer::check_call_to(Self, CallLike, Array[@symbols.Sym], Array[@symbols.Sym], Array[@symbols.Sym], @symbols.BlockType, Array[@symbols.ValueType], Array[@source.ValueArg], Array[@source.Term], @symbols.ValueType?, CapScope?) -> TyRes[@symbols.ValueType] raise @util.EffektError
 pub fn Typer::check_exhaustive(Self, @source.Term, Array[@source.MatchClause], @util.Span) -> Unit
 pub fn Typer::check_expr(Self, @source.Term, @symbols.ValueType?) -> TyRes[@symbols.ValueType] raise @util.EffektError
-pub fn Typer::check_expr_as_block(Self, @source.Term, @symbols.BlockType?, (Int, @symbols.ValueType)?) -> TyRes[@symbols.BlockType] raise @util.EffektError
+pub fn Typer::check_expr_as_block(Self, @source.Term, @symbols.BlockType?, (Int32, @symbols.ValueType)?) -> TyRes[@symbols.BlockType] raise @util.EffektError
 pub fn Typer::check_function_argument(Self, @source.Term, @symbols.BlockType) -> TyRes[@symbols.BlockType] raise @util.EffektError
 pub fn Typer::check_guards(Self, Array[@source.MatchGuard]) -> @symbols.Effects raise @util.EffektError
 pub fn Typer::check_implementation(Self, @source.Implementation, (@symbols.ValueType, @symbols.Sym)?) -> TyRes[@symbols.BlockType] raise @util.EffektError
@@ -187,9 +188,10 @@ pub(all) struct TyperState {
   mut scope : UnifScope
   mut cap_scope : CapScope
   mut current : @symbols.Captures
-  vt : Map[Int, @symbols.ValueType]
-  bt : Map[Int, @symbols.BlockType]
-  ct : Map[Int, @symbols.Captures]
+  mut implicit_depth : Int32
+  vt : Map[Int32, @symbols.ValueType]
+  bt : Map[Int32, @symbols.BlockType]
+  ct : Map[Int32, @symbols.Captures]
   ann : Annotations
 }
 pub fn TyperState::backup(Self) -> Self
@@ -211,21 +213,21 @@ pub fn UnifScope::register_type_var(Self, @symbols.Sym) -> Unit
 pub fn UnifScope::type_vars(Self) -> Array[@symbols.Sym]
 
 pub struct Unification {
-  types : Map[Int, @symbols.ValueType]
-  capts : Map[Int, @symbols.Captures]
-  lower : Map[Int, Array[@symbols.Sym]]
-  upper : Map[Int, Array[@symbols.Sym]]
-  links : Array[(Int, Int, Array[@symbols.Sym])]
-  var_of : Map[Int, @symbols.Sym]
-  capt_var : Map[Int, @symbols.Sym]
+  types : Map[Int32, @symbols.ValueType]
+  capts : Map[Int32, @symbols.Captures]
+  lower : Map[Int32, Array[@symbols.Sym]]
+  upper : Map[Int32, Array[@symbols.Sym]]
+  links : Array[(Int32, Int32, Array[@symbols.Sym])]
+  var_of : Map[Int32, @symbols.Sym]
+  capt_var : Map[Int32, @symbols.Sym]
 }
 pub fn Unification::copy(Self) -> Self
 pub fn Unification::fresh_capt_var(Self, String) -> @symbols.Sym
 pub fn Unification::fresh_type_var(Self, @symbols.Sym) -> @symbols.Sym
 pub fn Unification::is_capt_var(Self, @symbols.Sym) -> Bool
 pub fn Unification::is_type_var(Self, @symbols.Sym) -> Bool
-pub fn Unification::link(Self, Int, Int, Array[@symbols.Sym]) -> Unit
-pub fn Unification::lower_of(Self, Int) -> Array[@symbols.Sym]
+pub fn Unification::link(Self, Int32, Int32, Array[@symbols.Sym]) -> Unit
+pub fn Unification::lower_of(Self, Int32) -> Array[@symbols.Sym]
 pub fn Unification::new() -> Self
 pub fn Unification::propagate(Self) -> String?
 pub fn Unification::prune_block(Self, @symbols.BlockType) -> @symbols.BlockType

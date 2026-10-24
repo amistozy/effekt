@@ -53,7 +53,7 @@ pub(all) enum Block {
   New(Implementation)
 }
 pub fn Block::free(Self) -> Variables
-pub fn Block::size(Self) -> Int
+pub fn Block::size(Self) -> Int32
 
 pub(all) struct BlockLit {
   vparams : Array[@symbols.Sym]
@@ -64,7 +64,7 @@ pub(all) struct BlockLit {
 }
 pub fn BlockLit::free(Self) -> Variables
 pub fn BlockLit::new(Array[@symbols.Sym], Array[@symbols.Sym], @symbols.Sym, @symbols.Sym, Stmt) -> Self
-pub fn BlockLit::size(Self) -> Int
+pub fn BlockLit::size(Self) -> Int32
 
 pub(all) struct Clause {
   vparams : Array[@symbols.Sym]
@@ -72,7 +72,7 @@ pub(all) struct Clause {
 }
 pub fn Clause::free(Self) -> Variables
 pub fn Clause::new(Array[@symbols.Sym], Stmt) -> Self
-pub fn Clause::size(Self) -> Int
+pub fn Clause::size(Self) -> Int32
 
 pub(all) enum Cont {
   ContVar(@symbols.Sym)
@@ -80,7 +80,7 @@ pub(all) enum Cont {
   Abort
 }
 pub fn Cont::free(Self) -> Variables
-pub fn Cont::size(Self) -> Int
+pub fn Cont::size(Self) -> Int32
 
 pub(all) struct ContLam {
   results : Array[@symbols.Sym]
@@ -89,7 +89,7 @@ pub(all) struct ContLam {
 }
 pub fn ContLam::free(Self) -> Variables
 pub fn ContLam::new(Array[@symbols.Sym], @symbols.Sym, Stmt) -> Self
-pub fn ContLam::size(Self) -> Int
+pub fn ContLam::size(Self) -> Int32
 
 pub(all) struct Def {
   id : @symbols.Sym
@@ -97,7 +97,7 @@ pub(all) struct Def {
 }
 pub fn Def::free(Self) -> Variables
 pub fn Def::new(@symbols.Sym, Block) -> Self
-pub fn Def::size(Self) -> Int
+pub fn Def::size(Self) -> Int32
 
 pub(all) enum Expr {
   ValueVar(@symbols.Sym)
@@ -107,7 +107,7 @@ pub(all) enum Expr {
   Box(Block)
 }
 pub fn Expr::free(Self) -> Variables
-pub fn Expr::size(Self) -> Int
+pub fn Expr::size(Self) -> Int32
 
 pub(all) enum Extern {
   ExternDef(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], Bool, ExternBody[Expr])
@@ -129,14 +129,14 @@ pub(all) struct Implementation {
 }
 pub fn Implementation::free(Self) -> Variables
 pub fn Implementation::new(@symbols.BlockType, Array[Operation]) -> Self
-pub fn Implementation::size(Self) -> Int
+pub fn Implementation::size(Self) -> Int32
 
 pub(all) struct MetaCont {
   id : @symbols.Sym
 }
 pub fn MetaCont::free(Self) -> Variables
 pub fn MetaCont::new(@symbols.Sym) -> Self
-pub fn MetaCont::size(Self) -> Int
+pub fn MetaCont::size(Self) -> Int32
 
 pub(all) struct ModuleDecl {
   path : String
@@ -147,7 +147,7 @@ pub(all) struct ModuleDecl {
   exports : Array[@symbols.Sym]
 }
 pub fn ModuleDecl::new(String, Array[String], Array[@core.Declaration], Array[Extern], Array[ToplevelDefinition], Array[@symbols.Sym]) -> Self
-pub fn ModuleDecl::size(Self) -> Int
+pub fn ModuleDecl::size(Self) -> Int32
 
 pub(all) struct Operation {
   name : @symbols.Sym
@@ -159,7 +159,7 @@ pub(all) struct Operation {
 }
 pub fn Operation::free(Self) -> Variables
 pub fn Operation::new(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], @symbols.Sym, @symbols.Sym, Stmt) -> Self
-pub fn Operation::size(Self) -> Int
+pub fn Operation::size(Self) -> Int32
 
 pub(all) enum Stmt {
   Jump(@symbols.Sym, Array[Expr], MetaCont)
@@ -183,16 +183,16 @@ pub(all) enum Stmt {
   Hole(@util.Span)
 }
 pub fn Stmt::free(Self) -> Variables
-pub fn Stmt::size(Self) -> Int
+pub fn Stmt::size(Self) -> Int32
 
 pub(all) struct Substitution {
-  values : Map[Int, Expr]
-  blocks : Map[Int, Block]
-  conts : Map[Int, Cont]
-  metaconts : Map[Int, MetaCont]
+  values : Map[Int32, Expr]
+  blocks : Map[Int32, Block]
+  conts : Map[Int32, Cont]
+  metaconts : Map[Int32, MetaCont]
 }
 pub fn Substitution::empty() -> Self
-pub fn Substitution::new(Map[Int, Expr], Map[Int, Block], Map[Int, Cont], Map[Int, MetaCont]) -> Self
+pub fn Substitution::new(Map[Int32, Expr], Map[Int32, Block], Map[Int32, Cont], Map[Int32, MetaCont]) -> Self
 pub fn Substitution::shadow_blocks(Self, Array[@symbols.Sym]) -> Self
 pub fn Substitution::shadow_conts(Self, Array[@symbols.Sym]) -> Self
 pub fn Substitution::shadow_metaconts(Self, Array[@symbols.Sym]) -> Self
@@ -207,7 +207,7 @@ pub(all) enum ToplevelDefinition {
 pub fn ToplevelDefinition::id(Self) -> @symbols.Sym
 
 pub(all) struct Variables {
-  ids : Map[Int, @symbols.Sym]
+  ids : Map[Int32, @symbols.Sym]
 }
 pub fn Variables::block(@symbols.Sym) -> Self
 pub fn Variables::cont(@symbols.Sym) -> Self
@@ -215,7 +215,7 @@ pub fn Variables::contains(Self, @symbols.Sym) -> Bool
 pub fn Variables::diff(Self, Array[@symbols.Sym]) -> Self
 pub fn Variables::empty() -> Self
 pub fn Variables::is_empty(Self) -> Bool
-pub fn Variables::length(Self) -> Int
+pub fn Variables::length(Self) -> Int32
 pub fn Variables::meta(@symbols.Sym) -> Self
 pub fn Variables::to_array(Self) -> Array[@symbols.Sym]
 pub fn Variables::union(Self, Self) -> Self

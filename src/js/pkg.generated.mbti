@@ -25,7 +25,7 @@ pub fn fresh_name(String) -> @symbols.JSName
 
 pub fn fresh_sym(String) -> @symbols.Sym
 
-pub fn generate_constructor(@core.Constructor, Int) -> Stmt
+pub fn generate_constructor(@core.Constructor, Int32) -> Stmt
 
 pub fn[T] internal_error(String) -> T raise @util.EffektError
 

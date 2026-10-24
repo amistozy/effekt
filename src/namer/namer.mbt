@@ -1212,6 +1212,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       self.context.assign_symbol(t.uid, sym)
     }
     @source.MethodCall(receiver, target, targs, vargs, bargs) => {
+      self.context.assign_call_scope(t.uid, self.scoping.scope)
       self.resolve_term(receiver)
       // We are a bit context sensitive in resolving the method.
       match receiver.kind {
@@ -1273,6 +1274,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       }
     }
     @source.Do(target, targs, vargs, bargs) => {
+      self.context.assign_call_scope(t.uid, self.scoping.scope)
       let sym = self.resolve_effect_call(target)
       self.context.assign_symbol(t.uid, sym)
       for arg in targs {
@@ -1286,6 +1288,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       }
     }
     @source.Call(target, targs, vargs, bargs) => {
+      self.context.assign_call_scope(t.uid, self.scoping.scope)
       match target {
         @source.IdTarget(id) => {
           let sym = self.resolve_function_calltarget(id)

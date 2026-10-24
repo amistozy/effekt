@@ -87,7 +87,10 @@ pub fn compile_file(
   let messages : Array[Message] = []
   let result = try {
     let source = match read_file(opts.input) {
-      Some(c) => Source::new(resolve_path(opts.input), c)
+      // The name is the path *as given* (upstream `Source(name, contents)`):
+      // diagnostics and `sourcePosition` should print `examples/hello.effekt`
+      // when that is what the user typed, not an absolute path.
+      Some(c) => Source::new(opts.input, c)
       None => {
         ctx.error(Span::missing(), "Cannot read input file \{opts.input}")
         return { output: None, messages: ctx.messages.copy(), failed: true, }
