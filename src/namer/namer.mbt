@@ -314,23 +314,39 @@ fn[T] in_bindings(
 }
 
 ///|
-/// Strips the module's own namespace from a path, so that `<module>::foo` can
-/// stand for `foo` inside the module (upstream: `Context.importSelfAs`).
-/// The module's bindings are the toplevel scope, so the remaining path is
-/// looked up as usual and stays up to date. A path that *is* the module
+/// The paths a reference may use to reach the module's own definitions.
+///
+/// A module may refer to its own definitions by qualified name,
+/// `<module>::foo` (upstream: `Context.importSelfAs`). The module's bindings
+/// *are* the toplevel scope, so the path without the module's namespace is
+/// looked up as usual and stays up to date; a path that *is* the module
 /// namespace (`set::collect` in module `set`) strips to the empty path, i.e.
 /// the toplevel scope.
-fn Namer::strip_self(self : Namer, path : Array[String]) -> Array[String] {
+///
+/// The path *as written* is tried first: a program is registered under its
+/// file name (`examples/stdlib/buffer.effekt` is the module `buffer`), which
+/// may be the name of a module it imports. Stripping `buffer::examples` to
+/// `examples` would then reach the *prelude's* `examples` namespace (opened by
+/// `import stringbuffer`) and report the reference as ambiguous.
+fn Namer::lookup_paths(
+  self : Namer,
+  path : Array[String],
+) -> Array[Array[String]] {
   let ns = self.self_namespace
   if path.length() < ns.length() {
-    return path
+    return [path]
   }
   for i = 0; i < ns.length(); i = i + 1 {
     if path[i] != ns[i] {
-      return path
+      return [path]
     }
   }
-  path[ns.length():].to_owned()
+  let stripped = path[ns.length():].to_owned()
+  if stripped.length() == path.length() {
+    [path]
+  } else {
+    [path, stripped]
+  }
 }
 
 ///|
@@ -340,24 +356,30 @@ fn Namer::lookup_term(
   path : Array[String],
   name : String,
 ) -> Sym? raise EffektError {
-  let stripped = self.strip_self(path)
-  match self.scoping.lookup_first_term_option(stripped, name) {
-    Some(sym) => Some(sym)
-    None =>
-      in_bindings(self.imports, stripped, bindings => {
-        match bindings.terms.get(name) {
-          None => None
-          Some(syms) =>
-            if syms.length() > 1 {
-              raise EffektError::Fatal("Ambiguous reference to \{name}")
-            } else if syms.length() == 0 {
-              None
-            } else {
-              Some(syms[0])
+  for p in self.lookup_paths(path) {
+    match self.scoping.lookup_first_term_option(p, name) {
+      Some(sym) => return Some(sym)
+      None =>
+        match
+          in_bindings(self.imports, p, bindings => {
+            match bindings.terms.get(name) {
+              None => None
+              Some(syms) =>
+                if syms.length() > 1 {
+                  raise EffektError::Fatal("Ambiguous reference to \{name}")
+                } else if syms.length() == 0 {
+                  None
+                } else {
+                  Some(syms[0])
+                }
             }
+          }) {
+          Some(sym) => return Some(sym)
+          None => ()
         }
-      })
+    }
   }
+  None
 }
 
 ///|
@@ -366,12 +388,18 @@ fn Namer::lookup_type(
   path : Array[String],
   name : String,
 ) -> Sym? raise EffektError {
-  let stripped = self.strip_self(path)
-  match self.scoping.lookup_type_option(stripped, name) {
-    Some(sym) => Some(sym)
-    None =>
-      in_bindings(self.imports, stripped, bindings => bindings.types.get(name))
+  for p in self.lookup_paths(path) {
+    match self.scoping.lookup_type_option(p, name) {
+      Some(sym) => return Some(sym)
+      None =>
+        match
+          in_bindings(self.imports, p, bindings => bindings.types.get(name)) {
+          Some(sym) => return Some(sym)
+          None => ()
+        }
+    }
   }
+  None
 }
 
 ///|
@@ -380,28 +408,31 @@ fn Namer::lookup_capture(
   path : Array[String],
   name : String,
 ) -> Sym? raise EffektError {
-  let stripped = self.strip_self(path)
-  match self.scoping.lookup_capture(stripped, name) {
-    Some(sym) => Some(sym)
-    None =>
-      in_bindings(self.imports, stripped, bindings => {
-        bindings.captures.get(name)
-      })
+  for p in self.lookup_paths(path) {
+    match self.scoping.lookup_capture(p, name) {
+      Some(sym) => return Some(sym)
+      None =>
+        match
+          in_bindings(self.imports, p, bindings => bindings.captures.get(name)) {
+          Some(sym) => return Some(sym)
+          None => ()
+        }
+    }
   }
+  None
 }
 
 ///|
 /// All symbols bound to `name` under `path`, one group per scope plus one for
 /// the imports (upstream: `Scoping.lookupOverloaded`).
-fn Namer::lookup_overloaded(
+fn Namer::lookup_overloaded_at(
   self : Namer,
   path : Array[String],
   name : String,
   filter : (Sym) -> Bool,
 ) -> Array[Array[Sym]] raise EffektError {
-  let stripped = self.strip_self(path)
-  let groups = self.scoping.lookup_overloaded(stripped, name, filter)
-  let imported = in_bindings(self.imports, stripped, bindings => {
+  let groups = self.scoping.lookup_overloaded(path, name, filter)
+  let imported = in_bindings(self.imports, path, bindings => {
     match bindings.terms.get(name) {
       Some(syms) => Some(syms.filter(filter))
       None => None
@@ -411,6 +442,25 @@ fn Namer::lookup_overloaded(
     Some(group) => groups + [group]
     None => groups
   }
+}
+
+///|
+/// All groups of candidates for `name`, see `lookup_paths` for the order of
+/// the paths tried.
+fn Namer::lookup_overloaded(
+  self : Namer,
+  path : Array[String],
+  name : String,
+  filter : (Sym) -> Bool,
+) -> Array[Array[Sym]] raise EffektError {
+  let mut result = self.lookup_overloaded_at(path, name, filter)
+  if result.all(group => group.length() == 0) {
+    let paths = self.lookup_paths(path)
+    if paths.length() > 1 {
+      result = self.lookup_overloaded_at(paths[1], name, filter)
+    }
+  }
+  result
 }
 
 ///|
@@ -445,29 +495,31 @@ fn Namer::lookup_first_block_param(
   path : Array[String],
   name : String,
 ) -> Array[Sym] raise EffektError {
-  let stripped = self.strip_self(path)
-  let local = self.scoping.lookup_first_block_param(stripped, name)
-  if local.length() > 0 {
-    return local
-  }
-  let imported = in_bindings(self.imports, stripped, bindings => {
-    match bindings.terms.get(name) {
-      Some(syms) =>
-        Some(
-          syms.filter(sym => {
-            match sym {
-              @symbols.Sym::BlockParam(_) => true
-              _ => false
-            }
-          }),
-        )
-      None => None
+  for p in self.lookup_paths(path) {
+    let local = self.scoping.lookup_first_block_param(p, name)
+    if local.length() > 0 {
+      return local
     }
-  })
-  match imported {
-    Some(params) => params
-    None => []
+    let imported = in_bindings(self.imports, p, bindings => {
+      match bindings.terms.get(name) {
+        Some(syms) =>
+          Some(
+            syms.filter(sym => {
+              match sym {
+                @symbols.Sym::BlockParam(_) => true
+                _ => false
+              }
+            }),
+          )
+        None => None
+      }
+    })
+    match imported {
+      Some(params) => if params.length() > 0 { return params }
+      None => ()
+    }
   }
+  []
 }
 
 // ---------------------------------------------------------------------------
