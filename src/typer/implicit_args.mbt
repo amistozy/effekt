@@ -16,13 +16,31 @@
 // annotations that `ExplicitCapabilities` splices into the call.
 
 ///|
-/// The lexical scope recorded by the namer at this call site.
+/// The lexical context of a call site, as recorded by the namer: the scope
+/// chain and the names opened from the imported modules.
+///
+/// Upstream resolves an implicit argument with `scope.lookupOverloaded`, where
+/// its `Scoping` consults the bindings of the scope chain *and* the imports.
+/// The two live in different places in this port (the imports only exist while
+/// the namer runs), so the namer records both.
+priv struct ImplicitScope {
+  scope : @symbols.Scope
+  imports : @symbols.Bindings
+}
+
+///|
 fn Typer::implicit_scope(
   self : Typer,
   call : CallLike,
-) -> @symbols.Scope raise EffektError {
+) -> ImplicitScope raise EffektError {
   match self.ctx.call_scope_of(call.uid) {
-    Some(scope) => scope
+    Some(scope) =>
+      {
+        scope,
+        imports: self.ctx
+        .call_imports_of(call.uid)
+        .unwrap_or(@symbols.Bindings::empty()),
+      }
     None =>
       self.abort(
         call.span,
@@ -52,7 +70,7 @@ fn Typer::implicit_var_term(
   name : String,
 ) -> Term raise EffektError {
   let scope = self.implicit_scope(call)
-  match scope.lookup_term_option([], name) {
+  match @symbols.lookup_term_in_scope(scope.scope, scope.imports, name) {
     Some(sym) => self.var_term_for(sym, call.span.synthesized())
     None =>
       self.abort(
@@ -70,7 +88,11 @@ fn Typer::source_position_term(
   call : CallLike,
 ) -> Term? raise EffektError {
   let scope = self.implicit_scope(call)
-  let candidates = scope.lookup_functions("SourcePosition")
+  let candidates = @symbols.lookup_functions_in_scope(
+    scope.scope,
+    scope.imports,
+    "SourcePosition",
+  )
   if candidates.length() == 0 {
     return None
   }
@@ -98,7 +120,8 @@ fn Typer::source_position_term(
     @source.TermKind::Call(@source.CallTarget::IdTarget(target), [], args, []),
   )
   self.st.ann.implicit_calls.set(call.uid, true)
-  self.ctx.assign_call_scope(call.uid, scope)
+  self.ctx.assign_call_scope(call.uid, scope.scope)
+  self.ctx.assign_call_imports(call.uid, scope.imports)
   Some(call)
 }
 
@@ -152,7 +175,11 @@ fn Typer::implicit_block_term(
         bargs.push(self.var_term_for(sym, span))
       }
       let scope = self.implicit_scope(call)
-      let candidates = scope.lookup_functions(name)
+      let candidates = @symbols.lookup_functions_in_scope(
+        scope.scope,
+        scope.imports,
+        name,
+      )
       if candidates.length() == 0 {
         self.abort(
           call.span,
@@ -173,7 +200,8 @@ fn Typer::implicit_block_term(
       // The generated call is itself a call site: record the scope, so that
       // implicit arguments *it* needs (recursive implicits, e.g. `typeTag` or
       // `myShow` for a list) can be resolved the same way.
-      self.ctx.assign_call_scope(callee.uid, scope)
+      self.ctx.assign_call_scope(callee.uid, scope.scope)
+      self.ctx.assign_call_imports(callee.uid, scope.imports)
       self.st.ann.implicit_calls.set(callee.uid, true)
       let body = mk_stmt(span, @source.StmtKind::Return(callee))
       mk_term(span, @source.TermKind::BlockLiteral([], vparams, bparams, body))

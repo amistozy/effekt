@@ -119,6 +119,14 @@ $worker = {
     return ,$diags
   }
 
+  # The `.check` files are plain text: upstream writes them with
+  # `removeAnsiColors` ("We remove ansi colors to make check files
+  # human-readable"), so the ANSI SGR escapes the standard library's `Formatted`
+  # output contains have to be dropped before comparing, too.
+  function Remove-AnsiColors([string]$text) {
+    return [regex]::Replace($text, "\u001b\[[;\d]*m", "")
+  }
+
   # The expected diagnostics of a negative test: from the `.check` file when
   # there is one, otherwise from the `// ERROR` / `// WARN` comments.
   function Get-Expected($file) {
@@ -173,7 +181,7 @@ $worker = {
           }
           "$kind`tfail`t$rel`truntime: $detail"
         }
-      } elseif ($r.stdout.TrimEnd() -ne $expected) {
+      } elseif ((Remove-AnsiColors $r.stdout).TrimEnd() -ne $expected) {
         "$kind`tfail`t$rel`toutput differs"
       } else {
         "$kind`tok`t$rel`t"

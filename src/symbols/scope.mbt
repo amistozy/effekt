@@ -323,6 +323,54 @@ pub fn Scope::lookup_functions(
 }
 
 ///|
+/// Looks `name` up in the scope chain, then in the module's imports.
+///
+/// An implicit argument is resolved like an ordinary reference, and those see
+/// the names opened from other modules (upstream's `Scoping` keeps the imports
+/// of a scope and searches both). The imports are not part of a `Scope`, so the
+/// caller passes them along.
+pub fn lookup_term_in_scope(
+  scope : Scope,
+  imports : Bindings,
+  name : String,
+) -> Sym? raise EffektError {
+  match scope.lookup_term_option([], name) {
+    Some(sym) => Some(sym)
+    None =>
+      match imports.terms.get(name) {
+        None => None
+        Some(syms) =>
+          if syms.length() > 1 {
+            raise EffektError::Fatal("Ambiguous reference to \{name}")
+          } else if syms.length() == 0 {
+            None
+          } else {
+            Some(syms[0])
+          }
+      }
+  }
+}
+
+///|
+/// All groups of callables bound to `name`, scope chain first, imports last.
+pub fn lookup_functions_in_scope(
+  scope : Scope,
+  imports : Bindings,
+  name : String,
+) -> Array[Array[Sym]] {
+  let groups = scope.lookup_functions(name)
+  let imported = imports.terms
+    .get(name)
+    .unwrap_or([])
+    .filter(s => s.is_callable() && !s.is_operation())
+  if imported.length() > 0 {
+    groups + [imported]
+  } else {
+    groups
+  }
+}
+
+///|
 pub fn Scoping::lookup_operation(
   self : Scoping,
   path : Array[String],

@@ -42,6 +42,10 @@ pub fn io_capture() -> Sym
 
 pub fn is_core_builtin(Sym) -> Bool
 
+pub fn lookup_functions_in_scope(Scope, Bindings, String) -> Array[Array[Sym]]
+
+pub fn lookup_term_in_scope(Scope, Bindings, String) -> Sym? raise @util.EffektError
+
 pub fn[T] or_else(T?, () -> T? raise @util.EffektError) -> T? raise @util.EffektError
 
 pub fn root_bindings() -> Bindings

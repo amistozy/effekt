@@ -54,6 +54,11 @@ pub(all) struct Context {
   /// checker can resolve name-based implicit arguments, which is the only
   /// phase that needs to look a name up without an `IdRef`.
   call_scopes : Map[Int32, Scope]
+  /// The imports at a call site. Name-based implicit arguments are resolved
+  /// like ordinary references, i.e. in the scope chain *and* in the names
+  /// opened from other modules (upstream's `Scoping` consults both), and the
+  /// imports only live in the namer's state.
+  call_imports : Map[Int32, @symbols.Bindings]
   /// The module produced by the namer phase (exports and includes), if the
   /// namer has run. See `resolve`/`resolve_module` in `src/namer`.
   mut resolved_module : @symbols.Module?
@@ -77,6 +82,7 @@ pub fn Context::new(config : Config) -> Context {
     capability_arguments: Map([]),
     type_arguments: Map([]),
     call_scopes: Map([]),
+    call_imports: Map([]),
     resolved_module: None,
     config,
   }
@@ -347,6 +353,23 @@ pub fn Context::assign_call_scope(
 ///|
 pub fn Context::call_scope_of(self : Context, uid : Int32) -> Scope? {
   self.call_scopes.get(uid)
+}
+
+///|
+pub fn Context::assign_call_imports(
+  self : Context,
+  uid : Int32,
+  imports : @symbols.Bindings,
+) -> Unit {
+  self.call_imports.set(uid, imports)
+}
+
+///|
+pub fn Context::call_imports_of(
+  self : Context,
+  uid : Int32,
+) -> @symbols.Bindings? {
+  self.call_imports.get(uid)
 }
 
 ///|

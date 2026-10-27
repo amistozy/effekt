@@ -181,6 +181,16 @@ fn[T] Namer::in_namespace_path(
   }
 }
 
+///|
+/// Records what a call site needs from the lexical environment: the scope chain
+/// and the imports. The type checker resolves name-based implicit arguments at
+/// that site, which is the one lookup that happens without an `IdRef`; both the
+/// scope and the imports are namer state.
+fn Namer::record_call_site(self : Namer, uid : Int32) -> Unit {
+  self.context.assign_call_scope(uid, self.scoping.scope)
+  self.context.assign_call_imports(uid, self.imports)
+}
+
 // ---------------------------------------------------------------------------
 // Module
 // ---------------------------------------------------------------------------
@@ -1264,7 +1274,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       self.context.assign_symbol(t.uid, sym)
     }
     @source.MethodCall(receiver, target, targs, vargs, bargs) => {
-      self.context.assign_call_scope(t.uid, self.scoping.scope)
+      self.record_call_site(t.uid)
       self.resolve_term(receiver)
       // We are a bit context sensitive in resolving the method.
       match receiver.kind {
@@ -1326,7 +1336,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       }
     }
     @source.Do(target, targs, vargs, bargs) => {
-      self.context.assign_call_scope(t.uid, self.scoping.scope)
+      self.record_call_site(t.uid)
       let sym = self.resolve_effect_call(target)
       self.context.assign_symbol(t.uid, sym)
       for arg in targs {
@@ -1340,7 +1350,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       }
     }
     @source.Call(target, targs, vargs, bargs) => {
-      self.context.assign_call_scope(t.uid, self.scoping.scope)
+      self.record_call_site(t.uid)
       match target {
         @source.IdTarget(id) => {
           let sym = self.resolve_function_calltarget(id)

@@ -138,12 +138,14 @@ pub(all) struct Context {
   capability_arguments : Map[Int32, Array[@symbols.Sym]]
   type_arguments : Map[Int32, Array[@symbols.ValueType]]
   call_scopes : Map[Int32, @symbols.Scope]
+  call_imports : Map[Int32, @symbols.Bindings]
   mut resolved_module : @symbols.Module?
   config : Config
 }
 pub fn Context::abort(Self, @util.Span, String) -> Unit raise @util.EffektError
 pub fn Context::assign_block_type(Self, Int32, @symbols.BlockType) -> Unit
 pub fn Context::assign_bound_capabilities(Self, Int32, Array[@symbols.Sym]) -> Unit
+pub fn Context::assign_call_imports(Self, Int32, @symbols.Bindings) -> Unit
 pub fn Context::assign_call_scope(Self, Int32, @symbols.Scope) -> Unit
 pub fn Context::assign_capability_arguments(Self, Int32, Array[@symbols.Sym]) -> Unit
 pub fn Context::assign_capability_receiver(Self, Int32, @symbols.Sym) -> Unit
@@ -156,6 +158,7 @@ pub fn Context::assign_type_arguments(Self, Int32, Array[@symbols.ValueType]) ->
 pub fn Context::assign_value_type(Self, Int32, @symbols.ValueType) -> Unit
 pub fn Context::block_type_of(Self, Int32) -> @symbols.BlockType?
 pub fn Context::bound_capabilities_of(Self, Int32) -> Array[@symbols.Sym]
+pub fn Context::call_imports_of(Self, Int32) -> @symbols.Bindings?
 pub fn Context::call_scope_of(Self, Int32) -> @symbols.Scope?
 pub fn Context::capability_arguments_of(Self, Int32) -> Array[@symbols.Sym]
 pub fn Context::capability_receiver_of(Self, Int32) -> @symbols.Sym?
