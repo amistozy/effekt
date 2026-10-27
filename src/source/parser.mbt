@@ -2123,7 +2123,7 @@ fn Parser::desugar_with_patterns(
     }
     let match_expr = mk_term(
       with_span,
-      TermKind::Match(scrutinees, [clause], None),
+      TermKind::Match(scrutinees, [clause], fallback),
     )
     let match_body = mk_stmt(
       with_span.synthesized(),

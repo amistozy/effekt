@@ -26,7 +26,7 @@ Push-Location $root
 # Compiling one file loads the whole prelude, so the corpus is split across a
 # few background jobs to keep the wall-clock time reasonable.
 $jobs = 6
-$positiveBaseline = 318
+$positiveBaseline = 345
 # `boxed-captures` (neg) compiles now that name-based implicit arguments exist: it
 # needs the capture-set check that this port deliberately keeps coarse (see the
 # "Deviations from upstream" section of the README). It stays in the corpus.
@@ -86,21 +86,36 @@ $worker = {
     }
     $code = -1
     if (Test-Path $codeFile) {
-      $text = ([IO.File]::ReadAllText($codeFile)).Trim()
+      $text = (Read-Text-WithRetry $codeFile).Trim()
       if ($text -match '^-?\d+$') { $code = [int]$text }
     }
     # Empty output files make `Get-Content -Raw` return an empty array, so the
     # content is read directly and kept as a string.
-    $so = ""
-    if (Test-Path $stdoutFile) { $so = [IO.File]::ReadAllText($stdoutFile) }
-    $se = ""
-    if (Test-Path $stderrFile) { $se = [IO.File]::ReadAllText($stderrFile) }
+    $so = Read-Text-WithRetry $stdoutFile
+    $se = Read-Text-WithRetry $stderrFile
     return @{
       code = $code
       timeout = $false
       stdout = ($so -replace "`r`n", "`n")
       stderr = ($se -replace "`r`n", "`n")
     }
+  }
+
+  # Reads a file a killed child process may still be holding. When a test hits
+  # the timeout, the `cmd.exe` wrapper is killed but `node` keeps running for a
+  # moment and still owns the redirect files, which made the read fail with
+  # "The process cannot access the file" and turned a timeout into an internal
+  # error of the harness. Retry briefly; an unreadable file reads as empty.
+  function Read-Text-WithRetry($path) {
+    if (-not (Test-Path $path)) { return "" }
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+      try {
+        return [IO.File]::ReadAllText($path)
+      } catch {
+        Start-Sleep -Milliseconds 100
+      }
+    }
+    return ""
   }
 
   # The severity/line/message triples of our own diagnostics.
