@@ -683,12 +683,15 @@ fn pm_normalize_conditions(
     PMPatterns(other) => {
       let substituted : Map[Int32, PMVarPattern] = Map([])
       let additional : Array[(Int32, PMVar)] = []
-      for k, vp in other {
+      for _, vp in other {
         let sc = match substitution.get(vp.variable.id.uid()) {
           Some(v) => v
           None => vp.variable
         }
-        substituted.set(k, PMVarPattern::new(sc, vp.pattern))
+        // The pattern is re-keyed by the (possibly substituted) variable:
+        // `case a is x; x is Cons => ...` normalizes to `case a is Cons`, i.e.
+        // the later pattern is now matched on `a`.
+        substituted.set(sc.id.uid(), PMVarPattern::new(sc, vp.pattern))
         match vp.pattern {
           PMAny(aid) => additional.push((aid.uid(), sc))
           _ => ()
