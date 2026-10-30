@@ -712,10 +712,24 @@ pub fn constructor_tparams(c : Sym) -> Array[Sym] {
 }
 
 ///|
+/// The data type a constructor constructs, applied to the data type's own type
+/// parameters.
+///
+/// A constructor may declare *additional* type parameters (`type Exists { Op[Z]
+/// (...) }`, `type TypeTag[A] { List[E](...) }`). Upstream keeps those as
+/// existentials: the constructed type is `T[<data tparams>]`, and the
+/// constructor's own type arguments are inferred from the fields and dropped
+/// from the result (`universals = targs.take(r.tpe.tparams.length)` in
+/// `core.Transformer`). Applying *all* of the constructor's type parameters
+/// here made `Op(1, ...)` construct `Exists[Int]` instead of `Exists`.
 pub fn constructor_applied_datatype(c : Sym) -> ValueType {
   match c {
     Constructor(cd) =>
-      ValueTypeApp(cd.tpe, cd.tparams.map(t => ValueTypeRef(t)))
+      match cd.tpe {
+        DataType(d) => ValueTypeApp(cd.tpe, d.tparams.map(t => ValueTypeRef(t)))
+        Record(r) => ValueTypeApp(cd.tpe, r.tparams.map(t => ValueTypeRef(t)))
+        _ => ValueTypeApp(cd.tpe, [])
+      }
     _ => ValueTypeApp(Sym::error_value_type(Span::missing()), [])
   }
 }
