@@ -196,9 +196,9 @@ fn Typer::warning(self : Typer, span : Span, msg : String) -> Unit {
 }
 
 ///|
-fn Typer::info(self : Typer, msg : String) -> Unit {
+fn Typer::info(self : Typer, span : Span, msg : String) -> Unit {
   if !self.muting {
-    self.ctx.info(msg)
+    self.ctx.info_at(span, msg)
   }
 }
 
@@ -609,6 +609,7 @@ fn Typer::capability_for(
             None => {
               for hint in self.st.cap_scope.relevant_in_scope_for(tpe) {
                 self.info(
+                  span,
                   "Did you mean to use an operation of the concrete interface \{hint}?",
                 )
               }

@@ -5,6 +5,52 @@
 // `tryEach` and `assertArgsParamsAlign`.
 
 ///|
+/// Is `name` the name of a tuple type/constructor (`Tuple2`, `Tuple3`, ...)?
+/// Both the type and the literal are desugared to `effekt::TupleN`.
+fn is_tuple_name(name : String) -> Bool {
+  name.has_prefix("Tuple")
+}
+
+///|
+/// Heuristics for the two ways of confusing a tuple with separate arguments
+/// (upstream `Typer.checkCallTo`):
+///
+///   - `foo(x, y)` where `foo` takes a single tuple argument,
+///   - `foo((x, y))` where `foo` takes two arguments.
+///
+/// Only hints are reported here; the arity error itself follows.
+fn Typer::tuple_call_hint(
+  self : Typer,
+  call : CallLike,
+  fun_vps : Array[ValueType],
+  vargs : Array[ValueArg],
+) -> Unit {
+  if fun_vps.length() == 1 && vargs.length() > 1 {
+    match self.st.u.prune_value(fun_vps[0]) {
+      @symbols.ValueType::ValueTypeApp(ctor, args) =>
+        if is_tuple_name(ctor.name().name) && args.length() == vargs.length() {
+          self.ctx.info_at(
+            call.span,
+            "Did you mean to call \{call.name} with a single tuple argument instead of separate arguments?",
+          )
+        }
+      _ => ()
+    }
+  } else if vargs.length() == 1 && fun_vps.length() > 1 {
+    match vargs[0].value.kind {
+      @source.TermKind::Call(@source.CallTarget::IdTarget(id), _, args, _) =>
+        if is_tuple_name(id.name) && args.length() == fun_vps.length() {
+          self.ctx.info_at(
+            call.span,
+            "Did you mean to call \{call.name} with \{args.length()} separate arguments instead of a tuple?",
+          )
+        }
+      _ => ()
+    }
+  }
+}
+
+///|
 /// Checks a call against a function type. This is the workhorse behind `Call`,
 /// `Do` and `MethodCall`.
 pub fn Typer::check_call_to(
@@ -36,6 +82,7 @@ pub fn Typer::check_call_to(
     )
   }
   if !implicit_tail_matches(vargs.length(), fun_vps.length(), known_vps) {
+    self.tuple_call_hint(call, fun_vps, vargs)
     self.abort(
       span,
       "Wrong number of arguments to \{call.name}: expected \{describe_args(0, fun_vps.length(), fun_bps.length())}, but got \{describe_args(targs.length(), vargs.length(), bargs.length())}.",

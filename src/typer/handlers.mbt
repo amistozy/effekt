@@ -174,6 +174,41 @@ fn Typer::match_declared_value(
 }
 
 ///|
+/// Hints for the two ways of confusing a tuple with separate lambda
+/// parameters (upstream `Typer.assertArgsParamsAlign`):
+///
+///   - `foo { case (x, y) => ... }` where `foo` expects two arguments,
+///   - `foo { (x, y) => ... }` where `foo` expects a single tuple argument.
+fn Typer::lambda_case_hint(
+  self : Typer,
+  span : Span,
+  vps : Array[ValueType],
+  vparams : Array[@source.ValueParam],
+) -> Unit {
+  if vparams.length() == 1 && vps.length() > 1 {
+    // A lambda case binds a single synthetic parameter (`__arg0`), while the
+    // expected function type has one parameter per tuple component.
+    if vparams[0].id.name.has_prefix("__arg") {
+      self.ctx.info_at(
+        span, "Did you mean to use `(x, y) => ...` instead of `case (x, y) => ...`?",
+      )
+    }
+  } else if vps.length() == 1 && vparams.length() > 1 {
+    let tpe = self.st.u.prune_value(vps[0])
+    match tpe {
+      @symbols.ValueType::ValueTypeApp(ctor, args) =>
+        if is_tuple_name(ctor.name().name) && args.length() == vparams.length() {
+          self.ctx.info_at(
+            span,
+            "Did you mean to use `case (x, y) => ...` to pattern match on the tuple \{tpe}?",
+          )
+        }
+      _ => ()
+    }
+  }
+}
+
+///|
 /// Checks a block literal against an expected function type.
 pub fn Typer::check_function_argument(
   self : Typer,
@@ -190,6 +225,7 @@ pub fn Typer::check_function_argument(
         _ => self.abort(arg.span, "Expected a function type.")
       }
       if vparams.length() != vps.length() {
+        self.lambda_case_hint(arg.span, vps, vparams)
         self.abort(
           arg.span,
           "Wrong number of arguments to function: expected \{vps.length()} value arguments, but got \{vparams.length()}.",

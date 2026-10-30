@@ -61,8 +61,8 @@ fn Unboxer::error(self : Unboxer, span : Span, msg : String) -> Unit {
 }
 
 ///|
-fn Unboxer::info(self : Unboxer, msg : String) -> Unit {
-  self.ctx.info(msg)
+fn Unboxer::info(self : Unboxer, span : Span, msg : String) -> Unit {
+  self.ctx.info_at(span, msg)
 }
 
 ///|
@@ -139,11 +139,24 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
               @symbols.Sym::UserFunction(f) =>
                 if f.vparams.length() == 0 && f.bparams.length() == 0 {
                   self.info(
+                    e.span,
                     "Did you mean to call the function using `\{id.name}()`?",
                   )
                 }
+              @symbols.Sym::BlockParam(bp) =>
+                // A block parameter of nullary function type: `{ f: () => A }`
+                match bp.tpe {
+                  Some(@symbols.BlockType::FunctionType(_, _, vps, bps, _, _)) =>
+                    if vps.length() == 0 && bps.length() == 0 {
+                      self.info(
+                        e.span,
+                        "Did you mean to call the function using `\{id.name}()`?",
+                      )
+                    }
+                  _ => ()
+                }
               @symbols.Sym::ResumeParam(_) =>
-                self.info("Did you mean to resume using `resume(...)`?")
+                self.info(e.span, "Did you mean to resume using `resume(...)`?")
               _ => ()
             }
             self.error(
