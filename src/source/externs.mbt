@@ -104,6 +104,13 @@ fn resolve_extern_def(d : Def, ctx : Context) -> Array[Def] raise EffektError {
             ctx,
           )
           ctx.assign_bound_capabilities(d2.uid, [])
+          // The definition is now a function, but its symbol is still an
+          // `ExternFunction`. Remember that, so call sites use the control
+          // calling convention (upstream `callingConvention`).
+          match ctx.symbol_of(id.uid) {
+            Some(sym) => ctx.assign_effekt_extern(sym.uid())
+            None => ()
+          }
           [d2]
         }
         Some(Unsupported(msg)) =>

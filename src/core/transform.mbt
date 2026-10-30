@@ -125,8 +125,12 @@ fn find_equality_functions(module : @source.ModuleDecl) -> Array[Sym] {
 
 ///|
 /// The calling convention of a callable. Upstream resolves the preferred extern
-/// body (`ResolveExternDefs.findPreferred`); the port's symbols do not carry the
-/// bodies, so we approximate by the capture set.
+/// body (`ResolveExternDefs.findPreferred`): an extern with an *Effekt* body is
+/// compiled as an ordinary function and therefore called with the control
+/// convention, no matter how pure its capture set is. The port's symbols do not
+/// carry the bodies, so `ResolveExternDefs` records that case in the context
+/// (`Context.is_effekt_extern`); everything else is approximated by the capture
+/// set.
 pub(all) enum CallingConvention {
   ConvPure
   ConvDirect
@@ -134,18 +138,24 @@ pub(all) enum CallingConvention {
 }
 
 ///|
-fn calling_convention(sym : Sym) -> CallingConvention {
+fn Transformer::calling_convention(
+  self : Transformer,
+  sym : Sym,
+) -> CallingConvention {
   match sym {
-    ExternFunction(f) => {
-      let capt : Captures = CaptureSetOf(f.capture)
-      if capt.is_pure() {
-        ConvPure
-      } else if captures_pure_or_io(capt) {
-        ConvDirect
-      } else {
+    ExternFunction(f) =>
+      if self.ctx.is_effekt_extern(sym.uid()) {
         ConvControl
+      } else {
+        let capt : Captures = CaptureSetOf(f.capture)
+        if capt.is_pure() {
+          ConvPure
+        } else if captures_pure_or_io(capt) {
+          ConvDirect
+        } else {
+          ConvControl
+        }
       }
-    }
     _ => ConvControl
   }
 }
@@ -1377,7 +1387,7 @@ fn Transformer::transform_as_control_block(
             match sym {
               Constructor(c) => eta_expand_constructor(sym, c.tpe)
               ExternFunction(_) =>
-                match calling_convention(sym) {
+                match self.calling_convention(sym) {
                   ConvPure => eta_expand_pure(sym)
                   ConvDirect => eta_expand_direct(sym)
                   ConvControl => BlockVar(self.block_var(sym))
@@ -1893,7 +1903,7 @@ fn Transformer::make_function_call(
 
   match sym {
     ExternFunction(_) =>
-      match calling_convention(sym) {
+      match self.calling_convention(sym) {
         ConvPure => Return(PureApp(self.block_var(sym), targs, value_args))
         ConvDirect =>
           Return(

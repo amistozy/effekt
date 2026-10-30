@@ -139,6 +139,7 @@ pub(all) struct Context {
   type_arguments : Map[Int32, Array[@symbols.ValueType]]
   call_scopes : Map[Int32, @symbols.Scope]
   call_imports : Map[Int32, @symbols.Bindings]
+  effekt_externs : Map[Int32, Bool]
   mut resolved_module : @symbols.Module?
   config : Config
 }
@@ -151,6 +152,7 @@ pub fn Context::assign_capability_arguments(Self, Int32, Array[@symbols.Sym]) ->
 pub fn Context::assign_capability_receiver(Self, Int32, @symbols.Sym) -> Unit
 pub fn Context::assign_capture(Self, Int32, @symbols.Captures) -> Unit
 pub fn Context::assign_effects(Self, Int32, @symbols.Effects) -> Unit
+pub fn Context::assign_effekt_extern(Self, Int32) -> Unit
 pub fn Context::assign_implicit_block_args(Self, Int32, Array[Term]) -> Unit
 pub fn Context::assign_implicit_value_args(Self, Int32, Array[Term]) -> Unit
 pub fn Context::assign_symbol(Self, Int32, @symbols.Sym) -> Unit
@@ -171,6 +173,7 @@ pub fn Context::has_errors(Self) -> Bool
 pub fn Context::implicit_block_args_of(Self, Int32) -> Array[Term]
 pub fn Context::implicit_value_args_of(Self, Int32) -> Array[Term]
 pub fn Context::info(Self, String) -> Unit
+pub fn Context::is_effekt_extern(Self, Int32) -> Bool
 pub fn Context::messages(Self) -> Array[@util.Message]
 pub fn Context::new(Config) -> Self
 pub fn Context::panic(Self, String) -> Unit raise @util.EffektError

@@ -59,6 +59,15 @@ pub(all) struct Context {
   /// opened from other modules (upstream's `Scoping` consults both), and the
   /// imports only live in the namer's state.
   call_imports : Map[Int32, @symbols.Bindings]
+  /// Symbols of extern definitions whose preferred body is an *Effekt* body
+  /// (`extern def f() = js { ... }`), keyed by symbol uid.
+  ///
+  /// `ResolveExternDefs` rewrites such a definition into an ordinary function,
+  /// but the *symbol* stays an `ExternFunction`. Calls to it must not use a
+  /// pure/direct calling convention (upstream's `callingConvention` returns
+  /// `Control` for an extern with an Effekt body), or the call site emits a
+  /// plain JavaScript call while the definition is compiled as a CPS function.
+  effekt_externs : Map[Int32, Bool]
   /// The module produced by the namer phase (exports and includes), if the
   /// namer has run. See `resolve`/`resolve_module` in `src/namer`.
   mut resolved_module : @symbols.Module?
@@ -83,6 +92,7 @@ pub fn Context::new(config : Config) -> Context {
     type_arguments: Map([]),
     call_scopes: Map([]),
     call_imports: Map([]),
+    effekt_externs: Map([]),
     resolved_module: None,
     config,
   }
@@ -370,6 +380,16 @@ pub fn Context::call_imports_of(
   uid : Int32,
 ) -> @symbols.Bindings? {
   self.call_imports.get(uid)
+}
+
+///|
+pub fn Context::assign_effekt_extern(self : Context, uid : Int32) -> Unit {
+  self.effekt_externs.set(uid, true)
+}
+
+///|
+pub fn Context::is_effekt_extern(self : Context, uid : Int32) -> Bool {
+  self.effekt_externs.get(uid).unwrap_or(false)
 }
 
 ///|
