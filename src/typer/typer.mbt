@@ -591,35 +591,42 @@ fn Typer::capability_for(
   span : Span,
 ) -> Sym raise EffektError {
   let target = self.st.u.prune_block(tpe)
+  // The effect may still contain an unsolved type argument (`do emit(Nil())`
+  // performs `emit[List[?T]]`). A capability in scope whose interface is the
+  // same and whose arguments unify solves it — upstream's
+  // `BindSome.tryLexicalCapabilityFor`. This has to happen *before* the plain
+  // lookup, because a `BindAll` frame further out would otherwise hand out a
+  // fresh capability for the still-open effect, which can never be made
+  // concrete.
+  if self.unknowns_block(target).length() > 0 {
+    match self.lexical_capability(target) {
+      Some(cap) => return cap
+      None => ()
+    }
+  }
   match self.st.cap_scope.capability_for(target) {
     Some(cap) => cap
     None =>
-      // The effect may still contain an unsolved type argument (`emit[?T]`):
-      // try the lexical resolution upstream uses for exactly that case.
-      match self.lexical_capability(target) {
+      // Otherwise the capability may have been created while a type
+      // argument was still unsolved; compare the substituted types.
+      match
+        self.st.cap_scope.capability_for_matching(target, t => {
+          self.st.u.prune_block(t)
+        }) {
         Some(cap) => cap
-        None =>
-          // Otherwise the capability may have been created while a type
-          // argument was still unsolved; compare the substituted types.
-          match
-            self.st.cap_scope.capability_for_matching(target, t => {
-              self.st.u.prune_block(t)
-            }) {
-            Some(cap) => cap
-            None => {
-              for hint in self.st.cap_scope.relevant_in_scope_for(tpe) {
-                self.info(
-                  span,
-                  "Did you mean to use an operation of the concrete interface \{hint}?",
-                )
-              }
-              let message =
-                $|Effect \{tpe} is not allowed in this context.
-                $|
-                $|Maybe try annotating the function with the effect?
-              self.abort(span, message)
-            }
+        None => {
+          for hint in self.st.cap_scope.relevant_in_scope_for(tpe) {
+            self.info(
+              span,
+              "Did you mean to use an operation of the concrete interface \{hint}?",
+            )
           }
+          let message =
+            $|Effect \{tpe} is not allowed in this context.
+            $|
+            $|Maybe try annotating the function with the effect?
+          self.abort(span, message)
+        }
       }
   }
 }

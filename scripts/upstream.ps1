@@ -26,11 +26,11 @@ Push-Location $root
 # Compiling one file loads the whole prelude, so the corpus is split across a
 # few background jobs to keep the wall-clock time reasonable.
 $jobs = 6
-$positiveBaseline = 345
+$positiveBaseline = 355
 # `boxed-captures` (neg) compiles now that name-based implicit arguments exist: it
 # needs the capture-set check that this port deliberately keeps coarse (see the
 # "Deviations from upstream" section of the README). It stays in the corpus.
-$negativeBaseline = 111
+$negativeBaseline = 129
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
 moon build --target js 2>&1 | Out-Null
