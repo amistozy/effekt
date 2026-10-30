@@ -14,6 +14,10 @@ pub fn comma() -> Doc
 
 pub fn compare_string(String, String) -> Int32
 
+pub fn did_you_mean(String, Array[String], (String) -> String?) -> String?
+
+pub fn did_you_mean_type(String) -> String?
+
 pub fn doc_cat(Doc, Doc) -> Doc
 
 pub fn doc_group(Doc) -> Doc
@@ -29,6 +33,8 @@ pub fn doc_softbreak() -> Doc
 pub fn doc_space() -> Doc
 
 pub fn doc_spacecat(Doc, Doc) -> Doc
+
+pub fn edit_distance(String, String, Int32) -> Int32?
 
 pub fn empty_doc() -> Doc
 
@@ -89,6 +95,7 @@ pub(all) struct Message {
 }
 pub fn Message::error(Span, String) -> Self
 pub fn Message::info(String) -> Self
+pub fn Message::info_at(Span, String) -> Self
 pub fn Message::render(Self) -> String
 pub fn Message::warning(Span, String) -> Self
 

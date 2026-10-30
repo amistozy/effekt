@@ -127,6 +127,13 @@ pub fn Context::info(self : Context, msg : String) -> Unit {
 }
 
 ///|
+/// An informational hint at `span` (upstream `ErrorReporter.info` reports at
+/// the current focus, i.e. at a source position).
+pub fn Context::info_at(self : Context, span : Span, msg : String) -> Unit {
+  self.messages.push(Message::info_at(span, msg))
+}
+
+///|
 /// Reports an error and aborts the current phase.
 pub fn Context::abort(
   self : Context,

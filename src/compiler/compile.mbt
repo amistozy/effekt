@@ -212,13 +212,15 @@ pub fn module_path_of(file : String) -> String {
 
 ///|
 /// Renders all diagnostics to a string.
+///
+/// `info` messages are hints ("Did you mean ...?"), and upstream reports them
+/// next to the errors they belong to; they are what the negative corpus tests
+/// check for (`[info] path:line:col: ...`), so they are rendered as well.
 pub fn render_messages(messages : Array[Message]) -> String {
   let buf = StringBuilder()
   for m in messages {
-    if m.severity != Info {
-      buf.write_string(m.render())
-      buf.write_string("\n")
-    }
+    buf.write_string(m.render())
+    buf.write_string("\n")
   }
   buf.to_string()
 }

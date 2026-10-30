@@ -173,6 +173,7 @@ pub fn Context::has_errors(Self) -> Bool
 pub fn Context::implicit_block_args_of(Self, Int32) -> Array[Term]
 pub fn Context::implicit_value_args_of(Self, Int32) -> Array[Term]
 pub fn Context::info(Self, String) -> Unit
+pub fn Context::info_at(Self, @util.Span, String) -> Unit
 pub fn Context::is_effekt_extern(Self, Int32) -> Bool
 pub fn Context::messages(Self) -> Array[@util.Message]
 pub fn Context::new(Config) -> Self

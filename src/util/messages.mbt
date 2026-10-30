@@ -41,6 +41,14 @@ pub fn Message::info(text : String) -> Message {
 }
 
 ///|
+/// An informational message at a source position. Upstream's hints ("Did you
+/// mean ...?") are reported at the position they talk about, which is what
+/// places them in the IDE and in the test corpus (which matches by line).
+pub fn Message::info_at(span : Span, text : String) -> Message {
+  { severity: Info, span, text, }
+}
+
+///|
 /// Renders a message with a source excerpt, in the style of the upstream
 /// compiler's `ColoredMessaging` (without the colors).
 pub fn Message::render(self : Message) -> String {

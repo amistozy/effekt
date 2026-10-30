@@ -10,6 +10,8 @@ pub fn async_capability_sym() -> Sym
 
 pub fn async_capture() -> Sym
 
+pub fn available_type_names(Scope, Bindings) -> Array[String]
+
 pub fn canonical_compare(BlockType, BlockType) -> Int32
 
 pub fn canonical_compare_value(ValueType, ValueType) -> Int32

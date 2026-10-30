@@ -352,6 +352,41 @@ pub fn lookup_term_in_scope(
 }
 
 ///|
+/// The names of all types bound in the scope chain and in the imports, for a
+/// "Did you mean ...?" suggestion (upstream `Scope.all(path, scope)` over
+/// `bindings.types`).
+pub fn available_type_names(scope : Scope, imports : Bindings) -> Array[String] {
+  let out : Array[String] = []
+  collect_type_names(scope, out)
+  add_type_names(imports, out)
+  out
+}
+
+///|
+fn collect_type_names(scope : Scope, out : Array[String]) -> Unit {
+  match scope {
+    Global(b) => add_type_names(b, out)
+    Named(_, b, outer) => {
+      add_type_names(b, out)
+      collect_type_names(outer, out)
+    }
+    Local(_, b, outer) => {
+      add_type_names(b, out)
+      collect_type_names(outer, out)
+    }
+  }
+}
+
+///|
+fn add_type_names(b : Bindings, out : Array[String]) -> Unit {
+  for name, _ in b.types {
+    if !out.contains(name) {
+      out.push(name)
+    }
+  }
+}
+
+///|
 /// All groups of callables bound to `name`, scope chain first, imports last.
 pub fn lookup_functions_in_scope(
   scope : Scope,

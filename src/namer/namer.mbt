@@ -1805,7 +1805,8 @@ fn Namer::resolve_function_calltarget(
         let ops = flatten_syms(self.lookup_operation(id.path, id.name))
         // Provide specific info messages for operations.
         for op in ops {
-          self.context.info(
+          self.context.info_at(
+            id.span,
             "There is an equally named effect operation \{op.name().qualified_name()} of interface \{operation_interface(op).name().qualified_name()}. Use syntax `do \{id_text(id)}()` to call it.",
           )
         }
@@ -1920,6 +1921,21 @@ fn is_block_target(sym : Sym) -> Bool {
 }
 
 ///|
+/// Suggests a similar type name when a type reference cannot be resolved
+/// (upstream `Scope.lookupType`'s `didYouMean`). The hint is reported at the
+/// reference, before the error.
+fn Namer::suggest_type(self : Namer, id : IdRef) -> Unit {
+  let candidates = @symbols.available_type_names(
+    self.scoping.scope,
+    self.imports,
+  )
+  match @util.did_you_mean(id.name, candidates, @util.did_you_mean_type) {
+    Some(suggestion) => self.context.info_at(id.span, suggestion)
+    None => ()
+  }
+}
+
+///|
 /// Resolves a type name, storing the symbol on the identifier and on the type
 /// tree (so later phases can look up either).
 fn Namer::resolve_type_ref(
@@ -1934,6 +1950,7 @@ fn Namer::resolve_type_ref(
       sym
     }
     None => {
+      self.suggest_type(id)
       self.context.abort(id.span, "Could not resolve type \{id_text(id)}")
       @symbols.Sym::wildcard()
     }
@@ -2029,7 +2046,8 @@ fn Namer::resolve_value_type(
                 "Expected value type, but got block type \{sym.name().qualified_name()}.",
               )
               if sym.is_block_type_constructor() {
-                self.context.info(
+                self.context.info_at(
+                  t.span,
                   "Did you mean to box the interface \{sym.name().qualified_name()}, i.e. `\{sym.name().qualified_name()} at {}`?",
                 )
               }
@@ -2052,11 +2070,13 @@ fn Namer::resolve_value_type(
         match t.kind {
           @source.FunctionType(_, _, _, _, _) => {
             if is_param {
-              self.context.info(
+              self.context.info_at(
+                t.span,
                 "Did you mean to use braces in order to receive a block type `\{tree_text(t)}`?",
               )
             }
-            self.context.info(
+            self.context.info_at(
+              t.span,
               "Did you mean to use a first-class, boxed function type `\{tree_text(t)} at {}`?",
             )
           }
@@ -2066,17 +2086,20 @@ fn Namer::resolve_value_type(
                 let combined = pretty_source_effect_set(
                   fun_effects.effs + effects.effs,
                 )
-                self.context.info(
+                self.context.info_at(
+                  t.span,
                   "A function type cannot have multiple effect sets, did you mean to use `/ \{combined}` instead of `/ \{tree_text(inner)} / \{span_text(effects.span)}`?",
                 )
               }
               _ => {
                 if is_param {
-                  self.context.info(
+                  self.context.info_at(
+                    t.span,
                     "Did you mean to use braces and a function type `() => \{tree_text(inner)} / \{span_text(effects.span)}`?",
                   )
                 }
-                self.context.info(
+                self.context.info_at(
+                  t.span,
                   "Did you mean to use a first-class, boxed type `() => \{tree_text(inner)} at {} / \{span_text(effects.span)}`?",
                 )
               }
@@ -2110,11 +2133,13 @@ fn Namer::resolve_block_type(
         match t.kind {
           @source.BoxedType(inner, _) => {
             if is_param {
-              self.context.info(
+              self.context.info_at(
+                t.span,
                 "Did you mean to use parentheses in order to receive a value type \{tree_text(t)}?",
               )
             }
-            self.context.info(
+            self.context.info_at(
+              t.span,
               "Did you mean to use the block type \{tree_text(inner)} without `at ...`?",
             )
           }
@@ -2124,12 +2149,14 @@ fn Namer::resolve_block_type(
                 let combined = pretty_source_effect_set(
                   fun_effects.effs + effects.effs,
                 )
-                self.context.info(
+                self.context.info_at(
+                  t.span,
                   "A function type cannot have multiple effect sets, did you mean to use `/ \{combined}` instead of `/ \{tree_text(inner)} / \{span_text(effects.span)}`?",
                 )
               }
               _ =>
-                self.context.info(
+                self.context.info_at(
+                  t.span,
                   "Did you mean to use a function type () => \{tree_text(inner)} / \{span_text(effects.span)}?",
                 )
             }
