@@ -138,6 +138,9 @@ pub struct Typer {
   mut muted_messages : Array[String]
   /// The span of the tree currently being checked.
   mut focus : Span
+  /// The matches whose exhaustiveness is checked after type checking (see
+  /// exhaustivity.mbt).
+  pending_matches : Array[PendingMatch]
 }
 
 ///|
@@ -159,6 +162,7 @@ pub fn Typer::new(ctx : Context) -> Typer {
     muted_error: false,
     muted_messages: [],
     focus: Span::missing(),
+    pending_matches: [],
   }
 }
 
@@ -1015,6 +1019,7 @@ pub fn Typer::check_module(
     }
   }
   self.commit()
+  self.check_pending_matches()
   self.check_main(module)
 }
 
@@ -1984,15 +1989,24 @@ fn Typer::check_expr_kind(
         }
         None => ()
       }
+      // reporting at the match term (upstream's `C.at(tree)`) rather than at
+      // whichever clause body happened to be checked last
+      self.focus = e.span
       let joined = self.join(expected, tpes_and_terms)
-      // exhaustivity (only for a single scrutinee without a default branch)
-      match default {
-        None =>
-          if scs.length() == 1 {
-            self.check_exhaustive(scs[0], clauses, e.span)
-          }
-        Some(_) => ()
-      }
+      // Exhaustivity and unreachable cases are checked after the whole module
+      // has been typed (see `exhaustivity.mbt`): the `default` branch of a
+      // `with val` is passed as an irrefutable clause.
+      self.defer_exhaustivity(
+        e.uid,
+        scs,
+        results.map(r => r.tpe),
+        clauses,
+        match default {
+          Some(_) => true
+          None => false
+        },
+        e.span,
+      )
       TyRes::new(joined, res_eff)
     }
     @source.TermKind::Hole(id, template) => {
@@ -2087,12 +2101,18 @@ fn Typer::bind_all(self : Typer, bindings : Array[(Sym, ValueType)]) -> Unit {
 ///|
 /// Infers the types of the variables bound by a pattern and checks the
 /// pattern against the scrutinee type.
+/// Pattern-related diagnostics point at the pattern, not at the `match`
+/// expression that contains it (upstream wraps the check in `C.at(pattern)`);
+/// `focus` is the position every type error is reported at.
 pub fn Typer::check_pattern(
   self : Typer,
   sc : ValueType,
   pattern : MatchPattern,
 ) -> Array[(Sym, ValueType)] raise EffektError {
+  let saved = self.focus
+  self.focus = pattern.span
   let res = self.check_pattern_kind(sc, pattern)
+  self.focus = saved
   self.annotate_value(pattern.uid, sc)
   res
 }

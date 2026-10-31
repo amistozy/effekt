@@ -30,7 +30,7 @@ $positiveBaseline = 361
 # `boxed-captures` (neg) compiles now that name-based implicit arguments exist: it
 # needs the capture-set check that this port deliberately keeps coarse (see the
 # "Deviations from upstream" section of the README). It stays in the corpus.
-$negativeBaseline = 129
+$negativeBaseline = 137
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
 moon build --target js 2>&1 | Out-Null

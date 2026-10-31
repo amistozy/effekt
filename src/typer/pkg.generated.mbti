@@ -16,8 +16,6 @@ pub fn capture_params_of(Array[@symbols.Captures]) -> Array[@symbols.Sym]
 
 pub fn captures_of_params(Array[@symbols.Sym]) -> Array[@symbols.Captures]
 
-pub fn datatype_constructors(@symbols.ValueType) -> Array[@symbols.Sym]
-
 pub fn eff_contains(@symbols.Effects, @symbols.BlockType) -> Bool
 
 pub fn eff_diff(@symbols.Effects, @symbols.Effects) -> @symbols.Effects
@@ -99,6 +97,15 @@ pub(all) struct Instantiated {
   effs : @symbols.Effects
 }
 
+pub(all) struct PendingMatch {
+  uid : Int32
+  scrutinees : Array[@source.Term]
+  tpes : Array[@symbols.ValueType]
+  clauses : Array[@source.MatchClause]
+  has_default : Bool
+  span : @util.Span
+}
+
 pub struct Substitutions {
   values : Map[Int32, @symbols.ValueType]
   captures : Map[Int32, @symbols.Captures]
@@ -131,6 +138,7 @@ pub struct Typer {
   mut muted_error : Bool
   mut muted_messages : Array[String]
   mut focus : @util.Span
+  pending_matches : Array[PendingMatch]
 }
 pub fn Typer::annotate_block(Self, Int32, @symbols.BlockType) -> Unit
 pub fn Typer::annotate_capture(Self, Int32, @symbols.Captures) -> Unit
@@ -142,7 +150,6 @@ pub fn Typer::bind_block(Self, @symbols.Sym, @symbols.BlockType) -> Unit
 pub fn Typer::bind_capture(Self, @symbols.Sym, @symbols.Captures) -> Unit
 pub fn Typer::bind_value(Self, @symbols.Sym, @symbols.ValueType) -> Unit
 pub fn Typer::check_call_to(Self, CallLike, Array[@symbols.Sym], Array[@symbols.Sym], Array[@symbols.Sym], @symbols.BlockType, Array[@symbols.ValueType], Array[@source.ValueArg], Array[@source.Term], @symbols.ValueType?, CapScope?) -> TyRes[@symbols.ValueType] raise @util.EffektError
-pub fn Typer::check_exhaustive(Self, @source.Term, Array[@source.MatchClause], @util.Span) -> Unit
 pub fn Typer::check_expr(Self, @source.Term, @symbols.ValueType?) -> TyRes[@symbols.ValueType] raise @util.EffektError
 pub fn Typer::check_expr_as_block(Self, @source.Term, @symbols.BlockType?, (Int32, @symbols.ValueType)?) -> TyRes[@symbols.BlockType] raise @util.EffektError
 pub fn Typer::check_function_argument(Self, @source.Term, @symbols.BlockType) -> TyRes[@symbols.BlockType] raise @util.EffektError
