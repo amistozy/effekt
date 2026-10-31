@@ -189,7 +189,7 @@ fn Typer::lambda_case_hint(
     // A lambda case binds a single synthetic parameter (`__arg0`), while the
     // expected function type has one parameter per tuple component.
     if vparams[0].id.name.has_prefix("__arg") {
-      self.ctx.info_at(
+      self.info(
         span, "Did you mean to use `(x, y) => ...` instead of `case (x, y) => ...`?",
       )
     }
@@ -198,7 +198,7 @@ fn Typer::lambda_case_hint(
     match tpe {
       @symbols.ValueType::ValueTypeApp(ctor, args) =>
         if is_tuple_name(ctor.name().name) && args.length() == vparams.length() {
-          self.ctx.info_at(
+          self.info(
             span,
             "Did you mean to use `case (x, y) => ...` to pattern match on the tuple \{tpe}?",
           )
@@ -795,6 +795,7 @@ pub fn Typer::check_try_handle(
     }
   }
   self.warn_about_handlers(
+    node.span,
     handlers,
     provided_capabilities,
     handled_effects,
@@ -832,8 +833,12 @@ pub fn Typer::check_try_handle(
 ///|
 /// Warns about multiple handlers for the same effect and about handlers for
 /// effects that are not used. (Upstream reports these as warnings, too.)
+///
+/// Both are reported at the whole `try` term, like upstream's
+/// `C.at(tree) { ... }` around the handler check.
 fn Typer::warn_about_handlers(
   self : Typer,
+  span : Span,
   handlers : Array[Handler],
   capabilities : Array[Sym],
   effects : Array[BlockType],
@@ -851,6 +856,16 @@ fn Typer::warn_about_handlers(
     }
   }
   for i = 0; i < effects.length(); i = i + 1 {
+    // the same effect can be provided by several handlers; warn only once
+    let mut reported = false
+    for j = 0; j < i; j = j + 1 {
+      if interface_type_equal(effects[i], effects[j]) {
+        reported = true
+      }
+    }
+    if reported {
+      continue
+    }
     let mut count = 0
     let mut all_explicit = true
     let mut all_implicit = true
@@ -866,14 +881,14 @@ fn Typer::warn_about_handlers(
     }
     if count > 1 && !all_explicit {
       let message =
-        $|There are multiple handlers for effect \{effects[i]}; this might not be intended.
+        $|There are multiple handlers for effect \{effect_name(effects[i]).name}; this might not be intended.
         $|Maybe bind capabilities explicitly (e.g. `try { ... } with c: MyEffect { ... }`)?
-      self.warning(handlers[0].span, message)
+      self.warning(span, message)
     }
     if all_implicit && !eff_contains(used, effects[i]) {
       self.warning(
-        handlers[0].span,
-        "Handling effect \{effects[i]}, which seems not to be used by the program.",
+        span,
+        "Handling effect \{effect_name(effects[i]).name}, which seems not to be used by the program.",
       )
     }
   }

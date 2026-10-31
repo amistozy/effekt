@@ -62,7 +62,7 @@ dependency on the first build.
 
 | Package | Upstream counterpart | Contents |
 |---|---|---|
-| `src/util` | `effekt/util/*` | `Source`, `Span`, diagnostics, a Wadler pretty printer, extern string templates, unique ids |
+| `src/util` | `effekt/util/*` | `Source`, `Span`, diagnostics (rendered like upstream's `ColoredMessaging`, which the test corpus compares against), a Wadler pretty printer, extern string templates, unique ids |
 | `src/symbols` | `effekt/symbols/*` | The `Sym` universe (one enum for every symbol kind), the type language (`ValueType`/`BlockType`/`Effects`/`Captures`), bindings/scopes, builtins |
 | `src/source` | `effekt/source/*`, `Lexer`, `Parser` | Syntax tree, `Context`, lexer, parser, generic AST rewriting, `ResolveExternDefs`, `ExplicitCapabilities` |
 | `src/namer` | `effekt/Namer.scala` | Name resolution, symbol construction, scope handling |
@@ -140,7 +140,7 @@ These are deliberate and are documented at the point of use in the sources:
 | `powershell -File scripts/e2e.ps1` | 13 example programs (25 runs across two standard libraries) plus a `--show-core` dump check, compiled and executed with `node`, output compared |
 | `powershell -File scripts/stdlib.ps1` | every module under `libraries/` compiled, with the failures grouped by cause; fails when fewer modules compile than the recorded baseline (49) — this is what catches phase bugs the small examples never reach |
 | `src/source/parser_test.mbt` | additionally validated out of band against all 575 `.effekt` files of the upstream checkout |
-| `powershell -File scripts/upstream.ps1` | the Effekt repository's own test corpus (`testdata/upstream`, 565 programs): `pos`/`stdlib` compiled, run, and their stdout compared with the recorded `.check` file; `neg` compiled, and the expected diagnostics matched by severity and line. Currently **361 of 395** positive and **137 of 170** negative tests pass (another 60 negative tests report the expected diagnostic at the right line, with different wording); the script groups the failures by cause and keeps a baseline that can only grow |
+| `powershell -File scripts/upstream.ps1` | the Effekt repository's own test corpus (`testdata/upstream`, 565 programs). Upstream's `.check` files record the program's output *followed by* the compiler's buffered diagnostics, so a `pos`/`stdlib` test compares both: the program is compiled and run, and its stdout plus our diagnostics must equal the `.check` file (our diagnostics are rendered in upstream's `[warning] path:line:column message` style, with the source excerpt and carets). `neg` compiles only, and the diagnostics are matched by severity and line. Three tests are skipped because they cannot pass here (they need `/dev/stdout`, `cat`, or a module that does not exist upstream either). Currently **367 of 392** positive and **137 of 170** negative tests pass (another 62 negative tests report the expected diagnostic at the right line, with different wording); the script groups the failures by cause and keeps a baseline that can only grow |
 
 The end-to-end cases exercise, among others: recursion (`fib`), first-class
 blocks (`each { x => … }`), mutable variables and `while`, algebraic data types

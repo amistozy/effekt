@@ -49,42 +49,49 @@ pub fn Message::info_at(span : Span, text : String) -> Message {
 }
 
 ///|
-/// Renders a message with a source excerpt, in the style of the upstream
-/// compiler's `ColoredMessaging` (without the colors).
+/// Renders a message the way upstream's `ColoredMessaging` does (without the
+/// colors):
+///
+/// ```text
+/// [warning] path/to/file.effekt:3:5 Handling effect Foo, which seems not to be used by the program.
+///   try { do Foo() } with Foo { () }
+///   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/// ```
+///
+/// The caret line underlines the span when it fits on one line and marks a
+/// single character otherwise, which is what upstream's `formatMessage` does
+/// for a multi-line range. The test corpus records its `.check` files with
+/// exactly this formatting, so the program output and the diagnostics of a
+/// positive test can be compared against it.
 pub fn Message::render(self : Message) -> String {
   let buf = StringBuilder()
   let sev = self.severity.to_string()
-  buf.write_string(sev)
-  if self.span.origin != Missing {
-    let pos = self.span.position()
-    buf.write_string(":\{self.span.source.name}:\{pos.line}:\{pos.column}")
+  if self.span.origin == Missing {
+    buf.write_string("[\{sev}] ")
+    buf.write_string(self.text)
+    return buf.to_string()
   }
-  buf.write_string(": ")
+  let pos = self.span.position()
+  buf.write_string(
+    "[\{sev}] \{self.span.source.name}:\{pos.line}:\{pos.column}: ",
+  )
   buf.write_string(self.text)
-  if self.span.origin != Missing {
+  let text = self.span.source.line_text(pos.line)
+  if text != "" {
     buf.write_string("\n")
-    let line = self.span.position().line
-    let text = self.span.source.line_text(line)
-    if text != "" {
-      buf.write_string(text)
-      buf.write_string("\n")
-      let col = self.span.position().column - 1
-      for i = 0; i < col; i = i + 1 {
-        buf.write_string(" ")
-      }
-      let width = if self.span.end > self.span.start {
-        let w = self.span.end - self.span.start
-        if w > text.length() - col {
-          1
-        } else {
-          w
-        }
-      } else {
-        1
-      }
-      for i = 0; i < width; i = i + 1 {
-        buf.write_string("^")
-      }
+    buf.write_string(text)
+    buf.write_string("\n")
+    let end = self.span.source.offset_to_position(self.span.end)
+    let width = if end.line == pos.line && end.column > pos.column {
+      end.column - pos.column
+    } else {
+      1
+    }
+    for i = 0; i < pos.column - 1; i = i + 1 {
+      buf.write_string(" ")
+    }
+    for i = 0; i < width; i = i + 1 {
+      buf.write_string("^")
     }
   }
   buf.to_string()

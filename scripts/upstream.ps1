@@ -26,7 +26,7 @@ Push-Location $root
 # Compiling one file loads the whole prelude, so the corpus is split across a
 # few background jobs to keep the wall-clock time reasonable.
 $jobs = 6
-$positiveBaseline = 361
+$positiveBaseline = 367
 # `boxed-captures` (neg) compiles now that name-based implicit arguments exist: it
 # needs the capture-set check that this port deliberately keeps coarse (see the
 # "Deviations from upstream" section of the README). It stays in the corpus.
@@ -118,20 +118,35 @@ $worker = {
     return ""
   }
 
-  # The severity/line/message triples of our own diagnostics.
+  # The severity/line/message triples of our own diagnostics. The rendering is
+  # upstream's (`[error] path:line:column message`, see `Message::render`).
   function Get-Diagnostics($text) {
     $diags = @()
     foreach ($line in ($text -split "`n")) {
-      if ($line -match '^(error|warning|info):(.*?):(\d+):(\d+): (.*)$') {
+      if ($line -match '^\[(error|warning|info)\]\s+\S+?:(\d+):(\d+):?\s+(.*)$') {
         $diags += @{
           severity = $Matches[1]
-          file = $Matches[2]
-          line = [int]$Matches[3]
-          text = $Matches[5]
+          line = [int]$Matches[2]
+          text = $Matches[4]
         }
       }
     }
     return ,$diags
+  }
+
+  # Everything the compiler reported, as one block of text: the diagnostics are
+  # what upstream appends to a positive test's output in its `.check` file (it
+  # writes the program's stdout and the buffered messages into the same
+  # emitter). The `Wrote ...` line of our CLI is not part of it.
+  function Get-DiagnosticText($text) {
+    $lines = $text -split "`n"
+    $start = -1
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+      if ($lines[$i] -match '^\[(error|warning|info)\]') { $start = $i; break }
+    }
+    if ($start -lt 0) { return "" }
+    $kept = $lines[$start..($lines.Count - 1)] | Where-Object { -not $_.StartsWith("Wrote ") }
+    return ($kept -join "`n")
   }
 
   # The `.check` files are plain text: upstream writes them with
@@ -181,31 +196,49 @@ $worker = {
       }
       $r = Invoke-Effekt $file $jsOut $true $rel
       if ($r.timeout) {
-        "$kind`tfail`t$rel`ttimeout (30s)"
-      } elseif ($r.code -ne 0) {
-        $first = ($r.stderr -split "`n" | Where-Object { $_ -match '^(error|warning|info):' } | Select-Object -First 1)
-        if ($first) {
-          "$kind`tfail`t$rel`t$first"
-        } else {
-          # The compiler succeeded, so the program itself failed: report the
-          # exception node threw (the first line of the stack trace that names
-          # it), not the `Wrote ...` line of the compiler.
-          $detail = ($r.stderr -split "`n" | Where-Object { $_ -match '(Error|error)' -and $_ -notmatch '^Wrote ' } | Select-Object -First 1)
-          if (-not $detail) {
-            $detail = ($r.stderr -split "`n" | Where-Object { $_.Trim() -ne "" } | Select-Object -Last 1)
-          }
-          "$kind`tfail`t$rel`truntime: $detail"
-        }
-      } elseif ((Remove-AnsiColors $r.stdout).TrimEnd() -ne $expected) {
-        "$kind`tfail`t$rel`toutput differs"
+        # the corpus runs six files at a time; a slow machine can push one over
+        # the limit, so a timeout is retried once before it is reported
+        $r = Invoke-Effekt $file $jsOut $true $rel 60000
+      }
+      if ($r.timeout) {
+        "$kind`tfail`t$rel`ttimeout (90s)"
       } else {
-        "$kind`tok`t$rel`t"
+        # The program's output followed by the compiler's diagnostics, exactly
+        # what upstream recorded in the `.check` file. A test whose check file
+        # only contains diagnostics (`bidirectional/selfrecursion` reports an
+        # unsupported feature) compares equal here even though the program does
+        # not run.
+        $actual = (Remove-AnsiColors $r.stdout).TrimEnd()
+        $diagText = (Remove-AnsiColors (Get-DiagnosticText $r.stderr)).TrimEnd()
+        if ($diagText -ne "") { if ($actual -eq "") { $actual = $diagText } else { $actual = "$actual`n$diagText" } }
+        if ($actual -eq $expected) {
+          "$kind`tok`t$rel`t"
+        } elseif ($r.code -ne 0) {
+          $first = ($r.stderr -split "`n" | Where-Object { $_ -match '^\[(error|warning|info)\]' } | Select-Object -First 1)
+          if ($first) {
+            "$kind`tfail`t$rel`t$first"
+          } else {
+            # The compiler succeeded, so the program itself failed: report the
+            # exception node threw (the first line of the stack trace that names
+            # it), not the `Wrote ...` line of the compiler.
+            $detail = ($r.stderr -split "`n" | Where-Object { $_ -match '(Error|error)' -and $_ -notmatch '^Wrote ' } | Select-Object -First 1)
+            if (-not $detail) {
+              $detail = ($r.stderr -split "`n" | Where-Object { $_.Trim() -ne "" } | Select-Object -Last 1)
+            }
+            "$kind`tfail`t$rel`truntime: $detail"
+          }
+        } else {
+          "$kind`tfail`t$rel`toutput differs"
+        }
       }
     } else {
       $expected = Get-Expected $file
       $r = Invoke-Effekt $file $jsOut $false $rel
       if ($r.timeout) {
-        "$kind`tfail`t$rel`ttimeout (30s)"
+        $r = Invoke-Effekt $file $jsOut $false $rel 60000
+      }
+      if ($r.timeout) {
+        "$kind`tfail`t$rel`ttimeout (90s)"
         continue
       }
       $diags = Get-Diagnostics $r.stderr
@@ -240,12 +273,24 @@ $worker = {
 # ---------------------------------------------------------------------------
 # Collect the tests and split them across the workers.
 # ---------------------------------------------------------------------------
+# Tests that cannot pass here, with the reason. `propagators` is in upstream's
+# own ignore list for the JS backend (the `unsafe/cont` module it imports does
+# not exist); the other two need POSIX paths or tools (writing to
+# `/dev/stdout`, spawning `cat`) that Windows does not have, so upstream's CI
+# passes them and this machine cannot. They stay in the corpus and are listed
+# in the summary — only the pass counts leave them out.
+$skipped = @{
+  "examples/pos/propagators.effekt" = "ignored upstream: imports the missing module unsafe/cont"
+  "examples/pos/issue1087.effekt" = "writes to /dev/stdout"
+  "examples/stdlib/io/process.effekt" = "spawns the POSIX tool cat"
+}
 $tests = @()
 foreach ($dir in @("pos", "stdlib")) {
   $base = Join-Path $corpus "examples/$dir"
   foreach ($f in (Get-ChildItem -Recurse $base -Filter '*.effekt' -File)) {
     $rel = $f.FullName.Substring($corpus.Length).TrimStart('\', '/') -replace '\\', '/'
     if ($Filter -ne "" -and -not $rel.Contains($Filter)) { continue }
+    if ($skipped.ContainsKey($rel)) { continue }
     $tests += @{ kind = "pos"; file = $f.FullName; rel = $rel }
   }
 }
@@ -308,6 +353,10 @@ foreach ($line in $results) {
 Write-Host ""
 Write-Host ("positive (pos + stdlib): {0} of {1} pass" -f $posOk, $posTotal) -ForegroundColor Cyan
 Write-Host ("negative (neg):          {0} of {1} match ({2} pass with different wording)" -f $negOk, $negTotal, $negWording) -ForegroundColor Cyan
+if ($skipped.Count -gt 0) {
+  Write-Host ("skipped:                 {0} tests that cannot pass on this platform" -f $skipped.Count) -ForegroundColor DarkGray
+  foreach ($name in ($skipped.Keys | Sort-Object)) { Write-Host ("           $name ({0})" -f $skipped[$name]) -ForegroundColor DarkGray }
+}
 
 if ($failures.Count -gt 0) {
   Write-Host ""

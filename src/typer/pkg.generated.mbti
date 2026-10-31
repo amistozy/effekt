@@ -137,6 +137,7 @@ pub struct Typer {
   mut muting : Bool
   mut muted_error : Bool
   mut muted_messages : Array[String]
+  mut muted_infos : Array[(@util.Span, String)]
   mut focus : @util.Span
   pending_matches : Array[PendingMatch]
 }

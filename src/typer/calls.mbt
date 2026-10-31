@@ -29,7 +29,7 @@ fn Typer::tuple_call_hint(
     match self.st.u.prune_value(fun_vps[0]) {
       @symbols.ValueType::ValueTypeApp(ctor, args) =>
         if is_tuple_name(ctor.name().name) && args.length() == vargs.length() {
-          self.ctx.info_at(
+          self.info(
             call.span,
             "Did you mean to call \{call.name} with a single tuple argument instead of separate arguments?",
           )
@@ -40,7 +40,7 @@ fn Typer::tuple_call_hint(
     match vargs[0].value.kind {
       @source.TermKind::Call(@source.CallTarget::IdTarget(id), _, args, _) =>
         if is_tuple_name(id.name) && args.length() == fun_vps.length() {
-          self.ctx.info_at(
+          self.info(
             call.span,
             "Did you mean to call \{call.name} with \{args.length()} separate arguments instead of a tuple?",
           )
@@ -324,19 +324,33 @@ fn describe_args(types : Int32, values : Int32, blocks : Int32) -> String {
 fn Typer::try_candidates(
   self : Typer,
   candidates : Array[Sym],
+  /// Whether this is the only way to type check the call (one scope, one
+  /// candidate). Upstream then calls checkCallTo directly instead of inside
+  /// Try, so the hints of that candidate are reported even when it fails.
+  alone : Bool,
   run : (Sym) -> TyRes[ValueType] raise EffektError,
-) -> (Array[(Sym, TyRes[ValueType], TyperState)], Array[(Sym, String)]) {
+) -> (
+  Array[(Sym, TyRes[ValueType], TyperState, Array[(Span, String)])],
+  Array[(Sym, String)],
+) {
   let before = self.st.backup()
-  let successes : Array[(Sym, TyRes[ValueType], TyperState)] = []
+  let successes : Array[
+    (Sym, TyRes[ValueType], TyperState, Array[(Span, String)]),
+  ] = []
   let failures : Array[(Sym, String)] = []
+  // With a single candidate there is nothing to backtrack: upstream calls
+  // `checkCallTo` directly, so the diagnostics of that (only) candidate —
+  // including its hints — are reported instead of being buffered.
   for c in candidates {
     self.st = before.backup()
     let muting_before = self.muting
     let error_before = self.muted_error
     let messages_before = self.muted_messages
+    let infos_before = self.muted_infos
     self.muting = true
     self.muted_error = false
     self.muted_messages = []
+    self.muted_infos = []
     let mut res : TyRes[ValueType]? = None
     let mut err = ""
     try {
@@ -349,24 +363,43 @@ fn Typer::try_candidates(
     // this attempt's own verdict and diagnostics
     let failed = self.muted_error
     let muted = self.muted_messages.copy()
+    let infos = self.muted_infos.copy()
     // restore the enclosing attempt's diagnostics
     self.muting = muting_before
     self.muted_error = error_before
     self.muted_messages = messages_before
+    self.muted_infos = infos_before
     let recorded = if err != "" { err } else { muted.join("; ") }
     let final = if recorded == "" { "Type error" } else { recorded }
     match res {
       Some(r) =>
         if failed {
           failures.push((c, final))
+          if alone {
+            self.replay_infos(infos)
+          }
         } else {
-          successes.push((c, r, after))
+          successes.push((c, r, after, infos))
         }
-      None => failures.push((c, final))
+      None => {
+        failures.push((c, final))
+        if alone {
+          self.replay_infos(infos)
+        }
+      }
     }
   }
   self.st = before
   (successes, failures)
+}
+
+///|
+/// Reports the hints of the overload candidate that was chosen.
+fn Typer::replay_infos(self : Typer, infos : Array[(Span, String)]) -> Unit {
+  for entry in infos {
+    let (span, msg) = entry
+    self.ctx.info_at(span, msg)
+  }
 }
 
 ///|
@@ -422,24 +455,32 @@ pub fn Typer::check_overloaded_function_call(
   for candidates in scopes {
     // a scope is a *set* of candidates (upstream `Bindings.terms` is a Set):
     // the same symbol can be bound under several paths of the same scope
-    let (successes, failures) = self.try_candidates(dedup_syms(candidates), candidate => {
-      let (fun_tpe, tparams, vps, bps) = self.find_function_type_for(candidate)
-      self.check_call_to(
-        call,
-        tparams,
-        vps,
-        bps,
-        fun_tpe,
-        targs,
-        vargs,
-        bargs,
-        expected,
-        None,
-      )
-    })
+    let unique = dedup_syms(candidates)
+    let (successes, failures) = self.try_candidates(
+      unique,
+      scopes.length() == 1 && unique.length() == 1,
+      candidate => {
+        let (fun_tpe, tparams, vps, bps) = self.find_function_type_for(
+          candidate,
+        )
+        self.check_call_to(
+          call,
+          tparams,
+          vps,
+          bps,
+          fun_tpe,
+          targs,
+          vargs,
+          bargs,
+          expected,
+          None,
+        )
+      },
+    )
     if successes.length() == 1 {
-      let (found, res, state) = successes[0]
+      let (found, res, state, infos) = successes[0]
       self.st = state
+      self.replay_infos(infos)
       self.ctx.assign_symbol(id.uid, found)
       return res
     } else if successes.length() > 1 {
@@ -449,7 +490,7 @@ pub fn Typer::check_overloaded_function_call(
       // choosing one (see `examples/neg/name-based-implicits`).
       if self.st.ann.implicit_calls.get(call.uid) is Some(_) {
         let names : Array[String] = successes.map(s => {
-          let (sym, _, _) = s
+          let (sym, _, _, _) = s
           "\{sym.name().qualified_name()}"
         })
         self.abort(
@@ -465,13 +506,14 @@ pub fn Typer::check_overloaded_function_call(
       // ever turn an error into a success, never the other way around.
       let best = self.most_specific(successes)
       if best.length() == 1 {
-        let (found, res, state) = best[0]
+        let (found, res, state, infos) = best[0]
         self.st = state
+        self.replay_infos(infos)
         self.ctx.assign_symbol(id.uid, found)
         return res
       }
       let names : Array[String] = best.map(s => {
-        let (s, _, _) = s
+        let (s, _, _, _) = s
         "\{self.lookup_block(s)}"
       })
       self.abort(
@@ -510,13 +552,13 @@ pub fn Typer::check_overloaded_function_call(
 /// generic fallback).
 fn Typer::most_specific(
   self : Typer,
-  successes : Array[(Sym, TyRes[ValueType], TyperState)],
-) -> Array[(Sym, TyRes[ValueType], TyperState)] {
+  successes : Array[(Sym, TyRes[ValueType], TyperState, Array[(Span, String)])],
+) -> Array[(Sym, TyRes[ValueType], TyperState, Array[(Span, String)])] {
   ignore(self)
   let mut best = 0
   let mut first = true
   for s in successes {
-    let (sym, _, _) = s
+    let (sym, _, _, _) = s
     let n = match sym.as_callable() {
       Some(v) => v.tparams.length()
       None => 0
@@ -529,7 +571,7 @@ fn Typer::most_specific(
     }
   }
   successes.filter(s => {
-    let (sym, _, _) = s
+    let (sym, _, _, _) = s
     let n = match sym.as_callable() {
       Some(v) => v.tparams.length()
       None => 0
@@ -639,29 +681,36 @@ pub fn Typer::check_overloaded_method_call(
   }
   let call = { uid: call_node.uid, span: call_node.span, name: id.name, }
   for candidates_scope in [candidates] {
-    let (successes, failures) = self.try_candidates(candidates_scope, candidate => {
-      let (fun_tpe, tparams, vps, bps) = self.find_function_type_for(candidate)
-      let synth = if targs.length() > 0 {
-        targs
-      } else {
-        self.fill_in_type_arguments(tparams, iface_args)
-      }
-      self.check_call_to(
-        call,
-        tparams,
-        vps,
-        bps,
-        fun_tpe,
-        synth,
-        vargs,
-        bargs,
-        expected,
-        None,
-      )
-    })
+    let (successes, failures) = self.try_candidates(
+      candidates_scope,
+      candidates_scope.length() == 1,
+      candidate => {
+        let (fun_tpe, tparams, vps, bps) = self.find_function_type_for(
+          candidate,
+        )
+        let synth = if targs.length() > 0 {
+          targs
+        } else {
+          self.fill_in_type_arguments(tparams, iface_args)
+        }
+        self.check_call_to(
+          call,
+          tparams,
+          vps,
+          bps,
+          fun_tpe,
+          synth,
+          vargs,
+          bargs,
+          expected,
+          None,
+        )
+      },
+    )
     if successes.length() == 1 {
-      let (found, res, state) = successes[0]
+      let (found, res, state, infos) = successes[0]
       self.st = state
+      self.replay_infos(infos)
       // Record the operation this method call resolved to: the namer resolves
       // an operation name to an overloaded `CallTarget`, and the backend needs
       // the concrete operation to build the `Invoke`.

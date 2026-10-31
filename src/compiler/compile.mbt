@@ -211,16 +211,35 @@ pub fn module_path_of(file : String) -> String {
 }
 
 ///|
-/// Renders all diagnostics to a string.
+/// Renders all diagnostics to a string, sorted by position and with identical
+/// messages collapsed — upstream's `formatMessages` does exactly that
+/// (`messages.sorted.map(formatMessage).distinct`), and the test corpus
+/// records its `.check` files with this rendering.
 ///
 /// `info` messages are hints ("Did you mean ...?"), and upstream reports them
 /// next to the errors they belong to; they are what the negative corpus tests
-/// check for (`[info] path:line:col: ...`), so they are rendered as well.
+/// check for (`[info] path:line:col ...`), so they are rendered as well.
 pub fn render_messages(messages : Array[Message]) -> String {
+  let sorted = messages.copy()
+  // insertion sort: the lists are short and it keeps the order stable
+  for i = 1; i < sorted.length(); i = i + 1 {
+    let current = sorted[i]
+    let mut j = i - 1
+    while j >= 0 && sorted[j].span.compare(current.span) > 0 {
+      sorted[j + 1] = sorted[j]
+      j = j - 1
+    }
+    sorted[j + 1] = current
+  }
   let buf = StringBuilder()
-  for m in messages {
-    buf.write_string(m.render())
-    buf.write_string("\n")
+  let mut previous = ""
+  for m in sorted {
+    let rendered = m.render()
+    if rendered != previous {
+      buf.write_string(rendered)
+      buf.write_string("\n")
+      previous = rendered
+    }
   }
   buf.to_string()
 }

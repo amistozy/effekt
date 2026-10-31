@@ -136,6 +136,10 @@ pub struct Typer {
   mut muted_error : Bool
   /// The diagnostics that were suppressed while trying an overload candidate.
   mut muted_messages : Array[String]
+  /// The hints that were suppressed while trying an overload candidate. They
+  /// are replayed when the candidate is chosen: a hint that only a rejected
+  /// candidate produced would point at code that type checks otherwise.
+  mut muted_infos : Array[(Span, String)]
   /// The span of the tree currently being checked.
   mut focus : Span
   /// The matches whose exhaustiveness is checked after type checking (see
@@ -161,6 +165,7 @@ pub fn Typer::new(ctx : Context) -> Typer {
     muting: false,
     muted_error: false,
     muted_messages: [],
+    muted_infos: [],
     focus: Span::missing(),
     pending_matches: [],
   }
@@ -201,7 +206,9 @@ fn Typer::warning(self : Typer, span : Span, msg : String) -> Unit {
 
 ///|
 fn Typer::info(self : Typer, span : Span, msg : String) -> Unit {
-  if !self.muting {
+  if self.muting {
+    self.muted_infos.push((span, msg))
+  } else {
     self.ctx.info_at(span, msg)
   }
 }
@@ -507,9 +514,11 @@ fn Typer::types_compatible(
   let muting_before = self.muting
   let error_before = self.muted_error
   let messages_before = self.muted_messages
+  let infos_before = self.muted_infos
   self.muting = true
   self.muted_error = false
   self.muted_messages = []
+  self.muted_infos = []
   let mut ok = true
   self.unify_value_types(inferred, concrete, MergeTypes(inferred, concrete)) catch {
     _ => ok = false
@@ -521,6 +530,7 @@ fn Typer::types_compatible(
   self.muting = muting_before
   self.muted_error = error_before
   self.muted_messages = messages_before
+  self.muted_infos = infos_before
   ok
 }
 
@@ -619,12 +629,6 @@ fn Typer::capability_for(
         }) {
         Some(cap) => cap
         None => {
-          for hint in self.st.cap_scope.relevant_in_scope_for(tpe) {
-            self.info(
-              span,
-              "Did you mean to use an operation of the concrete interface \{hint}?",
-            )
-          }
           let message =
             $|Effect \{tpe} is not allowed in this context.
             $|
@@ -676,7 +680,10 @@ fn Typer::bind_capabilities(
     match capability_type(cap) {
       Some(t) => {
         self.bind_block(cap, t)
-        self.assert_concrete_effect(t, cap.decl())
+        // upstream reports at the current focus (C.currentRange); a capability
+        // that is bound outside of any tree falls back to its declaration
+        let span = if self.focus.is_missing() { cap.decl() } else { self.focus }
+        self.assert_concrete_effect(t, span)
       }
       None => self.panic("Capability type needs to be known.")
     }
@@ -842,6 +849,15 @@ pub fn Typer::assert_concrete_effect(
   let eff = self.st.u.prune_block(eff)
   match self.unknowns_block(eff) {
     us if us.length() > 0 => {
+      // Upstream's `assertConcreteEffect` hints at the concrete interfaces of
+      // the same effect that *are* in scope (see
+      // `examples/neg/lexical_capability_selection_*`).
+      for hint in self.st.cap_scope.relevant_in_scope_for(eff) {
+        self.info(
+          span,
+          "Did you mean to use an operation of the concrete interface \{hint}?",
+        )
+      }
       let message =
         $|Effects need to be fully known, but effect \{eff}'s type parameter(s) \{us.join(", ")} could not be inferred.
         $|
@@ -1247,7 +1263,7 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
                 ),
               ) {
               self.error(
-                op.span,
+                d.span,
                 "Bidirectional effects that mention the same effect recursively are not (yet) supported.",
               )
             }

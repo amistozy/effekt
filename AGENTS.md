@@ -164,7 +164,12 @@ You can browse and install extra skills here:
   copied verbatim, 565 programs with the recorded `.check` outputs). It takes
   several minutes, so run it at milestones rather than on every commit; its
   numbers are tracked by baselines inside the script, which must be raised
-  whenever they improve, exactly like `scripts/stdlib.ps1`'s.
+  whenever they improve, exactly like `scripts/stdlib.ps1`'s. The `.check`
+  files record a program's output followed by the compiler's diagnostics, so a
+  `pos` test compares both; the diagnostics therefore have to keep upstream's
+  rendering and positions. Three tests are skipped (see `$skipped` in the
+  script): they need `/dev/stdout`, `cat`, or a module that upstream does not
+  have either, so they cannot pass on Windows.
 - Run `moon info && moon fmt` first, and commit the updated `.mbti` interfaces
   together with the code that changed them.
 - Direct HTTPS access to github.com is unreliable on this machine (`Recv failure:
