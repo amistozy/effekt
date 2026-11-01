@@ -558,11 +558,11 @@ fn Namer::name_for(self : Namer, id : IdDef) -> Name {
 }
 
 ///|
-fn Namer::require_toplevel(self : Namer, kind : String) -> Unit {
+fn Namer::require_toplevel(self : Namer, kind : String, span : Span) -> Unit {
   match self.path() {
     None =>
       self.context.error(
-        Span::missing(),
+        span,
         "\{kind} declarations are only allowed on the toplevel of a module or in a namespace.",
       )
     Some(_) => ()
@@ -570,11 +570,15 @@ fn Namer::require_toplevel(self : Namer, kind : String) -> Unit {
 }
 
 ///|
-fn Namer::require_not_toplevel(self : Namer, kind : String) -> Unit {
+fn Namer::require_not_toplevel(
+  self : Namer,
+  kind : String,
+  span : Span,
+) -> Unit {
   match self.path() {
     Some(_) =>
       self.context.error(
-        Span::missing(),
+        span,
         "\{kind} declarations are not allowed on the toplevel of a module or in a namespace.",
       )
     None => ()
@@ -596,6 +600,27 @@ fn Namer::define_id(
     let suffix = id.path[i:].to_owned()
     self.in_namespace_path(suffix, () => {
       if is_type {
+        // Upstream `Scope.define(name, sym: TypeSymbol)`: a type may not be
+        // declared twice in the *same* scope, and a type parameter that hides
+        // an outer type of the same name is worth a warning.
+        if self.scoping.current_type_for(id.name) is Some(_) {
+          self.context.error(
+            id.span,
+            "Type \{id.name} already defined in the current scope.",
+          )
+        }
+        if sym is @symbols.Sym::TypeParam(_) {
+          match self.scoping.lookup_type_option([], id.name) {
+            Some(shadowed) =>
+              if !shadowed.is_type_var() {
+                self.context.warning(
+                  id.span,
+                  "Type parameter \{id.name} shadows outer definition of \{shadowed.name().name}.",
+                )
+              }
+            None => ()
+          }
+        }
         self.scoping.define_type(id.name, sym)
       } else {
         self.scoping.define_term(id.name, sym)
@@ -691,11 +716,12 @@ fn Namer::symbol_of_node(self : Namer, uid : Int32) -> Sym raise EffektError {
 fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
   match d.kind {
     @source.ValDef(_, _, _) => ()
-    @source.VarDef(_, _, _) => self.require_not_toplevel("Mutable variable")
+    @source.VarDef(_, _, _) =>
+      self.require_not_toplevel("Mutable variable", d.span)
     @source.RegDef(_, _, _, _) =>
-      self.require_not_toplevel("Mutable variable in a region")
+      self.require_not_toplevel("Mutable variable in a region", d.span)
     @source.NamespaceDef(id, definitions) => {
-      self.require_toplevel("Namespace")
+      self.require_toplevel("Namespace", d.span)
       self.in_namespace(id.name, () => {
         for inner in definitions {
           self.preresolve(inner)
@@ -752,7 +778,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.define_def(d, id, sym)
     }
     @source.InterfaceDef(id, tparams, _) => {
-      self.require_toplevel("Interface")
+      self.require_toplevel("Interface", d.span)
       let name = self.name_for(id)
       // We do not resolve the effect operations here to allow them to refer to
       // types that are defined later in the file.
@@ -763,7 +789,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.define_def(d, id, sym)
     }
     @source.TypeDef(id, tparams, tpe) => {
-      self.require_toplevel("Type")
+      self.require_toplevel("Type", d.span)
       let tps = self.in_local_scope(() => {
         tparams.map(t => self.resolve_type_param(t))
       })
@@ -781,7 +807,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.define_def(d, id, alias)
     }
     @source.EffectDef(id, tparams, effs) => {
-      self.require_toplevel("Effect")
+      self.require_toplevel("Effect", d.span)
       let tps = self.in_local_scope(() => {
         tparams.map(t => self.resolve_type_param(t))
       })
@@ -799,7 +825,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.define_def(d, id, alias)
     }
     @source.DataDef(id, tparams, _) => {
-      self.require_toplevel("Datatype")
+      self.require_toplevel("Datatype", d.span)
       // We do not resolve the constructors here to allow them to refer to types
       // that are defined later in the file.
       let sym = self.in_local_scope(() => {
@@ -809,7 +835,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.define_def(d, id, sym)
     }
     @source.RecordDef(id, tparams, _) => {
-      self.require_toplevel("Record")
+      self.require_toplevel("Record", d.span)
       let sym = self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
         mk_record(self.name_for(id), tps, d.span)
@@ -817,7 +843,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.define_def(d, id, sym)
     }
     @source.ExternType(id, tparams, _) => {
-      self.require_toplevel("Extern type")
+      self.require_toplevel("Extern type", d.span)
       let sym = self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
         mk_extern_type(self.name_for(id), tps, d.span)
@@ -825,7 +851,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.define_def(d, id, sym)
     }
     @source.ExternInterface(id, tparams, _) => {
-      self.require_toplevel("Extern interface")
+      self.require_toplevel("Extern interface", d.span)
       let sym = self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
         mk_extern_interface(self.name_for(id), tps, d.span)
@@ -833,7 +859,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.define_def(d, id, sym)
     }
     @source.ExternDef(id, tparams, vparams, bparams, captures, ret, _) => {
-      self.require_toplevel("Extern definition")
+      self.require_toplevel("Extern definition", d.span)
       let name = self.name_for(id)
       let capt = self.resolve_capture_set(captures).to_array()
       let sym = self.in_local_scope(() => {
@@ -849,7 +875,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.define_def(d, id, sym)
     }
     @source.ExternResource(id, tpe) => {
-      self.require_toplevel("Extern resource")
+      self.require_toplevel("Extern resource", d.span)
       let name = self.name_for(id)
       let btpe = self.resolve_block_type(tpe, false)
       let sym = mk_extern_resource(
@@ -861,7 +887,8 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       self.define_def(d, id, sym)
       self.bind_block(sym)
     }
-    @source.ExternInclude(_, _, _) => self.require_toplevel("Extern include")
+    @source.ExternInclude(_, _, _) =>
+      self.require_toplevel("Extern include", d.span)
   }
 }
 

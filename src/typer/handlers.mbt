@@ -827,16 +827,7 @@ pub fn Typer::check_try_handle(
     self.st.u.prune_effects(prog_res.effs),
   )
 
-  // (5) the return type of the handled statement must not mention any of the
-  // bound capabilities
-  let bound_captures = provided_capabilities.map(c => capture_of_capability(c))
-  self.check_no_capture_escape(
-    bound_captures,
-    free_captures_value(prog_res.tpe),
-    prog.span,
-    "The return type \{prog_res.tpe} of the handled statement is not allowed to refer to any of the bound capabilities.",
-  )
-
+  // the escape checks live in wellformedness.mbt (the pass after this one)\n\n
   // the captures of the handler continue flowing into the outer scope
   self.using_capture(continuation_capt)
   TyRes::new(

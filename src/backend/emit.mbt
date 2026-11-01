@@ -107,10 +107,11 @@ pub fn emit(
   // has already dropped the unreachable ones, so only externs that the program
   // can actually call are reported (once per distinct message).
   let reported : Array[String] = []
-  for message in @js.take_unsupported_messages() {
+  for entry in @js.take_unsupported_messages() {
+    let (span, message) = entry
     if !reported.any(m => m == message) {
       reported.push(message)
-      ctx.warning(Span::missing(), message)
+      ctx.warning(span, message)
     }
   }
   js

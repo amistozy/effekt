@@ -354,6 +354,7 @@ pub(all) struct Scoping {
   mut scope : Scope
 }
 pub fn Scoping::current_terms_for(Self, String) -> Array[Sym]
+pub fn Scoping::current_type_for(Self, String) -> Sym?
 pub fn Scoping::define_capture(Self, String, Sym) -> Unit
 pub fn Scoping::define_term(Self, String, Sym) -> Unit raise @util.EffektError
 pub fn Scoping::define_type(Self, String, Sym) -> Unit

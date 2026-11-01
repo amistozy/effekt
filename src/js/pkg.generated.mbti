@@ -79,7 +79,7 @@ pub fn show_stmts(Array[Stmt]) -> String
 
 pub fn tag_for(@symbols.Sym, @core.DeclarationContext) -> Expr raise @util.EffektError
 
-pub fn take_unsupported_messages() -> Array[String]
+pub fn take_unsupported_messages() -> Array[(@util.Span, String)]
 
 pub fn[S, T] traverse(Array[S], (S) -> Binding[T] raise @util.EffektError) -> Binding[Array[T]]
 

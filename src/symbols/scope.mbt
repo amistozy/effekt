@@ -532,6 +532,12 @@ pub fn Scoping::define_term(
 }
 
 ///|
+/// Is the type name defined in the *current* scope (not an enclosing one)?
+pub fn Scoping::current_type_for(self : Scoping, name : String) -> Sym? {
+  self.scope.bindings().types.get(name)
+}
+
+///|
 pub fn Scoping::define_type(self : Scoping, name : String, sym : Sym) -> Unit {
   self.scope.bindings().set_type(name, sym)
 }

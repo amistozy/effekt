@@ -177,10 +177,10 @@ fn maybe_thunking_expr(ctx : TransformerContext, e : Expr) -> Expr {
 /// returns and reports them as warnings (upstream does the same from
 /// `TransformerCps`, which has the compiler context at hand; here the code
 /// generator does not, so the messages travel back to the driver).
-let unsupported_messages : Array[String] = []
+let unsupported_messages : Array[(Span, String)] = []
 
 ///|
-pub fn take_unsupported_messages() -> Array[String] {
+pub fn take_unsupported_messages() -> Array[(Span, String)] {
   let out = unsupported_messages.copy()
   unsupported_messages.clear()
   out
@@ -191,13 +191,17 @@ pub fn take_unsupported_messages() -> Array[String] {
 /// backend. Upstream treats this as a *warning* (`ResolveExternDefs` builds the
 /// `Unsupported` body from a `Severities.Warning` message) and still generates a
 /// function that traps, so the module only fails if that function is called.
-fn report_unsupported(ctx : TransformerContext, err : EffektError) -> Unit {
+fn report_unsupported(
+  ctx : TransformerContext,
+  id : Sym,
+  err : EffektError,
+) -> Unit {
   let _ = ctx
   let message = match err {
     EffektError::Fatal(m) => m
     EffektError::Internal(m) => "Internal error: \{m}"
   }
-  unsupported_messages.push(message)
+  unsupported_messages.push((id.decl(), message))
 }
 
 ///|
@@ -370,7 +374,7 @@ fn to_js_extern(
         // Mirrors upstream: an extern that no body applies to is reported as a
         // *warning* and compiles to a call to `$effekt.unreachable`.
         @cps.Unsupported(err) => {
-          report_unsupported(ctx, err)
+          report_unsupported(ctx, id, err)
           let ks = fresh_name("ks_")
           let k = fresh_name("k_")
           let params : Array[JSName] = []
@@ -393,7 +397,7 @@ fn to_js_extern(
             Return(to_js_template(contents, ctx)),
           ])
         @cps.Unsupported(err) => {
-          report_unsupported(ctx, err)
+          report_unsupported(ctx, id, err)
           Stmt::Function(name_def(id), params, [
             Return(call(effekt_field("unreachable"), [])),
           ])

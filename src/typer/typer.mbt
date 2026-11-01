@@ -1069,6 +1069,7 @@ pub fn Typer::check_module(
   }
   self.commit()
   self.check_pending_matches()
+  self.check_capture_escapes(module)
   self.check_main(module)
 }
 
