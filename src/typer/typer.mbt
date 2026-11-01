@@ -2324,13 +2324,23 @@ pub fn Typer::require_subtype_value(
 }
 
 ///|
+/// Checks that `got` can be unified with `expected`.
+///
+/// `span` (when given) becomes the focus while unifying: a capture-set
+/// conflict is reported by `Unification` at the current focus, and without
+/// this it would point at whatever term happened to be checked last (a `box`
+/// whose inferred capture does not fit its expected type is the common case).
 fn Typer::match_expected(
   self : Typer,
   got : ValueType,
   expected : ValueType,
   span : Span?,
 ) -> Unit raise EffektError {
-  ignore(span)
+  let saved = self.focus
+  match span {
+    Some(s) => self.focus = s
+    None => ()
+  }
   let ctx = Expected(
     self.st.u.prune_value(got),
     self.st.u.prune_value(expected),
@@ -2340,6 +2350,7 @@ fn Typer::match_expected(
     self.st.u.prune_value(expected),
     ctx,
   )
+  self.focus = saved
 }
 
 ///|
