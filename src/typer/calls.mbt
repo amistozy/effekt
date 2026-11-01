@@ -470,7 +470,7 @@ pub fn Typer::check_overloaded_function_call(
         let (fun_tpe, _tparams, vps, bps) = self.find_function_type_for(
           candidate,
         )
-        self.check_call_to(
+        let res = self.check_call_to(
           call,
           vps,
           bps,
@@ -481,6 +481,15 @@ pub fn Typer::check_overloaded_function_call(
           expected,
           None,
         )
+        // The capture of the callee has to be available at the call site
+        // (`findFunctionTypeFor(...)._2` in upstream `checkOverloadedFunctionCall`).
+        // Without it a function that is bound to a capability (`at io`) can be
+        // called from where the capability is not in scope.
+        match candidate {
+          @symbols.Sym::Operation(_) => ()
+          _ => self.using_capture(self.lookup_capture(candidate))
+        }
+        res
       },
     )
 
