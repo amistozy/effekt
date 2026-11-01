@@ -342,7 +342,7 @@ pub fn LexerError::message(Self) -> String
 pub(all) enum LiteralValue {
   LUnit
   LBool(Bool)
-  LInt(Int32)
+  LInt(Int64)
   LDouble(Double)
   LString(String)
   LChar(Int32)
@@ -526,7 +526,7 @@ pub(all) enum TokenKind {
   TEOF
   TError(LexerError)
   TNewline
-  TInteger(Int32)
+  TInteger(Int64)
   TFloat(Double)
   TStr(String, Bool)
   THoleStr(String)

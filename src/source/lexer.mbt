@@ -145,7 +145,7 @@ fn hex_value(c : Char) -> Int32 {
 /// Parses a decimal integer literal (an optional `-`, then digits). Values
 /// outside the 64 bit range are rejected, exactly like upstream's
 /// `toLongOption`.
-fn parse_int_lit(s : String) -> Int32? {
+fn parse_int_lit(s : String) -> Int64? {
   if s.length() == 0 {
     return None
   }
@@ -189,7 +189,7 @@ fn parse_int_lit(s : String) -> Int32? {
     return None
   }
   let value = if neg { result } else { -result }
-  Some(value.to_int())
+  Some(value)
 }
 
 ///|

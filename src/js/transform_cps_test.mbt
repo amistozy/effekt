@@ -47,12 +47,12 @@ fn block_var(id : @symbols.Sym) -> @core.Block {
 
 ///|
 fn int_expr(i : Int32) -> @core.Expr {
-  @core.Expr::Literal(@source.LInt(i), @symbols.t_int())
+  @core.Expr::Literal(@source.LInt(i.to_int64()), @symbols.t_int())
 }
 
 ///|
 fn int_pure(i : Int32) -> @cps.Expr {
-  @cps.Expr::Literal(@source.LInt(i), @symbols.t_int())
+  @cps.Expr::Literal(@source.LInt(i.to_int64()), @symbols.t_int())
 }
 
 ///|

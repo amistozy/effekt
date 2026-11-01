@@ -58,7 +58,7 @@ fn Typer::var_term_for(self : Typer, sym : Sym, span : Span) -> Term {
 }
 
 ///|
-fn int_literal_term(value : Int32, span : Span) -> Term {
+fn int_literal_term(value : Int64, span : Span) -> Term {
   mk_term(span, @source.TermKind::Literal(@source.LInt(value), t_int()))
 }
 
@@ -108,10 +108,10 @@ fn Typer::source_position_term(
   )
   let args : Array[@source.ValueArg] = [
     @source.ValueArg::unnamed(file),
-    @source.ValueArg::unnamed(int_literal_term(from.line, span)),
-    @source.ValueArg::unnamed(int_literal_term(from.column, span)),
-    @source.ValueArg::unnamed(int_literal_term(to.line, span)),
-    @source.ValueArg::unnamed(int_literal_term(to.column, span)),
+    @source.ValueArg::unnamed(int_literal_term(from.line.to_int64(), span)),
+    @source.ValueArg::unnamed(int_literal_term(from.column.to_int64(), span)),
+    @source.ValueArg::unnamed(int_literal_term(to.line.to_int64(), span)),
+    @source.ValueArg::unnamed(int_literal_term(to.column.to_int64(), span)),
   ]
   let target = @source.IdRef::new("SourcePosition", span)
   self.assign_symbol(target.uid, @symbols.Sym::call_target(candidates))
@@ -233,7 +233,8 @@ fn Typer::implicit_value_term(
 ) -> Term raise EffektError {
   let name = param.name().name
   match name {
-    "callId" => int_literal_term(@util.fresh_uid(), call.span.synthesized())
+    "callId" =>
+      int_literal_term(@util.fresh_uid().to_int64(), call.span.synthesized())
     "sourcePosition" =>
       match self.source_position_term(call) {
         Some(t) => t

@@ -55,7 +55,7 @@ pub fn IdRef::qualified(
 pub(all) enum LiteralValue {
   LUnit
   LBool(Bool)
-  LInt(Int32)
+  LInt(Int64)
   LDouble(Double)
   LString(String)
   LChar(Int32)

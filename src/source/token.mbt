@@ -56,7 +56,7 @@ pub(all) enum TokenKind {
   TError(LexerError)
   TNewline
   // literals
-  TInteger(Int32)
+  TInteger(Int64)
   TFloat(Double)
   TStr(String, Bool) // contents, multiline
   THoleStr(String)

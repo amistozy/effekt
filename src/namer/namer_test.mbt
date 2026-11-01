@@ -55,7 +55,7 @@ fn pure(tpe : @source.TypeTree) -> @source.TypeTree {
 fn int_lit(n : Int32) -> @source.Term {
   @source.mk_term(
     sp(),
-    @source.TermKind::Literal(@source.LiteralValue::LInt(n), @symbols.t_int()),
+    @source.TermKind::Literal(@source.LiteralValue::LInt(n.to_int64()), @symbols.t_int()),
   )
 }
 
