@@ -478,7 +478,6 @@ fn[T] Typer::with_unification_scope(
 ) -> T raise EffektError {
   let parent = self.st.scope
   self.st.scope = LocalScope([], [], parent)
-  let inner = self.st.scope
   let result = f() catch {
     EffektError::Fatal(m) => {
       self.st.scope = parent
@@ -489,7 +488,13 @@ fn[T] Typer::with_unification_scope(
       raise EffektError::Internal(m)
     }
   }
-  self.st.scope = parent
+  // An overload candidate that failed in between installed a *copy* of the
+  // whole scope chain (`TyperState::backup` deep-copies it), so the scope that
+  // was opened above is stale: variables created after the rollback went into
+  // the live copy. Read the variables from the scope that is current now — it
+  // is this one, because nested scopes are balanced — and restore its parent.
+  let inner = self.st.scope
+  self.st.scope = inner.parent()
   // Unification variables that went out of scope are solved (captures) or
   // reported (types).
   let capts = inner.capt_vars() + additional
