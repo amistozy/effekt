@@ -412,18 +412,30 @@ pub fn Typer::lookup_capture(self : Typer, s : Sym) -> Captures {
   match self.st.ct.get(s.uid()) {
     Some(c) => c
     None =>
-      match s {
-        @symbols.Sym::BlockParam(p) =>
-          @symbols.Captures::CaptureSetOf([p.capture])
-        @symbols.Sym::ExternResource(r) =>
-          @symbols.Captures::CaptureSetOf([r.capture])
-        @symbols.Sym::VarBinder(v) =>
-          @symbols.Captures::CaptureSetOf([v.capture])
-        // A reference binder's region is the *block symbol* that introduced
-        // the region (`Binding.Alloc` needs it), but the capture the type
-        // checker allocates into is that symbol's own capture parameter.
-        @symbols.Sym::RegBinder(r) => self.lookup_capture(r.region)
-        _ => Captures::empty()
+      // A definition of another module was checked by its own `Typer`; its
+      // capture was committed to the context (upstream keeps the bindings of
+      // every module in one place). Without this fallback a callee from the
+      // standard library looks pure: `println` is an extern whose default
+      // capture is `{io}`, and every library function calling it stores that
+      // capture only in its own module's state.
+      match self.ctx.capture_of(s.uid()) {
+        Some(c) => c
+        None =>
+          match s {
+            @symbols.Sym::BlockParam(p) =>
+              @symbols.Captures::CaptureSetOf([p.capture])
+            @symbols.Sym::ExternResource(r) =>
+              @symbols.Captures::CaptureSetOf([r.capture])
+            @symbols.Sym::VarBinder(v) =>
+              @symbols.Captures::CaptureSetOf([v.capture])
+            // A reference binder's region is the *block symbol* that introduced
+            // the region (`Binding.Alloc` needs it), but the capture the type
+            // checker allocates into is that symbol's own capture parameter.
+            @symbols.Sym::RegBinder(r) => self.lookup_capture(r.region)
+            @symbols.Sym::ExternFunction(f) =>
+              @symbols.Captures::CaptureSetOf(f.capture)
+            _ => Captures::empty()
+          }
       }
   }
 }
@@ -531,10 +543,15 @@ fn Typer::fresh_capability_for(
 }
 
 ///|
+/// The capture a binder contributes: a capability's own capture parameter, or
+/// the `LexicalRegion` of a mutable variable (upstream `Symbol.capture`). The
+/// variable itself is a different symbol, and the use sites flow the region, so
+/// subtracting the binder would leave the region behind.
 fn capture_of_capability(cap : Sym) -> Sym {
   match cap {
     @symbols.Sym::BlockParam(p) => p.capture
     @symbols.Sym::ExternResource(r) => r.capture
+    @symbols.Sym::VarBinder(v) => v.capture
     _ => cap
   }
 }
@@ -1883,7 +1900,11 @@ fn Typer::check_expr_kind(
       })
       let tpe = @symbols.ValueType::BoxedType(res.tpe, inferred_cap)
       match expected {
-        Some(exp) => self.match_expected(tpe, exp, None)
+        // The capture set the box inferred from its body is compared with the
+        // one the expected type demands; a conflict ("Not allowed {io}") is a
+        // property of the box, so it is reported there (upstream's `focus` is
+        // still the box when the comparison happens).
+        Some(exp) => self.match_expected(tpe, exp, Some(e.span))
         None => ()
       }
       TyRes::new(tpe, res.effs)
