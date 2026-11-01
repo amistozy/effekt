@@ -91,10 +91,13 @@ pub(all) struct TyperState {
   mut scope : UnifScope
   mut cap_scope : CapScope
   mut current : Captures
-  /// How deep the generation of name-based implicit arguments is nested;
-  /// the recursion guard aborts before the type substitution chains grow
-  /// without bound.
-  mut implicit_depth : Int32
+  /// The name-based implicit arguments currently being instantiated, keyed by
+  /// the name that is resolved: the number of nested instantiations and the
+  /// size of the type of the last one (upstream
+  /// `GenerateImplicitArgs.recursionStack`). An instantiation whose type is not
+  /// smaller than the previous one counts as a recursion level; the guard in
+  /// `with_implicit_guard` aborts a runaway chain.
+  mut implicit_stack : Map[String, (Int32, Int32)]
   vt : Map[Int32, ValueType]
   bt : Map[Int32, BlockType]
   ct : Map[Int32, Captures]
@@ -114,7 +117,7 @@ pub fn TyperState::backup(self : TyperState) -> TyperState {
     // installing a successful candidate replaces the whole state.
     cap_scope: self.cap_scope,
     current: self.current,
-    implicit_depth: self.implicit_depth,
+    implicit_stack: self.implicit_stack.copy(),
     vt: self.vt.copy(),
     bt: self.bt.copy(),
     ct: self.ct.copy(),
@@ -164,7 +167,7 @@ pub fn Typer::new(ctx : Context) -> Typer {
       scope: GlobalScope,
       cap_scope: GlobalCap,
       current: Captures::empty(),
-      implicit_depth: 0,
+      implicit_stack: Map([]),
       vt: Map([]),
       bt: Map([]),
       ct: Map([]),

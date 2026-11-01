@@ -178,22 +178,18 @@ pub fn Typer::check_call_to(
   //
   // Generating an implicit argument can itself type check a call that needs
   // implicit arguments (`?myShow: A => String` applied to a `List[A]`), so the
-  // generation is bounded. Without the bound, a recursive implicit whose type
-  // is still an unsolved unification variable keeps solving `?A := List[?B]`
-  // and the substitution chain grows without bound (upstream: the recursion
-  // guard in `GenerateImplicitArgs`).
+  // recursion is bounded (upstream: the recursion guard in
+  // `GenerateImplicitArgs`, see `with_implicit_guard`).
   let implicit_vargs : Array[Term] = []
   for i = vargs.length(); i < fun_vps.length(); i = i + 1 {
-    self.st.implicit_depth = self.st.implicit_depth + 1
-    if self.st.implicit_depth > 20 {
-      self.abort(
-        span,
-        "Aborting recursive instantiation of the implicit argument \{known_vps[i].name().name}.",
-      )
-    }
-    let term = self.implicit_value_term(call, known_vps[i], inst.vparams[i])
-    let res = self.check_expr(term, Some(inst.vparams[i]))
-    match inst.vparams[i] {
+    let tpe = inst.vparams[i]
+    let term = self.implicit_value_term(call, known_vps[i], tpe)
+    let res = self.with_implicit_guard(
+      known_vps[i].name().name,
+      value_type_size(self.st.u.prune_value(tpe)),
+      () => self.check_expr(term, Some(tpe)),
+    )
+    match tpe {
       @symbols.ValueType::BoxedType(_, capt) =>
         if capt.is_pure() && res.effs.non_empty() {
           self.abort(
@@ -208,19 +204,19 @@ pub fn Typer::check_call_to(
   }
   let implicit_bargs : Array[Term] = []
   for j = bargs.length(); j < fun_bps.length(); j = j + 1 {
-    self.st.implicit_depth = self.st.implicit_depth + 1
-    if self.st.implicit_depth > 20 {
-      self.abort(
-        span,
-        "Aborting recursive instantiation of the implicit argument \{known_bps[j].name().name}.",
-      )
-    }
+    let btpe = inst.bparams[j]
     let capt = capt_args[j]
     self.flows_into(capt, callsite, span)
-    let term = self.implicit_block_arg_term(call, known_bps[j], inst.bparams[j])
-    let res = self.flowing_into(capt, () => {
-      self.check_expr_as_block(term, Some(inst.bparams[j]), None)
-    })
+    let term = self.implicit_block_arg_term(call, known_bps[j], btpe)
+    let res = self.with_implicit_guard(
+      known_bps[j].name().name,
+      block_type_size(self.st.u.prune_block(btpe)),
+      () => {
+        self.flowing_into(capt, () => {
+          self.check_expr_as_block(term, Some(btpe), None)
+        })
+      },
+    )
     effs = eff_union(effs, res.effs)
     implicit_bargs.push(term)
   }
@@ -230,8 +226,6 @@ pub fn Typer::check_call_to(
   if implicit_bargs.length() > 0 {
     self.st.ann.impl_bargs.set(call.uid, implicit_bargs)
   }
-  self.st.implicit_depth = self.st.implicit_depth -
-    (implicit_vargs.length() + implicit_bargs.length())
 
   // (6) the declared effects of the callee are effects of this call
   effs = eff_union(effs, inst.effs)

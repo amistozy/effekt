@@ -198,7 +198,7 @@ pub(all) struct TyperState {
   mut scope : UnifScope
   mut cap_scope : CapScope
   mut current : @symbols.Captures
-  mut implicit_depth : Int32
+  mut implicit_stack : Map[String, (Int32, Int32)]
   vt : Map[Int32, @symbols.ValueType]
   bt : Map[Int32, @symbols.BlockType]
   ct : Map[Int32, @symbols.Captures]

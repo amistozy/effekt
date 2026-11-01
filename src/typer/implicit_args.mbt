@@ -259,3 +259,100 @@ fn Typer::implicit_block_arg_term(
 ) -> Term raise EffektError {
   self.implicit_block_term(call, param.name().name, btpe)
 }
+
+// ---------------------------------------------------------------------------
+// The recursion guard
+// ---------------------------------------------------------------------------
+
+///|
+/// How many nested instantiations of the same name may keep the type from
+/// getting smaller before the candidate is given up (upstream
+/// `GenerateImplicitArgs.maxRecurse`).
+let max_implicit_recursion : Int32 = 10
+
+///|
+/// The size of a value type (upstream `GenerateImplicitArgs.typeSize`). The
+/// guard below only counts a recursion level when this number does not shrink,
+/// so an instantiation that reaches a structurally smaller type is progress —
+/// `?display: List[Int] => String` resolving through `list::display` to
+/// `?display: Int => String` — while one that keeps solving a type variable
+/// (`?A := List[?B]` forever) is not.
+fn value_type_size(t : @symbols.ValueType) -> Int32 {
+  match t {
+    @symbols.ValueType::BoxedType(block, _) => 1 + block_type_size(block)
+    @symbols.ValueType::ValueTypeRef(_) => 5
+    @symbols.ValueType::ValueTypeApp(_, args) =>
+      1 + args.fold(init=0, (acc, arg) => acc + value_type_size(arg))
+  }
+}
+
+///|
+fn block_type_size(t : @symbols.BlockType) -> Int32 {
+  match t {
+    @symbols.BlockType::FunctionType(tparams, cparams, vps, bps, result, effs) => {
+      let mut size = tparams.length() +
+        cparams.length() +
+        value_type_size(result)
+      for vp in vps {
+        size = size + value_type_size(vp)
+      }
+      for bp in bps {
+        size = size + block_type_size(bp)
+      }
+      size + effects_size(effs)
+    }
+    @symbols.BlockType::InterfaceType(_, args) =>
+      1 + args.fold(init=0, (acc, arg) => acc + value_type_size(arg))
+  }
+}
+
+///|
+fn effects_size(effs : @symbols.Effects) -> Int32 {
+  effs.effects.fold(init=0, (acc, eff) => acc + 1 + block_type_size(eff))
+}
+
+///|
+/// Runs `run` under the recursion guard of the name-based implicit arguments.
+///
+/// Mirrors upstream `GenerateImplicitArgs.recursionGuard`: an instantiation of
+/// `name` whose type is not smaller than the previous one at the same name is
+/// a recursion level, and more than `max_implicit_recursion` of those means the
+/// search is not making progress. Without the guard the generated eta-expanded
+/// call of an implicit whose type is still an unsolved unification variable
+/// keeps solving `?A := List[?B]` and the substitution chain grows without
+/// bound (the whole compiler hangs; `examples/pos/name-based-implicits/display`
+/// is the smallest program that shows it).
+///
+/// Upstream additionally retries the body with a growing budget
+/// (`iterativeDeepening`); the budget is fixed here at `max_implicit_recursion`
+/// because a legitimate chain — `?display` for a `List` — shrinks the type at
+/// every level and therefore never counts against the budget at all.
+fn[T] Typer::with_implicit_guard(
+  self : Typer,
+  name : String,
+  size : Int32,
+  run : () -> T raise EffektError,
+) -> T raise EffektError {
+  let before = self.st.implicit_stack.get(name)
+  let (depth, last_size) = match before {
+    Some(entry) => entry
+    None => (0, size)
+  }
+  let grew = size >= last_size
+  let depth = if grew { depth + 1 } else { depth }
+  if grew && depth > max_implicit_recursion {
+    self.abort(
+      self.focus,
+      "Aborted recursive instantiation of the implicit argument \{name} after \{max_implicit_recursion} levels with non-decreasing types.",
+    )
+  }
+  self.st.implicit_stack.set(name, (depth, size))
+  let result = run()
+  // A failure leaves the entry behind; the enclosing overload candidate is
+  // rolled back as a whole, so it cannot leak into a sibling attempt.
+  match before {
+    Some(entry) => self.st.implicit_stack.set(name, entry)
+    None => ignore(self.st.implicit_stack.remove(name))
+  }
+  result
+}
