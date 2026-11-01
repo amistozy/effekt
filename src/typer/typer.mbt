@@ -669,11 +669,17 @@ fn Typer::capability_for(
   // concrete.
   if self.unknowns_block(target).length() > 0 {
     match self.lexical_capability(target) {
-      Some(cap) => return cap
+      Some(cap) => {
+        // Upstream `Context.capabilityFor` checks concreteness at the request
+        // site and hints at the concrete interfaces of the same effect that
+        // are in scope (`relevantInScopeFor`).
+        self.assert_concrete_effect(self.st.u.prune_block(target), span)
+        return cap
+      }
       None => ()
     }
   }
-  match self.st.cap_scope.capability_for(target) {
+  let cap = match self.st.cap_scope.capability_for(target) {
     Some(cap) => cap
     None =>
       // Otherwise the capability may have been created while a type
@@ -692,6 +698,8 @@ fn Typer::capability_for(
         }
       }
   }
+  self.assert_concrete_effect(self.st.u.prune_block(target), span)
+  cap
 }
 
 ///|
