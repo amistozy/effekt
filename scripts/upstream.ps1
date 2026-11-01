@@ -38,9 +38,41 @@ if ($LASTEXITCODE -ne 0) { Pop-Location; exit 1 }
 
 $cli = Join-Path $root "_build/js/debug/build/cmd/main/main.js"
 $libDir = Join-Path $root "libraries"
+
+# A run that does not finish cleanly (Ctrl-C, a killed job, an editor restarting
+# the script) leaves the compiler of the files that were still running behind:
+# `Invoke-Effekt` kills the `cmd.exe` wrapper on a timeout, and the `node`
+# grandchild survives it — and a program that loops in the compiler never exits
+# on its own. Such a leftover keeps burning a core and holds the redirect files
+# of its test, which is what silently turned every later run's comparison for
+# that test into "output differs". They are recognisable by their command line
+# (they all name this checkout's `main.js`), so the run starts by clearing them.
+function Stop-StrayCompilers() {
+  $killed = 0
+  foreach ($process in (Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue)) {
+    if ($process.CommandLine -and $process.CommandLine.Contains($cli)) {
+      & taskkill /F /T /PID $process.ProcessId 2>&1 | Out-Null
+      $killed++
+    }
+  }
+  return $killed
+}
+
+$stray = Stop-StrayCompilers
+if ($stray -gt 0) {
+  Write-Host "killed $stray compiler process(es) left over by an earlier run" -ForegroundColor Yellow
+}
+
 $corpus = Join-Path $root "testdata/upstream"
 $outDir = Join-Path $root ".upstream-out"
-if (Test-Path $outDir) { Remove-Item -Recurse -Force $outDir -ErrorAction SilentlyContinue }
+if (Test-Path $outDir) {
+  Remove-Item -Recurse -Force $outDir -ErrorAction SilentlyContinue
+  if (Test-Path $outDir) {
+    Write-Host "cannot remove $outDir; a compiler process still holds it" -ForegroundColor Red
+    Pop-Location
+    exit 1
+  }
+}
 New-Item -ItemType Directory -Force $outDir | Out-Null
 
 # ---------------------------------------------------------------------------
@@ -81,6 +113,11 @@ $worker = {
     $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "`"$batchFile`"" -PassThru -WindowStyle Hidden
     $finished = $p.WaitForExit($timeoutMs)
     if (-not $finished) {
+      # Kill the whole tree. `$p` is the `cmd.exe` wrapper; killing only it left
+      # `node` running, and a program that loops inside the compiler never
+      # terminates, so every timeout leaked one busy core and the files it held
+      # (see `Stop-StrayCompilers`).
+      & taskkill /F /T /PID $p.Id 2>&1 | Out-Null
       try { $p.Kill() } catch { }
       return @{ code = -1; timeout = $true; stdout = ""; stderr = "" }
     }
@@ -101,11 +138,11 @@ $worker = {
     }
   }
 
-  # Reads a file a killed child process may still be holding. When a test hits
-  # the timeout, the `cmd.exe` wrapper is killed but `node` keeps running for a
-  # moment and still owns the redirect files, which made the read fail with
-  # "The process cannot access the file" and turned a timeout into an internal
-  # error of the harness. Retry briefly; an unreadable file reads as empty.
+  # Reads a file the compiler may still be flushing while the run is killed.
+  # `Invoke-Effekt` kills the whole process tree on a timeout, but `node` closes
+  # its redirect files asynchronously, so a read can still hit
+  # "The process cannot access the file"; retry briefly. An unreadable file
+  # reads as empty.
   function Read-Text-WithRetry($path) {
     if (-not (Test-Path $path)) { return "" }
     for ($attempt = 0; $attempt -lt 20; $attempt++) {
