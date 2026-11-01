@@ -56,7 +56,6 @@ fn Typer::tuple_call_hint(
 pub fn Typer::check_call_to(
   self : Typer,
   call : CallLike,
-  tparams : Array[Sym],
   known_vps : Array[Sym],
   known_bps : Array[Sym],
   fun_tpe : BlockType,
@@ -71,14 +70,19 @@ pub fn Typer::check_call_to(
   let span = call.span
 
   // (0) check that argument and parameter counts align
-  let (fun_vps, fun_bps) = match self.st.u.prune_block(fun_tpe) {
-    @symbols.BlockType::FunctionType(_, _, vps, bps, _, _) => (vps, bps)
+  //
+  // The type parameters come from the function type itself, not from the
+  // callable: a block parameter has no callable view, but its type may still be
+  // polymorphic (`{ f: [A](A) => Poly[A] }`), and upstream instantiates
+  // `funTpe.tparams` in either case.
+  let (fun_tparams, fun_vps, fun_bps) = match self.st.u.prune_block(fun_tpe) {
+    @symbols.BlockType::FunctionType(tps, _, vps, bps, _, _) => (tps, vps, bps)
     _ => self.abort(span, "Expected a function type in call to \{call.name}.")
   }
-  if targs.length() > 0 && targs.length() != tparams.length() {
+  if targs.length() > 0 && targs.length() != fun_tparams.length() {
     self.abort(
       span,
-      "Wrong number of type arguments to \{call.name}: expected \{tparams.length()}, but got \{targs.length()}",
+      "Wrong number of type arguments to \{call.name}: expected \{fun_tparams.length()}, but got \{targs.length()}",
     )
   }
   if !implicit_tail_matches(vargs.length(), fun_vps.length(), known_vps) {
@@ -96,7 +100,9 @@ pub fn Typer::check_call_to(
   }
 
   // (1) instantiate the function type
-  let (type_args, capt_args, inst) = self.instantiate_fresh(fun_tpe, tparams)
+  let (type_args, capt_args, inst) = self.instantiate_fresh(
+    fun_tpe, fun_tparams,
+  )
 
   // provided type arguments flow into the fresh unification variables
   if targs.length() > 0 {
@@ -369,6 +375,7 @@ fn Typer::try_candidates(
     self.muted_error = error_before
     self.muted_messages = messages_before
     self.muted_infos = infos_before
+
     let recorded = if err != "" { err } else { muted.join("; ") }
     let final = if recorded == "" { "Type error" } else { recorded }
     match res {
@@ -460,12 +467,11 @@ pub fn Typer::check_overloaded_function_call(
       unique,
       scopes.length() == 1 && unique.length() == 1,
       candidate => {
-        let (fun_tpe, tparams, vps, bps) = self.find_function_type_for(
+        let (fun_tpe, _tparams, vps, bps) = self.find_function_type_for(
           candidate,
         )
         self.check_call_to(
           call,
-          tparams,
           vps,
           bps,
           fun_tpe,
@@ -477,11 +483,12 @@ pub fn Typer::check_overloaded_function_call(
         )
       },
     )
+
     if successes.length() == 1 {
       let (found, res, state, infos) = successes[0]
       self.st = state
       self.replay_infos(infos)
-      self.ctx.assign_symbol(id.uid, found)
+      self.assign_symbol(id.uid, found)
       return res
     } else if successes.length() > 1 {
       // An implicit argument is instantiated by an eta-expanded call to a
@@ -509,7 +516,7 @@ pub fn Typer::check_overloaded_function_call(
         let (found, res, state, infos) = best[0]
         self.st = state
         self.replay_infos(infos)
-        self.ctx.assign_symbol(id.uid, found)
+        self.assign_symbol(id.uid, found)
         return res
       }
       let names : Array[String] = best.map(s => {
@@ -695,7 +702,6 @@ pub fn Typer::check_overloaded_method_call(
         }
         self.check_call_to(
           call,
-          tparams,
           vps,
           bps,
           fun_tpe,
@@ -714,7 +720,7 @@ pub fn Typer::check_overloaded_method_call(
       // Record the operation this method call resolved to: the namer resolves
       // an operation name to an overloaded `CallTarget`, and the backend needs
       // the concrete operation to build the `Invoke`.
-      self.ctx.assign_symbol(id.uid, found)
+      self.assign_symbol(id.uid, found)
       return TyRes::new(res.tpe, eff_union(res.effs, recv.effs))
     } else if successes.length() > 1 {
       self.abort(call.span, "Ambiguous method call to \{id.name}.")

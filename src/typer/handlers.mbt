@@ -219,11 +219,20 @@ pub fn Typer::check_function_argument(
   match arg.kind {
     @source.TermKind::BlockLiteral(tparams, vparams, bparams, body) => {
       // (1) what we already know
-      let (cps, vps, bps, ret, effs) = match expected {
-        @symbols.BlockType::FunctionType(_, capts, vps, bps, ret, effs) =>
-          (capture_params_of(capts), vps, bps, ret, effs)
+      let (tps, cps, vps, bps, ret, effs) = match expected {
+        @symbols.BlockType::FunctionType(tps, capts, vps, bps, ret, effs) =>
+          (tps, capture_params_of(capts), vps, bps, ret, effs)
         _ => self.abort(arg.span, "Expected a function type.")
       }
+      // (2) the declared type parameters are instantiated by the ones the
+      // literal declares (upstream `Substitutions.types(tps, typeParams)`):
+      // `higherRankBlockArg { [A](a: A) => … }` has to compare the declared `A`
+      // against the literal's own `A`, which is a different symbol.
+      let type_params : Array[Sym] = tparams.map(p => self.symbol_of_def(p))
+      let type_subst = Substitutions::types(
+        tps,
+        type_params.map(t => @symbols.ValueType::ValueTypeRef(t)),
+      )
       if vparams.length() != vps.length() {
         self.lambda_case_hint(arg.span, vps, vparams)
         self.abort(
@@ -243,12 +252,13 @@ pub fn Typer::check_function_argument(
       for i = 0; i < vparams.length(); i = i + 1 {
         let p = vparams[i]
         let sym = self.symbol_of_def(p.id)
+        let adjusted = type_subst.substitute_value(vps[i])
         let tpe = match symbol_value_type(sym) {
           Some(got) => {
-            self.match_declared_value(got, vps[i], p.id.span)
+            self.match_declared_value(got, adjusted, p.id.span)
             got
           }
-          None => vps[i]
+          None => adjusted
         }
         self.bind_value(sym, tpe)
         value_types.push(tpe)
@@ -261,12 +271,13 @@ pub fn Typer::check_function_argument(
           @symbols.Sym::BlockParam(bp) => bp.capture
           _ => Sym::capture_param(Name::local("anon"))
         }
+        let adjusted = type_subst.substitute_block(bps[i])
         let tpe = match symbol_block_type(sym) {
           Some(got) => {
-            self.match_declared(got, bps[i], p.id.span)
+            self.match_declared(got, adjusted, p.id.span)
             got
           }
-          None => bps[i]
+          None => adjusted
         }
         self.bind_block(sym, tpe)
         self.bind_capture(sym, @symbols.Captures::CaptureSetOf([capture]))
@@ -282,7 +293,9 @@ pub fn Typer::check_function_argument(
       // allocating the capabilities, otherwise the capability is keyed by
       // `emit[?A]` while the body looks it up as `emit[Int]` and a *second*
       // capability is created in an outer scope.
-      let distinct_effs = self.st.u.prune_effects(effs).distinct()
+      let distinct_effs = self.st.u
+        .prune_effects(type_subst.substitute_effects(effs))
+        .distinct()
       let capabilities = canonical_order(distinct_effs.effects).map(e => {
         self.fresh_capability_for(e, Sym::capture_param(effect_name(e)))
       })
@@ -306,7 +319,9 @@ pub fn Typer::check_function_argument(
         cps,
         captures_of_params(capt_param_syms),
       )
-      let expected_return = capt_subst.substitute_value(ret)
+      let expected_return = capt_subst.substitute_value(
+        type_subst.substitute_value(ret),
+      )
 
       // (4) check the body
       let body_region = @symbols.Captures::CaptVar(
@@ -320,7 +335,7 @@ pub fn Typer::check_function_argument(
       self.using_capture_without(body_region, capt_param_syms)
 
       let tpe = @symbols.BlockType::FunctionType(
-        tparams.map(p => self.symbol_of_def(p)),
+        type_params,
         captures_of_params(capt_param_syms),
         value_types,
         block_types,
@@ -701,9 +716,15 @@ fn Typer::check_op_clause(
       }
       let resume_sym = self.symbol_of_def(clause.resume)
       self.bind_block(resume_sym, resume_type)
+      // `resume` captures the continuation capture *variable*, not a concrete
+      // set containing it: upstream binds `continuationCapt` directly
+      // (`Context.bind(..., continuationCapt)`), so a `box resume` in a pure
+      // position solves the variable to `{}` instead of reporting that the
+      // capture is not allowed. Handlers that never resume this way then get an
+      // empty continuation capture, exactly like upstream.
       self.bind_capture(
         resume_sym,
-        @symbols.Captures::CaptureSetOf([continuation_capt]),
+        @symbols.Captures::CaptVar(continuation_capt),
       )
       let res = self.check_stmt(clause.body, Some(ret))
       self.annotate_value(clause.uid, res.tpe)

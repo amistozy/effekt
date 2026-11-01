@@ -59,6 +59,7 @@ pub(all) struct Annotations {
   cap_args : Map[Int32, Array[@symbols.Sym]]
   impl_vargs : Map[Int32, Array[@source.Term]]
   impl_bargs : Map[Int32, Array[@source.Term]]
+  symbols : Map[Int32, @symbols.Sym]
 }
 pub fn Annotations::copy(Self) -> Self
 pub fn Annotations::new() -> Self
@@ -150,7 +151,7 @@ pub fn Typer::assert_concrete_effects(Self, @symbols.Effects, @util.Span) -> Uni
 pub fn Typer::bind_block(Self, @symbols.Sym, @symbols.BlockType) -> Unit
 pub fn Typer::bind_capture(Self, @symbols.Sym, @symbols.Captures) -> Unit
 pub fn Typer::bind_value(Self, @symbols.Sym, @symbols.ValueType) -> Unit
-pub fn Typer::check_call_to(Self, CallLike, Array[@symbols.Sym], Array[@symbols.Sym], Array[@symbols.Sym], @symbols.BlockType, Array[@symbols.ValueType], Array[@source.ValueArg], Array[@source.Term], @symbols.ValueType?, CapScope?) -> TyRes[@symbols.ValueType] raise @util.EffektError
+pub fn Typer::check_call_to(Self, CallLike, Array[@symbols.Sym], Array[@symbols.Sym], @symbols.BlockType, Array[@symbols.ValueType], Array[@source.ValueArg], Array[@source.Term], @symbols.ValueType?, CapScope?) -> TyRes[@symbols.ValueType] raise @util.EffektError
 pub fn Typer::check_expr(Self, @source.Term, @symbols.ValueType?) -> TyRes[@symbols.ValueType] raise @util.EffektError
 pub fn Typer::check_expr_as_block(Self, @source.Term, @symbols.BlockType?, (Int32, @symbols.ValueType)?) -> TyRes[@symbols.BlockType] raise @util.EffektError
 pub fn Typer::check_function_argument(Self, @source.Term, @symbols.BlockType) -> TyRes[@symbols.BlockType] raise @util.EffektError

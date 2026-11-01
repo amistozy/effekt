@@ -53,7 +53,7 @@ fn Typer::implicit_scope(
 fn Typer::var_term_for(self : Typer, sym : Sym, span : Span) -> Term {
   let name = sym.name().name
   let id = @source.IdRef::new(name, span)
-  self.ctx.assign_symbol(id.uid, sym)
+  self.assign_symbol(id.uid, sym)
   mk_term(span, @source.TermKind::Var(id))
 }
 
@@ -114,7 +114,7 @@ fn Typer::source_position_term(
     @source.ValueArg::unnamed(int_literal_term(to.column, span)),
   ]
   let target = @source.IdRef::new("SourcePosition", span)
-  self.ctx.assign_symbol(target.uid, @symbols.Sym::call_target(candidates))
+  self.assign_symbol(target.uid, @symbols.Sym::call_target(candidates))
   let call = mk_term(
     span,
     @source.TermKind::Call(@source.CallTarget::IdTarget(target), [], args, []),
@@ -145,7 +145,7 @@ fn Typer::implicit_block_term(
         let pname = "value_arg\{i}"
         let sym = Sym::value_param(Name::local(pname), Some(vp), span)
         let id = @source.IdDef::new(pname, span)
-        self.ctx.assign_symbol(id.uid, sym)
+        self.assign_symbol(id.uid, sym)
         vparams.push({
           id,
           tpe: Some(mk_type(span, @source.ValueTypeTree(vp))),
@@ -166,7 +166,7 @@ fn Typer::implicit_block_term(
           span,
         )
         let id = @source.IdDef::new(pname, span)
-        self.ctx.assign_symbol(id.uid, sym)
+        self.assign_symbol(id.uid, sym)
         bparams.push({
           id,
           tpe: Some(mk_type(span, @source.BlockTypeTree(bp))),
@@ -187,7 +187,7 @@ fn Typer::implicit_block_term(
         )
       }
       let target = @source.IdRef::new(name, span)
-      self.ctx.assign_symbol(target.uid, @symbols.Sym::call_target(candidates))
+      self.assign_symbol(target.uid, @symbols.Sym::call_target(candidates))
       let callee = mk_term(
         span,
         @source.TermKind::Call(

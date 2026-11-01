@@ -40,6 +40,12 @@ pub(all) struct Annotations {
   impl_vargs : Map[Int32, Array[Term]]
   /// Implicit block arguments inserted at a call site.
   impl_bargs : Map[Int32, Array[Term]]
+  /// Symbols the type checker resolved while checking (an overloaded call id
+  /// resolved to one candidate, an implicit argument's callee). They are part
+  /// of the backtrackable state: a rolled-back overload candidate must not
+  /// leave its choice behind, or the *next* candidate sees a call that is no
+  /// longer overloaded (upstream keeps them in the same backtracked DB).
+  symbols : Map[Int32, Sym]
 }
 
 ///|
@@ -56,6 +62,7 @@ pub fn Annotations::new() -> Annotations {
     cap_args: Map([]),
     impl_vargs: Map([]),
     impl_bargs: Map([]),
+    symbols: Map([]),
   }
 }
 
@@ -73,6 +80,7 @@ pub fn Annotations::copy(self : Annotations) -> Annotations {
     cap_args: self.cap_args.copy(),
     impl_vargs: self.impl_vargs.copy(),
     impl_bargs: self.impl_bargs.copy(),
+    symbols: self.symbols.copy(),
   }
 }
 
@@ -196,9 +204,13 @@ fn Typer::error(self : Typer, span : Span, msg : String) -> Unit {
 }
 
 ///|
+/// Reports a warning. While a candidate of an overload resolution is checked
+/// the warning is dropped: upstream discards the messages of an attempt that
+/// succeeds (`Context.withMessages`) and a warning does not make an attempt
+/// fail (`Try` fails on errors only).
 fn Typer::warning(self : Typer, span : Span, msg : String) -> Unit {
   if self.muting {
-    self.muted_error = true
+    ignore((span, msg))
   } else {
     self.ctx.warning(span, msg)
   }
@@ -246,13 +258,32 @@ fn[T] Typer::panic(self : Typer, msg : String) -> T raise EffektError {
 // ---------------------------------------------------------------------------
 
 ///|
+/// Records the symbol a tree node was resolved to (upstream
+/// `Context.annotateSymbol`). Local to the typer so that a rolled-back overload
+/// candidate does not leave its choice behind; `commit` flushes the table into
+/// the `Context`.
+fn Typer::assign_symbol(self : Typer, uid : Int32, sym : Sym) -> Unit {
+  self.st.ann.symbols.set(uid, sym)
+}
+
+///|
+/// The symbol of a tree node: the one the type checker resolved (local,
+/// backtrackable) or the one the namer bound.
+fn Typer::symbol_of_opt(self : Typer, uid : Int32) -> Sym? {
+  match self.st.ann.symbols.get(uid) {
+    Some(s) => Some(s)
+    None => self.ctx.symbol_of(uid)
+  }
+}
+
+///|
 /// The symbol of a reference. `what` is used in the diagnostic.
 fn Typer::symbol_of(
   self : Typer,
   uid : Int32,
   what : String,
 ) -> Sym raise EffektError {
-  match self.ctx.symbol_of(uid) {
+  match self.symbol_of_opt(uid) {
     Some(s) => s
     None => self.panic("No symbol resolved for \{what} (uid \{uid})")
   }
@@ -266,7 +297,7 @@ fn Typer::symbol_of_id(self : Typer, id : IdRef) -> Sym raise EffektError {
 ///|
 /// Like `symbol_of_id`, but returns `None` instead of reporting an error.
 fn Typer::symbol_of_id_opt(self : Typer, id : IdRef) -> Sym? {
-  self.ctx.symbol_of(id.uid)
+  self.symbol_of_opt(id.uid)
 }
 
 ///|
@@ -388,8 +419,10 @@ pub fn Typer::lookup_capture(self : Typer, s : Sym) -> Captures {
           @symbols.Captures::CaptureSetOf([r.capture])
         @symbols.Sym::VarBinder(v) =>
           @symbols.Captures::CaptureSetOf([v.capture])
-        @symbols.Sym::RegBinder(r) =>
-          @symbols.Captures::CaptureSetOf([r.region])
+        // A reference binder's region is the *block symbol* that introduced
+        // the region (`Binding.Alloc` needs it), but the capture the type
+        // checker allocates into is that symbol's own capture parameter.
+        @symbols.Sym::RegBinder(r) => self.lookup_capture(r.region)
         _ => Captures::empty()
       }
   }
@@ -1087,6 +1120,9 @@ pub fn Typer::commit(self : Typer) -> Unit {
   for uid, caps in self.st.ann.cap_args {
     self.ctx.assign_capability_arguments(uid, caps)
   }
+  for uid, sym in self.st.ann.symbols {
+    self.ctx.assign_symbol(uid, sym)
+  }
   for uid, args in self.st.ann.impl_vargs {
     self.ctx.assign_implicit_value_args(uid, args)
   }
@@ -1490,8 +1526,7 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
       // block type of the symbol.
       let reg_sym = self.symbol_of_id(reg)
       let st_capt = match reg_sym {
-        @symbols.Sym::RegBinder(r) =>
-          @symbols.Captures::CaptureSetOf([r.region])
+        @symbols.Sym::RegBinder(r) => self.lookup_capture(r.region)
         _ =>
           if interface_type_equal(
               self.st.u.prune_block(self.lookup_block(reg_sym)),
@@ -1792,9 +1827,9 @@ fn Typer::check_expr_kind(
     @source.TermKind::Var(id) => {
       let sym = self.symbol_of_id(id)
       match sym {
-        @symbols.Sym::RegBinder(r) => {
+        @symbols.Sym::RegBinder(_) => {
           let tpe = self.lookup_value(sym)
-          self.using_capture(@symbols.Captures::CaptureSetOf([r.region]))
+          self.using_capture(self.lookup_capture(sym))
           TyRes::new(tpe, Effects::empty())
         }
         @symbols.Sym::VarBinder(v) => {
@@ -1813,9 +1848,9 @@ fn Typer::check_expr_kind(
     @source.TermKind::Assign(id, expr) => {
       let sym = self.symbol_of_id(id)
       match sym {
-        @symbols.Sym::RegBinder(r) => {
+        @symbols.Sym::RegBinder(_) => {
           let tpe = self.lookup_value(sym)
-          self.using_capture(@symbols.Captures::CaptureSetOf([r.region]))
+          self.using_capture(self.lookup_capture(sym))
           let r_res = self.check_expr(expr, Some(tpe))
           TyRes::new(t_unit(), r_res.effs)
         }
@@ -1919,7 +1954,6 @@ fn Typer::check_expr_kind(
                 call,
                 [],
                 [],
-                [],
                 callee_res.tpe,
                 resolved_targs,
                 vargs,
@@ -1942,8 +1976,13 @@ fn Typer::check_expr_kind(
     }
     @source.TermKind::Region(id, body) => {
       let reg = self.symbol_of_def(id)
+      // `region r { ... }` binds `r` as a block parameter of type `Region`
+      // whose capture is the region's capture parameter (the namer creates it,
+      // upstream's `symbols.Region.capture`); `var x in r` uses a
+      // `RegBinder` whose region points at it.
       let capture = match reg {
         @symbols.Sym::RegBinder(r) => r.region
+        @symbols.Sym::BlockParam(bp) => bp.capture
         _ => Sym::capture_param(Name::local("region"))
       }
       self.bind_capture(reg, @symbols.Captures::CaptureSetOf([capture]))
@@ -2407,9 +2446,29 @@ pub fn Typer::unify_block_types(
   let tpe2 = self.st.u.prune_block(tpe2)
   match (tpe1, tpe2) {
     (
-      @symbols.BlockType::FunctionType(_, capts1, vps1, bps1, ret1, effs1),
-      @symbols.BlockType::FunctionType(_, capts2, vps2, bps2, ret2, effs2),
+      @symbols.BlockType::FunctionType(
+        tparams1,
+        capts1,
+        vps1,
+        bps1,
+        ret1,
+        effs1
+      ),
+      @symbols.BlockType::FunctionType(
+        tparams2,
+        capts2,
+        vps2,
+        bps2,
+        ret2,
+        effs2
+      ),
     ) => {
+      if tparams1.length() != tparams2.length() {
+        self.abort(
+          self.focus,
+          "Type parameter count does not match \{tpe1} vs. \{tpe2}",
+        )
+      }
       if vps1.length() != vps2.length() {
         self.abort(
           self.focus,
@@ -2425,9 +2484,17 @@ pub fn Typer::unify_block_types(
       if capts1.length() != capts2.length() {
         self.abort(self.focus, "Capture parameter count does not match.")
       }
-      // map the capture parameters of the expected type to the given ones
+      // The parameters of the *given* type are the ones the comparison is
+      // about: map the expected type's type and capture parameters to them
+      // (upstream `unifyFunctionTypes`: `Substitutions(tparams2 zip targs1,
+      // cparams2 zip cparams1.map(CaptureSet(_)))`). Without the type
+      // substitution a generic function type never compares equal to itself
+      // under a different name (`hofPoly {ConstructPoly}`).
       let params2 = capture_params_of(capts2)
-      let subst = Substitutions::captures(params2, capts1)
+      let subst = Substitutions::types(
+        tparams2,
+        tparams1.map(t => @symbols.ValueType::ValueTypeRef(t)),
+      ).compose(Substitutions::captures(params2, capts1))
       for i = 0; i < vps1.length(); i = i + 1 {
         self.unify_value_types(vps1[i], subst.substitute_value(vps2[i]), ctx)
       }
@@ -2599,6 +2666,180 @@ pub(all) struct Instantiated {
 }
 
 ///|
+/// The type and capture parameters of an instantiation together with what they
+/// are instantiated with (upstream `Instantiation`).
+priv struct Instantiation {
+  tparams : Array[Sym]
+  targs : Array[ValueType]
+  cparams : Array[Sym]
+  cargs : Array[Captures]
+}
+
+///|
+/// Drops the binders a nested function type shadows (upstream
+/// `TypeInstantiator.without`).
+fn Instantiation::without(
+  self : Instantiation,
+  tparams : Array[Sym],
+  cparams : Array[Sym],
+) -> Instantiation {
+  let ts : Array[Sym] = []
+  let ta : Array[ValueType] = []
+  for i = 0; i < self.tparams.length(); i = i + 1 {
+    if !tparams.contains(self.tparams[i]) {
+      ts.push(self.tparams[i])
+      ta.push(self.targs[i])
+    }
+  }
+  let cs : Array[Sym] = []
+  let ca : Array[Captures] = []
+  for i = 0; i < self.cparams.length(); i = i + 1 {
+    if !cparams.contains(self.cparams[i]) {
+      cs.push(self.cparams[i])
+      ca.push(self.cargs[i])
+    }
+  }
+  { tparams: ts, targs: ta, cparams: cs, cargs: ca, }
+}
+
+///|
+/// Upstream `Unification.mergeCaptures` in the covariant `MergeCaptures`
+/// context, which is what instantiation uses: the concrete elements become the
+/// lower bound of a *fresh* capture variable, and the substituted capture
+/// variables flow into it.
+///
+/// The fresh variable matters: substituting `{r}` with `r ↦ ?x` must not yield
+/// the concrete set `{?x}`. A concrete set cannot grow, so a later constraint
+/// that adds captures to the flow (the caller passes the region, for instance)
+/// would be reported as "Used capture ?x is not in the allowed set …" even
+/// though upstream simply widens the variable.
+fn Typer::merge_captures(
+  self : Typer,
+  sets : Array[Captures],
+  concrete : Array[Sym],
+) -> Captures {
+  let concrete = concrete.copy()
+  let variables : Array[Sym] = []
+  for s in sets {
+    match self.st.u.prune_captures(s) {
+      @symbols.Captures::CaptureSetOf(cs) =>
+        for x in cs {
+          if !concrete.contains(x) {
+            concrete.push(x)
+          }
+        }
+      @symbols.Captures::CaptVar(x) =>
+        if !variables.contains(x) {
+          variables.push(x)
+        }
+    }
+  }
+  if variables.length() == 0 {
+    return @symbols.Captures::CaptureSetOf(concrete)
+  }
+  let v = self.fresh_capt_var("substitution")
+  ignore(self.st.u.require_lower(concrete, v))
+  for b in variables {
+    self.st.u.link(b.uid(), v.uid(), [])
+  }
+  ignore(self.st.u.propagate())
+  @symbols.Captures::CaptVar(v)
+}
+
+///|
+/// `instantiate(captures)`: replaces the capture parameters of a set by their
+/// instantiation (upstream `TypeInstantiator.instantiate`).
+fn Typer::instantiate_captures(
+  self : Typer,
+  c : Captures,
+  inst : Instantiation,
+) -> Captures {
+  match self.st.u.prune_captures(c) {
+    @symbols.Captures::CaptVar(_) as v => v
+    @symbols.Captures::CaptureSetOf(cs) => {
+      let contained : Array[Captures] = []
+      let remaining : Array[Sym] = []
+      for s in cs {
+        let mut found = false
+        for i = 0; i < inst.cparams.length(); i = i + 1 {
+          if !found && inst.cparams[i].uid() == s.uid() {
+            contained.push(inst.cargs[i])
+            found = true
+          }
+        }
+        if !found && !remaining.contains(s) {
+          remaining.push(s)
+        }
+      }
+      if contained.length() == 0 {
+        @symbols.Captures::CaptureSetOf(remaining)
+      } else {
+        self.merge_captures(contained, remaining)
+      }
+    }
+  }
+}
+
+///|
+/// `instantiate(tpe)` for value types (upstream `TypeInstantiator.instantiate`).
+fn Typer::instantiate_value_type(
+  self : Typer,
+  t : ValueType,
+  inst : Instantiation,
+) -> ValueType {
+  match t {
+    @symbols.ValueType::ValueTypeRef(x) => {
+      for i = 0; i < inst.tparams.length(); i = i + 1 {
+        if inst.tparams[i].uid() == x.uid() {
+          return inst.targs[i]
+        }
+      }
+      t
+    }
+    @symbols.ValueType::ValueTypeApp(c, args) =>
+      @symbols.ValueType::ValueTypeApp(
+        c,
+        args.map(a => self.instantiate_value_type(a, inst)),
+      )
+    @symbols.ValueType::BoxedType(b, c) =>
+      @symbols.ValueType::BoxedType(
+        self.instantiate_block_type(b, inst),
+        self.instantiate_captures(c, inst),
+      )
+  }
+}
+
+///|
+/// `instantiate(tpe)` for block types (upstream `TypeInstantiator.instantiate`).
+fn Typer::instantiate_block_type(
+  self : Typer,
+  t : BlockType,
+  inst : Instantiation,
+) -> BlockType {
+  match t {
+    @symbols.BlockType::InterfaceType(c, args) =>
+      @symbols.BlockType::InterfaceType(
+        c,
+        args.map(a => self.instantiate_value_type(a, inst)),
+      )
+    @symbols.BlockType::FunctionType(tparams, capts, vps, bps, ret, effs) => {
+      // do not substitute the parameters bound by this function type
+      let inner = inst.without(tparams, capture_params_of(capts))
+      @symbols.BlockType::FunctionType(
+        tparams,
+        capts.map(c => self.instantiate_captures(c, inner)),
+        vps.map(v => self.instantiate_value_type(v, inner)),
+        bps.map(b => self.instantiate_block_type(b, inner)),
+        self.instantiate_value_type(ret, inner),
+        Effects::new(
+          effs.effects.map(e => self.instantiate_block_type(e, inner)),
+        ),
+      )
+    }
+  }
+}
+
+///|
 /// `instantiate(tpe, tparams, targs, cargs)`: substitutes the type parameters
 /// of a function type by the given type arguments and the capture parameters
 /// by the given capture sets (upstream `Unification.instantiate`).
@@ -2627,21 +2868,21 @@ pub fn Typer::instantiate(
           "Capture param count \{capts.length()} is not equal to bparam \{bps.length()} + control effects \{effs.distinct().size()}.\n  \{tpe}",
         )
       }
-      let params : Array[Sym] = []
+      let cparams : Array[Sym] = []
       for i = 0; i < capts.length(); i = i + 1 {
         match capture_param_of(capts[i]) {
-          Some(x) => params.push(x)
-          None => params.push(Sym::wildcard())
+          Some(x) => cparams.push(x)
+          None => cparams.push(Sym::wildcard())
         }
       }
-      let subst = Substitutions::types(tparams, targs).compose(
-        Substitutions::captures(params, cargs),
-      )
+      let inst = { tparams, targs, cparams, cargs, }
       (
-        vps.map(v => subst.substitute_value(v)),
-        bps.map(b => subst.substitute_block(b)),
-        subst.substitute_value(ret),
-        subst.substitute_effects(effs),
+        vps.map(v => self.instantiate_value_type(v, inst)),
+        bps.map(b => self.instantiate_block_type(b, inst)),
+        self.instantiate_value_type(ret, inst),
+        Effects::new(
+          effs.effects.map(e => self.instantiate_block_type(e, inst)),
+        ),
       )
     }
     _ => self.abort(self.focus, "Expected function type.")
