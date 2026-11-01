@@ -93,8 +93,10 @@ These are deliberate and are documented at the point of use in the sources:
   capture information that reaches the backends is coarser than upstream's.
   The escape checks of `Wellformedness` run on the checked tree (a region, a
   block literal, an operation clause and a handler each check the inferred type
-  of their body against their own binders), but the reports for *type*
-  parameters of existentials and higher-rank functions are not implemented.
+  of their body against their own binders). Both escapes are reported: a
+  capture the binder drops (`Capture X escapes through type …`), and a type
+  parameter of an existential pattern or of a higher-rank block that would
+  leave its scope (`Type A escapes through type …`).
 - **Dead code elimination is partial.** `core/optimizer/Deadcode` (and the
   `Reachable` analysis behind it) is ported and runs where upstream runs it,
   between `Aggregate` and `core.Show`, so unreachable functions, constructors,

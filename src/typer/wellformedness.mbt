@@ -168,7 +168,7 @@ pub fn Typer::check_no_capture_escape(
 }
 
 // ---------------------------------------------------------------------------
-// Escapes of captures through inferred types
+// Escapes of captures and type parameters through inferred types
 // ---------------------------------------------------------------------------
 //
 // Upstream runs a `Visit` over the checked tree with a `WFContext` of the type
@@ -176,24 +176,24 @@ pub fn Typer::check_no_capture_escape(
 // and reports every capture of an inferred type that is *not* in scope: a
 // binder introduces captures for its body, and a type inferred in that body may
 // not mention captures the binder will drop again (a region's region, a
-// handler's capabilities, a block literal's parameters).
+// handler's capabilities, a block literal's parameters). The same holds for
+// type parameters — an existential pattern or a higher-rank block that is gone
+// may not leave its type behind.
 //
 // The check is therefore only sound with the scopes: the same type is fine
 // inside the binder and an escape outside it.
-//
-// Not implemented: the reports for type parameters of existentials and
-// higher-rank functions (their scopes are tracked, but nothing is reported).
 
 ///|
-/// The captures that are in scope while the tree is walked (upstream
-/// `WFContext`).
+/// The captures and type parameters that are in scope while the tree is walked
+/// (upstream `WFContext`).
 priv struct WFScope {
   captures : Array[Sym]
+  types : Array[Sym]
 }
 
 ///|
 fn WFScope::empty() -> WFScope {
-  { captures: [], }
+  { captures: [], types: [], }
 }
 
 ///|
@@ -205,7 +205,19 @@ fn WFScope::bind(self : WFScope, captures : Array[Sym]) -> WFScope {
       cs.push(c)
     }
   }
-  { captures: cs, }
+  { captures: cs, types: self.types, }
+}
+
+///|
+/// Extends the scope by the given type parameters.
+fn WFScope::bind_types(self : WFScope, types : Array[Sym]) -> WFScope {
+  let ts = self.types.copy()
+  for t in types {
+    if !ts.contains(t) {
+      ts.push(t)
+    }
+  }
+  { captures: self.captures, types: ts, }
 }
 
 ///|
@@ -306,6 +318,48 @@ fn Typer::wf_check(
 }
 
 ///|
+/// Reports the type parameters of `tpe` that are not in `scope` (upstream
+/// `Wellformedness.wellformed`): a type inferred inside a binder may not
+/// mention a type parameter the binder drops again. Unification variables are
+/// inference artifacts, not bound parameters, so they are ignored.
+fn Typer::wf_check_types(
+  self : Typer,
+  tpe : ValueType,
+  span : Span,
+  scope : WFScope,
+  detail : String,
+) -> Unit {
+  let escaping = free_types_value(tpe, [])
+    .filter(t => !self.st.u.is_type_var(t))
+    .filter(t => !scope.types.contains(t))
+  if escaping.length() == 0 {
+    return
+  }
+  let message = if escaping.length() == 1 {
+    "Type \{escaping[0].name().name} escapes through type \{tpe}\{detail}."
+  } else {
+    "Types \{escaping.map(t => t.name().name).join(", ")} escape through type \{tpe}\{detail}."
+  }
+  self.error(span, message)
+}
+
+///|
+/// The type parameters an `Array[IdDef]` binds, as symbols.
+fn Typer::wf_type_param_symbols(
+  self : Typer,
+  tparams : Array[IdDef],
+) -> Array[Sym] {
+  let out : Array[Sym] = []
+  for tp in tparams {
+    match self.ctx.symbol_of(tp.uid) {
+      Some(sym) => out.push(sym)
+      None => ()
+    }
+  }
+  out
+}
+
+///|
 /// The check for the return type of a handled statement: the bound
 /// capabilities are gone when the statement returns, so the type may not
 /// mention any of them (upstream's specific message for `TryHandle`).
@@ -332,19 +386,38 @@ fn Typer::wf_check_handled(
 ///|
 fn Typer::wf_def(self : Typer, d : Def, scope : WFScope) -> Unit {
   match d.kind {
-    @source.DefKind::FunDef(id, _, _, bparams, _, _, body) => {
+    @source.DefKind::FunDef(id, tparams, _, bparams, _, _, body) => {
       let captures = self.wf_capability_captures(d.uid) +
         self.wf_param_captures(bparams)
-      let inner = scope.bind(captures)
+      // The type parameters of the definition: from the syntax tree, plus the
+      // ones the symbol itself carries (a tree built by a test may only have
+      // those).
+      let from_symbol = match self.ctx.symbol_of(id.uid) {
+        Some(sym) =>
+          match sym.as_callable() {
+            Some(v) => v.tparams
+            None => []
+          }
+        None => []
+      }
+      let type_params = self.wf_type_param_symbols(tparams) + from_symbol
+      let inner = scope.bind(captures).bind_types(type_params)
       self.wf_stmt(body, inner)
       match self.ctx.value_type_of(body.uid) {
-        Some(tpe) =>
+        Some(tpe) => {
           self.wf_check(
             tpe,
             body.span,
             inner,
             " inferred as return type of \{id.name}",
           )
+          self.wf_check_types(
+            tpe,
+            body.span,
+            inner,
+            " inferred as return type of \{id.name}",
+          )
+        }
         None => ()
       }
     }
@@ -384,6 +457,29 @@ fn Typer::wf_stmt(self : Typer, s : Stmt, scope : WFScope) -> Unit {
                   "Local variable \{id.name} escapes through the returned value of type \{tpe}.",
                 )
               }
+            }
+            None => ()
+          }
+          // Upstream also checks the type inferred *for the variable itself*:
+          // an assignment inside the scope may have added captures of a
+          // capability that is bound there and gone afterwards. The variable's
+          // own capture is in scope for this check (upstream's
+          // `binding(captures = Set(capt))` wraps both queries).
+          let var_scope = scope.bind(var_captures)
+          match self.ctx.value_type_of(d.uid) {
+            Some(tpe) => {
+              self.wf_check(
+                tpe,
+                s.span,
+                var_scope,
+                " inferred for mutable variable \{id.name}",
+              )
+              self.wf_check_types(
+                tpe,
+                s.span,
+                var_scope,
+                " inferred for mutable variable \{id.name}",
+              )
             }
             None => ()
           }
@@ -480,13 +576,20 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
         None => ()
       }
       match self.ctx.value_type_of(t.uid) {
-        Some(tpe) =>
+        Some(tpe) => {
           self.wf_check(
             tpe,
             t.span,
             scope,
             " inferred as return type of the match",
           )
+          self.wf_check_types(
+            tpe,
+            t.span,
+            scope,
+            " inferred as return type of the match",
+          )
+        }
         None => ()
       }
     }
@@ -532,14 +635,18 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
         None => ()
       }
     }
-    @source.TermKind::BlockLiteral(_, _, bparams, body) => {
+    @source.TermKind::BlockLiteral(tparams, _, bparams, body) => {
       let captures = self.wf_capability_captures(t.uid) +
         self.wf_param_captures(bparams)
-      let inner = scope.bind(captures)
+      let inner = scope
+        .bind(captures)
+        .bind_types(self.wf_type_param_symbols(tparams))
       self.wf_stmt(body, inner)
       match self.ctx.value_type_of(body.uid) {
-        Some(tpe) =>
+        Some(tpe) => {
           self.wf_check(tpe, t.span, inner, " inferred as return type")
+          self.wf_check_types(tpe, t.span, inner, " inferred as return type")
+        }
         None => ()
       }
     }
@@ -557,6 +664,7 @@ fn Typer::wf_type_arguments(
 ) -> Unit {
   for tpe in self.ctx.type_arguments_of(uid) {
     self.wf_check(tpe, span, scope, " inferred as a type argument")
+    self.wf_check_types(tpe, span, scope, " inferred as a type argument")
   }
 }
 
@@ -599,16 +707,28 @@ fn Typer::wf_implementation(
   for clause in implementation.clauses {
     let captures = self.wf_capability_captures(clause.uid) +
       self.wf_param_captures(clause.bparams)
-    let inner = scope.bind(captures)
+    // The clause's own type parameters are in scope for its body (upstream's
+    // `Annotations.TypeParameters` on the `OpClause`); an operation on a
+    // bidirectional effect passes them on, e.g. `def field[T](k) = resume { ... }`.
+    let inner = scope
+      .bind(captures)
+      .bind_types(self.wf_type_param_symbols(clause.tparams))
     self.wf_stmt(clause.body, inner)
     match self.ctx.value_type_of(clause.body.uid) {
-      Some(tpe) =>
+      Some(tpe) => {
         self.wf_check(
           tpe,
           clause.body.span,
           inner,
           " inferred as return type of operation \{clause.id.name}",
         )
+        self.wf_check_types(
+          tpe,
+          clause.body.span,
+          inner,
+          " inferred as return type of operation \{clause.id.name}",
+        )
+      }
       None => ()
     }
   }
