@@ -360,6 +360,46 @@ fn Typer::wf_type_param_symbols(
 }
 
 ///|
+/// The existential type parameters a pattern binds: the type parameters of the
+/// constructor that are not the data type's own (upstream's
+/// `Annotations.TypeParameters` on the pattern).
+fn Typer::wf_pattern_existentials(
+  self : Typer,
+  pattern : @source.MatchPattern,
+) -> Array[Sym] {
+  match pattern.kind {
+    @source.PatternKind::TagPattern(id, patterns) => {
+      let out : Array[Sym] = []
+      match self.ctx.symbol_of(id.uid) {
+        Some(sym) => {
+          let all = constructor_tparams(sym)
+          let universals = match datatype_tparams(sym) {
+            Some(ts) => ts.length()
+            None => 0
+          }
+          for i = universals; i < all.length(); i = i + 1 {
+            push_new(out, [all[i]])
+          }
+        }
+        None => ()
+      }
+      for p in patterns {
+        push_new(out, self.wf_pattern_existentials(p))
+      }
+      out
+    }
+    @source.PatternKind::MultiPattern(patterns) => {
+      let out : Array[Sym] = []
+      for p in patterns {
+        push_new(out, self.wf_pattern_existentials(p))
+      }
+      out
+    }
+    _ => []
+  }
+}
+
+///|
 /// The check for the return type of a handled statement: the bound
 /// capabilities are gone when the statement returns, so the type may not
 /// mention any of them (upstream's specific message for `TryHandle`).
@@ -568,8 +608,12 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
         self.wf_term(sc, scope)
       }
       for c in clauses {
-        self.wf_guards(c.guards, scope)
-        self.wf_stmt(c.body, scope)
+        // A constructor pattern may bind existentials (`type Exists { Op[Z](...) }`):
+        // they are in scope for the guards and the body, which may use them
+        // (e.g. to repack the payload into a new `Op`).
+        let inner = scope.bind_types(self.wf_pattern_existentials(c.pattern))
+        self.wf_guards(c.guards, inner)
+        self.wf_stmt(c.body, inner)
       }
       match default {
         Some(d) => self.wf_stmt(d, scope)
