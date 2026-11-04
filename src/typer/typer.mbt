@@ -153,6 +153,10 @@ pub struct Typer {
   mut muted_infos : Array[(Span, String)]
   /// The span of the tree currently being checked.
   mut focus : Span
+  /// Where each fresh unification variable was created (by uid), so that an
+  /// unsolved one can be reported at its own tree instead of at the definition
+  /// whose scope closed last.
+  type_var_spans : Map[Int32, Span]
   /// The matches whose exhaustiveness is checked after type checking (see
   /// exhaustivity.mbt).
   pending_matches : Array[PendingMatch]
@@ -178,6 +182,7 @@ pub fn Typer::new(ctx : Context) -> Typer {
     muted_messages: [],
     muted_infos: [],
     focus: Span::missing(),
+    type_var_spans: Map([]),
     pending_matches: [],
   }
 }
@@ -475,6 +480,11 @@ pub fn Typer::annotate_capture(self : Typer, uid : Int32, c : Captures) -> Unit 
 fn Typer::fresh_type_var(self : Typer, underlying : Sym) -> Sym {
   let x = self.st.u.fresh_type_var(underlying)
   self.st.scope.register_type_var(x)
+  // Remember where the variable came from: if it is still unsolved when its
+  // scope closes, the error belongs at that tree, not at the definition whose
+  // scope happened to close (upstream reports it at `Context.rangeOf(focus)`
+  // of the instantiation, e.g. the call site).
+  self.type_var_spans.set(x.uid(), self.focus)
   x
 }
 
@@ -519,8 +529,9 @@ fn[T] Typer::with_unification_scope(
   for x in inner.type_vars() {
     if !self.st.u.types.contains(x.uid()) {
       let underlying = self.st.u.underlying(x)
+      let span = self.type_var_spans.get(x.uid()).unwrap_or(self.focus)
       self.error(
-        self.focus,
+        span,
         "Cannot infer type argument \{underlying.name().name}, maybe consider annotating it?",
       )
     }

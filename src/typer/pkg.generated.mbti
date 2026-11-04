@@ -140,6 +140,7 @@ pub struct Typer {
   mut muted_messages : Array[String]
   mut muted_infos : Array[(@util.Span, String)]
   mut focus : @util.Span
+  type_var_spans : Map[Int32, @util.Span]
   pending_matches : Array[PendingMatch]
 }
 pub fn Typer::annotate_block(Self, Int32, @symbols.BlockType) -> Unit
