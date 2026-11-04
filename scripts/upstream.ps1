@@ -26,7 +26,7 @@ Push-Location $root
 # Compiling one file loads the whole prelude, so the corpus is split across a
 # few background jobs to keep the wall-clock time reasonable.
 $jobs = 6
-$positiveBaseline = 388
+$positiveBaseline = 389
 # `boxed-captures` (neg) compiles now that name-based implicit arguments exist: it
 # needs the capture-set check that this port deliberately keeps coarse (see the
 # "Deviations from upstream" section of the README). It stays in the corpus.
@@ -130,11 +130,16 @@ $worker = {
     # content is read directly and kept as a string.
     $so = Read-Text-WithRetry $stdoutFile
     $se = Read-Text-WithRetry $stderrFile
+    # `json.effekt` prints a string that contains a lone carriage return
+    # (`readQuotedString` turns the `\r` escape into CR).  Upstream records the
+    # output by splitting it into lines with `readLine`, which treats a lone CR
+    # as a line terminator too, so the `.check` file has a line break there.
+    # Normalising CR and CRLF to LF reproduces the recording.
     return @{
       code = $code
       timeout = $false
-      stdout = ($so -replace "`r`n", "`n")
-      stderr = ($se -replace "`r`n", "`n")
+      stdout = (($so -replace "`r`n", "`n") -replace "`r", "`n")
+      stderr = (($se -replace "`r`n", "`n") -replace "`r", "`n")
     }
   }
 
@@ -410,13 +415,20 @@ if ($failures.Count -gt 0) {
 Pop-Location
 
 $failed = $false
-if ($posOk -lt $positiveBaseline) {
-  Write-Host ("positive: {0} pass, below the baseline of {1}" -f $posOk, $positiveBaseline) -ForegroundColor Red
-  $failed = $true
+# A `-Filter` run only compiles a handful of files, so it can never reach the
+# baseline; it reports its own results and only a full run enforces one.
+if ($Filter -ne "") {
+  Write-Host ""
+  Write-Host ("filtered run (no baseline check): {0}/{1} positive, {2}/{3} negative" -f $posOk, $posTotal, $negOk, $negTotal) -ForegroundColor DarkGray
+} else {
+  if ($posOk -lt $positiveBaseline) {
+    Write-Host ("positive: {0} pass, below the baseline of {1}" -f $posOk, $positiveBaseline) -ForegroundColor Red
+    $failed = $true
+  }
+  if ($negOk -lt $negativeBaseline) {
+    Write-Host ("negative: {0} match, below the baseline of {1}" -f $negOk, $negativeBaseline) -ForegroundColor Red
+    $failed = $true
+  }
+  if ($failed) { exit 1 }
+  Write-Host ("baselines: positive {0}, negative {1}" -f $positiveBaseline, $negativeBaseline) -ForegroundColor Green
 }
-if ($negOk -lt $negativeBaseline) {
-  Write-Host ("negative: {0} match, below the baseline of {1}" -f $negOk, $negativeBaseline) -ForegroundColor Red
-  $failed = $true
-}
-if ($failed) { exit 1 }
-Write-Host ("baselines: positive {0}, negative {1}" -f $positiveBaseline, $negativeBaseline) -ForegroundColor Green
