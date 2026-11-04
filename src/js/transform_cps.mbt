@@ -831,18 +831,15 @@ fn can_be_direct(
       vargs.all(v => !v.occurs(k)) &&
       bargs.all(b => !b.occurs(k)) &&
       can_be_direct(k, body, ctx)
-    // TODO this could be a tail call!
-    @cps.Stmt::LetCont(id, binding, body2) => {
-      let will_be_direct_itself = can_be_direct(id, body2, ctx) &&
-        can_be_direct(
-          k,
-          maintain_direct_style(binding.ks, binding.body, ctx),
-          ctx,
-        )
-      let not_free_in_continuation = !binding.body.occurs(k) &&
-        can_be_direct(k, body2, ctx)
-      will_be_direct_itself || not_free_in_continuation
-    }
+    // A continuation that is bound here is compiled as its own nested function
+    // unless *it* takes the direct-style branch, and that decision is made
+    // later, from its own context. A jump to `k` from inside the body would
+    // therefore stay a plain call while `k`'s binding was dropped as
+    // "direct" — `examples/pos/nim` used to emit a call to a `resume` that was
+    // never defined. Treat the body as an opaque nested scope instead: `k` may
+    // not occur in it at all.
+    @cps.Stmt::LetCont(_id, binding, body2) =>
+      !binding.body.occurs(k) && can_be_direct(k, body2, ctx)
     @cps.Stmt::Region(_id, _ks, body) => !body.occurs(k)
     @cps.Stmt::Alloc(_id, init, _region, body) =>
       !init.occurs(k) && can_be_direct(k, body, ctx)
