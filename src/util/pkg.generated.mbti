@@ -99,28 +99,32 @@ pub fn Message::info_at(Span, String) -> Self
 pub fn Message::render(Self) -> String
 pub fn Message::warning(Span, String) -> Self
 
+#derive(Eq)
 pub(all) enum Mode {
   Flat
   Break
-} derive(Eq)
+}
 
+#derive(Eq, @debug.Debug)
 pub(all) enum Origin {
   Real
   Synthesized
   Missing
-} derive(Eq, @debug.Debug)
+}
 
+#derive(Eq, @debug.Debug)
 pub(all) struct Position {
   line : Int32
   column : Int32
-} derive(Eq, @debug.Debug)
+}
 pub impl Show for Position
 
+#derive(Eq, @debug.Debug)
 pub(all) enum Severity {
   Error
   Warning
   Info
-} derive(Eq, @debug.Debug)
+}
 pub impl Show for Severity
 
 pub(all) struct Source {

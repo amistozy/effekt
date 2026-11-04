@@ -53,6 +53,7 @@ pub(all) enum Block {
   New(Implementation)
 }
 pub fn Block::free(Self) -> Variables
+pub fn Block::occurs(Self, @symbols.Sym) -> Bool
 pub fn Block::size(Self) -> Int32
 
 pub(all) struct BlockLit {
@@ -64,6 +65,7 @@ pub(all) struct BlockLit {
 }
 pub fn BlockLit::free(Self) -> Variables
 pub fn BlockLit::new(Array[@symbols.Sym], Array[@symbols.Sym], @symbols.Sym, @symbols.Sym, Stmt) -> Self
+pub fn BlockLit::occurs(Self, @symbols.Sym) -> Bool
 pub fn BlockLit::size(Self) -> Int32
 
 pub(all) struct Clause {
@@ -72,6 +74,7 @@ pub(all) struct Clause {
 }
 pub fn Clause::free(Self) -> Variables
 pub fn Clause::new(Array[@symbols.Sym], Stmt) -> Self
+pub fn Clause::occurs(Self, @symbols.Sym) -> Bool
 pub fn Clause::size(Self) -> Int32
 
 pub(all) enum Cont {
@@ -80,6 +83,7 @@ pub(all) enum Cont {
   Abort
 }
 pub fn Cont::free(Self) -> Variables
+pub fn Cont::occurs(Self, @symbols.Sym) -> Bool
 pub fn Cont::size(Self) -> Int32
 
 pub(all) struct ContLam {
@@ -89,6 +93,7 @@ pub(all) struct ContLam {
 }
 pub fn ContLam::free(Self) -> Variables
 pub fn ContLam::new(Array[@symbols.Sym], @symbols.Sym, Stmt) -> Self
+pub fn ContLam::occurs(Self, @symbols.Sym) -> Bool
 pub fn ContLam::size(Self) -> Int32
 
 pub(all) struct Def {
@@ -97,6 +102,7 @@ pub(all) struct Def {
 }
 pub fn Def::free(Self) -> Variables
 pub fn Def::new(@symbols.Sym, Block) -> Self
+pub fn Def::occurs(Self, @symbols.Sym) -> Bool
 pub fn Def::size(Self) -> Int32
 
 pub(all) enum Expr {
@@ -107,6 +113,7 @@ pub(all) enum Expr {
   Box(Block)
 }
 pub fn Expr::free(Self) -> Variables
+pub fn Expr::occurs(Self, @symbols.Sym) -> Bool
 pub fn Expr::size(Self) -> Int32
 
 pub(all) enum Extern {
@@ -129,6 +136,7 @@ pub(all) struct Implementation {
 }
 pub fn Implementation::free(Self) -> Variables
 pub fn Implementation::new(@symbols.BlockType, Array[Operation]) -> Self
+pub fn Implementation::occurs(Self, @symbols.Sym) -> Bool
 pub fn Implementation::size(Self) -> Int32
 
 pub(all) struct MetaCont {
@@ -159,6 +167,7 @@ pub(all) struct Operation {
 }
 pub fn Operation::free(Self) -> Variables
 pub fn Operation::new(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], @symbols.Sym, @symbols.Sym, Stmt) -> Self
+pub fn Operation::occurs(Self, @symbols.Sym) -> Bool
 pub fn Operation::size(Self) -> Int32
 
 pub(all) enum Stmt {
@@ -183,6 +192,7 @@ pub(all) enum Stmt {
   Hole(@util.Span)
 }
 pub fn Stmt::free(Self) -> Variables
+pub fn Stmt::occurs(Self, @symbols.Sym) -> Bool
 pub fn Stmt::size(Self) -> Int32
 
 pub(all) struct Substitution {

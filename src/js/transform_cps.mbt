@@ -105,6 +105,14 @@ priv struct TransformerContext {
   metacont : Sym?
   /// The original declaration context (used to compile pattern matching).
   declarations : @core.DeclarationContext
+  /// How many more `can_be_direct` questions the current definition may ask.
+  /// The analysis re-walks the rest of the program once per continuation, which
+  /// is exponential in the nesting of continuations (see `can_be_direct`), and
+  /// the standard library's I/O programs are deep enough to spend minutes in it.
+  /// Running out of budget only makes the generated JavaScript fall back to a
+  /// thunk at that point — a missed optimisation, never a wrong program. The
+  /// cell is an array so that every `{ ..self, … }` copy shares it.
+  direct_fuel : Array[Int32]
 }
 
 ///|
@@ -280,6 +288,7 @@ pub fn compile_cps(
     scope: [],
     metacont: None,
     declarations,
+    direct_fuel: [direct_fuel],
   }
   let js_externs : Array[Stmt] = []
   for e in module.externs {
@@ -311,10 +320,20 @@ pub fn compile_cps(
 // ---------------------------------------------------------------------------
 
 ///|
+/// The budget of one top-level definition for the direct-style analysis (see
+/// `TransformerContext.direct_fuel`). Generous: the whole corpus' small examples
+/// ask a few hundred questions each, so only programs whose continuation nesting
+/// really is pathological get cut off.
+let direct_fuel : Int32 = 200_000
+
+///|
 fn to_js_toplevel(
   d : @cps.ToplevelDefinition,
   ctx : TransformerContext,
 ) -> Stmt raise EffektError {
+  // Every definition gets its own budget, so one pathological definition cannot
+  // starve the rest of the module.
+  let ctx : TransformerContext = { ..ctx, direct_fuel: [direct_fuel], }
   match d {
     @cps.ToplevelDef(id, block) => {
       let ctx2 : TransformerContext = {
@@ -756,21 +775,32 @@ fn inline_extern(
 // ---------------------------------------------------------------------------
 
 ///|
+/// Upstream `TransformerCps.canBeDirect`: can `k` stay in direct style inside
+/// `stmt`?
+///
+/// There is deliberately no "`k` does not occur at all" fast path.  Answering
+/// that costs a walk of the whole statement, and the analysis is called once
+/// per continuation *while descending the rest of the program*, so that check
+/// alone made it quadratic — worse, the two recursive calls of the `LetCont`
+/// case then re-walk the same tail, which is exponential in the nesting of
+/// continuations.  Every case below tests only the terms that are local to its
+/// node (upstream's `notIn`), which is what keeps the analysis linear in
+/// practice.  The `App` / `Invoke` / `Reset` / `Shift` / `Resume` cases are
+/// still "direct exactly when `k` does not occur in the statement", but their
+/// statements hold no nested body, so the walk stays local.
 fn can_be_direct(
   k : Sym,
   stmt : @cps.Stmt,
   ctx : TransformerContext,
 ) -> Bool raise EffektError {
-  // A continuation that does not occur in the statement cannot be captured by
-  // it, so every use of it stays a tail jump *and* is already in direct style.
-  // Checking this first is what keeps the analysis from descending into the
-  // rest of the program once per continuation.
-  if !stmt.free().contains(k) {
-    return true
+  let fuel = ctx.direct_fuel
+  if fuel[0] <= 0 {
+    return false
   }
+  fuel[0] = fuel[0] - 1
   match stmt {
     @cps.Stmt::Jump(k2, vargs, ks2) => {
-      let args_ok = vargs.all(v => !v.free().contains(k))
+      let args_ok = vargs.all(v => !v.occurs(k))
       let metacont_ok = match ctx.metacont {
         Some(m) => m.uid() == ks2.id.uid()
         None => false
@@ -781,8 +811,8 @@ fn can_be_direct(
         args_ok
       }
     }
-    @cps.Stmt::App(_, _, _, _, _) => !stmt.free().contains(k)
-    @cps.Stmt::Invoke(_, _, _, _, _, _) => !stmt.free().contains(k)
+    @cps.Stmt::App(_, _, _, _, _) => !stmt.occurs(k)
+    @cps.Stmt::Invoke(_, _, _, _, _, _) => !stmt.occurs(k)
     @cps.Stmt::If(_cond, thn, els) =>
       can_be_direct(k, thn, ctx) && can_be_direct(k, els, ctx)
     @cps.Stmt::Match(_scrutinee, clauses, default) => {
@@ -794,12 +824,12 @@ fn can_be_direct(
       clauses_ok && default_ok
     }
     @cps.Stmt::LetDef(_id, binding, body) =>
-      !binding.free().contains(k) && can_be_direct(k, body, ctx)
+      !binding.occurs(k) && can_be_direct(k, body, ctx)
     @cps.Stmt::LetExpr(_id, binding, body) =>
-      !binding.free().contains(k) && can_be_direct(k, body, ctx)
+      !binding.occurs(k) && can_be_direct(k, body, ctx)
     @cps.Stmt::ImpureApp(_id, _callee, vargs, bargs, body) =>
-      vargs.all(v => !v.free().contains(k)) &&
-      bargs.all(b => !b.free().contains(k)) &&
+      vargs.all(v => !v.occurs(k)) &&
+      bargs.all(b => !b.occurs(k)) &&
       can_be_direct(k, body, ctx)
     // TODO this could be a tail call!
     @cps.Stmt::LetCont(id, binding, body2) => {
@@ -809,22 +839,22 @@ fn can_be_direct(
           maintain_direct_style(binding.ks, binding.body, ctx),
           ctx,
         )
-      let not_free_in_continuation = !binding.body.free().contains(k) &&
+      let not_free_in_continuation = !binding.body.occurs(k) &&
         can_be_direct(k, body2, ctx)
       will_be_direct_itself || not_free_in_continuation
     }
-    @cps.Stmt::Region(_id, _ks, body) => !body.free().contains(k)
+    @cps.Stmt::Region(_id, _ks, body) => !body.occurs(k)
     @cps.Stmt::Alloc(_id, init, _region, body) =>
-      !init.free().contains(k) && can_be_direct(k, body, ctx)
+      !init.occurs(k) && can_be_direct(k, body, ctx)
     @cps.Stmt::Var(_id, init, _ks, body) =>
-      !init.free().contains(k) && can_be_direct(k, body, ctx)
+      !init.occurs(k) && can_be_direct(k, body, ctx)
     @cps.Stmt::Dealloc(_ref, body) => can_be_direct(k, body, ctx)
     @cps.Stmt::Get(_ref, _id, body) => can_be_direct(k, body, ctx)
     @cps.Stmt::Put(_ref, value, body) =>
-      !value.free().contains(k) && can_be_direct(k, body, ctx)
-    @cps.Stmt::Reset(_, _, _) => !stmt.free().contains(k)
-    @cps.Stmt::Shift(_, _, _, _) => !stmt.free().contains(k)
-    @cps.Stmt::Resume(_, _, _, _) => !stmt.free().contains(k)
+      !value.occurs(k) && can_be_direct(k, body, ctx)
+    @cps.Stmt::Reset(_, _, _) => !stmt.occurs(k)
+    @cps.Stmt::Shift(_, _, _, _) => !stmt.occurs(k)
+    @cps.Stmt::Resume(_, _, _, _) => !stmt.occurs(k)
     @cps.Stmt::Hole(_) => true
   }
 }
@@ -959,7 +989,7 @@ fn to_js_stmt(
     //    let x; if (...) { x = 42; ks = ks2 } else { x = 10; ks = ks3 } ...
     @cps.Stmt::LetCont(id, binding, body2) => {
       let direct_ok = match ctx.direct_style {
-        Some(info) => !body2.free().contains(info.k)
+        Some(info) => !body2.occurs(info.k)
         None => true
       }
       if can_be_direct(id, body2, ctx) && direct_ok {

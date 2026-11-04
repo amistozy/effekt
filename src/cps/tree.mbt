@@ -635,6 +635,200 @@ pub fn ContLam::free(self : ContLam) -> Variables {
 }
 
 // ---------------------------------------------------------------------------
+// Occurrence checks
+// ---------------------------------------------------------------------------
+//
+// `free` builds a set: every call walks the whole subtree and allocates one
+// entry per free variable. The JavaScript backend only ever asks whether *one*
+// particular variable occurs (`TransformerCps.can_be_direct` asks it once per
+// continuation while descending, and `Variables::union` copies its receiver, so
+// folding a tree with it is quadratic). `occurs` answers the same question,
+// short-circuits, and allocates nothing.
+
+///|
+fn[T] any_occurs(xs : Array[T], occurs : (T) -> Bool) -> Bool {
+  for x in xs {
+    if occurs(x) {
+      return true
+    }
+  }
+  false
+}
+
+///|
+/// Is `id` one of the binders? The `Variables` constructors of `free` (value,
+/// block, cont, meta) are all the same set, so a variable is identified by its
+/// uid alone.
+fn binds(params : Array[Sym], id : Sym) -> Bool {
+  params.any(p => p.uid() == id.uid())
+}
+
+///|
+fn stmt_opt_occurs(stmt : Stmt?, id : Sym) -> Bool {
+  match stmt {
+    Some(s) => s.occurs(id)
+    None => false
+  }
+}
+
+///|
+pub fn Expr::occurs(self : Expr, id : Sym) -> Bool {
+  match self {
+    ValueVar(v) => v.uid() == id.uid()
+    Literal(_, _) => false
+    PureApp(callee, vargs) =>
+      callee.uid() == id.uid() || any_occurs(vargs, e => e.occurs(id))
+    Make(_, _, vargs) => any_occurs(vargs, e => e.occurs(id))
+    Box(block) => block.occurs(id)
+  }
+}
+
+///|
+pub fn Block::occurs(self : Block, id : Sym) -> Bool {
+  match self {
+    BlockVar(v) => v.uid() == id.uid()
+    BlockLit(lit) => lit.occurs(id)
+    Unbox(pure) => pure.occurs(id)
+    New(implementation) => implementation.occurs(id)
+  }
+}
+
+///|
+pub fn Implementation::occurs(self : Implementation, id : Sym) -> Bool {
+  any_occurs(self.operations, op => op.occurs(id))
+}
+
+///|
+pub fn Operation::occurs(self : Operation, id : Sym) -> Bool {
+  if binds(self.vparams, id) ||
+    binds(self.bparams, id) ||
+    self.ks.uid() == id.uid() ||
+    self.k.uid() == id.uid() {
+    false
+  } else {
+    self.body.occurs(id)
+  }
+}
+
+///|
+pub fn BlockLit::occurs(self : BlockLit, id : Sym) -> Bool {
+  if binds(self.vparams, id) ||
+    binds(self.bparams, id) ||
+    self.ks.uid() == id.uid() ||
+    self.k.uid() == id.uid() {
+    false
+  } else {
+    self.body.occurs(id)
+  }
+}
+
+///|
+pub fn Clause::occurs(self : Clause, id : Sym) -> Bool {
+  if binds(self.vparams, id) {
+    false
+  } else {
+    self.body.occurs(id)
+  }
+}
+
+///|
+pub fn Cont::occurs(self : Cont, id : Sym) -> Bool {
+  match self {
+    ContVar(v) => v.uid() == id.uid()
+    Abort => false
+    ContLam(lam) => lam.occurs(id)
+  }
+}
+
+///|
+pub fn ContLam::occurs(self : ContLam, id : Sym) -> Bool {
+  if binds(self.results, id) || self.ks.uid() == id.uid() {
+    false
+  } else {
+    self.body.occurs(id)
+  }
+}
+
+///|
+pub fn Def::occurs(self : Def, id : Sym) -> Bool {
+  if self.id.uid() == id.uid() {
+    false
+  } else {
+    self.block.occurs(id)
+  }
+}
+
+///|
+pub fn Stmt::occurs(self : Stmt, id : Sym) -> Bool {
+  match self {
+    Jump(k, vargs, ks) =>
+      k.uid() == id.uid() ||
+      any_occurs(vargs, e => e.occurs(id)) ||
+      ks.id.uid() == id.uid()
+    App(callee, vargs, bargs, ks, k) =>
+      callee.occurs(id) ||
+      any_occurs(vargs, e => e.occurs(id)) ||
+      any_occurs(bargs, b => b.occurs(id)) ||
+      ks.id.uid() == id.uid() ||
+      k.occurs(id)
+    Invoke(callee, _, vargs, bargs, ks, k) =>
+      callee.occurs(id) ||
+      any_occurs(vargs, e => e.occurs(id)) ||
+      any_occurs(bargs, b => b.occurs(id)) ||
+      ks.id.uid() == id.uid() ||
+      k.occurs(id)
+    If(cond, thn, els) => cond.occurs(id) || thn.occurs(id) || els.occurs(id)
+    Match(scrutinee, clauses, default) =>
+      scrutinee.occurs(id) ||
+      any_occurs(clauses, c => c.occurs(id)) ||
+      stmt_opt_occurs(default, id)
+    LetDef(v, binding, body) =>
+      if v.uid() == id.uid() {
+        false
+      } else {
+        binding.occurs(id) || body.occurs(id)
+      }
+    LetExpr(v, binding, body) =>
+      binding.occurs(id) || (v.uid() != id.uid() && body.occurs(id))
+    LetCont(v, binding, body) =>
+      binding.occurs(id) || (v.uid() != id.uid() && body.occurs(id))
+    ImpureApp(v, callee, vargs, bargs, body) =>
+      callee.uid() == id.uid() ||
+      any_occurs(vargs, e => e.occurs(id)) ||
+      any_occurs(bargs, b => b.occurs(id)) ||
+      (v.uid() != id.uid() && body.occurs(id))
+    Region(v, ks, body) =>
+      ks.id.uid() == id.uid() || (v.uid() != id.uid() && body.occurs(id))
+    Alloc(v, init, region, body) =>
+      init.occurs(id) ||
+      region.uid() == id.uid() ||
+      (v.uid() != id.uid() && body.occurs(id))
+    Var(v, init, ks, body) =>
+      init.occurs(id) ||
+      ks.id.uid() == id.uid() ||
+      (v.uid() != id.uid() && body.occurs(id))
+    Dealloc(reference, body) => reference.uid() == id.uid() || body.occurs(id)
+    Get(reference, v, body) =>
+      reference.uid() == id.uid() || (v.uid() != id.uid() && body.occurs(id))
+    Put(reference, value, body) =>
+      reference.uid() == id.uid() || value.occurs(id) || body.occurs(id)
+    Reset(prog, ks, k) =>
+      prog.occurs(id) || ks.id.uid() == id.uid() || k.occurs(id)
+    Shift(prompt, body, ks, k) =>
+      prompt.uid() == id.uid() ||
+      body.occurs(id) ||
+      ks.id.uid() == id.uid() ||
+      k.occurs(id)
+    Resume(r, body, ks, k) =>
+      r.uid() == id.uid() ||
+      body.occurs(id) ||
+      ks.id.uid() == id.uid() ||
+      k.occurs(id)
+    Hole(_) => false
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Substitutions
 // ---------------------------------------------------------------------------
 

@@ -215,12 +215,13 @@ pub(all) enum DefKind {
   ExternInclude(FeatureFlag, String, String?)
 }
 
+#derive(Eq)
 pub(all) enum Delimiter {
   SingleString
   MultiString
   CharString
   HoleString
-} derive(Eq)
+}
 pub fn Delimiter::allows_escapes(Self) -> Bool
 pub fn Delimiter::allows_interpolation(Self) -> Bool
 pub fn Delimiter::is_multiline(Self) -> Bool
@@ -324,6 +325,7 @@ pub fn Lexer::lex(@util.Source) -> Array[Token]
 pub fn Lexer::new(@util.Source) -> Self
 pub fn Lexer::next(Self) -> Token
 
+#derive(Eq)
 pub(all) enum LexerError {
   InvalidEscapeSequence(String)
   Expected(Char)
@@ -336,7 +338,7 @@ pub(all) enum LexerError {
   InvalidDoubleFormat
   InvalidByteFormat
   UnterminatedInterpolation(Int32)
-} derive(Eq)
+}
 pub fn LexerError::message(Self) -> String
 
 pub(all) enum LiteralValue {
@@ -522,6 +524,7 @@ pub fn Token::is_error(Self) -> Bool
 pub fn Token::new(Int32, Int32, TokenKind) -> Self
 pub impl Show for Token
 
+#derive(Eq)
 pub(all) enum TokenKind {
   TEOF
   TError(LexerError)
@@ -622,7 +625,7 @@ pub(all) enum TokenKind {
   KExport
   KInclude
   KPrivate
-} derive(Eq)
+}
 pub fn TokenKind::explain(Self) -> String
 pub fn TokenKind::is_keyword(Self) -> Bool
 pub fn TokenKind::is_space(Self) -> Bool

@@ -24,3 +24,10 @@ to run a subset). The script keeps a baseline that can only grow.
 Files imported by the corpus (`import examples/pos/lists`, `import mutable/map`,
 …) are resolved with `-I testdata/upstream` and the library's `common` and `js`
 directories, so the directory layout has to stay as it is.
+
+The corpus has to sit on disk with **LF** line endings, which `.gitattributes`
+(`* text=auto eol=lf`) already gives a fresh clone: `wordcount` counts the
+characters of `examples/stdlib/io/filesystem/demo_file1.txt`, so a CRLF working
+tree reports 15 characters where the recorded output has 14. A tree that was
+copied from a Windows checkout instead of being cloned can be normalised by
+deleting `testdata/upstream` and running `git checkout -- testdata/upstream`.
