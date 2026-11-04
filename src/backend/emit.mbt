@@ -61,7 +61,7 @@ pub fn middle_end(
   // `Typer.checkMain` has already rejected ambiguous mains; finding none is the
   // backend's error (upstream `Context.ensureMainExists`). The span is the main
   // module's, so the diagnostic points at the file.
-  let main_sym = find_main(modules)
+  let main_sym = find_main(modules, ctx)
   if main_sym is None {
     ctx.abort(main_module.tree.span, "No main function defined")
   }
@@ -143,16 +143,54 @@ pub fn find_exported(module : @symbols.Module, name : String) -> Sym? {
 ///|
 /// The `main` symbol of the main module.
 ///
-/// Only a *top-level* `main` is an entry point: upstream's `ensureMainExists`
-/// also accepts one inside a namespace, but code generating such a module
-/// currently explodes in `TransformerCps` (the direct-style analysis is
-/// exponential for its continuation nesting), so a namespaced `main` is
-/// reported as missing instead of hanging the compiler.
-pub fn find_main(modules : Array[@namer.ResolvedModule]) -> Sym? {
+/// A `main` inside a namespace (`namespace app` … `def main() = …`) is the entry
+/// point as well: upstream's `ensureMainExists` takes the module's `main`
+/// wherever it is declared, and `Typer.check_main` has already rejected modules
+/// with several of them. Namespaced definitions are not part of a module's
+/// exported bindings (the namer opens a scope for a namespace), so the tree is
+/// walked, exactly like `Typer.check_main` does.
+pub fn find_main(modules : Array[@namer.ResolvedModule], ctx : Context) -> Sym? {
   if modules.length() == 0 {
     return None
   }
-  find_exported(modules[modules.length() - 1].module, main_name())
+  let module = modules[modules.length() - 1]
+  let found : Array[Sym] = []
+  collect_mains(ctx, module.tree.defs, found)
+  match found {
+    [sym] => Some(sym)
+    _ =>
+      // Fall back to the exported binding: a driver that only resolves names
+      // (`resolve`, without `check_main`) still gets its entry point.
+      find_exported(module.module, main_name())
+  }
+}
+
+///|
+/// The `main` functions declared at the top level of `defs` or of one of its
+/// namespaces, in declaration order (the same walk as `Typer.check_main`).
+fn collect_mains(
+  ctx : Context,
+  defs : Array[@source.Def],
+  out : Array[Sym],
+) -> Unit {
+  for d in defs {
+    match d.kind {
+      @source.DefKind::FunDef(id, _, _, _, _, _, _) =>
+        if id.name == main_name() {
+          match ctx.symbol_of(id.uid) {
+            Some(sym) => if !out.contains(sym) { out.push(sym) }
+            None => ()
+          }
+        }
+      _ => ()
+    }
+  }
+  for d in defs {
+    match d.kind {
+      @source.DefKind::NamespaceDef(_, inner) => collect_mains(ctx, inner, out)
+      _ => ()
+    }
+  }
 }
 
 ///|
