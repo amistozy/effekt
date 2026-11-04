@@ -1657,11 +1657,12 @@ fn Namer::resolve_type_param(self : Namer, id : IdDef) -> Sym raise EffektError 
 ///|
 /// How many implicit parameters are allowed at this position.
 /// Mirrors `effekt.util.RequirementLevel`.
+#derive(Eq)
 priv enum RequirementLevel {
   Forbidden
   Optional
   Required
-} derive(Eq)
+}
 
 ///|
 /// Checks that there are no implicit parameters if there shouldn't be (or that

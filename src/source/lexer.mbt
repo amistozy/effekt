@@ -11,13 +11,14 @@
 
 ///|
 /// The different kinds of string-like literals supported by Effekt.
+#derive(Eq)
 pub(all) enum Delimiter {
   //          "...",   """...""",      '...',    <"...">
   SingleString
   MultiString
   CharString
   HoleString
-} derive(Eq)
+}
 
 ///|
 pub fn Delimiter::allows_interpolation(self : Delimiter) -> Bool {

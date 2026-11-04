@@ -174,10 +174,11 @@ pub fn nested_at(indent : Int32, d : Doc) -> Doc {
 
 ///|
 /// The rendering mode of a document under a group.
+#derive(Eq)
 pub(all) enum Mode {
   Flat
   Break
-} derive(Eq)
+}
 
 ///|
 priv struct RenderItem {

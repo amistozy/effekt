@@ -8,6 +8,7 @@
 ///|
 /// Lexing errors. The lexer never throws: it produces an `Error` token, and
 /// the parser decides whether the error is recoverable.
+#derive(Eq)
 pub(all) enum LexerError {
   InvalidEscapeSequence(String)
   Expected(Char)
@@ -20,7 +21,7 @@ pub(all) enum LexerError {
   InvalidDoubleFormat
   InvalidByteFormat
   UnterminatedInterpolation(Int32)
-} derive(Eq)
+}
 
 ///|
 pub fn LexerError::message(self : LexerError) -> String {
@@ -50,6 +51,7 @@ pub fn LexerError::message(self : LexerError) -> String {
 ///|
 /// The kind of a token. Symbol tokens are named after their spelling, keyword
 /// tokens are prefixed with `K`.
+#derive(Eq)
 pub(all) enum TokenKind {
   // control tokens
   TEOF
@@ -156,7 +158,7 @@ pub(all) enum TokenKind {
   KExport
   KInclude
   KPrivate
-} derive(Eq)
+}
 
 ///|
 /// The source text of a symbol token (used for error messages).

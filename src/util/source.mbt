@@ -7,10 +7,11 @@
 ///|
 /// A position in a source file. Lines and columns are 1-based, matching the
 /// convention used by the upstream compiler and by most editors.
+#derive(Eq, Debug)
 pub(all) struct Position {
   line : Int32
   column : Int32
-} derive(Eq, Debug)
+}
 
 ///|
 pub impl Show for Position with fn output(self, logger) {
@@ -135,11 +136,12 @@ pub fn Source::text_between(
 /// - `Synthesized`: the node is not written by the user, but the span points
 ///   at the place where the user *could* have written it.
 /// - `Missing`: no span information available (yet).
+#derive(Eq, Debug)
 pub(all) enum Origin {
   Real
   Synthesized
   Missing
-} derive(Eq, Debug)
+}
 
 ///|
 /// A region of a source file.

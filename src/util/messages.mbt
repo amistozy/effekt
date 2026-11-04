@@ -3,11 +3,12 @@
 // Mirrors `effekt/util/Messages.scala`.
 
 ///|
+#derive(Eq, Debug)
 pub(all) enum Severity {
   Error
   Warning
   Info
-} derive(Eq, Debug)
+}
 
 ///|
 pub impl Show for Severity with fn output(self, logger) {
