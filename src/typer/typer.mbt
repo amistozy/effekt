@@ -644,27 +644,57 @@ fn Typer::lexical_capability(
       None => ()
     }
   }
-  if compatible.length() != 1 {
+  if compatible.length() == 0 {
     return None
   }
+  // Several capabilities of the same effect may be in scope at once (a handler
+  // inside a block that allocates its own). That is not an ambiguity as long as
+  // they all have the same interface type: any of them solves the effect's
+  // arguments. `examples/pos/issue813` needs this — the `with Go[String]`
+  // handler's capability and the one of the enclosing block are both in scope.
+  let first = self.st.u.prune_block(capability_type(compatible[0]).unwrap())
+  for cap in compatible[1:] {
+    let tpe = self.st.u.prune_block(capability_type(cap).unwrap())
+    if !interface_type_equal(first, tpe) {
+      return None
+    }
+  }
   let cap = compatible[0]
-  // Commit the argument constraints (upstream `C.requireSubtype`).
+  self.unify_capability_interface(target, cap)
+  Some(cap)
+}
+
+///|
+/// Unifies the interface arguments of an effect with those of the capability
+/// bound for it (upstream `C.requireSubtype`): `do Go()` performs `Go[?T]`, and
+/// the capability in scope is `Go[String]`, which solves `?T` before the effect
+/// has to be concrete.
+fn Typer::unify_capability_interface(
+  self : Typer,
+  target : BlockType,
+  cap : Sym,
+) -> Unit raise EffektError {
+  let (ctor, args) = match self.st.u.prune_block(target) {
+    @symbols.BlockType::InterfaceType(c, a) => (c, a)
+    _ => return
+  }
   match capability_type(cap) {
     Some(cap_tpe) =>
       match self.st.u.prune_block(cap_tpe) {
-        @symbols.BlockType::InterfaceType(_, args2) =>
-          for i = 0; i < args.length(); i = i + 1 {
-            self.unify_value_types(
-              args[i],
-              args2[i],
-              MergeTypes(args[i], args2[i]),
-            )
+        @symbols.BlockType::InterfaceType(c2, args2) =>
+          if ctor == c2 && args.length() == args2.length() {
+            for i = 0; i < args.length(); i = i + 1 {
+              self.unify_value_types(
+                args[i],
+                args2[i],
+                MergeTypes(self.st.u.prune_value(args[i]), args2[i]),
+              )
+            }
           }
         _ => ()
       }
     None => ()
   }
-  Some(cap)
 }
 
 ///|
