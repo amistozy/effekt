@@ -755,6 +755,32 @@ fn[T] Typer::binding_capabilities(
   caps : Array[Sym],
   f : () -> T raise EffektError,
 ) -> T raise EffektError {
+  self.binding_capability_frame(uid, caps, false, f)
+}
+
+///|
+/// Binds the capabilities of the effects a definition *declares* it performs.
+/// The frame is a `BindDeclared`, not a handler: an implementation created in
+/// the definition's body gets a capability of its own for those effects instead
+/// of capturing the definition's (`pos/issue603/issue603_5`), while the effect
+/// still resolves to the declared one inside the body.
+fn[T] Typer::binding_declared_capabilities(
+  self : Typer,
+  uid : Int32,
+  caps : Array[Sym],
+  f : () -> T raise EffektError,
+) -> T raise EffektError {
+  self.binding_capability_frame(uid, caps, true, f)
+}
+
+///|
+fn[T] Typer::binding_capability_frame(
+  self : Typer,
+  uid : Int32,
+  caps : Array[Sym],
+  declared : Bool,
+  f : () -> T raise EffektError,
+) -> T raise EffektError {
   self.bind_capabilities(uid, caps)
   let map : Map[String, Sym] = Map([])
   for cap in caps {
@@ -767,7 +793,11 @@ fn[T] Typer::binding_capabilities(
     }
   }
   let parent = self.st.cap_scope
-  self.st.cap_scope = BindSome(map, parent)
+  self.st.cap_scope = if declared {
+    BindDeclared(map, parent)
+  } else {
+    BindSome(map, parent)
+  }
   let result = f()
   self.st.cap_scope = parent
   result
@@ -1494,9 +1524,11 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
                   // which is what makes an unannotated effect of a local `def`
                   // visible to an enclosing handler (see the `stop` and `fail`
                   // loops of the standard library).
-                  let res = self.binding_capabilities(d.uid, capabilities, () => {
-                    self.check_stmt(body, Some(ret_t))
-                  })
+                  let res = self.binding_declared_capabilities(
+                    d.uid,
+                    capabilities,
+                    () => self.check_stmt(body, Some(ret_t)),
+                  )
                   self.annotate_value(d.uid, res.tpe)
                   self.annotate_effects(d.uid, res.effs)
                   let filter = cps +

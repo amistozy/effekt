@@ -29,11 +29,16 @@ pub fn value_type_key(t : ValueType) -> String {
 ///|
 /// The capability scope: a stack of frames.
 ///   - `BindSome` fixes the capabilities for a set of effects (a `try ... with`
-///     or an annotated function).
+///     or an object / block literal that handles them).
+///   - `BindDeclared` fixes the capabilities for the *declared* effects of a
+///     definition. They are not handlers: a use of the effect inside the
+///     definition still escapes it, and an implementation created in the body
+///     must not capture them (`pos/issue603/issue603_5`).
 ///   - `BindAll` hands out fresh capabilities on demand (an unannotated
 ///     function: all effects it performs are handled by itself).
 pub(all) enum CapScope {
   GlobalCap
+  BindDeclared(Map[String, Sym], CapScope)
   BindSome(Map[String, Sym], CapScope)
   BindAll(Map[String, Sym], CapScope)
 }
@@ -42,6 +47,7 @@ pub(all) enum CapScope {
 pub fn CapScope::parent(self : CapScope) -> CapScope {
   match self {
     GlobalCap => GlobalCap
+    BindDeclared(_, p) => p
     BindSome(_, p) => p
     BindAll(_, p) => p
   }
@@ -55,7 +61,9 @@ pub fn CapScope::all_capabilities(self : CapScope) -> Array[Sym] {
   while !scope.is_global() {
     match scope {
       GlobalCap => scope = GlobalCap
-      BindSome(caps, parent) | BindAll(caps, parent) => {
+      BindDeclared(caps, parent)
+      | BindSome(caps, parent)
+      | BindAll(caps, parent) => {
         for _, cap in caps {
           out.push(cap)
         }
@@ -90,13 +98,35 @@ pub fn CapScope::capability_for_matching(
 }
 
 ///|
+/// The capability an enclosing *handler* bound explicitly for `tpe` (a
+/// `BindSome` frame). `BindAll` and `BindDeclared` frames are skipped on
+/// purpose: `BindAll` hands out fresh capabilities on demand, and `BindDeclared`
+/// only models the effects a definition promises to perform, so reusing one
+/// would make an implementation capture a capability that the enclosing context
+/// does not actually provide (`pos/issue603/issue603_5`: an object whose
+/// operation performs the function's own declared effect must not capture it).
+pub fn CapScope::bound_capability_for(self : CapScope, tpe : BlockType) -> Sym? {
+  let key = interface_key(tpe)
+  match self {
+    GlobalCap => None
+    BindSome(caps, parent) =>
+      match caps.get(key) {
+        Some(cap) => Some(cap)
+        None => parent.bound_capability_for(tpe)
+      }
+    BindDeclared(_, parent) => parent.bound_capability_for(tpe)
+    BindAll(_caps, parent) => parent.bound_capability_for(tpe)
+  }
+}
+
+///|
 /// Looks up (or, in a `BindAll` frame, creates) the capability for an effect.
 /// Fails for `GlobalCap`, which is the "no handler in scope" case.
 pub fn CapScope::capability_for(self : CapScope, tpe : BlockType) -> Sym? {
   let key = interface_key(tpe)
   match self {
     GlobalCap => None
-    BindSome(caps, parent) =>
+    BindDeclared(caps, parent) | BindSome(caps, parent) =>
       match caps.get(key) {
         Some(cap) => Some(cap)
         None => parent.capability_for(tpe)
@@ -144,7 +174,9 @@ pub fn CapScope::relevant_in_scope_for(
       let mut scope = self
       while !scope.is_global() {
         match scope {
-          BindSome(caps, parent) | BindAll(caps, parent) => {
+          BindDeclared(caps, parent)
+          | BindSome(caps, parent)
+          | BindAll(caps, parent) => {
             for _, cap in caps {
               match cap_type(cap) {
                 Some(@symbols.BlockType::InterfaceType(other, _)) =>

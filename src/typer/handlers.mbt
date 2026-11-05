@@ -637,7 +637,21 @@ fn Typer::check_op_clause(
         .zip(cparams_for_effects)
         .map(pair => {
           let (t, c) = pair
-          self.fresh_capability_for(t, c)
+          // An enclosing handler may already provide a capability for this
+          // effect (`new Bi { … }` inside `with s: simple`, where `Bi`'s
+          // operation is declared `/ { simple }`). The object then *uses* that
+          // capability — and therefore captures it — instead of inventing a
+          // private one, which is what makes its type `Bi at {s}` (upstream
+          // `TryLexicalCapabilityFor`, see `neg/issue603`).
+          match self.st.cap_scope.bound_capability_for(t) {
+            Some(cap) => {
+              self.using_capture(
+                @symbols.Captures::CaptureSetOf([capture_of_capability(cap)]),
+              )
+              cap
+            }
+            None => self.fresh_capability_for(t, c)
+          }
         })
       let body_region = @symbols.Captures::CaptVar(
         self.fresh_capt_var("opclause"),

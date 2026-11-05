@@ -72,10 +72,12 @@ pub struct CallLike {
 
 pub(all) enum CapScope {
   GlobalCap
+  BindDeclared(Map[String, @symbols.Sym], CapScope)
   BindSome(Map[String, @symbols.Sym], CapScope)
   BindAll(Map[String, @symbols.Sym], CapScope)
 }
 pub fn CapScope::all_capabilities(Self) -> Array[@symbols.Sym]
+pub fn CapScope::bound_capability_for(Self, @symbols.BlockType) -> @symbols.Sym?
 pub fn CapScope::capability_for(Self, @symbols.BlockType) -> @symbols.Sym?
 pub fn CapScope::capability_for_matching(Self, @symbols.BlockType, (@symbols.BlockType) -> @symbols.BlockType) -> @symbols.Sym?
 pub fn CapScope::is_global(Self) -> Bool
