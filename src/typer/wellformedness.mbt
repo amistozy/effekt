@@ -370,18 +370,29 @@ fn Typer::wf_pattern_existentials(
   match pattern.kind {
     @source.PatternKind::TagPattern(id, patterns) => {
       let out : Array[Sym] = []
-      match self.ctx.symbol_of(id.uid) {
-        Some(sym) => {
-          let all = constructor_tparams(sym)
-          let universals = match datatype_tparams(sym) {
-            Some(ts) => ts.length()
-            None => 0
+      // The type checker already decided which existential parameters this
+      // occurrence binds (they are fresh per pattern, see
+      // `Typer::check_pattern_kind`); recomputing them from the constructor
+      // would give the shared ones and miss the ones the inferred types mention.
+      match self.ctx.pattern_existentials_of(pattern.uid) {
+        Some(fresh) =>
+          for sym in fresh {
+            push_new(out, [sym])
           }
-          for i = universals; i < all.length(); i = i + 1 {
-            push_new(out, [all[i]])
+        None =>
+          match self.ctx.symbol_of(id.uid) {
+            Some(sym) => {
+              let all = constructor_tparams(sym)
+              let universals = match datatype_tparams(sym) {
+                Some(ts) => ts.length()
+                None => 0
+              }
+              for i = universals; i < all.length(); i = i + 1 {
+                push_new(out, [all[i]])
+              }
+            }
+            None => ()
           }
-        }
-        None => ()
       }
       for p in patterns {
         push_new(out, self.wf_pattern_existentials(p))

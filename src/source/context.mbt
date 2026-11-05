@@ -50,6 +50,11 @@ pub(all) struct Context {
   capability_arguments : Map[Int32, Array[Sym]]
   /// Type arguments to be inserted at a call site.
   type_arguments : Map[Int32, Array[ValueType]]
+  /// The existential type parameters a constructor pattern binds, keyed by the
+  /// pattern's uid. Each occurrence needs its *own* fresh parameters (a
+  /// constructor's `Op[Z]` is shared by all its uses), so the wellformedness
+  /// check cannot recompute them from the constructor and reads them here.
+  pattern_existentials : Map[Int32, Array[Sym]]
   /// The lexical scope at a call site. The namer records it so that the type
   /// checker can resolve name-based implicit arguments, which is the only
   /// phase that needs to look a name up without an `IdRef`.
@@ -90,6 +95,7 @@ pub fn Context::new(config : Config) -> Context {
     capability_receiver: Map([]),
     capability_arguments: Map([]),
     type_arguments: Map([]),
+    pattern_existentials: Map([]),
     call_scopes: Map([]),
     call_imports: Map([]),
     effekt_externs: Map([]),
@@ -445,6 +451,23 @@ pub fn Context::type_arguments_of(
   uid : Int32,
 ) -> Array[ValueType] {
   self.type_arguments.get(uid).unwrap_or([])
+}
+
+///|
+pub fn Context::assign_pattern_existentials(
+  self : Context,
+  uid : Int32,
+  params : Array[Sym],
+) -> Unit {
+  self.pattern_existentials.set(uid, params)
+}
+
+///|
+pub fn Context::pattern_existentials_of(
+  self : Context,
+  uid : Int32,
+) -> Array[Sym]? {
+  self.pattern_existentials.get(uid)
 }
 
 // Diagnostics access

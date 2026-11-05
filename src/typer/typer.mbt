@@ -2279,8 +2279,22 @@ fn Typer::check_pattern_kind(
       let targs : Array[ValueType] = universals.map(t => {
         @symbols.ValueType::ValueTypeRef(self.fresh_type_var(t))
       })
+      let fresh_existentials : Array[Sym] = []
       for e in existentials {
-        targs.push(@symbols.ValueType::ValueTypeRef(e))
+        // Every occurrence of a constructor pattern binds its own existentials:
+        // the constructor's type parameters (`Op[Z]` in `type Exists { Op[Z] }`)
+        // are shared by all its uses, so reusing them here would make two
+        // patterns of the same match mention the same `Z`, and combining their
+        // payloads would type check (`neg/exists_fresh`). The fresh symbol is a
+        // type parameter, not a unification variable, so it stays rigid.
+        let fresh = Sym::type_param(e.name(), pattern.span)
+        fresh_existentials.push(fresh)
+        targs.push(@symbols.ValueType::ValueTypeRef(fresh))
+      }
+      if fresh_existentials.length() > 0 {
+        // The wellformedness pass scopes exactly these parameters over the
+        // clause body, so it has to know the fresh symbols.
+        self.ctx.assign_pattern_existentials(pattern.uid, fresh_existentials)
       }
       let ctor_type = match sym.annotated_type() {
         Some(t) => t
