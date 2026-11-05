@@ -90,8 +90,18 @@ namespace internal {
       function onEnd()      { cleanup(); callback(0); }
       function onError(err) { cleanup(); callback(-(err.errno || 1)); }
       function tryRead() {
-        const chunk = socket.read(size);
-        if (chunk !== null) { chunk.copy(toBuffer(buffer), offset); callback(chunk.length); return; }
+        // `socket.read(n)` only returns once `n` bytes are buffered, but the
+        // peer may have sent fewer and then wait for an answer (the streaming
+        // protocol is chunk based: `streaming.effekt` sends 4 bytes and expects
+        // the echo). Read whatever has arrived instead, and report its length —
+        // the caller resizes the buffer to it.
+        const available = socket.readableLength;
+        if (available > 0) {
+          const chunk = socket.read(Math.min(size, available));
+          chunk.copy(toBuffer(buffer), offset);
+          callback(chunk.length);
+          return;
+        }
         if (socket.readableEnded) { callback(0); return; }
         socket.once('readable', onReadable);
         socket.once('end',      onEnd);
@@ -140,7 +150,14 @@ namespace internal {
       const entry = tcp$handles.get(listenerHandle);
       if (!entry || !entry.server) { callback($effekt.unit); return; }
       tcp$free(listenerHandle);
-      entry.server.close(() => callback($effekt.unit));
+      // `server.close(cb)` only calls back once every open connection has
+      // ended, but `shutdown` is called from the handler of a connection that
+      // is still being served (`streaming.effekt` closes the listener first and
+      // then talks on the connection), so waiting for it deadlocks the handler
+      // and the peer waits forever. Upstream's `.check` files are recorded with
+      // a backend whose `shutdown` returns immediately; this one does too.
+      entry.server.close(() => {});
+      callback($effekt.unit);
     }
   """
 
