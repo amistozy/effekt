@@ -472,7 +472,35 @@ fn Typer::wf_def(self : Typer, d : Def, scope : WFScope) -> Unit {
         None => ()
       }
     }
-    @source.DefKind::RegDef(_, _, _, init) => self.wf_stmt(init, scope)
+    @source.DefKind::RegDef(id, _, _, init) => {
+      // The variable is allocated in a region, and the type inferred for it can
+      // still be refined by assignments inside narrower scopes (an assignment
+      // to `k` inside `try … with tick` adds the capability to the capture set
+      // of `k`'s type). The region's capture has to cover everything the
+      // variable's type mentions; upstream reports this at the definition.
+      match self.ctx.symbol_of(id.uid) {
+        Some(sym) =>
+          match self.ctx.value_type_of(sym.uid()) {
+            Some(tpe) => {
+              self.wf_check(
+                tpe,
+                d.span,
+                scope,
+                " inferred as type of region-allocated variable",
+              )
+              self.wf_check_types(
+                tpe,
+                d.span,
+                scope,
+                " inferred as type of region-allocated variable",
+              )
+            }
+            None => ()
+          }
+        None => ()
+      }
+      self.wf_stmt(init, scope)
+    }
     @source.DefKind::ValDef(_, _, body) => self.wf_stmt(body, scope)
     @source.DefKind::VarDef(_, _, body) => self.wf_stmt(body, scope)
     @source.DefKind::DefDef(_, _, _, body) => self.wf_term(body, scope)
