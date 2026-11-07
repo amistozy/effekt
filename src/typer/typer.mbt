@@ -2700,8 +2700,19 @@ pub fn Typer::join(
     ignore(span)
     match result {
       None => result = Some(tpe)
-      Some(acc) =>
-        result = Some(self.merge_value_types(acc, tpe, MergeTypes(acc, tpe)))
+      Some(acc) => {
+        // A mismatch between two arms is reported by the merge itself (upstream
+        // reports it as an abort, but its recorded corpus output for
+        // `examples/neg/inference` contains diagnostics from *later*
+        // definitions, so type checking demonstrably continues). Keep the arm's
+        // own type as the join: the diagnostic is out, and the remaining
+        // definitions are still checked instead of losing their diagnostics.
+        let merged = self.merge_value_types(acc, tpe, MergeTypes(acc, tpe)) catch {
+          EffektError::Fatal(_) => tpe
+          EffektError::Internal(m) => raise EffektError::Internal(m)
+        }
+        result = Some(merged)
+      }
     }
   }
   match result {
