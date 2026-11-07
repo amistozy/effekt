@@ -14,9 +14,9 @@ so what compiles here is the whole language, not a subset of it.
 
 **Status.** Every one of the **392** compiling-and-running programs of the
 Effekt repository's own test corpus prints exactly what upstream recorded, and
-**168 of the 170** programs that have to be rejected are rejected at the expected
-line (81 of those with a different message). The whole standard library
-compiles. The remaining differences are listed under [Differences from
+**all 170** programs that have to be rejected are rejected at the expected line
+(82 of them with a different message). The whole standard library compiles. The
+remaining differences are listed under [Differences from
 upstream](#differences-from-upstream).
 
 ## Quick start
@@ -192,11 +192,11 @@ These are deliberate, and documented at the point of use in the sources:
   inferred properly; capture sets use a simplified constraint solver, so the
   capture information that reaches the backends is coarser than upstream's. The
   escape checks of `Wellformedness` run on the checked tree (a region, a block
-  literal, an operation clause and a handler each check the inferred type of
-  their body against their own binders). Both escapes are reported: a capture
-  the binder drops (`Capture X escapes through type …`), and a type parameter of
-  an existential pattern or of a higher-rank block that would leave its scope
-  (`Type A escapes through type …`).
+  literal, an operation clause, a handler and a region-allocated variable each
+  check the inferred type against their own binders). Both escapes are reported:
+  a capture the binder drops (`Capture X escapes through type …`), and a type
+  parameter of an existential pattern or of a higher-rank block that would leave
+  its scope (`Type A escapes through type …`).
 - **Dead code elimination is partial.** `core/optimizer/Deadcode` (and the
   `Reachable` analysis behind it) is ported and runs where upstream runs it,
   between `Aggregate` and `core.Show`, so unreachable functions, constructors,
