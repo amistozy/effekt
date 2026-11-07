@@ -358,7 +358,7 @@ fn operation_interface(sym : Sym) -> Sym {
 /// The type a constructor constructs, rendered for diagnostics.
 fn constructor_type_text(sym : Sym) -> String {
   match sym {
-    @symbols.Sym::Constructor(c) => c.tpe.name().qualified_name()
+    @symbols.Sym::Constructor(c) => c.tpe.name().name
     _ => "?"
   }
 }

@@ -301,14 +301,13 @@ pub fn Unification::propagate(self : Unification) -> String? {
   // consistency of all nodes
   for uid, lo in self.lower {
     match self.upper.get(uid) {
-      Some(up) =>
-        for c in lo {
-          if !up.contains(c) {
-            return Some(
-              "Capture \{c.name().name} is not allowed in the inferred capture set",
-            )
-          }
+      Some(up) => {
+        let diff = lo.filter(c => !up.contains(c))
+        if diff.length() > 0 {
+          // Upstream's `Constraints.checkConsistency`.
+          return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
         }
+      }
       None => ()
     }
   }
@@ -325,23 +324,20 @@ pub fn Unification::require_lower(
   match self.capts.get(x.uid()) {
     Some(sol) => {
       let solved = sol.to_array()
-      for c in bounds {
-        if !solved.contains(c) {
-          return Some("Capture \{c.name().name} is not included in \{sol}")
-        }
+      let diff = bounds.filter(c => !solved.contains(c))
+      if diff.length() > 0 {
+        return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
       }
       None
     }
     None => {
       match self.upper.get(x.uid()) {
-        Some(up) =>
-          for c in bounds {
-            if !up.contains(c) {
-              return Some(
-                "Used capture \{c.name().name} is not in the allowed set {\{up.map(s => s.name().name).join(", ")}}",
-              )
-            }
+        Some(up) => {
+          let diff = bounds.filter(c => !up.contains(c))
+          if diff.length() > 0 {
+            return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
           }
+        }
         None => ()
       }
       let current = self.lower_of(x.uid())
@@ -367,25 +363,20 @@ pub fn Unification::require_upper(
   match self.capts.get(x.uid()) {
     Some(sol) => {
       let solved = sol.to_array()
-      for c in solved {
-        if !bounds.contains(c) {
-          return Some(
-            "Used capture \{c.name().name} is not in the allowed set {\{bounds.map(s => s.name().name).join(", ")}}",
-          )
-        }
+      let diff = solved.filter(c => !bounds.contains(c))
+      if diff.length() > 0 {
+        return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
       }
       None
     }
     None => {
       match self.lower.get(x.uid()) {
-        Some(lo) =>
-          for c in lo {
-            if !bounds.contains(c) {
-              return Some(
-                "Used capture \{c.name().name} is not in the allowed set {\{bounds.map(s => s.name().name).join(", ")}}",
-              )
-            }
+        Some(lo) => {
+          let diff = lo.filter(c => !bounds.contains(c))
+          if diff.length() > 0 {
+            return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
           }
+        }
         None => ()
       }
       match self.upper.get(x.uid()) {
@@ -408,14 +399,12 @@ pub fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
   }
   let bounds = self.lower_of(x.uid())
   match self.upper.get(x.uid()) {
-    Some(up) =>
-      for c in bounds {
-        if !up.contains(c) {
-          return Some(
-            "Used capture \{c.name().name} is not in the allowed set {\{up.map(s => s.name().name).join(", ")}}",
-          )
-        }
+    Some(up) => {
+      let diff = bounds.filter(c => !up.contains(c))
+      if diff.length() > 0 {
+        return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
       }
+    }
     None => ()
   }
   self.capts.set(x.uid(), @symbols.Captures::CaptureSetOf(bounds))

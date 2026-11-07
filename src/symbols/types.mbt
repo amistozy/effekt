@@ -286,25 +286,30 @@ pub impl Eq for Effects with fn equal(self, other) {
 }
 
 ///|
+/// The surface rendering of a type, mirroring upstream's `TypePrinter.toDoc`.
+///
+/// Type constructors print their *local* name: a `QualifiedName` only matters
+/// where a bare `Name` is interpolated (e.g. "Possible overload:
+/// effekt::infixPlus …"), not inside a type.
 fn show_type_application(name : Name, args : Array[ValueType]) -> String {
   if args.length() == 0 {
-    name.qualified_name()
+    name.name
   } else {
     let rendered = args.map(a => "\{a}")
-    "\{name.qualified_name()}[\{rendered.join(", ")}]"
+    "\{name.name}[\{rendered.join(", ")}]"
   }
 }
 
 ///|
-/// Effekt surface syntax, qualified and on one line: this is what diagnostics
-/// print. It is not what `--show-core` prints — that is `@core.pretty`, which
-/// lays out a whole module through `Doc` at a fixed width.
+/// Effekt surface syntax, on one line: this is what diagnostics print. It is not
+/// what `--show-core` prints — that is `@core.pretty`, which lays out a whole
+/// module through `Doc` at a fixed width.
 pub impl Show for ValueType with fn output(self, logger) {
   match self {
-    ValueTypeRef(s) => logger.write_string(s.name().qualified_name())
+    ValueTypeRef(s) => logger.write_string(s.name().name)
     ValueTypeApp(c, args) =>
       logger.write_string(show_type_application(c.name(), args))
-    BoxedType(b, c) => logger.write_string("box \{b} at \{c}")
+    BoxedType(b, c) => logger.write_string("\{b} at \{c}")
   }
 }
 
@@ -313,18 +318,50 @@ pub impl Show for BlockType with fn output(self, logger) {
   match self {
     InterfaceType(c, args) =>
       logger.write_string(show_type_application(c.name(), args))
-    FunctionType(_, _, vps, bps, ret, effs) => {
-      let args : Array[String] = vps.map(v => "\{v}")
-      for b in bps {
-        args.push("{\{b}}")
+    FunctionType(tparams, _, vps, bps, ret, effs) => {
+      // Upstream's `TypePrinter.toDoc(FunctionType)`: a single value parameter
+      // prints without parentheses unless the function binds type parameters, a
+      // boxed parameter is always parenthesized, and the effect set is only
+      // shown when it is not empty.
+      let params = if vps.length() == 0 && bps.length() == 0 {
+        "()"
+      } else if bps.length() == 0 &&
+        vps.length() == 1 &&
+        vps[0] is BoxedType(_, _) {
+        "(\{vps[0]})"
+      } else if bps.length() == 0 && vps.length() == 1 {
+        if tparams.length() == 0 {
+          "\{vps[0]}"
+        } else {
+          "(\{vps[0]})"
+        }
+      } else {
+        let value_params = if vps.length() == 0 {
+          ""
+        } else {
+          "(\{vps.map(v => "\{v}").join(", ")})"
+        }
+        let block_params = bps.map(b => "{\{b}}").join("")
+        "\{value_params}\{block_params}"
       }
-      logger.write_string("(\{args.join(", ")} => \{ret} / \{effs})")
+      let result = match ret {
+        BoxedType(_, _) => "(\{ret})"
+        _ => "\{ret}"
+      }
+      let type_params = if tparams.length() == 0 {
+        ""
+      } else {
+        "[\{tparams.map(t => t.name().name).join(", ")}]"
+      }
+      let effect = if effs.is_empty() { "" } else { " / \{effs}" }
+      logger.write_string("\{type_params}\{params} => \{result}\{effect}")
     }
   }
 }
 
 ///|
 pub impl Show for Effects with fn output(self, logger) {
+  // Upstream: `braces(space <> hsep(effects, comma) <> space)`, i.e. `{ io }`.
   let names = self.distinct().effects.map(e => "\{e}")
-  logger.write_string("{\{names.join(", ")}}")
+  logger.write_string("{ \{names.join(", ")} }")
 }

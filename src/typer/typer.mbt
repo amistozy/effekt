@@ -145,8 +145,11 @@ pub struct Typer {
   /// `muted_messages`; used to try overload candidates without side effects.
   mut muting : Bool
   mut muted_error : Bool
-  /// The diagnostics that were suppressed while trying an overload candidate.
-  mut muted_messages : Array[String]
+  /// The diagnostics that were suppressed while trying an overload candidate,
+  /// with the span they were reported at: when the only candidate of a call
+  /// fails, upstream reports them where they belong instead of folding them into
+  /// the call's message (`Context.abortWith`).
+  mut muted_messages : Array[(Span, String)]
   /// The hints that were suppressed while trying an overload candidate. They
   /// are replayed when the candidate is chosen: a hint that only a rejected
   /// candidate produced would point at code that type checks otherwise.
@@ -192,20 +195,10 @@ pub fn Typer::new(ctx : Context) -> Typer {
 // ---------------------------------------------------------------------------
 
 ///|
-/// Renders a span for a muted diagnostic.
-fn render_span(span : Span) -> String {
-  if span.origin == @util.Origin::Missing {
-    ""
-  } else {
-    "\{span.source.name}:\{span.position().line}:\{span.position().column}: "
-  }
-}
-
-///|
 fn Typer::error(self : Typer, span : Span, msg : String) -> Unit {
   if self.muting {
     self.muted_error = true
-    self.muted_messages.push(render_span(span) + msg)
+    self.muted_messages.push((span, msg))
   } else {
     self.ctx.error(span, msg)
   }
@@ -243,7 +236,7 @@ fn[T] Typer::abort(
 ) -> T raise EffektError {
   if self.muting {
     self.muted_error = true
-    self.muted_messages.push(render_span(span) + msg)
+    self.muted_messages.push((span, msg))
   } else {
     self.ctx.error(span, msg)
   }
@@ -254,7 +247,7 @@ fn[T] Typer::abort(
 fn[T] Typer::panic(self : Typer, msg : String) -> T raise EffektError {
   if self.muting {
     self.muted_error = true
-    self.muted_messages.push(msg)
+    self.muted_messages.push((self.focus, msg))
   } else {
     self.ctx.info("Internal compiler error: \{msg}")
   }
@@ -397,7 +390,17 @@ pub fn Typer::lookup_block(
           match self.ctx.block_type_of(s.uid()) {
             Some(t) => t
             None =>
-              self.abort(s.decl(), "Cannot find type for \{s.name().name}.")
+              if s.name().name == "resume" {
+                // Upstream `lookupFunctionType`: `resume` has no type outside a
+                // `try … with`, most commonly because the object literal that
+                // contains it is not an operation clause.
+                self.abort(
+                  self.focus,
+                  "Cannot find `resume`. Maybe you are trying to resume inside of an object literal and not as part of `try { ... } with ...`?",
+                )
+              } else {
+                self.abort(s.decl(), "Cannot find type for \{s.name().name}.")
+              }
           }
       }
   }
@@ -1276,7 +1279,7 @@ pub fn Typer::check_main(
   let mains : Array[Sym] = []
   collect_mains(self.ctx, module.defs, mains)
   if mains.length() > 1 {
-    let names = mains.map(s => s.name().qualified_name()).join(", ")
+    let names = mains.map(s => s.name().name).join(", ")
     self.abort(module.span, "Multiple main functions defined: \{names}")
   }
   if mains.length() == 1 {
@@ -2382,13 +2385,29 @@ pub(all) enum ErrCtx {
 ///|
 fn explain_mismatch(left : String, right : String, ctx : ErrCtx) -> String {
   match ctx {
-    Expected(_, _) =>
-      (
-        $|Expected type
-        $|  \{right}
-        $|but got type
-        $|  \{left}
-      )
+    Expected(got, exp) => {
+      // Upstream renders the two types of the *whole* comparison and uses the
+      // short form when they add up to fewer than 25 characters; when the
+      // mismatch was found in a component of them, the component is named
+      // afterwards (`ErrorContext.explainMismatch`).
+      let got_text = "\{got}"
+      let exp_text = "\{exp}"
+      let msg = if exp_text.length() + got_text.length() < 25 {
+        "Expected \{exp_text} but got \{got_text}."
+      } else {
+        (
+          $|Expected type
+          $|  \{exp_text}
+          $|but got type
+          $|  \{got_text}
+        )
+      }
+      if left != got_text || right != exp_text {
+        "\{msg}\n\nType mismatch between \{right} and \{left}."
+      } else {
+        msg
+      }
+    }
     MergeTypes(_, _) =>
       (
         $|Different arms of a conditional/match have incompatible types.
@@ -2777,10 +2796,9 @@ pub fn Typer::merge_value_types(
       @symbols.ValueType::ValueTypeApp(c2, args2),
     ) => {
       if !(c1 == c2) {
-        self.abort(
-          self.focus,
-          "Cannot merge different constructors: \{old} vs. \{new}",
-        )
+        // `MergeTypes` explains this as incompatible arms of an `if`/`match`,
+        // which is the only context `join` passes in.
+        self.abort(self.focus, explain_mismatch("\{old}", "\{new}", ctx))
       }
       for i = 0; i < args1.length() && i < args2.length(); i = i + 1 {
         self.unify_value_types(args1[i], args2[i], ctx)
@@ -2795,7 +2813,7 @@ pub fn Typer::merge_value_types(
       self.unify_captures(c1, c2, ctx)
       old
     }
-    _ => self.abort(self.focus, "Cannot merge \{old} with \{new}")
+    _ => self.abort(self.focus, explain_mismatch("\{old}", "\{new}", ctx))
   }
 }
 

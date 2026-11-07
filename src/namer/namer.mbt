@@ -1574,7 +1574,7 @@ fn Namer::resolve_implementation(
       None => {
         self.context.abort(
           clause.span,
-          "Operation \{id_text(clause.id)} is not part of interface \{eff.name().qualified_name()}.",
+          "Operation \{id_text(clause.id)} is not part of interface \{eff.name().name}.",
         )
         @symbols.Sym::wildcard()
       }
@@ -1835,7 +1835,7 @@ fn Namer::resolve_function_calltarget(
         for op in ops {
           self.context.info_at(
             id.span,
-            "There is an equally named effect operation \{op.name().qualified_name()} of interface \{operation_interface(op).name().qualified_name()}. Use syntax `do \{id_text(id)}()` to call it.",
+            "There is an equally named effect operation \{op.name().name} of interface \{operation_interface(op).name().name}. Use syntax `do \{id_text(id)}()` to call it.",
           )
         }
         // Always abort with the generic message.
@@ -2071,12 +2071,12 @@ fn Namer::resolve_value_type(
             } else {
               self.context.error(
                 t.span,
-                "Expected value type, but got block type \{sym.name().qualified_name()}.",
+                "Expected value type, but got block type \{sym.name().name}.",
               )
               if sym.is_block_type_constructor() {
                 self.context.info_at(
                   t.span,
-                  "Did you mean to box the interface \{sym.name().qualified_name()}, i.e. `\{sym.name().qualified_name()} at {}`?",
+                  "Did you mean to box the interface \{sym.name().name}, i.e. `\{sym.name().name} at {}`?",
                 )
               }
               // Dummy value type in order to aggregate more errors.
@@ -2283,7 +2283,7 @@ fn Namer::resolve_with_aliases(
           } else {
             self.context.error(
               tpe.span,
-              "Expected an interface type, but got value type \{sym.name().qualified_name()}.",
+              "Expected an interface type, but got value type \{sym.name().name}.",
             )
             // Dummy interface type in order to aggregate more errors.
             [
@@ -2445,8 +2445,8 @@ fn describe_type(t : TypeTree) -> String {
     @source.FunctionType(_, _, _, _, _) =>
       "a second-class function type \{tree_text(t)}"
     @source.Effectful(_, _) => "a type-and-effect annotation \{tree_text(t)}"
-    @source.ValueTypeTree(tpe) => "a value type tree \{value_type_text(tpe)}"
-    @source.BlockTypeTree(eff) => "a block type tree \{block_type_text(eff)}"
+    @source.ValueTypeTree(tpe) => "a value type tree \{tpe}"
+    @source.BlockTypeTree(eff) => "a block type tree \{eff}"
   }
 }
 
@@ -2459,34 +2459,5 @@ fn pretty_source_effect_set(effects : Array[TypeTree]) -> String {
     texts[0]
   } else {
     "{\{texts.join(", ")}}"
-  }
-}
-
-///|
-/// Renders a resolved value type for diagnostics.
-fn value_type_text(tpe : ValueType) -> String {
-  match tpe {
-    @symbols.ValueTypeRef(x) => x.name().qualified_name()
-    @symbols.ValueTypeApp(ctor, args) =>
-      if args.length() == 0 {
-        ctor.name().qualified_name()
-      } else {
-        "\{ctor.name().qualified_name()}[\{args.map(a => value_type_text(a)).join(", ")}]"
-      }
-    @symbols.BoxedType(inner, _) => "(\{block_type_text(inner)} at {...})"
-  }
-}
-
-///|
-/// Renders a resolved block type for diagnostics.
-fn block_type_text(tpe : BlockType) -> String {
-  match tpe {
-    @symbols.InterfaceType(ctor, args) =>
-      if args.length() == 0 {
-        ctor.name().qualified_name()
-      } else {
-        "\{ctor.name().qualified_name()}[\{args.map(a => value_type_text(a)).join(", ")}]"
-      }
-    @symbols.FunctionType(_, _, _, _, _, _) => "<function type>"
   }
 }

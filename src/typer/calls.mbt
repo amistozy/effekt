@@ -331,13 +331,13 @@ fn Typer::try_candidates(
   run : (Sym) -> TyRes[ValueType] raise EffektError,
 ) -> (
   Array[(Sym, TyRes[ValueType], TyperState, Array[(Span, String)])],
-  Array[(Sym, String)],
+  Array[(Sym, String, Array[(Span, String)])],
 ) {
   let before = self.st.backup()
   let successes : Array[
     (Sym, TyRes[ValueType], TyperState, Array[(Span, String)]),
   ] = []
-  let failures : Array[(Sym, String)] = []
+  let failures : Array[(Sym, String, Array[(Span, String)])] = []
   // With a single candidate there is nothing to backtrack: upstream calls
   // `checkCallTo` directly, so the diagnostics of that (only) candidate —
   // including its hints — are reported instead of being buffered.
@@ -370,12 +370,12 @@ fn Typer::try_candidates(
     self.muted_messages = messages_before
     self.muted_infos = infos_before
 
-    let recorded = if err != "" { err } else { muted.join("; ") }
+    let recorded = if err != "" { err } else { muted.map(m => m.1).join("; ") }
     let final = if recorded == "" { "Type error" } else { recorded }
     match res {
       Some(r) =>
         if failed {
-          failures.push((c, final))
+          failures.push((c, final, muted))
           if alone {
             self.replay_infos(infos)
           }
@@ -383,7 +383,7 @@ fn Typer::try_candidates(
           successes.push((c, r, after, infos))
         }
       None => {
-        failures.push((c, final))
+        failures.push((c, final, muted))
         if alone {
           self.replay_infos(infos)
         }
@@ -452,7 +452,7 @@ pub fn Typer::check_overloaded_function_call(
         [[sym]]
       }
   }
-  let all_failures : Array[(Sym, String)] = []
+  let all_failures : Array[(Sym, String, Array[(Span, String)])] = []
   for candidates in scopes {
     // a scope is a *set* of candidates (upstream `Bindings.terms` is a Set):
     // the same symbol can be bound under several paths of the same scope
@@ -503,9 +503,11 @@ pub fn Typer::check_overloaded_function_call(
           let (sym, _, _, _) = s
           "\{sym.name().qualified_name()}"
         })
+        // Upstream reports an `ImplicitInstantiationError`, whose title is the
+        // first line; the details follow below it.
         self.abort(
           call.span,
-          "Cannot instantiate the implicit argument \{call.name}: the overload is ambiguous. Could be: \{names.join(", ")}.",
+          "Cannot instantiate implicit argument.\nThe implicit argument \{call.name} is ambiguous. Could be: \{names.join(", ")}.",
         )
       }
       // Same scope, several candidates typecheck. Upstream reports an
@@ -524,11 +526,12 @@ pub fn Typer::check_overloaded_function_call(
       }
       let names : Array[String] = best.map(s => {
         let (s, _, _, _) = s
-        "\{self.lookup_block(s)}"
+        "- \{s.name().qualified_name()}: \{self.lookup_block(s)}"
       })
+      // Upstream's `AmbiguousOverloadError`.
       self.abort(
         call.span,
-        "Ambiguous reference to \{call.name}. Could be: \{names.join(", ")}.",
+        "Ambiguous overload.\nThere are multiple overloads, which all would type check:\n\{names.join("\n")}",
       )
     }
     for f in failures {
@@ -536,21 +539,41 @@ pub fn Typer::check_overloaded_function_call(
     }
   }
   match all_failures {
-    [(_, msg)] => self.abort(call.span, msg)
+    [(_, msg, muted)] =>
+      // Upstream's `abortWith`: the only candidate that was tried reports its own
+      // diagnostics, each at the span it belongs to, instead of one message at
+      // the call. The first one is reported last so that the abort that stops the
+      // phase carries exactly the message the boundary would otherwise repeat.
+      if muted.length() == 0 {
+        self.abort(call.span, msg)
+      } else {
+        for i = 1; i < muted.length(); i = i + 1 {
+          let (span, text) = muted[i]
+          // `self.error`, not `self.ctx.error`: a nested call may itself be
+          // checked while an enclosing candidate is muted, and then these
+          // diagnostics have to stay muted as well.
+          self.error(span, text)
+        }
+        let (span, text) = muted[0]
+        self.abort(span, text)
+      }
     [] =>
       self.abort(
         call.span,
         "Cannot typecheck call to \{call.name}. Does a function/method with that name exist?",
       )
     _ => {
-      // Report all failed candidates, like upstream's FailedOverloadError.
+      // Upstream's `FailedOverloadError`: a title line, then one paragraph per
+      // candidate with the candidate's own diagnostics indented below it.
       let explanations : Array[String] = all_failures.map(f => {
-        let (sym, msg) = f
-        "  \{sym.name().qualified_name()}: \{msg}"
+        let (sym, msg, _) = f
+        "Possible overload: \{sym.name().qualified_name()} of type \{self.lookup_block(sym)}\n  \{msg}"
       })
       let message =
-        $|Cannot typecheck call to \{call.name}. None of the \{all_failures.length()} overloads type check:
-        $|\{explanations.join("\n")}
+        $|Cannot typecheck call.
+        $|There are multiple overloads, which all fail to check:
+        $|
+        $|\{explanations.join("\n\n")}
       self.abort(call.span, message)
     }
   }
@@ -729,7 +752,7 @@ pub fn Typer::check_overloaded_method_call(
       self.abort(call.span, "Ambiguous method call to \{id.name}.")
     }
     match failures {
-      [(_, msg)] => self.abort(call.span, msg)
+      [(_, msg, _)] => self.abort(call.span, msg)
       _ => ()
     }
   }

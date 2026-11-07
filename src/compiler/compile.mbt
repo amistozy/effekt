@@ -151,7 +151,17 @@ pub fn compile_file(
     }
   } catch {
     EffektError::Fatal(msg) => {
-      ctx.error(Span::missing(), msg)
+      // `Context.abort` reports the diagnostic at its span and *then* aborts, so
+      // the last message is already the one that ended the phase; the phases
+      // that abort without reporting (the parser, the scope lookups) are the
+      // ones that still need it here, and for those there is no span to use.
+      let reported = match ctx.messages.last() {
+        Some(m) => m.text == msg
+        None => false
+      }
+      if !reported {
+        ctx.error(Span::missing(), msg)
+      }
       None
     }
     EffektError::Internal(msg) => {

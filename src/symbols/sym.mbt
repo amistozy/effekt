@@ -395,8 +395,11 @@ pub impl Eq for Sym with fn equal(self, other) {
 }
 
 ///|
+/// Symbols print their local name: upstream's `TypePrinter` renders a symbol as
+/// `sym.name.name`, and only a bare `Name` carries the qualifier (see
+/// `Show for Name`, which "Possible overload: effekt::infixPlus" relies on).
 pub impl Show for Sym with fn output(self, logger) {
-  self.name().output(logger)
+  logger.write_string(self.name().name)
 }
 
 // Kind predicates, standing in for the trait hierarchy.
@@ -854,14 +857,16 @@ pub impl Eq for Captures with fn equal(self, other) {
 }
 
 ///|
-/// Capture sets print as `{a, b}`; an unsolved capture variable as `?x`.
+/// Capture sets print as `{a, b}` with the captures' local names (upstream's
+/// `TypePrinter.toDoc(CaptureSet)`); an unsolved capture variable prints as its
+/// name.
 pub impl Show for Captures with fn output(self, logger) {
   match self {
     CaptureSetOf(cs) => {
-      let rendered = cs.map(s => s.name().qualified_name()).join(", ")
+      let rendered = cs.map(s => s.name().name).join(", ")
       logger.write_string("{\{rendered}}")
     }
-    CaptVar(x) => logger.write_string("?\{x.name().qualified_name()}")
+    CaptVar(x) => logger.write_string(x.name().name)
   }
 }
 

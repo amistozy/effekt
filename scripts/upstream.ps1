@@ -13,10 +13,11 @@
 # The baseline can only grow: raise it after every improvement, never lower it
 # without removing a test.
 #
-# Usage: powershell -File scripts/upstream.ps1 [-Filter <substring>]
+# Usage: powershell -File scripts/upstream.ps1 [-Filter <substring>] [-ShowWording]
 
 param(
-  [string]$Filter = ""
+  [string]$Filter = "",
+  [switch]$ShowWording
 )
 
 $ErrorActionPreference = "Continue"
@@ -286,6 +287,7 @@ $worker = {
       $diags = Get-Diagnostics $r.stderr
       $missing = @()
       $wording = 0
+      $wordingDetails = @()
       foreach ($e in $expected) {
         $match = $diags | Where-Object {
           $_.severity -eq $e.severity -and $_.line -eq $e.line
@@ -294,6 +296,7 @@ $worker = {
           $missing += "$($e.severity) at line $($e.line)"
         } elseif ($e.text -ne "" -and -not ($match.text.Contains($e.text))) {
           $wording++
+          $wordingDetails += "$($e.severity) line $($e.line): expected <$($e.text)> got <$($match.text)>"
         }
       }
       if ($missing.Count -gt 0) {
@@ -301,7 +304,7 @@ $worker = {
       } elseif ($expected.Count -eq 0 -and $r.code -eq 0) {
         "$kind`tfail`t$rel`tcompiled without an error"
       } elseif ($wording -gt 0) {
-        "$kind`twording`t$rel`t$wording message(s) differ in wording"
+        "$kind`twording`t$rel`t$wording message(s) differ in wording: " + ($wordingDetails -join " | ")
       } else {
         "$kind`tok`t$rel`t"
       }
@@ -365,6 +368,7 @@ $posTotal = 0
 $negOk = 0
 $negTotal = 0
 $negWording = 0
+$negWordingDetails = @()
 $failures = @{}
 
 foreach ($line in $results) {
@@ -384,7 +388,11 @@ foreach ($line in $results) {
   } else {
     $negTotal++
     if ($status -eq "ok") { $negOk++ }
-    elseif ($status -eq "wording") { $negOk++; $negWording++ }
+    elseif ($status -eq "wording") {
+      $negOk++
+      $negWording++
+      $negWordingDetails += "$rel`t$detail"
+    }
     else {
       if (-not $failures.ContainsKey($detail)) { $failures[$detail] = @() }
       $failures[$detail] += $rel
@@ -398,6 +406,16 @@ Write-Host ("negative (neg):          {0} of {1} match ({2} pass with different 
 if ($skipped.Count -gt 0) {
   Write-Host ("skipped:                 {0} tests that cannot pass on this platform" -f $skipped.Count) -ForegroundColor DarkGray
   foreach ($name in ($skipped.Keys | Sort-Object)) { Write-Host ("           $name ({0})" -f $skipped[$name]) -ForegroundColor DarkGray }
+}
+
+if ($ShowWording -and $negWordingDetails.Count -gt 0) {
+  Write-Host ""
+  Write-Host "negative tests whose wording differs (expected <>, got <>):" -ForegroundColor Yellow
+  foreach ($entry in $negWordingDetails) {
+    $parts = $entry.Split("`t")
+    Write-Host ("  {0}" -f $parts[0])
+    Write-Host ("    {0}" -f $parts[1]) -ForegroundColor DarkGray
+  }
 }
 
 if ($failures.Count -gt 0) {

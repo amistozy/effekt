@@ -43,12 +43,12 @@ fn wellformed_value_type(
       if arity == 0 && args.length() > 0 {
         context.abort(
           span,
-          "Cannot apply type \{ctor.name().qualified_name()}. Type \{ctor.name().qualified_name()} does not expect any arguments, but is applied to \{args.length()}.",
+          "Cannot apply type \{ctor.name().name}. Type \{ctor.name().name} does not expect any arguments, but is applied to \{args.length()}.",
         )
       } else if arity > 0 && args.length() != arity {
         context.abort(
           span,
-          "Wrong type constructor arity. Type constructor \{ctor.name().qualified_name()} expects \{arity} parameters, but got \{args.length()} arguments.",
+          "Wrong type constructor arity. Type constructor \{ctor.name().name} expects \{arity} parameters, but got \{args.length()} arguments.",
         )
       }
       for a in args {
@@ -70,7 +70,7 @@ fn wellformed_block_type(
       if arity > 0 && args.length() != arity {
         context.abort(
           span,
-          "Wrong number of type arguments. Interface \{ctor.name().qualified_name()} expects \{arity} parameters, but got \{args.length()} arguments.",
+          "Wrong number of type arguments. Interface \{ctor.name().name} expects \{arity} parameters, but got \{args.length()} arguments.",
         )
       }
       for a in args {
