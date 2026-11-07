@@ -10,6 +10,11 @@ target
 examples/*.js
 examples/**/*.js
 
+# Generated next to a corpus program when it is compiled by hand (the gate
+# compiles into .upstream-out/). The one exception, demo_file2.js, is tracked
+# upstream and stays tracked here.
+testdata/**/*.js
+
 # Upstream corpus scratch output
 .upstream-out/
 .upstream-*.log
