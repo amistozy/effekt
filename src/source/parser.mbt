@@ -2895,9 +2895,9 @@ fn Parser::prim_expr(self : Parser) -> Term raise EffektError {
           mk_term(sp, TermKind::Literal(LString("<splice>"), t_string()))
         })
       } else {
-        self.fail(
-          "Expected variables, literals, tuples, lists, holes or group but got \{kind.explain()}",
-        )
+        // The label says what the grammar expected here ("expression",
+        // "statement", ...); upstream's parser reports the same way.
+        self.fail_expected("expression", kind)
       }
   }
 }

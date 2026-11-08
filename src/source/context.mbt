@@ -55,6 +55,10 @@ pub(all) struct Context {
   /// constructor's `Op[Z]` is shared by all its uses), so the wellformedness
   /// check cannot recompute them from the constructor and reads them here.
   pattern_existentials : Map[Int32, Array[Sym]]
+  /// Why unbox inference inserted an `Unbox`, keyed by the synthesized node's
+  /// uid (upstream's `Annotations.UnboxParent`). The diagnostic for an unbox
+  /// that fails depends on it.
+  unbox_parents : Map[Int32, UnboxParent]
   /// The lexical scope at a call site. The namer records it so that the type
   /// checker can resolve name-based implicit arguments, which is the only
   /// phase that needs to look a name up without an `IdRef`.
@@ -96,6 +100,7 @@ pub fn Context::new(config : Config) -> Context {
     capability_arguments: Map([]),
     type_arguments: Map([]),
     pattern_existentials: Map([]),
+    unbox_parents: Map([]),
     call_scopes: Map([]),
     call_imports: Map([]),
     effekt_externs: Map([]),
@@ -460,6 +465,20 @@ pub fn Context::assign_pattern_existentials(
   params : Array[Sym],
 ) -> Unit {
   self.pattern_existentials.set(uid, params)
+}
+
+///|
+pub fn Context::assign_unbox_parent(
+  self : Context,
+  uid : Int32,
+  parent : UnboxParent,
+) -> Unit {
+  self.unbox_parents.set(uid, parent)
+}
+
+///|
+pub fn Context::unbox_parent_of(self : Context, uid : Int32) -> UnboxParent? {
+  self.unbox_parents.get(uid)
 }
 
 ///|

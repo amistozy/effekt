@@ -36,11 +36,13 @@ fn run(args : Array[String]) -> Int32 {
     parse: @source.parse_module_decl,
     resolve: (tree, ctx, deps) => @namer.resolve_module(tree, ctx, deps),
     typecheck: (tree, ctx) => {
-      // `unbox_inference` desugars uniform function calls (`x.f` becomes
-      // `f(x)`) before typing, mirroring upstream's `ParserUntilTyper`.
-      let desugared = @typer.unbox_inference(tree, ctx)
-      @typer.typecheck(desugared, ctx)
-      desugared
+      // `typecheck` runs `unbox_inference` itself and replaces the module's
+      // definitions with the desugared ones in place (upstream's
+      // `ParserUntilTyper` pipeline), so the tree handed back to the later
+      // phases is the rewritten one. Running it here as well would report every
+      // unbox diagnostic twice.
+      @typer.typecheck(tree, ctx)
+      tree
     },
     emit: (trees, ctx) => {
       if opts.show_core {

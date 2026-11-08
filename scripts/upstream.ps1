@@ -162,16 +162,26 @@ $worker = {
   }
 
   # The severity/line/message triples of our own diagnostics. The rendering is
-  # upstream's (`[error] path:line:column message`, see `Message::render`).
+  # upstream's (`[error] path:line:column message`, see `Message::render`), and
+  # the message is everything up to the source excerpt: `FailedOverloadError`
+  # and friends nest further messages below the first line, and upstream's
+  # `validateErrors` searches the whole formatted message, not just its first
+  # line.
   function Get-Diagnostics($text) {
     $diags = @()
-    foreach ($line in ($text -split "`n")) {
-      if ($line -match '^\[(error|warning|info)\]\s+\S+?:(\d+):(\d+):?\s+(.*)$') {
-        $diags += @{
-          severity = $Matches[1]
-          line = [int]$Matches[2]
-          text = $Matches[4]
-        }
+    # Split before every diagnostic header, keeping the header with its block.
+    foreach ($part in [regex]::Split($text, '(?m)^(?=\[(?:error|warning|info)\]\s)')) {
+      if ($part -notmatch '^\[(error|warning|info)\]\s+\S+?:(\d+):(\d+):?\s*([\s\S]*)$') { continue }
+      $body = ($Matches[4] -split "`n")
+      # The excerpt is the source line plus the caret line; a missing span has
+      # none.
+      if ($body.Count -ge 2 -and $body[$body.Count - 1] -match '^\s*\^+\s*$') {
+        $body = $body[0..($body.Count - 3)]
+      }
+      $diags += @{
+        severity = $Matches[1]
+        line = [int]$Matches[2]
+        text = (($body -join "`n").Trim())
       }
     }
     return ,$diags
@@ -289,14 +299,19 @@ $worker = {
       $wording = 0
       $wordingDetails = @()
       foreach ($e in $expected) {
-        $match = $diags | Where-Object {
+        # Every diagnostic with that severity on that line is fair game: a line
+        # can carry several messages (a match arm mismatch explains both the
+        # merged arms and the component that differed), and upstream's
+        # `validateErrors` searches all of them for the expected text.
+        $candidates = @($diags | Where-Object {
           $_.severity -eq $e.severity -and $_.line -eq $e.line
-        } | Select-Object -First 1
-        if (-not $match) {
+        })
+        if ($candidates.Count -eq 0) {
           $missing += "$($e.severity) at line $($e.line)"
-        } elseif ($e.text -ne "" -and -not ($match.text.Contains($e.text))) {
+        } elseif ($e.text -ne "" -and -not ($candidates | Where-Object { $_.text.Contains($e.text) })) {
           $wording++
-          $wordingDetails += "$($e.severity) line $($e.line): expected <$($e.text)> got <$($match.text)>"
+          $got = ($candidates | ForEach-Object { $_.text }) -join " / "
+          $wordingDetails += "$($e.severity) line $($e.line): expected <$($e.text)> got <$got>"
         }
       }
       if ($missing.Count -gt 0) {

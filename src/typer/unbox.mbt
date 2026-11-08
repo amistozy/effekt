@@ -167,10 +167,16 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
           }
         None => e
       }
-    @source.TermKind::New(_) => {
+    @source.TermKind::New(implementation) => {
+      // Upstream names the interface (`box new Counter[...] { ... }`); the tree
+      // is already resolved, so the source text of the interface type is it.
+      let name = match implementation.interface.span.text() {
+        Some(text) => text
+        None => "T"
+      }
       self.error(
         e.span,
-        "Expected a value, but `new` creates a computation (an object instance). Use `box new ... { ... }` to pass it as a value instead",
+        "Expected a value, but `new` creates a computation (an object instance). Use `box new \{name}[...] { ... }` to pass it as a value instead",
       )
       self.rewrite_as_block(e)
     }
@@ -353,9 +359,14 @@ fn Unboxer::rewrite_target(
         Some(s) =>
           if s.is_ref_binder() || s.is_value_symbol() {
             let v = mk_term(id.span, @source.TermKind::Var(id))
-            @source.CallTarget::ExprTarget(
-              self.visit_term(v, @source.TermKind::Unbox(v)),
+            let unbox = self.visit_term(v, @source.TermKind::Unbox(v))
+            // The call `f(1)` where `f` is a value: the diagnostic says that `f`
+            // cannot be called as a function.
+            self.ctx.assign_unbox_parent(
+              unbox.uid,
+              @source.UnboxParent::CallTarget(id.name),
             )
+            @source.CallTarget::ExprTarget(unbox)
           } else {
             t
           }
@@ -395,16 +406,22 @@ fn Unboxer::rewrite_def(self : Unboxer, d : Def) -> Def raise EffektError {
         d,
         @source.DefKind::VarDef(id, annot, self.rewrite_stmt(binding)),
       )
-    @source.DefKind::DefDef(id, captures, annot, binding) =>
-      self.visit_def(
-        d,
-        @source.DefKind::DefDef(
-          id,
-          captures,
-          annot,
-          self.rewrite_as_block(binding),
-        ),
-      )
+    @source.DefKind::DefDef(id, captures, annot, binding) => {
+      let block = self.rewrite_as_block(binding)
+      // A `def` binding has to be a block: if the original binding was not an
+      // `Unbox` and the rewrite made it one, this unbox was synthesized here and
+      // its diagnostic should suggest `val`.
+      match (binding.kind, block.kind) {
+        (@source.TermKind::Unbox(_), _) => ()
+        (_, @source.TermKind::Unbox(_)) =>
+          self.ctx.assign_unbox_parent(
+            block.uid,
+            @source.UnboxParent::DefBinding,
+          )
+        _ => ()
+      }
+      self.visit_def(d, @source.DefKind::DefDef(id, captures, annot, block))
+    }
     @source.DefKind::NamespaceDef(id, defs) =>
       self.visit_def(
         d,

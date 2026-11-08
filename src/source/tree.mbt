@@ -319,6 +319,18 @@ pub fn CallTarget::span_of(self : CallTarget) -> Span {
 }
 
 ///|
+/// Why unbox inference inserted an `Unbox` (upstream's
+/// `Annotations.UnboxParent`): the diagnostic for an unbox that fails depends on
+/// the context it was synthesized for.
+pub(all) enum UnboxParent {
+  /// The body of a `def` binding, which has to be a block.
+  DefBinding
+  /// The callee of a call, which turned out to be a value (`f(1)` where `f` is a
+  /// `val`).
+  CallTarget(String)
+}
+
+///|
 pub(all) enum TermKind {
   /// Variable / value or block use.
   Var(IdRef)

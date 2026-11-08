@@ -138,6 +138,7 @@ pub(all) struct Context {
   capability_arguments : Map[Int32, Array[@symbols.Sym]]
   type_arguments : Map[Int32, Array[@symbols.ValueType]]
   pattern_existentials : Map[Int32, Array[@symbols.Sym]]
+  unbox_parents : Map[Int32, UnboxParent]
   call_scopes : Map[Int32, @symbols.Scope]
   call_imports : Map[Int32, @symbols.Bindings]
   effekt_externs : Map[Int32, Bool]
@@ -159,6 +160,7 @@ pub fn Context::assign_implicit_value_args(Self, Int32, Array[Term]) -> Unit
 pub fn Context::assign_pattern_existentials(Self, Int32, Array[@symbols.Sym]) -> Unit
 pub fn Context::assign_symbol(Self, Int32, @symbols.Sym) -> Unit
 pub fn Context::assign_type_arguments(Self, Int32, Array[@symbols.ValueType]) -> Unit
+pub fn Context::assign_unbox_parent(Self, Int32, UnboxParent) -> Unit
 pub fn Context::assign_value_type(Self, Int32, @symbols.ValueType) -> Unit
 pub fn Context::block_type_of(Self, Int32) -> @symbols.BlockType?
 pub fn Context::bound_capabilities_of(Self, Int32) -> Array[@symbols.Sym]
@@ -188,6 +190,7 @@ pub fn Context::supports(Self, String) -> Bool
 pub fn Context::symbol_of(Self, Int32) -> @symbols.Sym?
 pub fn Context::symbol_of_or(Self, Int32, @symbols.Sym) -> @symbols.Sym
 pub fn Context::type_arguments_of(Self, Int32) -> Array[@symbols.ValueType]
+pub fn Context::unbox_parent_of(Self, Int32) -> UnboxParent?
 pub fn Context::value_type_of(Self, Int32) -> @symbols.ValueType?
 pub fn Context::warning(Self, @util.Span, String) -> Unit
 
@@ -647,6 +650,11 @@ pub(all) struct TypeTree {
   uid : Int32
   span : @util.Span
   kind : TypeKind
+}
+
+pub(all) enum UnboxParent {
+  DefBinding
+  CallTarget(String)
 }
 
 pub(all) struct ValueArg {

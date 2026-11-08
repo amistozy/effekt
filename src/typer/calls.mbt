@@ -82,7 +82,7 @@ pub fn Typer::check_call_to(
   if targs.length() > 0 && targs.length() != fun_tparams.length() {
     self.abort(
       span,
-      "Wrong number of type arguments to \{call.name}: expected \{fun_tparams.length()}, but got \{targs.length()}",
+      "Wrong number of type arguments, given \{targs.length()} but expected \{fun_tparams.length()}",
     )
   }
   if !implicit_tail_matches(vargs.length(), fun_vps.length(), known_vps) {

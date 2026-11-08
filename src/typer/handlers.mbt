@@ -5,6 +5,21 @@
 // `effekt/Typer.scala`.
 
 ///|
+/// The diagnostic for an `Unbox` whose operand is not a boxed value. Upstream
+/// distinguishes the unbox that a `def` binding forced (which suggests `val`) and
+/// the one a call forced (whose callee is a value), and falls back to the plain
+/// message (upstream's `Annotations.UnboxParent`).
+fn Typer::unbox_error(self : Typer, e : Term, tpe : ValueType) -> String {
+  match self.ctx.unbox_parent_of(e.uid) {
+    Some(@source.UnboxParent::DefBinding) =>
+      "Expected the right-hand side of a `def` binding to be a block, but got a value of type \{tpe}.\nMaybe try `val` if you're defining a value."
+    Some(@source.UnboxParent::CallTarget(name)) =>
+      "Expected \{name} to be a function, but got a value of type \{tpe} instead, which cannot be called as a function."
+    None => "Unbox requires a boxed type, but got \{tpe}."
+  }
+}
+
+///|
 /// Checks a term in a *block* position, i.e. where a computation is expected.
 pub fn Typer::check_expr_as_block(
   self : Typer,
@@ -79,20 +94,12 @@ fn Typer::check_expr_as_block_kind(
                 self.using_capture(capt_var)
                 TyRes::new(partial_fn, res.effs)
               }
-              None =>
-                self.abort(
-                  e.span,
-                  "Unbox requires a boxed type, but got \{res.tpe}.",
-                )
+              None => self.abort(e.span, self.unbox_error(e, res.tpe))
             }
           } else {
-            self.abort(
-              e.span,
-              "Unbox requires a boxed type, but got \{res.tpe}.",
-            )
+            self.abort(e.span, self.unbox_error(e, res.tpe))
           }
-        _ =>
-          self.abort(e.span, "Unbox requires a boxed type, but got \{res.tpe}.")
+        _ => self.abort(e.span, self.unbox_error(e, res.tpe))
       }
     }
     @source.TermKind::Var(id) => {
@@ -237,13 +244,13 @@ pub fn Typer::check_function_argument(
         self.lambda_case_hint(arg.span, vps, vparams)
         self.abort(
           arg.span,
-          "Wrong number of arguments to function: expected \{vps.length()} value arguments, but got \{vparams.length()}.",
+          "Wrong number of arguments to function: expected \{describe_args(0, vps.length(), 0)}, but got \{describe_args(0, vparams.length(), 0)}",
         )
       }
       if bparams.length() != bps.length() {
         self.abort(
           arg.span,
-          "Wrong number of arguments to function: expected \{bps.length()} block arguments, but got \{bparams.length()}.",
+          "Wrong number of arguments to function: expected \{describe_args(0, 0, bps.length())}, but got \{describe_args(0, 0, bparams.length())}",
         )
       }
 

@@ -1153,6 +1153,13 @@ pub fn typecheck(
       module.defs[i] = rewritten.defs[i]
     }
   }
+  // Upstream's `UnboxInference` is a phase of its own and returns `None` when it
+  // reported errors, so the type checker never sees the tree. A program that
+  // uses a computation as a value gets the unbox diagnostic, not a type error on
+  // top of it.
+  if context.has_errors() {
+    return
+  }
   let t = Typer::new(context)
   t.check_module(rewritten)
 }
@@ -1279,7 +1286,9 @@ pub fn Typer::check_main(
   let mains : Array[Sym] = []
   collect_mains(self.ctx, module.defs, mains)
   if mains.length() > 1 {
-    let names = mains.map(s => s.name().name).join(", ")
+    // Upstream interpolates the symbols' names, which for a module-level `main`
+    // are qualified (`multiple_main::main`, `multiple_main::nested::main`).
+    let names = mains.map(s => s.name().qualified_name()).join(", ")
     self.abort(module.span, "Multiple main functions defined: \{names}")
   }
   if mains.length() == 1 {
