@@ -16,6 +16,64 @@
 // annotations that `ExplicitCapabilities` splices into the call.
 
 ///|
+/// Checks a generated implicit argument (upstream's `GenerateImplicitArgs.Try`
+/// around each attempt). A failure — an abort inside the check or a diagnostic
+/// it recorded — is not reported as itself: upstream turns it into an
+/// `ImplicitInstantiationError` that says the implicit argument cannot be
+/// instantiated and nests the diagnostics below that line.
+fn[T] Typer::check_implicit(
+  self : Typer,
+  call : CallLike,
+  name : String,
+  tpe : String,
+  run : () -> T raise EffektError,
+) -> T raise EffektError {
+  let muting_before = self.muting
+  let error_before = self.muted_error
+  let messages_before = self.muted_messages
+  let infos_before = self.muted_infos
+  self.muting = true
+  self.muted_error = false
+  self.muted_messages = []
+  self.muted_infos = []
+  let mut result : T? = None
+  let mut failure : String? = None
+  try {
+    result = Some(run())
+  } catch {
+    EffektError::Fatal(msg) => failure = Some(msg)
+    EffektError::Internal(m) => {
+      self.muting = muting_before
+      self.muted_error = error_before
+      self.muted_messages = messages_before
+      self.muted_infos = infos_before
+      raise EffektError::Internal(m)
+    }
+  }
+  let errors = self.muted_messages.copy()
+  let infos = self.muted_infos.copy()
+  let failed = self.muted_error || failure is Some(_)
+  self.muting = muting_before
+  self.muted_error = error_before
+  self.muted_messages = messages_before
+  self.muted_infos = infos_before
+  if failed {
+    let nested = match failure {
+      Some(msg) => msg
+      None => errors.map(entry => entry.1).join("\n  ")
+    }
+    self.abort(
+      call.span,
+      "Cannot instantiate implicit argument.\nCannot instantiate the implicit argument \{name} of type \{tpe}.\n  \{nested}",
+    )
+  }
+  for entry in infos {
+    self.info(entry.0, entry.1)
+  }
+  result.unwrap()
+}
+
+///|
 /// The lexical context of a call site, as recorded by the namer: the scope
 /// chain and the names opened from the imported modules.
 ///

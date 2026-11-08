@@ -184,11 +184,13 @@ pub fn Typer::check_call_to(
   for i = vargs.length(); i < fun_vps.length(); i = i + 1 {
     let tpe = inst.vparams[i]
     let term = self.implicit_value_term(call, known_vps[i], tpe)
-    let res = self.with_implicit_guard(
-      known_vps[i].name().name,
-      value_type_size(self.st.u.prune_value(tpe)),
-      () => self.check_expr(term, Some(tpe)),
-    )
+    let res = self.check_implicit(call, known_vps[i].name().name, "\{tpe}", () => {
+      self.with_implicit_guard(
+        known_vps[i].name().name,
+        value_type_size(self.st.u.prune_value(tpe)),
+        () => self.check_expr(term, Some(tpe)),
+      )
+    })
     match tpe {
       @symbols.ValueType::BoxedType(_, capt) =>
         if capt.is_pure() && res.effs.non_empty() {
@@ -208,15 +210,17 @@ pub fn Typer::check_call_to(
     let capt = capt_args[j]
     self.flows_into(capt, callsite, span)
     let term = self.implicit_block_arg_term(call, known_bps[j], btpe)
-    let res = self.with_implicit_guard(
-      known_bps[j].name().name,
-      block_type_size(self.st.u.prune_block(btpe)),
-      () => {
-        self.flowing_into(capt, () => {
-          self.check_expr_as_block(term, Some(btpe), None)
-        })
-      },
-    )
+    let res = self.check_implicit(call, known_bps[j].name().name, "\{btpe}", () => {
+      self.with_implicit_guard(
+        known_bps[j].name().name,
+        block_type_size(self.st.u.prune_block(btpe)),
+        () => {
+          self.flowing_into(capt, () => {
+            self.check_expr_as_block(term, Some(btpe), None)
+          })
+        },
+      )
+    })
     effs = eff_union(effs, res.effs)
     implicit_bargs.push(term)
   }
