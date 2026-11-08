@@ -64,10 +64,7 @@ pub fn Unification::copy(self : Unification) -> Unification {
 /// A fresh *value type* unification variable. `underlying` is the type
 /// parameter it was instantiated for (used for error messages).
 pub fn Unification::fresh_type_var(self : Unification, underlying : Sym) -> Sym {
-  let x = Sym::type_param(
-    Name::local("?\{underlying.name().name}"),
-    Span::missing(),
-  )
+  let x = Sym::type_param(Name::local(underlying.name().name), Span::missing())
   self.var_of.set(x.uid(), underlying)
   x
 }
@@ -75,7 +72,7 @@ pub fn Unification::fresh_type_var(self : Unification, underlying : Sym) -> Sym 
 ///|
 /// A fresh *capture* unification variable.
 pub fn Unification::fresh_capt_var(self : Unification, role : String) -> Sym {
-  let x = Sym::capture_param(Name::local("?\{role}"))
+  let x = Sym::capture_param(Name::local(role))
   self.capt_var.set(x.uid(), x)
   x
 }

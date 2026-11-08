@@ -858,15 +858,15 @@ pub impl Eq for Captures with fn equal(self, other) {
 
 ///|
 /// Capture sets print as `{a, b}` with the captures' local names (upstream's
-/// `TypePrinter.toDoc(CaptureSet)`); an unsolved capture variable prints as its
-/// name.
+/// `TypePrinter.toDoc(CaptureSet)`); an unsolved capture variable prints as
+/// `?name` — type variables, in contrast, print without the marker.
 pub impl Show for Captures with fn output(self, logger) {
   match self {
     CaptureSetOf(cs) => {
       let rendered = cs.map(s => s.name().name).join(", ")
       logger.write_string("{\{rendered}}")
     }
-    CaptVar(x) => logger.write_string(x.name().name)
+    CaptVar(x) => logger.write_string("?\{x.name().name}")
   }
 }
 

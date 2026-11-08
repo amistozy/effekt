@@ -15,7 +15,7 @@ so what compiles here is the whole language, not a subset of it.
 **Status.** Every one of the **392** compiling-and-running programs of the
 Effekt repository's own test corpus prints exactly what upstream recorded, and
 **all 170** programs that have to be rejected are rejected at the expected line
-(37 of them with a different message). The whole standard library compiles. The
+(7 of them with a different message). The whole standard library compiles. The
 remaining differences are listed under [Differences from
 upstream](#differences-from-upstream).
 

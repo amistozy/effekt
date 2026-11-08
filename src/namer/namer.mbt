@@ -2116,7 +2116,7 @@ fn Namer::resolve_value_type(
                 )
                 self.context.info_at(
                   t.span,
-                  "A function type cannot have multiple effect sets, did you mean to use `/ \{combined}` instead of `/ \{tree_text(inner)} / \{span_text(effects.span)}`?",
+                  "A function type cannot have multiple effect sets, did you mean to use `/ \{combined}` instead of `/ \{span_text(fun_effects.span)} / \{span_text(effects.span)}`?",
                 )
               }
               _ => {
@@ -2159,7 +2159,7 @@ fn Namer::resolve_block_type(
           "Expected block type, but got \{describe_type(t)}.",
         )
         match t.kind {
-          @source.BoxedType(inner, _) => {
+          @source.BoxedType(inner, capts) => {
             if is_param {
               self.context.info_at(
                 t.span,
@@ -2168,7 +2168,7 @@ fn Namer::resolve_block_type(
             }
             self.context.info_at(
               t.span,
-              "Did you mean to use the block type \{tree_text(inner)} without `at ...`?",
+              "Did you mean to use the block type \{tree_text(inner)} without 'at \{span_text(capts.span)}'?",
             )
           }
           @source.Effectful(inner, effects) =>
@@ -2179,9 +2179,14 @@ fn Namer::resolve_block_type(
                 )
                 self.context.info_at(
                   t.span,
-                  "A function type cannot have multiple effect sets, did you mean to use `/ \{combined}` instead of `/ \{tree_text(inner)} / \{span_text(effects.span)}`?",
+                  "A function type cannot have multiple effect sets, did you mean to use `/ \{combined}` instead of `/ \{span_text(fun_effects.span)} / \{span_text(effects.span)}`?",
                 )
               }
+              @source.BoxedType(inner_tpe, capts) =>
+                self.context.info_at(
+                  t.span,
+                  "Did you want to write a boxed type with effects, `\{tree_text(inner_tpe)} / \{span_text(effects.span)} at \{span_text(capts.span)}`?",
+                )
               _ =>
                 self.context.info_at(
                   t.span,
