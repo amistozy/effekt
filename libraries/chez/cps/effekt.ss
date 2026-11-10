@@ -2,33 +2,34 @@
 ; Generation = Int
 
 ; Ref = Store * Value * Generation 
-(define-record-type ref (fields store (mutable value) (mutable generation)))
+(define-record-type ref (fields store (mutable value) (mutable generation)) (nongenerative) (sealed #t))
 
 ; Node = box MEM | box Diff
 
 ; MEM
 ; Means the correct values are in MEMory
-(define-record-type mem (fields))
+(define-record-type mem (fields) (nongenerative) (sealed #t))
 
 ; Diff = Ref * Value * Generation * Node
 ; Notes the DIFFerences between root and the current state in MEMory
-(define-record-type diff (fields ref value generation root))
+(define-record-type diff (fields ref value generation root) (nongenerative) (sealed #t))
 
 ; Store = Node * Generation
-(define-record-type store (fields (mutable root) (mutable generation)))
+(define-record-type store (fields (mutable root) (mutable generation)) (nongenerative) (sealed #t))
 
 ; Snapshot = Store * Node * Generation
-(define-record-type snap (fields store root generation))
+(define-record-type snap (fields store root generation) (nongenerative) (sealed #t))
 
 ; -> Store
 (define (create-store) (make-store (box (make-mem)) 0))
 
-; Store -> Snapshot
+; Store | #f -> Snapshot | #f
 (define (snapshot store)
-    (let* ([sGen (store-generation store)]
-           [snap (make-snap store (store-root store) sGen)])
-        (store-generation-set! store (+ sGen 1))
-        snap))
+    (and store ; no need to snapshot if the store is empty
+        (let* ([sGen (store-generation store)]
+               [snap (make-snap store (store-root store) sGen)])
+            (store-generation-set! store (+ sGen 1))
+            snap)))
 
 ; Node, [box Diff] -> [box Diff]
 (define (collectDiffs n acc)
@@ -67,59 +68,70 @@
 ; Cont a = a, MetaCont -> #
 ; Prompt = Symbol
 
-; MetaCont = Cont * Prompt * Store | Snapshot * MetaCont?
-; Holds a "copy" of k, as well as its prompt and store
+; MetaCont = Cont * Prompt * (Store | #f) | (Snapshot | #f) * MetaCont?
+; Holds a "copy" of k, as well as its prompt and store.
+; A segment's store is #f until its first variable or region creates it.
 (define-record-type meta-cont 
-    (fields (mutable cont) prompt (mutable store) (mutable rest)))
+    (fields (mutable cont) prompt (mutable store) (mutable rest))
+    (nongenerative)
+    (sealed #t))
+
+; MetaCont -> Store
+(define (segment-store ks)
+    (or (meta-cont-store ks)           ; if there is a store, use it
+        (let ([store (create-store)])  ; otherwise, create it
+            (meta-cont-store-set! ks store)
+            store)))
 
 ; Value, MetaCont -> Ref
 (define (var init ks)
-    (let ([store (meta-cont-store ks)])
+    (let ([store (segment-store ks)])
         (make-ref store init (store-generation store))))
 
 ; Ref -> Value
 (define (get ref) (ref-value ref))
 
 ; Ref, Value -> void
-(define (put ref value)
-    (let* ([rGen (ref-generation ref)]
-           [store (ref-store ref)]
-           [sGen (store-generation store)])
-        (if (= rGen sGen)
-            (ref-value-set! ref value)
-            (let ([oldVal (ref-value ref)]
-                  [newRoot (box (make-mem))]
-                  [oldRoot (store-root store)])
-                (ref-value-set! ref value)
-                (ref-generation-set! ref sGen)
-                (set-box! oldRoot (make-diff ref oldVal rGen newRoot))
-                (store-root-set! store newRoot)))))
+(define-syntax put
+  (syntax-rules ()
+    [(_ ref-expr value-expr)
+     (let ([ref ref-expr] [value value-expr])
+       (let ([store (ref-store ref)])
+         (if (= (ref-generation ref) (store-generation store))
+             (ref-value-set! ref value)
+             (put-recording ref value store))))]))
 
-; MetaCont -> MetaCont
-(define (create-region ks) ks)
+; Ref, Value, Store -> void
+(define (put-recording ref value store)
+    (let ([rGen (ref-generation ref)]
+          [sGen (store-generation store)]
+          [oldVal (ref-value ref)]
+          [newRoot (box (make-mem))]
+          [oldRoot (store-root store)])
+        (ref-value-set! ref value)
+        (ref-generation-set! ref sGen)
+        (set-box! oldRoot (make-diff ref oldVal rGen newRoot))
+        (store-root-set! store newRoot)))
 
-; Value, MetaCont -> Ref
-(define allocate var)
+; MetaCont -> Store
+(define (create-region ks) (segment-store ks))
 
-; Ref | MetaCont -> void
+; Value, Store -> Ref
+(define (allocate init store) (make-ref store init (store-generation store)))
+
+; Ref | Store -> void
 (define (deallocate _) (void))
 
 (define (top-level-k x _) x)
-(define top-level-ks (make-meta-cont top-level-k (gensym "toplevel") (create-store) '()))
-
-; a, MetaCont -> #
-(define (return x ks)
-    (let* ([new-ks (meta-cont-rest ks)]
-           [k (meta-cont-cont new-ks)])
-    (k x new-ks)))
+(define top-level-ks (make-meta-cont top-level-k (gensym "toplevel") #f '()))
 
 ; Program a b = a, Cont b, MetaCont -> #
 
-; Program Prompt b, MetaCont, Cont b -> #
-(define (reset prog ks k)
+; Program Prompt b, (b, MetaCont -> #), MetaCont, Cont b -> #
+(define (reset prog ret ks k)
     (let ([prompt (gensym)])
          (meta-cont-cont-set! ks k)
-         (prog prompt (make-meta-cont return prompt (create-store) ks) return)))
+         (prog prompt (make-meta-cont ret prompt #f ks) ret)))
 
 ; MetaCont, Prompt -> MetaCont * MetaCont
 (define (split-stack ks p)
@@ -134,10 +146,13 @@
     (worker '() ks))
 
 ; Prompt, Program MetaCont b, MetaCont, Cont b -> #
-(define (shift p prog ks k)
-    (meta-cont-cont-set! ks k)
-    (let-values ([(c underC) (split-stack ks p)])
-                (prog c underC (meta-cont-cont underC))))
+(define-syntax shift
+  (syntax-rules ()
+    [(_ p-expr prog-expr ks-expr k-expr)
+     (let ([p p-expr] [prog prog-expr] [ks ks-expr] [k k-expr])
+       (meta-cont-cont-set! ks k)
+       (let-values ([(c underC) (split-stack ks p)])
+         (prog c underC (meta-cont-cont underC))))]))
 
 ; MetaCont, MetaCont -> MetaCont
 (define (rewind cont ks)
@@ -147,9 +162,9 @@
                [next (meta-cont-rest cont)]
                [newKs (make-meta-cont (meta-cont-cont cont)
                                       (meta-cont-prompt cont)
-                                      (snap-store snap)
+                                      (and snap (snap-store snap))
                                       ks)])
-            (restore snap)
+            (when snap (restore snap))
             (rewind next newKs))))
 
 ; Block b = Cont b, MetaCont -> #

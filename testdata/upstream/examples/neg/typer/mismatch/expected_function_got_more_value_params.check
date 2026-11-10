@@ -1,0 +1,8 @@
+[error] examples/neg/typer/mismatch/expected_function_got_more_value_params.effekt:6:21: Expected type [typer]
+  Int => Bool
+but got type
+  (Int, Int) => Bool
+6    val _ = apply(box both)
+                       ^^^^
+
+   * note: Expected 1 value parameter but got 2.

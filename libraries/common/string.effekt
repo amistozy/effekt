@@ -174,7 +174,7 @@ def toInt(str: String, base: Int): Int / fail = {
 /// Native versions of toInt (unused right now)
 extern def unsafeToInt(str: String) at {}: Int =
   js "(Number.isNaN(parseInt(${str})) ? undefined : parseInt(${str}))"
-  chez "(string->number ${str})"
+  chez "(let ([n (string->number ${str})]) (and (fixnum? n) n))"
 
 
 /// Returns the index of the first occurrence of `sub` in `str`
@@ -205,6 +205,14 @@ def lastIndexOf(str: String, sub: String, from: Int): Option[Int] = {
 }
 
 namespace internal {
+  /// Compares the UTF-8 bytes of two strings, as `bytearray::compareByteArray` does,
+  /// but in a pure way since strings are immutable.
+  extern def compareBytes(left: String, right: String) at {}: Int =
+    llvm """
+      %x = call %Int @c_bytearray_compare(%Pos ${left}, %Pos ${right})
+      ret %Int %x
+    """
+
   def utf8ByteLength(str: String): Int = stream::sum {
     for {str.each} { (c: Char) =>
       do emit(c.utf8ByteCount)
@@ -260,7 +268,7 @@ extern def utf8ByteLength(str: String) at {io, global}: Int =
 /// Compares two strings lexicographically by code point.
 /// Identical on every backend.
 extern def compareStringBytes(left: String, right: String) at {}: Ordering =
-  llvm { compareByteArray(fromString(left), fromString(right)) }
+  llvm { fromInt(internal::compareBytes(left, right)) }
   default { internal::compareCodePoints(left, right) }
 
 def charAt(str: String, index: Int): Char / Exception[OutOfBounds] =
@@ -282,7 +290,7 @@ extern def unsafeCharAt(str: String, n: Int) at {}: Char =
 // ---------
 
 def feed[R](string: String) { driver: () => R / next[Char] } =
-  feed(string.fromString) { decodeUTF8 { driver() } }
+  feed(string.unsafeFromString) { decodeUTF8 { driver() } }
 
 def each(string: String): Unit / emit[Char] =
   feed(string) {

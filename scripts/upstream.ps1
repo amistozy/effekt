@@ -32,11 +32,11 @@ Push-Location $root
 # Compiling one file loads the whole prelude, so the corpus is split across a
 # few background jobs to keep the wall-clock time reasonable.
 $jobs = 6
-$positiveBaseline = 392
+$positiveBaseline = 0
 # Every negative test is matched now: severity and line, as `EffektTests.scala`
 # does for the tests that only carry `// ERROR` comments. A test whose wording
 # differs still counts (the summary reports how many).
-$negativeBaseline = 170
+$negativeBaseline = 66
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
 moon build --target js 2>&1 | Out-Null
@@ -223,7 +223,7 @@ $worker = {
     if (Test-Path $check) {
       foreach ($line in (Get-Content $check)) {
         if ($line -match '^\[(error|warning|info)\]\s+\S+?:(\d+):(\d+):\s*(.*)$') {
-          $expected += @{ severity = $Matches[1]; line = [int]$Matches[2]; text = $Matches[4].Trim() }
+          $expected += @{ severity = $Matches[1]; line = [int]$Matches[2]; text = ($Matches[4] -replace '\s*\[[a-z]+\]\s*$', '').Trim() }
         }
       }
     } else {

@@ -5,6 +5,19 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+// `usable_size` is the usable size of a heap block (at least what was requested),
+// used in string concat in order to append into its spare room
+#if defined(__APPLE__)
+#include <malloc/malloc.h>
+#define usable_size(p) malloc_size(p)
+#elif defined(_WIN32)
+#include <malloc.h>
+#define usable_size(p) _msize(p)
+#else
+#include <malloc.h>
+#define usable_size(p) malloc_usable_size(p)
+#endif
+
 /** We represent bytearrays like positive types.
  *
  *  - The field `tag` contains the size
@@ -14,16 +27,20 @@
  *       | Rc  | Eraser | Contents ... |
  *       +--------------+--------------+
  *
- * The eraser does nothing.
+ * The eraser only frees the object.
  */
 
 
-void c_bytearray_erase_noop(void *envPtr) { (void)envPtr; }
+void c_bytearray_erase(void *object) { free(object); }
+
+// The eraser of string literals, which are global objects that are never freed.
+// Therefore, unlike `c_bytearray_erase`, they must not free their object.
+void c_bytearray_erase_noop(void *object) { (void)object; }
 
 struct Pos c_bytearray_new(const Int size) {
   void *objPtr = malloc(sizeof(struct Header) + size);
   struct Header *headerPtr = objPtr;
-  *headerPtr = (struct Header) { .rc = 0, .eraser = c_bytearray_erase_noop, };
+  *headerPtr = (struct Header) { .rc = 0, .eraser = c_bytearray_erase, };
   return (struct Pos) {
     .tag = size,
     .obj = objPtr,
@@ -71,6 +88,14 @@ struct Pos c_bytearray_construct(const uint64_t n, const uint8_t *data) {
     struct Pos arr = c_bytearray_new(n);
     memcpy(c_bytearray_data(arr), data, n);
     return arr;
+}
+
+// The slow path of `uniqueByteArray` (in rts.ll): make a copy of `arr`, because we're sharing ours with someone else.
+// Strings are immutable and but bytearrays are not, so when converting, we must not share.
+struct Pos c_bytearray_copy_shared(const struct Pos arr) {
+    struct Pos copy = c_bytearray_construct(arr.tag, c_bytearray_data(arr));
+    erasePositive(arr);
+    return copy;
 }
 
 // Complex Operations
@@ -144,6 +169,29 @@ struct Pos c_bytearray_show_Double(const Double x) {
 struct Pos c_bytearray_concatenate(const struct Pos left, const struct Pos right) {
     uint64_t left_size = left.tag;
     uint64_t right_size = right.tag;
+    // if we're the only ones holding a reference to the `left` and `|left| >= |right|`, append `right` in place
+    if (left.obj != NULL && ((struct Header*) left.obj)->rc == 0 && left_size >= right_size) {
+        size_t needed = sizeof(struct Header) + left_size + right_size;
+        void *objPtr = left.obj;
+        // double the size if we need to
+        if (usable_size(objPtr) < needed) {
+            size_t doubled = 2 * (sizeof(struct Header) + left_size);
+            objPtr = realloc(objPtr, doubled > needed ? doubled : needed);
+        }
+        memcpy((uint8_t*) objPtr + sizeof(struct Header) + left_size, c_bytearray_data(right), right_size);
+        erasePositive(right);
+        return (struct Pos) { .tag = left_size + right_size, .obj = objPtr };
+    }
+    // early exit for rhs or lhs being empty strings
+    if (right_size == 0) {
+        erasePositive(right);
+        return left;
+    }
+    if (left_size == 0) {
+        erasePositive(left);
+        return right;
+    }
+
     const struct Pos concatenated = c_bytearray_new(left_size + right_size);
     // two memcpys rather than a byte loop with a branch per byte
     memcpy(c_bytearray_data(concatenated), c_bytearray_data(left), left_size);

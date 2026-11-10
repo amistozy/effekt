@@ -12,8 +12,7 @@ extern type Signal[A, B] =
 extern llvm """
 %Signal = type { %Header, i64, ptr, %Pos }
 
-define void @signal_erase(ptr %envPtr) {
-    %base = getelementptr %Header, ptr %envPtr, i64 -1
+define void @signal_erase(ptr %base) {
     %statePtr = getelementptr %Signal, ptr %base, i64 0, i32 1
     %stackPtr = getelementptr %Signal, ptr %base, i64 0, i32 2
     %valuePtr = getelementptr %Signal, ptr %base, i64 0, i32 3
@@ -24,8 +23,10 @@ define void @signal_erase(ptr %envPtr) {
     %value = load %Pos, ptr %valuePtr
     call void @erasePositive(%Pos %value)
     call void @eraseStack(%Stack %stack)
+    call void @free(ptr %base)
     ret void
   none:
+    call void @free(ptr %base)
     ret void
 }
 """
@@ -82,7 +83,7 @@ extern def fire[A, B](signal: Signal[A, B], value: A) at async: B =
     store i64 3, ptr %statePtr
     notail call void @erasePositive(%Pos ${signal})
     notail call void @resume_Pos(%Stack %otherStack, %Pos ${value})
-    notail call void @resume_Pos(%Stack %stack, %Pos %otherValue)
+    musttail call tailcc void @return_Pos(%Stack %stack, %Pos %otherValue) "no_callee_saved_registers"
     ret void
   panic:
     notail call void @exit(i32 1)
@@ -110,7 +111,7 @@ extern def wait[A, B](signal: Signal[A, B], value: B) at async: A =
     store i64 3, ptr %statePtr
     notail call void @erasePositive(%Pos ${signal})
     notail call void @resume_Pos(%Stack %otherStack, %Pos ${value})
-    notail call void @resume_Pos(%Stack %stack, %Pos %otherValue)
+    musttail call tailcc void @return_Pos(%Stack %stack, %Pos %otherValue) "no_callee_saved_registers"
     ret void
   panic:
     notail call void @exit(i32 1)

@@ -12,11 +12,13 @@ intermediate representations (`.reference/effekt`, kept read-only as the
 reference), and the standard library and the runtime are upstream's own files,
 so what compiles here is the whole language, not a subset of it.
 
-**Status.** Every one of the **392** compiling-and-running programs of the
-Effekt repository's own test corpus prints exactly what upstream recorded, and
-**all 170** programs that have to be rejected are rejected at the expected line
-with upstream's message. The whole standard library compiles. The remaining
-differences are listed under [Differences from
+**Status.** The standard library and the test corpus were just synced to
+upstream 6fbff0b0e and are being ported: the port currently compiles 3 of the
+49 standard library modules and matches 66 of the 203 negative tests (0 of the
+417 positive ones), because the new prelude uses a partial-type-application
+idiom that needs an effect type argument inferred from a block argument. The
+previous corpus (upstream 25835d0a4) passed completely. The plan and the
+remaining differences are listed under [Differences from
 upstream](#differences-from-upstream).
 
 ## Quick start

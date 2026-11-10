@@ -1,3 +1,3 @@
-[error] examples/neg/parsing/eof-instead-of-token.effekt:1:16: Expected } or another operation declaration but got end of file
-interface Foo {
-               ^
+[error] examples/neg/parsing/eof-instead-of-token.effekt:1:16: Expected } or another operation declaration but got end of file [parser]
+1  interface Foo {
+                  ^

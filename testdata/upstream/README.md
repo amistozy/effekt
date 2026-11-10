@@ -7,9 +7,9 @@ tests instead of only against hand-written examples.
 
 | Directory | Files | Expectation |
 |---|---|---|
-| `examples/pos` | 273 | compiles, runs, stdout equals the sibling `.check` file |
-| `examples/stdlib` | 122 | same, for programs that exercise the standard library |
-| `examples/neg` | 170 | compilation fails; the diagnostics have to cover the expected severities and lines |
+| `examples/pos` | 289 | compiles, runs, stdout equals the sibling `.check` file |
+| `examples/stdlib` | 131 | same, for programs that exercise the standard library |
+| `examples/neg` | 203 | compilation fails; the diagnostics have to cover the expected severities and lines |
 
 The expected diagnostics of a negative test come either from its `.check` file
 (`[error] <path>:<line>:<col>: <message>` lines) or, when there is none, from

@@ -8,8 +8,9 @@ declare void @c_io_println(%Pos)
 declare %Pos @c_io_readln()
 declare %Double @c_io_random()
 
-declare void @hole(i8*) cold
-declare void @duplicated_prompt() cold
+declare void @hole(i8*) cold noreturn
+declare void @duplicated_prompt() cold noreturn
+declare void @unmatched_tag() cold noreturn
 
 declare %Pos @c_ref_fresh(%Pos)
 declare %Pos @c_ref_get(%Pos)
@@ -28,6 +29,8 @@ declare %Pos @c_bytearray_set(%Pos, %Int, %Byte)
 declare %Pos @c_bytearray_copy(%Pos, %Int, %Pos, %Int, %Int)
 declare ptr @c_bytearray_data(%Pos)
 declare %Pos @c_bytearray_construct(i64, ptr)
+declare void @c_bytearray_erase_noop(ptr)
+declare %Pos @c_bytearray_copy_shared(%Pos)
 
 declare %Pos @c_bytearray_from_nullterminated_string(ptr)
 declare ptr @c_bytearray_into_nullterminated_string(%Pos)

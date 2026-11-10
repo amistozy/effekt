@@ -1,6 +1,6 @@
-[error] examples/neg/blocks_in_value_pos.effekt:7:12: Expected type
+[error] examples/neg/blocks_in_value_pos.effekt:7:12: Expected type [typer]
   Unit
 but got type
   () => Unit / { MyPrint } at ?C
-    resume(box prog);
-           ^^^^^^^^
+7      resume(box prog);
+              ^^^^^^^^

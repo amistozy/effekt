@@ -32,7 +32,7 @@ extern def allocate(size: Int) at global: ByteArray =
     %object_alloc = tail call noalias ptr @calloc(i64 %object_size, i64 1)
     store i64 0, ptr %object_alloc, align 8
     %object_data_ptr = getelementptr inbounds i8, ptr %object_alloc, i64 8
-    store ptr @bytearray_erase_noop, ptr %object_data_ptr, align 8
+    store ptr @bytearray_erase, ptr %object_data_ptr, align 8
     %ret_object1 = insertvalue %Pos poison, i64 ${size}, 0
     %ret_object2 = insertvalue %Pos %ret_object1, ptr %object_alloc, 1
     ret %Pos %ret_object2
@@ -120,12 +120,17 @@ def build(size: Int) { index: Int => Byte }: ByteArray = {
 ///
 /// O(N)
 def copy(from: ByteArray, start: Int, to: ByteArray, offset: Int, length: Int): Unit =
-  if (length < 0 || start < 0 || offset < 0
-      || start + length > from.size || offset + length > to.size) {
-    <{ "bytearray::copy: range out of bounds" }>
-  } else {
+  if (from.inBounds(start, length) && to.inBounds(offset, length)) {
     unsafeCopy(from, start, to, offset, length)
+  } else {
+    <{ "bytearray::copy: range out of bounds" }>
   }
+
+/// Whether `[offset, offset + length)` is a valid range of indices inside `arr`.
+///
+/// O(1)
+def inBounds(arr: ByteArray, offset: Int, length: Int): Bool =
+  offset >= 0 && length >= 0 && offset + length <= arr.size
 
 /// `copy` without its bounds check.
 /// Corrupts memory if misused; prefer `copy`.
@@ -192,18 +197,29 @@ def foreachIndex(arr: ByteArray){ action: (Int, Byte) {Label} => Unit }: Unit =
     action(i, arr.get(i)) {label}
   }
 
-extern def fromString(str: String) at {}: ByteArray =
+extern def fromString(str: String) at global: ByteArray =
+  js "(new TextEncoder().encode(${str}))"
+  llvm """
+    %arr = call %Pos @uniqueByteArray(%Pos ${str})
+    ret %Pos %arr
+  """
+  chez "(string->utf8 ${str})"
+
+/// The _read-only_ UTF-8 bytes of `str`.
+/// On LLVM they are `str` itself, so they must be read-only!
+extern def unsafeFromString(str: String) at {}: ByteArray = // just a copy of 'fromString' on JS and Chez, but without the global capture
   js "(new TextEncoder().encode(${str}))"
   llvm """
     ret %Pos ${str}
   """
   chez "(string->utf8 ${str})"
 
-extern def toString(arr: ByteArray) at {}: String =
+extern def toString(arr: ByteArray) at global: String =
   js "(new TextDecoder('utf-8').decode(${arr}))"
   // assuming the buffer is already in UTF-8
   llvm """
-    ret %Pos ${arr}
+    %str = call %Pos @uniqueByteArray(%Pos ${arr})
+    ret %Pos %str
   """
   chez "(utf8->string ${arr})"
 
@@ -246,7 +262,8 @@ extern js """
 """
 
 extern llvm """
-define void @bytearray_erase_noop(ptr readnone %0) {
+define void @bytearray_erase(ptr %object) {
+  call void @free(ptr %object)
   ret void
 }
 """
@@ -267,7 +284,7 @@ extern chez """
           [else (loop (+ i 1))]))))
 """
 
-extern def compareByteArrayImpl(b1: ByteArray, b2: ByteArray) at {}: Int =
+extern def compareByteArrayImpl(b1: ByteArray, b2: ByteArray) at global: Int =
   js "bytearray$compare(${b1}, ${b2})"
   llvm """
     %x = call %Int @c_bytearray_compare(%Pos ${b1}, %Pos ${b2})
