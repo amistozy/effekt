@@ -110,15 +110,27 @@ pub fn compile_file(
     // to remain resolvable (see `main_module_key`).
     let main_key = main_module_key(main_path)
     loader.sources.set(main_key, source)
-    loader.trees.set(main_key, {
-      ..tree,
-      includes: loader.implicit_includes(main_key) + tree.includes,
-    })
+    // The library's own prelude modules do not import the prelude (upstream
+    // `Namer.name` skips it for `preludes.contains(decl.path)`), while a
+    // *program* that happens to carry a prelude module's name still gets it.
+    let implicit = if loader.is_library_prelude(main_path, opts.input) {
+      []
+    } else {
+      loader.prelude_includes()
+    }
+    loader.trees.set(main_key, { ..tree, includes: implicit + tree.includes, })
 
     // Topologically order the main module and all its dependencies.
     let order : Array[String] = []
     let visited : Array[String] = []
-    collect_order(loader, main_key, pipeline, ctx, visited, order)
+    let stack : Array[Visit] = []
+    if !collect_order(
+        loader, main_key, "", pipeline, ctx, visited, stack, order,
+      ) {
+      // A cyclic import was reported; the modules cannot be named (each one's
+      // include of the next would be "Cannot find module to include").
+      return { output: None, messages: ctx.messages.copy(), failed: true, }
+    }
 
     // Name resolution and type checking, dependencies first. Each resolved
     // module is remembered so that its importers can open its exports.
@@ -177,23 +189,147 @@ pub fn compile_file(
 }
 
 ///|
+/// One module on the depth-first search stack while the dependency order is
+/// collected.
+priv struct Visit {
+  /// The key the module is registered under in the loader.
+  key : String
+  /// The include path it was reached by (empty for the input module). Upstream
+  /// names the module in "Cannot compile dependency" by this path.
+  via : String
+  /// The canonical file path: the identity used to detect a cycle. The input
+  /// module is registered under a key no include can name, so the key alone
+  /// cannot recognize that an import leads back to it.
+  source : String
+}
+
+///|
+/// Collects the transitive dependencies of `path` in dependency-first order.
+///
+/// Returns `false` after reporting a cyclic import: upstream's `Namer` keeps a
+/// stack of the modules it is currently naming and aborts when one of them is
+/// imported again, which makes the whole frontend of that module fail. With no
+/// frontend to run, the driver reproduces that by stopping here.
 fn collect_order(
   loader : Loader,
   path : String,
+  via : String,
   pipeline : Pipeline,
   ctx : Context,
   visited : Array[String],
+  stack : Array[Visit],
   order : Array[String],
-) -> Unit raise EffektError {
-  if visited.any(p => p == path) {
-    return
+) -> Bool raise EffektError {
+  let source = match loader.source_of(path) {
+    Some(s) => resolve_path(s.name)
+    // A module that has not been loaded yet: resolve its file now, so that its
+    // identity does not change between the first and a later visit.
+    None =>
+      match loader.locate(path) {
+        Some(file) => resolve_path(file)
+        None => path
+      }
   }
-  visited.push(path)
+  // Already part of the order (a diamond, or the same file reached by another
+  // include path): nothing to do.
+  if visited.any(p => p == source) {
+    return true
+  }
+  let mut on_stack = -1
+  for i = 0; i < stack.length(); i = i + 1 {
+    if stack[i].source == source {
+      on_stack = i
+    }
+  }
+  if on_stack >= 0 {
+    report_cycle(loader, stack, on_stack, via, ctx)
+    return false
+  }
+  stack.push({ key: path, via, source, })
   let tree = loader.load_tree(path, ctx, pipeline.parse)
   for inc in tree.includes {
-    collect_order(loader, inc.path, pipeline, ctx, visited, order)
+    if !collect_order(
+        loader,
+        inc.path,
+        inc.path,
+        pipeline,
+        ctx,
+        visited,
+        stack,
+        order,
+      ) {
+      return false
+    }
   }
+  ignore(stack.pop())
+  visited.push(source)
   order.push(path)
+  true
+}
+
+///|
+/// Reports a cyclic import the way upstream's `Namer.recursiveProtect` does:
+/// the cycle is reported at the first `import` of the module that is imported
+/// again, followed by one "Cannot compile dependency" per module of the cycle.
+///
+/// Upstream's messages are indistinguishable in position because the abort
+/// leaves the focus at the re-entered module's `import` (see the comment on
+/// `Context.in`), which is what the recorded `.check` file shows.
+fn report_cycle(
+  loader : Loader,
+  stack : Array[Visit],
+  from : Int32,
+  via : String,
+  ctx : Context,
+) -> Unit {
+  let root = stack[from]
+  let root_tree = loader.tree_of(root.key)
+  let root_name = match root_tree {
+    Some(t) => t.path
+    None => root.key
+  }
+  // `ModuleDecl.path` is the declared module name (`module cyclic_a`).
+  let names : Array[String] = []
+  let vias : Array[String] = []
+  for i = from; i < stack.length(); i = i + 1 {
+    match loader.tree_of(stack[i].key) {
+      Some(t) => names.push(t.path)
+      None => names.push(stack[i].key)
+    }
+    vias.push(stack[i].via)
+  }
+  // The cycle is closed by the include that led back to the root, whose path
+  // names the root module.
+  vias[0] = via
+  let cycle = "\{names.join(" -> ")} -> \{root_name}"
+  let span = match root_tree {
+    Some(t) => {
+      let mut first : Span? = None
+      for inc in t.includes {
+        if first is None && !inc.span.is_missing() {
+          first = Some(inc.span)
+        }
+      }
+      match first {
+        Some(s) => s
+        None => Span::missing()
+      }
+    }
+    None => Span::missing()
+  }
+  // Upstream's `Source.name` for an imported module is `./<path>.effekt`
+  // (`VirtualFileSource`); `moduleOf` strips the `.effekt` again.
+  let dependencies : Array[String] = ["./\{vias[0]}"]
+  for i = vias.length() - 1; i > 0; i = i - 1 {
+    dependencies.push("./\{vias[i]}")
+  }
+  ctx.error(
+    span,
+    "Cyclic import: \{root_name} depends on itself, via:\n\t\{cycle}",
+  )
+  for dependency in dependencies {
+    ctx.error(span, "Cannot compile dependency: \{dependency}")
+  }
 }
 
 ///|

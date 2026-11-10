@@ -33,10 +33,16 @@ pub fn Loader::implicit_includes(
   self : Loader,
   path : String,
 ) -> Array[Include] {
-  let out : Array[Include] = []
   if is_prelude_path(path) {
-    return out
+    return []
   }
+  self.prelude_includes()
+}
+
+///|
+/// The implicit includes themselves, regardless of the importing module.
+pub fn Loader::prelude_includes(self : Loader) -> Array[Include] {
+  let out : Array[Include] = []
   for p in prelude_paths() {
     match locate_in(self.prelude_roots, p) {
       Some(_) => out.push({ path: p, span: Span::missing(), })
@@ -44,6 +50,27 @@ pub fn Loader::implicit_includes(
     }
   }
   out
+}
+
+///|
+/// Is the input file the library's own prelude module `path`?
+///
+/// Upstream decides with `preludes.contains(decl.path)` alone, which would also
+/// take a *program* that declares `module exception` for the prelude module.
+/// Comparing the located file keeps this port's convenience that
+/// `examples/exception.effekt` still sees the prelude.
+pub fn Loader::is_library_prelude(
+  self : Loader,
+  path : String,
+  input : String,
+) -> Bool {
+  if !is_prelude_path(path) {
+    return false
+  }
+  match self.locate(path) {
+    Some(file) => resolve_path(file) == resolve_path(input)
+    None => false
+  }
 }
 
 ///|

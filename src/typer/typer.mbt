@@ -1182,7 +1182,13 @@ pub fn Typer::check_module(
     }
   }
   self.commit()
-  self.check_pending_matches()
+  // Upstream checks exhaustivity in its wellformedness phase, which only runs
+  // when the typer did not report anything: a pattern-match error already
+  // explains why a match is not exhaustive, so `examples/neg/patternmatch`
+  // does not get the "missing case" diagnostic on top.
+  if !self.ctx.has_errors() {
+    self.check_pending_matches()
+  }
   self.check_capture_escapes(module)
   self.check_main(module)
 }
@@ -2382,17 +2388,54 @@ fn datatype_tparams(ctor : Sym) -> Array[Sym]? {
 
 ///|
 /// The context of a type comparison; only used to produce better messages.
+///
+/// Mirrors upstream's `ErrorContext`: the first group are the *roots* (they
+/// name the comparison), the second group are wrappers that record how the
+/// comparison descended into a component. `explain_mismatch` walks the
+/// wrappers from the root outwards and appends one line per wrapper, which is
+/// how `lambdas/inference` gets its "comparing the argument types of ... when
+/// comparing the return type of the function." explanation.
 pub(all) enum ErrCtx {
   Expected(ValueType, ValueType)
   MergeTypes(ValueType, ValueType)
   Declaration(ValueType, ValueType)
+  DeclarationBlock(BlockType, BlockType)
   PatternMatch
-  CaptureFlow
+  MergeInvariant(ErrCtx)
+  TypeConstructor(ErrCtx)
+  TypeConstructorArgument(ErrCtx)
+  BoxedTypeBlock(ErrCtx)
+  BoxedTypeCapture(ErrCtx)
+  FunctionArgument(BlockType, BlockType, ErrCtx)
+  FunctionReturn(ErrCtx)
+  FunctionEffects(ErrCtx)
   Other
 }
 
 ///|
 fn explain_mismatch(left : String, right : String, ctx : ErrCtx) -> String {
+  match ctx {
+    MergeInvariant(outer)
+    | TypeConstructor(outer)
+    | TypeConstructorArgument(outer)
+    | BoxedTypeBlock(outer)
+    | BoxedTypeCapture(outer)
+    | FunctionEffects(outer) => explain_mismatch(left, right, outer)
+    FunctionArgument(given, expected, outer) =>
+      explain_mismatch(left, right, outer) +
+      "\n  comparing the argument types of\n    \{given} (given)\n    \{expected} (expected)"
+    FunctionReturn(outer) =>
+      explain_mismatch(left, right, outer) +
+      "\n  when comparing the return type of the function."
+    _ => explain_root_mismatch(left, right, ctx)
+  }
+}
+
+///|
+/// The message of the *root* of a comparison. `left`/`right` are the types the
+/// failing comparison was about (a component of the root's types when the
+/// comparison descended).
+fn explain_root_mismatch(left : String, right : String, ctx : ErrCtx) -> String {
   match ctx {
     Expected(got, exp) => {
       // Upstream renders the two types of the *whole* comparison and uses the
@@ -2417,21 +2460,29 @@ fn explain_mismatch(left : String, right : String, ctx : ErrCtx) -> String {
         msg
       }
     }
-    MergeTypes(_, _) =>
-      (
+    MergeTypes(merge_left, merge_right) => {
+      let left_text = "\{merge_left}"
+      let right_text = "\{merge_right}"
+      let msg =
         $|Different arms of a conditional/match have incompatible types.
         $|
         $|One arm has type
-        $|  \{left}
+        $|  \{left_text}
         $|while another one has type
-        $|  \{right}
-      )
-    Declaration(_, _) =>
-      "Type \{left} does not match the declared type \{right}."
+        $|  \{right_text}
+      if left != right_text || right != left_text {
+        "\{msg}\n\nType mismatch between \{right} and \{left}."
+      } else {
+        msg
+      }
+    }
+    Declaration(declared, defined) =>
+      "Type \{defined} does not match the declared type \{declared}."
+    DeclarationBlock(declared, defined) =>
+      "Type \{defined} does not match the declared type \{declared}."
     PatternMatch =>
       "Pattern matches against type \{right} but scrutinee has type \{left}."
-    CaptureFlow => "Capture flow error: \{left} is not included in \{right}."
-    Other => "Type mismatch between \{left} and \{right}."
+    _ => "Type mismatch between \{left} and \{right}."
   }
 }
 
@@ -2541,7 +2592,7 @@ pub fn Typer::unify_value_types(
       @symbols.ValueType::ValueTypeApp(c2, args2),
     ) =>
       if !(c1 == c2) {
-        self.unify_fail(tpe1, tpe2, ctx)
+        self.unify_fail(tpe1, tpe2, TypeConstructor(ctx))
       } else if args1.length() != args2.length() {
         self.abort(
           self.focus,
@@ -2549,15 +2600,19 @@ pub fn Typer::unify_value_types(
         )
       } else {
         for i = 0; i < args1.length(); i = i + 1 {
-          self.unify_value_types(args1[i], args2[i], ctx)
+          self.unify_value_types(
+            args1[i],
+            args2[i],
+            TypeConstructorArgument(ctx),
+          )
         }
       }
     (
       @symbols.ValueType::BoxedType(b1, c1),
       @symbols.ValueType::BoxedType(b2, c2),
     ) => {
-      self.unify_block_types(b1, b2, ctx)
-      self.unify_captures(c1, c2, ctx)
+      self.unify_block_types(b1, b2, BoxedTypeBlock(ctx))
+      self.unify_captures(c1, c2, BoxedTypeCapture(ctx))
     }
     _ =>
       if tpe1 == t_bottom() || tpe2 == t_top() {
@@ -2579,6 +2634,10 @@ fn Typer::unify_fail(
 }
 
 ///|
+/// Records that `x` is `t`; when `x` was solved already, the new type is
+/// compared against the existing one (upstream `Constraints.learn`, whose
+/// merge callback unifies `(tpe, otherTpe)` in that order and wraps the
+/// context in `MergeInvariant`).
 fn Typer::learn(
   self : Typer,
   x : Sym,
@@ -2588,9 +2647,9 @@ fn Typer::learn(
   match self.st.u.types.get(x.uid()) {
     Some(existing) =>
       self.unify_value_types(
-        self.st.u.prune_value(existing),
         self.st.u.prune_value(t),
-        MergeTypes(self.st.u.prune_value(existing), self.st.u.prune_value(t)),
+        self.st.u.prune_value(existing),
+        MergeInvariant(ctx),
       )
     None => {
       ignore(ctx)
@@ -2660,23 +2719,46 @@ pub fn Typer::unify_block_types(
         tparams1.map(t => @symbols.ValueType::ValueTypeRef(t)),
       ).compose(Substitutions::captures(params2, capts1))
       for i = 0; i < vps1.length(); i = i + 1 {
-        self.unify_value_types(vps1[i], subst.substitute_value(vps2[i]), ctx)
+        self.unify_value_types(
+          vps1[i],
+          subst.substitute_value(vps2[i]),
+          FunctionArgument(tpe1, tpe2, ctx),
+        )
       }
       for i = 0; i < bps1.length(); i = i + 1 {
-        self.unify_block_types(bps1[i], subst.substitute_block(bps2[i]), ctx)
+        self.unify_block_types(
+          bps1[i],
+          subst.substitute_block(bps2[i]),
+          FunctionArgument(tpe1, tpe2, ctx),
+        )
       }
-      self.unify_value_types(ret1, subst.substitute_value(ret2), ctx)
-      self.unify_effects(effs1, subst.substitute_effects(effs2), ctx)
+      self.unify_value_types(
+        ret1,
+        subst.substitute_value(ret2),
+        FunctionReturn(ctx),
+      )
+      self.unify_effects(
+        effs1,
+        subst.substitute_effects(effs2),
+        FunctionEffects(ctx),
+      )
     }
     (
       @symbols.BlockType::InterfaceType(c1, args1),
       @symbols.BlockType::InterfaceType(c2, args2),
     ) =>
       if !(c1 == c2) {
-        self.error(self.focus, explain_mismatch("\{tpe1}", "\{tpe2}", ctx))
+        self.error(
+          self.focus,
+          explain_mismatch("\{tpe1}", "\{tpe2}", TypeConstructor(ctx)),
+        )
       } else {
         for i = 0; i < args1.length() && i < args2.length(); i = i + 1 {
-          self.unify_value_types(args1[i], args2[i], ctx)
+          self.unify_value_types(
+            args1[i],
+            args2[i],
+            TypeConstructorArgument(ctx),
+          )
         }
       }
     _ => self.error(self.focus, explain_mismatch("\{tpe1}", "\{tpe2}", ctx))
@@ -2692,6 +2774,7 @@ pub fn Typer::unify_effects(
   effs2 : Effects,
   ctx : ErrCtx,
 ) -> Unit {
+  ignore(ctx)
   // compare the *substituted* effect sets: two effects that only differ in an
   // already solved unification variable are the same effect
   let l1 = self.st.u.prune_effects(effs1).distinct()
@@ -2699,7 +2782,9 @@ pub fn Typer::unify_effects(
   let has_unknowns = l1.effects.any(e => self.unknowns_block(e).length() > 0) ||
     l2.effects.any(e => self.unknowns_block(e).length() > 0)
   if !(l1 == l2) && !has_unknowns {
-    self.error(self.focus, explain_mismatch("\{l1}", "\{l2}", ctx))
+    // Upstream `unifyEffects`: `error(pp"${eff2} is not equal to ${eff1}", ctx)`
+    // — a plain message, the context does not take part in the rendering.
+    self.error(self.focus, "\{l2} is not equal to \{l1}")
   }
 }
 
@@ -2735,7 +2820,13 @@ pub fn Typer::join(
         // definitions, so type checking demonstrably continues). Keep the arm's
         // own type as the join: the diagnostic is out, and the remaining
         // definitions are still checked instead of losing their diagnostics.
-        let merged = self.merge_value_types(acc, tpe, MergeTypes(acc, tpe)) catch {
+        // Upstream (and its recorded output) reports the arms' *substituted*
+        // types here (`MergeTypes(Context.unification(t1), unification(t2))`).
+        let merged = self.merge_value_types(
+          acc,
+          tpe,
+          MergeTypes(self.st.u.prune_value(acc), self.st.u.prune_value(tpe)),
+        ) catch {
           EffektError::Fatal(_) => tpe
           EffektError::Internal(m) => raise EffektError::Internal(m)
         }
@@ -2743,7 +2834,7 @@ pub fn Typer::join(
       }
     }
   }
-  match result {
+  let joined = match result {
     None =>
       match expected {
         Some(t) => t
@@ -2751,20 +2842,38 @@ pub fn Typer::join(
       }
     Some(t) => t
   }
+  // Upstream checks every arm again against the join ("check again to insert
+  // coercions; TODO this duplicates errors"). The context keeps the
+  // *unsubstituted* arm and join types, which is why `examples/neg/patternmatch`
+  // shows `Box[A]` on both sides and names the differing type arguments in the
+  // following line. The diagnostic is reported at the enclosing `match`/`if`
+  // (upstream passes the arm's tree only for the coercion, not for the
+  // position).
+  for entry in tpes_and_terms {
+    let (tpe, _) = entry
+    self.require_subtype_value(tpe, joined, Expected(tpe, joined))
+  }
+  joined
 }
 
 ///|
 /// Mirrors `TypeMerger.mergeValueTypes`.
+///
+/// Like upstream, the structural cases return the *unsubstituted* first
+/// operand: `join` compares every arm against that result again with an
+/// `Expected` context that renders the arm and the join, and a substituted
+/// result would hide the type arguments the message is about.
 pub fn Typer::merge_value_types(
   self : Typer,
   old : ValueType,
   new : ValueType,
   ctx : ErrCtx,
 ) -> ValueType raise EffektError {
+  let old_raw = old
   let old = self.st.u.prune_value(old)
   let new = self.st.u.prune_value(new)
   if old == new {
-    return old
+    return old_raw
   }
   if old == t_top() || new == t_top() {
     return t_top()
@@ -2779,7 +2888,7 @@ pub fn Typer::merge_value_types(
     (@symbols.ValueType::ValueTypeRef(x), t) =>
       if self.st.u.is_type_var(x) {
         self.learn(x, t, ctx)
-        old
+        old_raw
       } else {
         // the *other* side might be the unification variable
         match t {
@@ -2810,17 +2919,17 @@ pub fn Typer::merge_value_types(
         self.abort(self.focus, explain_mismatch("\{old}", "\{new}", ctx))
       }
       for i = 0; i < args1.length() && i < args2.length(); i = i + 1 {
-        self.unify_value_types(args1[i], args2[i], ctx)
+        self.unify_value_types(args1[i], args2[i], TypeConstructorArgument(ctx))
       }
-      old
+      old_raw
     }
     (
       @symbols.ValueType::BoxedType(b1, c1),
       @symbols.ValueType::BoxedType(b2, c2),
     ) => {
-      self.unify_block_types(b1, b2, ctx)
-      self.unify_captures(c1, c2, ctx)
-      old
+      self.unify_block_types(b1, b2, BoxedTypeBlock(ctx))
+      self.unify_captures(c1, c2, BoxedTypeCapture(ctx))
+      old_raw
     }
     _ => self.abort(self.focus, explain_mismatch("\{old}", "\{new}", ctx))
   }

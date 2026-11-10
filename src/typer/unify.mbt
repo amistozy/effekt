@@ -71,8 +71,14 @@ pub fn Unification::fresh_type_var(self : Unification, underlying : Sym) -> Sym 
 
 ///|
 /// A fresh *capture* unification variable.
+///
+/// Upstream's `CaptUnificationVar` is always called `?C` (`val name =
+/// Name.local("?C")`); the role only shows up in its `toString`, which no
+/// diagnostic uses. `role` is kept to say at the call site what the variable
+/// stands for.
 pub fn Unification::fresh_capt_var(self : Unification, role : String) -> Sym {
-  let x = Sym::capture_param(Name::local(role))
+  let _ = role
+  let x = Sym::capture_param(Name::local("?C"))
   self.capt_var.set(x.uid(), x)
   x
 }

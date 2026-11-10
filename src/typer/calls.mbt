@@ -12,6 +12,19 @@ fn is_tuple_name(name : String) -> Bool {
 }
 
 ///|
+/// Upstream's `Style.indent`: two spaces in front of *every* line of a nested
+/// message (`FailedOverloadError` and `ImplicitInstantiationError` render the
+/// messages of their candidates that way).
+///
+/// A trailing newline of the nested message is *not* turned into an indented
+/// empty line: Scala's `linesIterator` (which `Style.indent` uses) drops the
+/// final empty line, and the outer message adds its own newline.
+fn indent_message(text : String) -> String {
+  let text = if text.has_suffix("\n") { text[:text.length() - 1] } else { text }
+  text.split("\n").map(line => "  \{line}").join("\n")
+}
+
+///|
 /// Heuristics for the two ways of confusing a tuple with separate arguments
 /// (upstream `Typer.checkCallTo`):
 ///
@@ -514,29 +527,9 @@ pub fn Typer::check_overloaded_function_call(
           "Cannot instantiate implicit argument.\nThe implicit argument \{call.name} is ambiguous. Could be: \{names.join(", ")}.",
         )
       }
-      // Same scope, several candidates typecheck. Upstream reports an
-      // ambiguity error here; we additionally prefer the *most specific*
-      // candidates (those with the fewest type parameters), which is what a
-      // reader expects for e.g. a monomorphic `show(Int)` competing with a
-      // generic `show[R]` fallback (see `examples/minilib`). This can only
-      // ever turn an error into a success, never the other way around.
-      let best = self.most_specific(successes)
-      if best.length() == 1 {
-        let (found, res, state, infos) = best[0]
-        self.st = state
-        self.replay_infos(infos)
-        self.assign_symbol(id.uid, found)
-        return res
-      }
-      let names : Array[String] = best.map(s => {
-        let (s, _, _, _) = s
-        "- \{s.name().qualified_name()}: \{self.lookup_block(s)}"
-      })
-      // Upstream's `AmbiguousOverloadError`.
-      self.abort(
-        call.span,
-        "Ambiguous overload.\nThere are multiple overloads, which all would type check:\n\{names.join("\n")}",
-      )
+      // Same scope, several candidates typecheck: upstream reports an
+      // ambiguity error here (`AmbiguousOverloadError`).
+      self.abort(call.span, self.ambiguous_overload_message(successes))
     }
     for f in failures {
       all_failures.push(f)
@@ -568,53 +561,46 @@ pub fn Typer::check_overloaded_function_call(
       )
     _ => {
       // Upstream's `FailedOverloadError`: a title line, then one paragraph per
-      // candidate with the candidate's own diagnostics indented below it.
+      // candidate with the candidate's own diagnostics indented below it, and a
+      // trailing newline (which is the blank line before the excerpt in the
+      // recorded `.check` files).
       let explanations : Array[String] = all_failures.map(f => {
         let (sym, msg, _) = f
-        "Possible overload: \{sym.name().qualified_name()} of type \{self.lookup_block(sym)}\n  \{msg}"
+        "Possible overload: \{sym.name().qualified_name()} of type \{self.lookup_block(sym)}\n\{indent_message(msg)}"
       })
-      let message =
-        $|Cannot typecheck call.
-        $|There are multiple overloads, which all fail to check:
-        $|
-        $|\{explanations.join("\n\n")}
+      let message = "Cannot typecheck call.\nThere are multiple overloads, which all fail to check:\n\n" +
+        explanations.join("\n\n") +
+        "\n"
       self.abort(call.span, message)
     }
   }
 }
 
 ///|
-/// Of several successful candidates, the most specific ones: those that
-/// instantiate the fewest type parameters (a monomorphic candidate wins over a
-/// generic fallback).
-fn Typer::most_specific(
+/// Upstream's `AmbiguousOverload`: the title, then one line per candidate with
+/// the names padded to the longest one.
+fn Typer::ambiguous_overload_message(
   self : Typer,
   successes : Array[(Sym, TyRes[ValueType], TyperState, Array[(Span, String)])],
-) -> Array[(Sym, TyRes[ValueType], TyperState, Array[(Span, String)])] {
-  ignore(self)
-  let mut best = 0
-  let mut first = true
-  for s in successes {
+) -> String raise EffektError {
+  let names : Array[String] = successes.map(s => {
     let (sym, _, _, _) = s
-    let n = match sym.as_callable() {
-      Some(v) => v.tparams.length()
-      None => 0
-    }
-    if first {
-      best = n
-      first = false
-    } else if n < best {
-      best = n
+    sym.name().qualified_name()
+  })
+  let mut longest = 0
+  for name in names {
+    if name.length() > longest {
+      longest = name.length()
     }
   }
-  successes.filter(s => {
-    let (sym, _, _, _) = s
-    let n = match sym.as_callable() {
-      Some(v) => v.tparams.length()
-      None => 0
-    }
-    n == best
-  })
+  let explanations : Array[String] = []
+  for i = 0; i < successes.length(); i = i + 1 {
+    let sym = successes[i].0
+    let name = names[i]
+    let padding = " ".repeat(longest - name.length())
+    explanations.push("- \{name}: \{padding}\{self.lookup_block(sym)}")
+  }
+  "Ambiguous overload.\nThere are multiple overloads, which all would type check:\n\{explanations.join("\n")}"
 }
 
 ///|
@@ -753,10 +739,23 @@ pub fn Typer::check_overloaded_method_call(
       self.assign_symbol(id.uid, found)
       return TyRes::new(res.tpe, eff_union(res.effs, recv.effs))
     } else if successes.length() > 1 {
-      self.abort(call.span, "Ambiguous method call to \{id.name}.")
+      self.abort(call.span, self.ambiguous_overload_message(successes))
     }
     match failures {
-      [(_, msg, _)] => self.abort(call.span, msg)
+      // Upstream's `abortWith` (through `resolveOverload`): the only candidate
+      // that was tried reports its own diagnostics, each at its span, instead of
+      // one message at the call.
+      [(_, msg, muted)] =>
+        if muted.length() == 0 {
+          self.abort(call.span, msg)
+        } else {
+          for i = 1; i < muted.length(); i = i + 1 {
+            let (span, text) = muted[i]
+            self.error(span, text)
+          }
+          let (span, text) = muted[0]
+          self.abort(span, text)
+        }
       _ => ()
     }
   }

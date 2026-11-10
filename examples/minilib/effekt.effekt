@@ -70,14 +70,10 @@ def infixBarBar { first: => Bool } { second: => Bool }: Bool =
 def infixAmpAmp { first: => Bool } { second: => Bool }: Bool =
   if (first()) second() else false
 
-def show(value: Int): String = showBuiltin(value)
-
 def println(value: Int): Unit = println(showBuiltin(value))
 
 extern def showBuiltin(value: Char) at {}: String =
   js "String.fromCodePoint(${value})"
-
-def show(value: Char): String = showBuiltin(value)
 
 def println(value: Char): Unit = println(showBuiltin(value))
 

@@ -13,11 +13,16 @@
 # The baseline can only grow: raise it after every improvement, never lower it
 # without removing a test.
 #
-# Usage: powershell -File scripts/upstream.ps1 [-Filter <substring>] [-ShowWording]
+# Usage: powershell -File scripts/upstream.ps1 [-Filter <substring>] [-ShowWording] [-Strict]
 
 param(
   [string]$Filter = "",
-  [switch]$ShowWording
+  [switch]$ShowWording,
+  # Compare the *whole* rendered diagnostics of a negative test that has a
+  # `.check` file, the way upstream's `assertNoDiff` does. This is stricter than
+  # the wording check (which mirrors `validateErrors`: severity, line, and the
+  # expected text somewhere in the message); it is reported, not enforced.
+  [switch]$Strict
 )
 
 $ErrorActionPreference = "Continue"
@@ -83,7 +88,7 @@ New-Item -ItemType Directory -Force $outDir | Out-Null
 # `pos` or `neg` and status is `ok`, `fail`, or `wording`.
 # ---------------------------------------------------------------------------
 $worker = {
-  param($cli, $libDir, $corpus, $outDir, $files)
+  param($cli, $libDir, $corpus, $outDir, $files, $strict)
 
   # `Start-Job` workers do not inherit the working directory.
   Set-Location (Split-Path -Parent (Split-Path -Parent $corpus))
@@ -320,6 +325,29 @@ $worker = {
         "$kind`tfail`t$rel`tcompiled without an error"
       } elseif ($wording -gt 0) {
         "$kind`twording`t$rel`t$wording message(s) differ in wording: " + ($wordingDetails -join " | ")
+      } elseif ($strict -and (Test-Path ([IO.Path]::ChangeExtension($file, ".check")))) {
+        # Upstream's `runNegativeTestsIn` compares the recorded `.check` file
+        # verbatim (`assertNoDiff`) when there is one. Report the first line that
+        # differs, so the remaining work is visible one difference at a time.
+        $check = [IO.Path]::ChangeExtension($file, ".check")
+        $actualText = (Remove-AnsiColors (Get-DiagnosticText $r.stderr)).TrimEnd()
+        $expectedText = ([IO.File]::ReadAllText($check)).Replace("`r`n", "`n").TrimEnd()
+        if ($actualText -eq $expectedText) {
+          "$kind`tok`t$rel`t"
+        } else {
+          $a = $actualText -split "`n"
+          $b = $expectedText -split "`n"
+          $first = ""
+          for ($i = 0; $i -lt [Math]::Max($a.Count, $b.Count); $i++) {
+            $la = if ($i -lt $a.Count) { $a[$i] } else { "<missing>" }
+            $lb = if ($i -lt $b.Count) { $b[$i] } else { "<missing>" }
+            if ($la -ne $lb) {
+              $first = "line $($i + 1): expected <$lb> got <$la>"
+              break
+            }
+          }
+          "$kind`tstrict`t$rel`t$first"
+        }
       } else {
         "$kind`tok`t$rel`t"
       }
@@ -369,7 +397,7 @@ $start = Get-Date
 $jobObjects = @()
 foreach ($chunk in $chunks) {
   if ($chunk.Count -eq 0) { continue }
-  $jobObjects += Start-Job -ScriptBlock $worker -ArgumentList $cli, $libDir, $corpus, $outDir, $chunk
+  $jobObjects += Start-Job -ScriptBlock $worker -ArgumentList $cli, $libDir, $corpus, $outDir, $chunk, $Strict
 }
 $results = $jobObjects | Wait-Job | Receive-Job
 $jobObjects | Remove-Job
@@ -384,6 +412,9 @@ $negOk = 0
 $negTotal = 0
 $negWording = 0
 $negWordingDetails = @()
+$negStrictOk = 0
+$negStrictTotal = 0
+$negStrictDetails = @()
 $failures = @{}
 
 foreach ($line in $results) {
@@ -402,8 +433,17 @@ foreach ($line in $results) {
     }
   } else {
     $negTotal++
-    if ($status -eq "ok") { $negOk++ }
-    elseif ($status -eq "wording") {
+    if ($status -eq "strict") {
+      # the test still matches by upstream's `validateErrors` criterion
+      $negOk++
+      if ($Strict) {
+        $negStrictTotal++
+        $negStrictDetails += "$rel`t$detail"
+      }
+    } elseif ($status -eq "ok") {
+      $negOk++
+      if ($Strict) { $negStrictTotal++; $negStrictOk++ }
+    } elseif ($status -eq "wording") {
       $negOk++
       $negWording++
       $negWordingDetails += "$rel`t$detail"
@@ -418,6 +458,9 @@ foreach ($line in $results) {
 Write-Host ""
 Write-Host ("positive (pos + stdlib): {0} of {1} pass" -f $posOk, $posTotal) -ForegroundColor Cyan
 Write-Host ("negative (neg):          {0} of {1} match ({2} pass with different wording)" -f $negOk, $negTotal, $negWording) -ForegroundColor Cyan
+if ($Strict) {
+  Write-Host ("  of those, full text:   {0} of {1} `.check` files match exactly" -f $negStrictOk, $negStrictTotal) -ForegroundColor Cyan
+}
 if ($skipped.Count -gt 0) {
   Write-Host ("skipped:                 {0} tests that cannot pass on this platform" -f $skipped.Count) -ForegroundColor DarkGray
   foreach ($name in ($skipped.Keys | Sort-Object)) { Write-Host ("           $name ({0})" -f $skipped[$name]) -ForegroundColor DarkGray }
@@ -427,6 +470,16 @@ if ($ShowWording -and $negWordingDetails.Count -gt 0) {
   Write-Host ""
   Write-Host "negative tests whose wording differs (expected <>, got <>):" -ForegroundColor Yellow
   foreach ($entry in $negWordingDetails) {
+    $parts = $entry.Split("`t")
+    Write-Host ("  {0}" -f $parts[0])
+    Write-Host ("    {0}" -f $parts[1]) -ForegroundColor DarkGray
+  }
+}
+
+if ($Strict -and $negStrictDetails.Count -gt 0) {
+  Write-Host ""
+  Write-Host "negative tests whose full diagnostic text differs (first differing line):" -ForegroundColor Yellow
+  foreach ($entry in $negStrictDetails) {
     $parts = $entry.Split("`t")
     Write-Host ("  {0}" -f $parts[0])
     Write-Host ("    {0}" -f $parts[1]) -ForegroundColor DarkGray

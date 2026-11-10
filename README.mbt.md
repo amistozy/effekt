@@ -15,8 +15,8 @@ so what compiles here is the whole language, not a subset of it.
 **Status.** Every one of the **392** compiling-and-running programs of the
 Effekt repository's own test corpus prints exactly what upstream recorded, and
 **all 170** programs that have to be rejected are rejected at the expected line
-(4 of them with a different message). The whole standard library compiles. The
-remaining differences are listed under [Differences from
+with upstream's message. The whole standard library compiles. The remaining
+differences are listed under [Differences from
 upstream](#differences-from-upstream).
 
 ## Quick start
@@ -154,7 +154,7 @@ uses). Each package below names its upstream counterpart.
 | Command | What it covers |
 |---|---|
 | `moon check --target js -d` | The compiler type checks with warnings as errors |
-| `moon test --target js` | 206 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output), the driver's host layer |
+| `moon test --target js` | 207 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output), the driver's host layer |
 | `scripts/e2e.ps1` | 14 example programs in 25 runs across the two standard libraries, plus a `--show-core` dump check (26 checks): compiled and executed with `node`, output compared |
 | `scripts/stdlib.ps1` | Every module under `libraries/` compiled, failures grouped by cause; a library module counts when it gets through code generation and stops at "no `main`", and the run fails below 49 modules |
 | `scripts/upstream.ps1` | The upstream test corpus (`testdata/upstream`, 565 programs) |
@@ -163,9 +163,12 @@ The corpus is the real measure. A `pos`/`stdlib` test is compiled, run, and its
 stdout together with our diagnostics compared to upstream's `.check` file — the
 diagnostics are rendered in upstream's `[warning] path:line:column message`
 style, with the source excerpt and carets — so these tests police both
-execution and error reporting. A `neg` test only has to fail with the expected
-severity on the expected line, either according to its `.check` file or its
-`// ERROR` / `// WARN` comments, which is what upstream's own test driver does.
+execution and error reporting. A `neg` test has to fail with the expected
+severity on the expected line and upstream's message, either according to its
+`.check` file or its `// ERROR` / `// WARN` comments, which is what upstream's
+own test driver does. `-Strict` additionally compares the whole rendered
+diagnostics of a negative test verbatim against its `.check` file, the way
+upstream's `assertNoDiff` does, and reports how many match.
 Three tests are skipped: one writes to `/dev/stdout`, one spawns the POSIX `cat`,
 and one imports a module that does not exist upstream either (`unsafe/cont`, in
 upstream's own ignore list for the JS backend).

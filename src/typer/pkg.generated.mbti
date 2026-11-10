@@ -88,8 +88,16 @@ pub(all) enum ErrCtx {
   Expected(@symbols.ValueType, @symbols.ValueType)
   MergeTypes(@symbols.ValueType, @symbols.ValueType)
   Declaration(@symbols.ValueType, @symbols.ValueType)
+  DeclarationBlock(@symbols.BlockType, @symbols.BlockType)
   PatternMatch
-  CaptureFlow
+  MergeInvariant(ErrCtx)
+  TypeConstructor(ErrCtx)
+  TypeConstructorArgument(ErrCtx)
+  BoxedTypeBlock(ErrCtx)
+  BoxedTypeCapture(ErrCtx)
+  FunctionArgument(@symbols.BlockType, @symbols.BlockType, ErrCtx)
+  FunctionReturn(ErrCtx)
+  FunctionEffects(ErrCtx)
   Other
 }
 

@@ -866,7 +866,9 @@ pub impl Show for Captures with fn output(self, logger) {
       let rendered = cs.map(s => s.name().name).join(", ")
       logger.write_string("{\{rendered}}")
     }
-    CaptVar(x) => logger.write_string("?\{x.name().name}")
+    // A capture unification variable is named `?C` already (upstream
+    // `CaptUnificationVar.name`), so no `?` is added here.
+    CaptVar(x) => logger.write_string(x.name().name)
   }
 }
 

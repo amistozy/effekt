@@ -191,10 +191,19 @@ test "frontend rejects ill-typed programs" {
 /// Compiles a file with the real driver (loading the standard library from
 /// `libraries/`), stopping before code generation.
 fn frontend_only(input : String) -> @compiler.CompileResult {
+  frontend_with_includes(input, [])
+}
+
+///|
+/// `frontend_only` with additional module search roots.
+fn frontend_with_includes(
+  input : String,
+  include_paths : Array[String],
+) -> @compiler.CompileResult {
   let opts : @compiler.Options = {
     input,
     output: None,
-    include_paths: [],
+    include_paths,
     lib_path: "libraries",
     show_help: false,
     show_core: false,
@@ -454,4 +463,33 @@ test "a value type named Ref is not shadowed by the core Ref" {
 /// the file is not read (and does not have to exist) for JavaScript.
 test "a Chez-only extern include is not loaded for JavaScript" {
   assert_true(frontend_accepts("libraries/common/regex.effekt"))
+}
+
+///|
+/// Upstream's `Namer.recursiveProtect` reports a cycle at the first `import` of
+/// the module that is imported again and then one "Cannot compile dependency"
+/// per module of the cycle — all at that same position, because the abort
+/// leaves the focus there. `testdata/upstream/examples/neg/cyclic_a.effekt`
+/// imports `cyclic_b`, which imports `cyclic_a` back.
+test "a cyclic import is reported the way upstream does" {
+  let result = frontend_with_includes(
+    "testdata/upstream/examples/neg/cyclic_a.effekt",
+    ["testdata/upstream"],
+  )
+  let errors = result.messages.filter(m => m.severity == @util.Error)
+  let texts = errors.map(m => m.text)
+  assert_eq(texts.length(), 3)
+  let cyclic =
+    #|Cyclic import: cyclic_a depends on itself, via:
+    #|	cyclic_a -> cyclic_b -> cyclic_a
+  assert_eq(texts[0], cyclic)
+  assert_eq(texts[1], "Cannot compile dependency: ./examples/neg/cyclic_a")
+  assert_eq(texts[2], "Cannot compile dependency: ./examples/neg/cyclic_b")
+  for m in errors {
+    assert_eq(
+      m.span.source.name,
+      "testdata/upstream/examples/neg/cyclic_a.effekt",
+    )
+    assert_eq(m.span.position().line, 3)
+  }
 }
