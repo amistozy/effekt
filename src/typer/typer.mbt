@@ -2421,12 +2421,20 @@ fn explain_mismatch(left : String, right : String, ctx : ErrCtx) -> String {
     | BoxedTypeBlock(outer)
     | BoxedTypeCapture(outer)
     | FunctionEffects(outer) => explain_mismatch(left, right, outer)
-    FunctionArgument(given, expected, outer) =>
-      explain_mismatch(left, right, outer) +
-      "\n  comparing the argument types of\n    \{given} (given)\n    \{expected} (expected)"
-    FunctionReturn(outer) =>
-      explain_mismatch(left, right, outer) +
-      "\n  when comparing the return type of the function."
+    FunctionArgument(given, expected, outer) => {
+      let chain =
+        $|
+        $|  comparing the argument types of
+        $|    \{given} (given)
+        $|    \{expected} (expected)
+      explain_mismatch(left, right, outer) + chain
+    }
+    FunctionReturn(outer) => {
+      let chain =
+        $|
+        $|  when comparing the return type of the function.
+      explain_mismatch(left, right, outer) + chain
+    }
     _ => explain_root_mismatch(left, right, ctx)
   }
 }
@@ -2455,7 +2463,11 @@ fn explain_root_mismatch(left : String, right : String, ctx : ErrCtx) -> String 
         )
       }
       if left != got_text || right != exp_text {
-        "\{msg}\n\nType mismatch between \{right} and \{left}."
+        let mismatch =
+          $|
+          $|
+          $|Type mismatch between \{right} and \{left}.
+        msg + mismatch
       } else {
         msg
       }
@@ -2471,7 +2483,11 @@ fn explain_root_mismatch(left : String, right : String, ctx : ErrCtx) -> String 
         $|while another one has type
         $|  \{right_text}
       if left != right_text || right != left_text {
-        "\{msg}\n\nType mismatch between \{right} and \{left}."
+        let mismatch =
+          $|
+          $|
+          $|Type mismatch between \{right} and \{left}.
+        msg + mismatch
       } else {
         msg
       }
@@ -3146,10 +3162,10 @@ pub fn Typer::instantiate(
         )
       }
       if capts.length() != bps.length() + effs.distinct().size() {
-        self.abort(
-          self.focus,
-          "Capture param count \{capts.length()} is not equal to bparam \{bps.length()} + control effects \{effs.distinct().size()}.\n  \{tpe}",
-        )
+        let message =
+          $|Capture param count \{capts.length()} is not equal to bparam \{bps.length()} + control effects \{effs.distinct().size()}.
+          $|  \{tpe}
+        self.abort(self.focus, message)
       }
       let cparams : Array[Sym] = []
       for i = 0; i < capts.length(); i = i + 1 {

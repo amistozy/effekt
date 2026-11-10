@@ -522,10 +522,10 @@ pub fn Typer::check_overloaded_function_call(
         })
         // Upstream reports an `ImplicitInstantiationError`, whose title is the
         // first line; the details follow below it.
-        self.abort(
-          call.span,
-          "Cannot instantiate implicit argument.\nThe implicit argument \{call.name} is ambiguous. Could be: \{names.join(", ")}.",
-        )
+        let message =
+          $|Cannot instantiate implicit argument.
+          $|The implicit argument \{call.name} is ambiguous. Could be: \{names.join(", ")}.
+        self.abort(call.span, message)
       }
       // Same scope, several candidates typecheck: upstream reports an
       // ambiguity error here (`AmbiguousOverloadError`).
@@ -566,11 +566,17 @@ pub fn Typer::check_overloaded_function_call(
       // recorded `.check` files).
       let explanations : Array[String] = all_failures.map(f => {
         let (sym, msg, _) = f
-        "Possible overload: \{sym.name().qualified_name()} of type \{self.lookup_block(sym)}\n\{indent_message(msg)}"
+        let explanation =
+          $|Possible overload: \{sym.name().qualified_name()} of type \{self.lookup_block(sym)}
+          $|\{indent_message(msg)}
+        explanation
       })
-      let message = "Cannot typecheck call.\nThere are multiple overloads, which all fail to check:\n\n" +
-        explanations.join("\n\n") +
-        "\n"
+      let message =
+        $|Cannot typecheck call.
+        $|There are multiple overloads, which all fail to check:
+        $|
+        $|\{explanations.join("\n\n")}
+        $|
       self.abort(call.span, message)
     }
   }
@@ -600,7 +606,11 @@ fn Typer::ambiguous_overload_message(
     let padding = " ".repeat(longest - name.length())
     explanations.push("- \{name}: \{padding}\{self.lookup_block(sym)}")
   }
-  "Ambiguous overload.\nThere are multiple overloads, which all would type check:\n\{explanations.join("\n")}"
+  let message =
+    $|Ambiguous overload.
+    $|There are multiple overloads, which all would type check:
+    $|\{explanations.join("\n")}
+  message
 }
 
 ///|

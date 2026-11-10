@@ -12,7 +12,10 @@
 fn Typer::unbox_error(self : Typer, e : Term, tpe : ValueType) -> String {
   match self.ctx.unbox_parent_of(e.uid) {
     Some(@source.UnboxParent::DefBinding) =>
-      "Expected the right-hand side of a `def` binding to be a block, but got a value of type \{tpe}.\nMaybe try `val` if you're defining a value."
+      (
+        $|Expected the right-hand side of a `def` binding to be a block, but got a value of type \{tpe}.
+        $|Maybe try `val` if you're defining a value.
+      )
     Some(@source.UnboxParent::CallTarget(name)) =>
       "Expected \{name} to be a function, but got a value of type \{tpe} instead, which cannot be called as a function."
     None => "Unbox requires a boxed type, but got \{tpe}."

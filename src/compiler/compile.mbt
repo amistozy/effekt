@@ -323,10 +323,10 @@ fn report_cycle(
   for i = vias.length() - 1; i > 0; i = i - 1 {
     dependencies.push("./\{vias[i]}")
   }
-  ctx.error(
-    span,
-    "Cyclic import: \{root_name} depends on itself, via:\n\t\{cycle}",
-  )
+  let message =
+    $|Cyclic import: \{root_name} depends on itself, via:
+    $|	\{cycle}
+  ctx.error(span, message)
   for dependency in dependencies {
     ctx.error(span, "Cannot compile dependency: \{dependency}")
   }

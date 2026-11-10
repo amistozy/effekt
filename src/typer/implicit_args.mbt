@@ -62,10 +62,11 @@ fn[T] Typer::check_implicit(
       Some(msg) => msg
       None => errors.map(entry => entry.1).join("\n  ")
     }
-    self.abort(
-      call.span,
-      "Cannot instantiate implicit argument.\nCannot instantiate the implicit argument \{name} of type \{tpe}.\n  \{nested}",
-    )
+    let message =
+      $|Cannot instantiate implicit argument.
+      $|Cannot instantiate the implicit argument \{name} of type \{tpe}.
+      $|  \{nested}
+    self.abort(call.span, message)
   }
   for entry in infos {
     self.info(entry.0, entry.1)
