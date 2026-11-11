@@ -3009,21 +3009,21 @@ pub fn Typer::unify_block_types(
       ),
     ) => {
       if tparams1.length() != tparams2.length() {
-        self.abort(
-          self.focus,
-          "Type parameter count does not match \{tpe1} vs. \{tpe2}",
+        self.abort_issue(
+          "Expected \{pluralized(tparams2.length(), "type parameter")} but got \{tparams1.length()}",
+          ctx,
         )
       }
       if vps1.length() != vps2.length() {
-        self.abort(
-          self.focus,
-          "Value parameter count does not match \{tpe1} vs. \{tpe2}",
+        self.abort_issue(
+          "Expected \{pluralized(vps2.length(), "value parameter")} but got \{vps1.length()}",
+          ctx,
         )
       }
       if bps1.length() != bps2.length() {
-        self.abort(
-          self.focus,
-          "Block parameter count does not match \{tpe1} vs. \{tpe2}",
+        self.abort_issue(
+          "Expected \{pluralized(bps2.length(), "block parameter")} but got \{bps1.length()}",
+          ctx,
         )
       }
       if capts1.length() != capts2.length() {

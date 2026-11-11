@@ -98,18 +98,50 @@ pub fn Typer::check_call_to(
       "Wrong number of type arguments, given \{targs.length()} but expected \{fun_tparams.length()}",
     )
   }
-  if !implicit_tail_matches(vargs.length(), fun_vps.length(), known_vps) {
-    self.tuple_call_hint(call, fun_vps, vargs)
-    self.abort(
+  let values_aligned = implicit_tail_matches(
+    vargs.length(),
+    fun_vps.length(),
+    known_vps,
+  )
+  let blocks_aligned = implicit_tail_matches(
+    bargs.length(),
+    fun_bps.length(),
+    known_bps,
+  )
+  if !values_aligned || !blocks_aligned {
+    if !values_aligned {
+      self.tuple_call_hint(call, fun_vps, vargs)
+    }
+    // Upstream's `assertArgsParamsAlign`: every *misaligned* kind is listed on
+    // both sides, including a count of zero.
+    let expected_parts : Array[String] = []
+    let got_parts : Array[String] = []
+    if !values_aligned {
+      expected_parts.push(pluralized(fun_vps.length(), "value argument"))
+      got_parts.push(pluralized(vargs.length(), "value argument"))
+    }
+    if !blocks_aligned {
+      expected_parts.push(pluralized(fun_bps.length(), "block argument"))
+      got_parts.push(pluralized(bargs.length(), "block argument"))
+    }
+    let msg = Message::error(
       span,
-      "Wrong number of arguments to \{call.name}: expected \{describe_args(0, fun_vps.length(), fun_bps.length())}, but got \{describe_args(targs.length(), vargs.length(), bargs.length())}.",
+      "Wrong number of arguments to \{call.name}: expected \{format_args(expected_parts)}, but got \{format_args(got_parts)}",
     )
-  }
-  if !implicit_tail_matches(bargs.length(), fun_bps.length(), known_bps) {
-    self.abort(
-      span,
-      "Wrong number of arguments to \{call.name}: expected \{describe_args(0, fun_vps.length(), fun_bps.length())}, but got \{describe_args(targs.length(), vargs.length(), bargs.length())}.",
-    )
+    let block_delta = bargs.length() - fun_bps.length()
+    let value_delta = vargs.length() - fun_vps.length()
+    let msg = if block_delta > 0 {
+      msg.help(
+        "Did you mean to pass \{pluralized(block_delta, "block argument")} as a value? e.g. box it using `box { ... }`",
+      )
+    } else if value_delta > 0 {
+      msg.help(
+        "Did you mean to pass \{pluralized(value_delta, "value argument")} as a block (computation)?",
+      )
+    } else {
+      msg
+    }
+    self.abort_message(msg)
   }
 
   // (1) instantiate the function type
@@ -299,6 +331,30 @@ fn block_argument_order(bps : Array[BlockType]) -> (Array[Int32], Array[Int32]) 
     }
   }
   (without, with_effects)
+}
+
+///|
+/// `n` with its noun, pluralized the way upstream's `pluralized` does.
+fn pluralized(n : Int32, singular : String) -> String {
+  if n == 1 {
+    "\{n} \{singular}"
+  } else {
+    "\{n} \{singular}s"
+  }
+}
+
+///|
+/// The arguments of a call, as in "expected 0 value arguments and 1 block
+/// argument" (upstream `assertArgsParamsAlign`'s `formatArgs`). The parts are
+/// already pluralized; the caller passes one per misaligned kind.
+fn format_args(parts : Array[String]) -> String {
+  if parts.length() == 0 {
+    "no arguments"
+  } else if parts.length() == 1 {
+    parts[0]
+  } else {
+    parts[0:parts.length() - 1].join(", ") + " and " + parts[parts.length() - 1]
+  }
 }
 
 ///|

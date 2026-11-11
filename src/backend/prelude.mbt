@@ -1,7 +1,7 @@
 // Names used unqualified throughout the `backend` package.
 
 ///|
-using @util {type Span, type EffektError}
+using @util {type Span, type EffektError, type Message}
 
 ///|
 using @symbols {type Sym}

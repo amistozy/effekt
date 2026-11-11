@@ -41,6 +41,14 @@ pub fn Source::new(name : String, content : String) -> Source {
 }
 
 ///|
+/// The same source text under a different name. The diagnostics of an imported
+/// module are reported with the include path it was reached by, which upstream
+/// writes as `./<path>.effekt` (a `VirtualFileSource`).
+pub fn Source::renamed(self : Source, name : String) -> Source {
+  { name, content: self.content, line_starts: self.line_starts, }
+}
+
+///|
 /// An empty source, used for synthetic spans.
 pub fn Source::empty() -> Source {
   Source::new("", "")

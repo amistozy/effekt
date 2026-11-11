@@ -63,7 +63,13 @@ pub fn middle_end(
   // module's, so the diagnostic points at the file.
   let main_sym = find_main(modules, ctx)
   if main_sym is None {
-    ctx.abort(main_module.tree.span, "No main function defined")
+    // Upstream reports this from `Deadcode`'s `ensureMainExists`, i.e. after the
+    // typer; the phase tag says so.
+    ctx.abort_with(
+      Message::error(main_module.tree.span, "No main function defined").with_phase(
+        "deadcode-elimination",
+      ),
+    )
   }
   let main_sym = main_sym.unwrap()
   let required = @symbols.dedup_syms(

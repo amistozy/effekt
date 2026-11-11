@@ -323,12 +323,67 @@ fn report_cycle(
   for i = vias.length() - 1; i > 0; i = i - 1 {
     dependencies.push("./\{vias[i]}")
   }
-  let message =
-    $|Cyclic import: \{root_name} depends on itself, via:
-    $|	\{cycle}
-  ctx.error(span, message)
-  for dependency in dependencies {
-    ctx.error(span, "Cannot compile dependency: \{dependency}")
+  // The cycle is reported on the loader's view of the root, i.e. under the
+  // include path that closed the cycle (`./<path>.effekt`).
+  let cycle_span = if span.origin == Missing {
+    span
+  } else {
+    { ..span, source: span.source.renamed("./\{vias[0]}.effekt"), }
+  }
+  let message = Message::error(
+    cycle_span,
+    "Cyclic import: \{root_name} depends on itself.",
+  ).note("Import cycle: \{cycle}", None)
+  // Upstream reports the cycle from its loader, which is part of naming.
+  ctx.set_phase("namer")
+  ctx.report(message)
+  // Each "Cannot compile dependency" is reported at the include that caused it:
+  // the first one closes the cycle, in the last module on the stack, and the
+  // others are the includes of the modules that follow the root.
+  let closing = stack[stack.length() - 1]
+  ctx.error(
+    visited_span(include_span_of(loader, closing.key, vias[0]), closing),
+    "Cannot compile dependency: \{dependencies[0]}",
+  )
+  for i = vias.length() - 1; i > 0; i = i - 1 {
+    ctx.error(
+      visited_span(
+        include_span_of(loader, stack[i - 1].key, vias[i]),
+        stack[i - 1],
+      ),
+      "Cannot compile dependency: ./\{vias[i]}",
+    )
+  }
+}
+
+///|
+/// A span of a module that was reached through an include is reported under the
+/// include path it was reached by (`./<path>.effekt`), like upstream's
+/// `VirtualFileSource`; the input module keeps the path it was given on the
+/// command line.
+fn visited_span(span : Span, visit : Visit) -> Span {
+  if visit.via == "" || span.origin == Missing {
+    span
+  } else {
+    { ..span, source: span.source.renamed("./\{visit.via}.effekt"), }
+  }
+}
+
+///|
+/// The span of the `include "<path>"` in the module registered under `key`, or
+/// a missing span when there is none (it may have been resolved through a
+/// search path).
+fn include_span_of(loader : Loader, key : String, path : String) -> Span {
+  match loader.tree_of(key) {
+    Some(t) => {
+      for inc in t.includes {
+        if inc.path == path {
+          return inc.span
+        }
+      }
+      Span::missing()
+    }
+    None => Span::missing()
   }
 }
 
@@ -371,7 +426,7 @@ pub fn render_messages(messages : Array[Message]) -> String {
   for i = 1; i < sorted.length(); i = i + 1 {
     let current = sorted[i]
     let mut j = i - 1
-    while j >= 0 && sorted[j].span.compare(current.span) > 0 {
+    while j >= 0 && compare_positions(sorted[j].span, current.span) > 0 {
       sorted[j + 1] = sorted[j]
       j = j - 1
     }
@@ -388,6 +443,20 @@ pub fn render_messages(messages : Array[Message]) -> String {
     }
   }
   buf.to_string()
+}
+
+///|
+/// Orders two spans the way upstream sorts diagnostics: by line, then column,
+/// and *not* by file, so that the insertion order of diagnostics in different
+/// files is kept when they are on the same line.
+fn compare_positions(a : Span, b : Span) -> Int32 {
+  let pa = a.position()
+  let pb = b.position()
+  if pa.line != pb.line {
+    pa.line - pb.line
+  } else {
+    pa.column - pb.column
+  }
 }
 
 ///|

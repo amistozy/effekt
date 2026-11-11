@@ -16,7 +16,7 @@ so what compiles here is the whole language, not a subset of it.
 `6fbff0b0e`. The whole standard library compiles, **412 of the 417**
 compiling-and-running corpus programs print exactly what upstream recorded, and
 **201 of the 203** programs that have to be rejected are rejected at the
-expected line (8 of them with a different message). The remaining differences
+expected line, all of them with the recorded message. The remaining differences
 are listed under [Differences from
 upstream](#differences-from-upstream).
 ## Quick start

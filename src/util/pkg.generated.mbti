@@ -145,6 +145,7 @@ pub fn Source::line_text(Self, Int32) -> String
 pub fn Source::new(String, String) -> Self
 pub fn Source::offset_to_position(Self, Int32) -> Position
 pub fn Source::position_to_offset(Self, Position) -> Int32
+pub fn Source::renamed(Self, String) -> Self
 pub fn Source::text_between(Self, Position, Position) -> String
 
 pub(all) struct Span {
