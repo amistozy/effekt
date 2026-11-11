@@ -201,7 +201,7 @@ pub fn Typer::resolve_value_type(Self, @source.TypeTree) -> @symbols.ValueType r
 pub fn Typer::synth_def(Self, @source.Def) -> TyRes[Unit] raise @util.EffektError
 pub fn Typer::unify_block_types(Self, @symbols.BlockType, @symbols.BlockType, ErrCtx) -> Unit raise @util.EffektError
 pub fn Typer::unify_captures(Self, @symbols.Captures, @symbols.Captures, ErrCtx) -> Unit
-pub fn Typer::unify_effects(Self, @symbols.Effects, @symbols.Effects, ErrCtx) -> Unit
+pub fn Typer::unify_effects(Self, @symbols.Effects, @symbols.Effects, ErrCtx) -> Unit raise @util.EffektError
 pub fn Typer::unify_value_types(Self, @symbols.ValueType, @symbols.ValueType, ErrCtx) -> Unit raise @util.EffektError
 
 pub(all) struct TyperState {

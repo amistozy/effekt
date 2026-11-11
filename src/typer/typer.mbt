@@ -1989,9 +1989,17 @@ fn Typer::check_expr_kind(
       }
     }
     @source.TermKind::Box(annotated, block) => {
+      // Upstream #1562 ("apply substitution when checking box"): the expected
+      // type of a polymorphic call is a unification variable that has been
+      // solved by the other arguments (`opt.getOrElse { box { s => ... } }`),
+      // so it has to be substituted before the boxed block is checked.
       let expected_tpe = match expected {
-        Some(@symbols.ValueType::BoxedType(t, _)) => Some(t)
-        _ => None
+        Some(t) =>
+          match self.st.u.prune_value(t) {
+            @symbols.ValueType::BoxedType(t, _) => Some(t)
+            _ => None
+          }
+        None => None
       }
       let inferred_cap = match annotated {
         Some(cst) => self.resolve_captures(cst)
@@ -2782,25 +2790,148 @@ pub fn Typer::unify_block_types(
 }
 
 ///|
-/// Effects are compared for equality; if either side still mentions
-/// unification variables the check is deferred.
+/// Do two interface types have the same constructor and the same arguments?
+fn same_interface_type(a : BlockType, b : BlockType) -> Bool {
+  match (a, b) {
+    (
+      @symbols.BlockType::InterfaceType(c1, args1),
+      @symbols.BlockType::InterfaceType(c2, args2),
+    ) => c1 == c2 && args1 == args2
+    _ => false
+  }
+}
+
+///|
+/// Do two effect sets contain the same interface types (in the same order)?
+fn same_effects(a : Array[BlockType], b : Array[BlockType]) -> Bool {
+  if a.length() != b.length() {
+    return false
+  }
+  for i = 0; i < a.length(); i = i + 1 {
+    if !same_interface_type(a[i], b[i]) {
+      return false
+    }
+  }
+  true
+}
+
+///|
+/// Effects are compared for equality. Upstream's `unifyEffects` (since #1564,
+/// "infer effects' type arguments more often") also *solves* an effect's type
+/// arguments when an effect on one side can only equal one on the other:
+/// `g(1) {act}` with `g[E] { act: Int => Int / Exception[E] }` learns `E` from
+/// `act` that way. Without this, the capability lookup guesses the effect
+/// argument from the closest handler and the core phase crashes.
 pub fn Typer::unify_effects(
   self : Typer,
   effs1 : Effects,
   effs2 : Effects,
   ctx : ErrCtx,
-) -> Unit {
-  ignore(ctx)
+) -> Unit raise EffektError {
   // compare the *substituted* effect sets: two effects that only differ in an
   // already solved unification variable are the same effect
-  let l1 = self.st.u.prune_effects(effs1).distinct()
-  let l2 = self.st.u.prune_effects(effs2).distinct()
-  let has_unknowns = l1.effects.any(e => self.unknowns_block(e).length() > 0) ||
-    l2.effects.any(e => self.unknowns_block(e).length() > 0)
-  if !(l1 == l2) && !has_unknowns {
-    // Upstream `unifyEffects`: `error(pp"${eff2} is not equal to ${eff1}", ctx)`
-    // — a plain message, the context does not take part in the rendering.
-    self.error(self.focus, "\{l2} is not equal to \{l1}")
+  let l1 = self.st.u.prune_effects(effs1).distinct().to_list()
+  let l2 = self.st.u.prune_effects(effs2).distinct().to_list()
+  // `mayEqual`: same constructor, and either the same interface type or one of
+  // them still has an unknown argument.
+  fn may_equal(e1 : BlockType, e2 : BlockType) -> Bool {
+    match (e1, e2) {
+      (
+        @symbols.BlockType::InterfaceType(c1, _),
+        @symbols.BlockType::InterfaceType(c2, _),
+      ) =>
+        c1 == c2 &&
+        (
+          same_interface_type(e1, e2) ||
+          self.unknowns_block(e1).length() > 0 ||
+          self.unknowns_block(e2).length() > 0
+        )
+      _ => false
+    }
+  }
+  // For every effect: the effects on the *other* side it may equal.
+  let candidates : Array[(BlockType, Array[(BlockType, BlockType)])] = []
+  for e1 in l1 {
+    let pairs : Array[(BlockType, BlockType)] = []
+    for e2 in l2 {
+      if may_equal(e1, e2) {
+        pairs.push((e1, e2))
+      }
+    }
+    candidates.push((e1, pairs))
+  }
+  for e2 in l2 {
+    let pairs : Array[(BlockType, BlockType)] = []
+    for e1 in l1 {
+      if may_equal(e1, e2) {
+        pairs.push((e1, e2))
+      }
+    }
+    candidates.push((e2, pairs))
+  }
+  let mut no_partner = false
+  for entry in candidates {
+    if entry.1.length() == 0 {
+      no_partner = true
+    }
+  }
+  if no_partner {
+    // The sets cannot be equal (a known mismatch), even if one side still has
+    // an unknown. The message names the unsubstituted sets, like upstream.
+    self.error(self.focus, "Expected the effects \{effs2} but got \{effs1}")
+    return
+  }
+  // If an effect may equal exactly one on the other side, it does: unify them
+  // (this is what solves the type arguments).
+  let forced : Array[(BlockType, BlockType)] = []
+  for entry in candidates {
+    let pairs = entry.1
+    if pairs.length() == 1 {
+      let (e1, e2) = pairs[0]
+      let mut seen = false
+      for pair in forced {
+        if same_interface_type(pair.0, e1) && same_interface_type(pair.1, e2) {
+          seen = true
+        }
+      }
+      if !seen {
+        forced.push((e1, e2))
+      }
+    }
+  }
+  for pair in forced {
+    let (e1, e2) = pair
+    self.unify_block_types(e1, e2, ctx)
+  }
+  // If there is anything left, try progressing or defer to an existing error.
+  let undecided : Array[BlockType] = []
+  for entry in candidates {
+    let (eff, pairs) = entry
+    if pairs.length() > 1 {
+      let mut seen = false
+      for e in undecided {
+        if same_interface_type(e, eff) {
+          seen = true
+        }
+      }
+      if !seen {
+        undecided.push(eff)
+      }
+    }
+  }
+  if undecided.length() > 0 {
+    let progress = !same_effects(
+        self.st.u.prune_effects(effs1).distinct().to_list(),
+        l1,
+      ) ||
+      !same_effects(self.st.u.prune_effects(effs2).distinct().to_list(), l2)
+    if progress {
+      self.unify_effects(effs1, effs2, ctx)
+    } else {
+      for eff in undecided {
+        self.assert_concrete_effect(eff, self.focus)
+      }
+    }
   }
 }
 

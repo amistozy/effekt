@@ -32,11 +32,11 @@ Push-Location $root
 # Compiling one file loads the whole prelude, so the corpus is split across a
 # few background jobs to keep the wall-clock time reasonable.
 $jobs = 6
-$positiveBaseline = 0
+$positiveBaseline = 403
 # Every negative test is matched now: severity and line, as `EffektTests.scala`
 # does for the tests that only carry `// ERROR` comments. A test whose wording
 # differs still counts (the summary reports how many).
-$negativeBaseline = 66
+$negativeBaseline = 201
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
 moon build --target js 2>&1 | Out-Null

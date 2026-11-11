@@ -22,6 +22,14 @@ fn reset_fn() -> Expr {
 }
 
 ///|
+/// `RETURN_1`, the continuation a `RESET` returns to. The runtime used to
+/// provide it as a global `RETURN`; since upstream's multi-arity returns it is
+/// passed in by the caller (see `TransformerCps.returnFrom`).
+fn return_1_fn() -> Expr {
+  Variable(JSName::new("RETURN_1"))
+}
+
+///|
 /// `SHIFT`, defined in `effekt_runtime.js`.
 fn shift_fn() -> Expr {
   Variable(JSName::new("SHIFT"))
@@ -113,6 +121,11 @@ priv struct TransformerContext {
   /// thunk at that point — a missed optimisation, never a wrong program. The
   /// cell is an array so that every `{ ..self, … }` copy shares it.
   direct_fuel : Array[Int32]
+  /// Whether a `Reset` was translated, i.e. whether the module has to declare
+  /// the `RETURN_1` continuation that `RESET` is called with (the runtime used
+  /// to provide it as a global `RETURN`). The cell is an array so that every
+  /// `{ ..self, … }` copy shares it.
+  uses_return_1 : Array[Bool]
 }
 
 ///|
@@ -289,6 +302,7 @@ pub fn compile_cps(
     metacont: None,
     declarations,
     direct_fuel: [direct_fuel],
+    uses_return_1: [false],
   }
   let js_externs : Array[Stmt] = []
   for e in module.externs {
@@ -305,12 +319,27 @@ pub fn compile_cps(
   for d in module.definitions {
     stmts.push(to_js_toplevel(d, ctx))
   }
+  // `RESET` is called with the (single-value) return continuation of the frame
+  // it resets to. `RETURN_1` pops the frames of nested resets in tail position
+  // at once, so deep handler recursion does not grow the JS stack (upstream
+  // `TransformerCps.returns`).
+  let preamble : Array[Stmt] = []
+  if ctx.uses_return_1[0] {
+    let return_1 =
+      #|function RETURN_1(x0, ks) {
+      #|  let rest = ks.rest
+      #|  while (rest.stack === RETURN_1) rest = rest.rest
+      #|  return rest.stack(x0, rest)
+      #|}
+    let no_values : Array[Expr] = []
+    preamble.push(RawStmt([return_1], no_values))
+  }
 
   let js_module = Module::new(
     JSName::new(js_module_name(module.path)),
     [],
     exports,
-    js_declarations + js_externs + stmts,
+    js_declarations + js_externs + preamble + stmts,
   )
   show_stmts(js_module.commonjs())
 }
@@ -1373,18 +1402,21 @@ fn to_js_stmt(
           (to_js_stmt(body, ctx).run)(k)
         },
       }
-    @cps.Stmt::Reset(prog, ks, k) =>
+    @cps.Stmt::Reset(prog, ks, k) => {
+      ctx.uses_return_1[0] = true
       pure([
         Return(
           call(reset_fn(), [
             requiring_thunk(ctx.nonrecursive(prog.ks), c => {
               to_js_block_expr(@cps.Block::BlockLit(prog), c)
             }),
+            return_1_fn(),
             to_js_metacont(ks, ctx),
             to_js_cont(k, ctx),
           ]),
         ),
       ])
+    }
     @cps.Stmt::Shift(prompt, body, ks, k) =>
       pure([
         Return(

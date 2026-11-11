@@ -12,15 +12,14 @@ intermediate representations (`.reference/effekt`, kept read-only as the
 reference), and the standard library and the runtime are upstream's own files,
 so what compiles here is the whole language, not a subset of it.
 
-**Status.** The standard library and the test corpus were just synced to
-upstream 6fbff0b0e and are being ported: the port currently compiles 3 of the
-49 standard library modules and matches 66 of the 203 negative tests (0 of the
-417 positive ones), because the new prelude uses a partial-type-application
-idiom that needs an effect type argument inferred from a block argument. The
-previous corpus (upstream 25835d0a4) passed completely. The plan and the
-remaining differences are listed under [Differences from
+**Status.** The standard library and the test corpus follow upstream
+`6fbff0b0e`. The whole standard library compiles, **403 of the 417**
+compiling-and-running corpus programs print exactly what upstream recorded, and
+**201 of the 203** programs that have to be rejected are rejected at the
+expected line (21 of them with a different message, mostly the new
+line-numbered excerpt and `* note:` subdiagnostics, which are not ported yet).
+The remaining differences are listed under [Differences from
 upstream](#differences-from-upstream).
-
 ## Quick start
 
 The compiler needs [moon](https://www.moonbitlang.com/download) (developed with
