@@ -60,7 +60,7 @@ fn[T] Typer::check_implicit(
   if failed {
     let nested = match failure {
       Some(msg) => msg
-      None => errors.map(entry => entry.1).join("\n  ")
+      None => errors.map(entry => entry.text).join("\n  ")
     }
     let message =
       $|Cannot instantiate implicit argument.

@@ -348,13 +348,13 @@ fn Typer::try_candidates(
   run : (Sym) -> TyRes[ValueType] raise EffektError,
 ) -> (
   Array[(Sym, TyRes[ValueType], TyperState, Array[(Span, String)])],
-  Array[(Sym, String, Array[(Span, String)])],
+  Array[(Sym, String, Array[Message])],
 ) {
   let before = self.st.backup()
   let successes : Array[
     (Sym, TyRes[ValueType], TyperState, Array[(Span, String)]),
   ] = []
-  let failures : Array[(Sym, String, Array[(Span, String)])] = []
+  let failures : Array[(Sym, String, Array[Message])] = []
   // With a single candidate there is nothing to backtrack: upstream calls
   // `checkCallTo` directly, so the diagnostics of that (only) candidate —
   // including its hints — are reported instead of being buffered.
@@ -387,7 +387,11 @@ fn Typer::try_candidates(
     self.muted_messages = messages_before
     self.muted_infos = infos_before
 
-    let recorded = if err != "" { err } else { muted.map(m => m.1).join("; ") }
+    let recorded = if err != "" {
+      err
+    } else {
+      muted.map(m => m.text).join("; ")
+    }
     let final = if recorded == "" { "Type error" } else { recorded }
     match res {
       Some(r) =>
@@ -469,7 +473,7 @@ pub fn Typer::check_overloaded_function_call(
         [[sym]]
       }
   }
-  let all_failures : Array[(Sym, String, Array[(Span, String)])] = []
+  let all_failures : Array[(Sym, String, Array[Message])] = []
   for candidates in scopes {
     // a scope is a *set* of candidates (upstream `Bindings.terms` is a Set):
     // the same symbol can be bound under several paths of the same scope
@@ -545,14 +549,12 @@ pub fn Typer::check_overloaded_function_call(
         self.abort(call.span, msg)
       } else {
         for i = 1; i < muted.length(); i = i + 1 {
-          let (span, text) = muted[i]
-          // `self.error`, not `self.ctx.error`: a nested call may itself be
-          // checked while an enclosing candidate is muted, and then these
+          // `self.error_message`, not `self.ctx.report`: a nested call may itself
+          // be checked while an enclosing candidate is muted, and then these
           // diagnostics have to stay muted as well.
-          self.error(span, text)
+          self.error_message(muted[i])
         }
-        let (span, text) = muted[0]
-        self.abort(span, text)
+        self.abort_message(muted[0])
       }
     [] =>
       self.abort(
@@ -760,11 +762,9 @@ pub fn Typer::check_overloaded_method_call(
           self.abort(call.span, msg)
         } else {
           for i = 1; i < muted.length(); i = i + 1 {
-            let (span, text) = muted[i]
-            self.error(span, text)
+            self.error_message(muted[i])
           }
-          let (span, text) = muted[0]
-          self.abort(span, text)
+          self.abort_message(muted[0])
         }
       _ => ()
     }

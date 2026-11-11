@@ -362,6 +362,11 @@ pub impl Show for BlockType with fn output(self, logger) {
 ///|
 pub impl Show for Effects with fn output(self, logger) {
   // Upstream: `braces(space <> hsep(effects, comma) <> space)`, i.e. `{ io }`.
+  // An empty set has nothing to separate, so it prints `{}` (not `{  }`).
   let names = self.distinct().effects.map(e => "\{e}")
-  logger.write_string("{ \{names.join(", ")} }")
+  if names.length() == 0 {
+    logger.write_string("{}")
+  } else {
+    logger.write_string("{ \{names.join(", ")} }")
+  }
 }

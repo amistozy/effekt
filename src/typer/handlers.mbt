@@ -110,7 +110,7 @@ fn Typer::check_expr_as_block_kind(
       if sym.is_block_symbol() && !sym.is_ref_binder() {
         let tpe = self.lookup_block(sym)
         match expected {
-          Some(exp) => self.match_declared(tpe, exp, id.span)
+          Some(exp) => self.match_expected_block(tpe, exp, Some(id.span))
           None => ()
         }
         self.using_capture(self.lookup_capture(sym))
@@ -125,7 +125,7 @@ fn Typer::check_expr_as_block_kind(
     @source.TermKind::New(implementation) => {
       let res = self.check_implementation(implementation, None)
       match expected {
-        Some(exp) => self.match_declared(res.tpe, exp, e.span)
+        Some(exp) => self.match_expected_block(res.tpe, exp, Some(e.span))
         None => ()
       }
       res
@@ -147,6 +147,25 @@ fn Typer::check_expr_as_block_kind(
         None => self.infer_function_argument(e)
       }
     _ => self.abort(e.span, "Expected block, but got an expression.")
+  }
+}
+
+///|
+/// The source range of a parameter, including its type annotation: upstream
+/// reports a declared type that does not match at `Context.at(param)`, which
+/// spans the whole parameter.
+fn value_param_span(p : @source.ValueParam) -> Span {
+  match p.tpe {
+    Some(t) => p.id.span.to_span(t.span)
+    None => p.id.span
+  }
+}
+
+///|
+fn block_param_span(p : @source.BlockParam) -> Span {
+  match p.tpe {
+    Some(t) => p.id.span.to_span(t.span)
+    None => p.id.span
   }
 }
 
@@ -271,7 +290,7 @@ pub fn Typer::check_function_argument(
         let adjusted = type_subst.substitute_value(vps[i])
         let tpe = match symbol_value_type(sym) {
           Some(got) => {
-            self.match_declared_value(got, adjusted, p.id.span)
+            self.match_declared_value(got, adjusted, value_param_span(p))
             got
           }
           None => adjusted
@@ -290,7 +309,7 @@ pub fn Typer::check_function_argument(
         let adjusted = type_subst.substitute_block(bps[i])
         let tpe = match symbol_block_type(sym) {
           Some(got) => {
-            self.match_declared(got, adjusted, p.id.span)
+            self.match_declared(got, adjusted, block_param_span(p))
             got
           }
           None => adjusted
@@ -629,7 +648,8 @@ fn Typer::check_op_clause(
         let sym = self.symbol_of_def(p.id)
         let annotated = symbol_value_type(sym)
         match annotated {
-          Some(got) => self.match_declared_value(got, vps[i], p.id.span)
+          Some(got) =>
+            self.match_declared_value(got, vps[i], value_param_span(p))
           None => ()
         }
         self.bind_value(sym, annotated.unwrap_or(vps[i]))
@@ -643,7 +663,7 @@ fn Typer::check_op_clause(
         }
         let annotated = symbol_block_type(sym)
         match annotated {
-          Some(got) => self.match_declared(got, bps[i], p.id.span)
+          Some(got) => self.match_declared(got, bps[i], block_param_span(p))
           None => ()
         }
         self.bind_block(sym, annotated.unwrap_or(bps[i]))
@@ -710,7 +730,8 @@ fn Typer::check_op_clause(
         let sym = self.symbol_of_def(p.id)
         let annotated = symbol_value_type(sym)
         match annotated {
-          Some(got) => self.match_declared_value(got, vps[i], p.id.span)
+          Some(got) =>
+            self.match_declared_value(got, vps[i], value_param_span(p))
           None => ()
         }
         self.bind_value(sym, annotated.unwrap_or(vps[i]))

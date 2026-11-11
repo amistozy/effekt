@@ -149,7 +149,7 @@ pub struct Typer {
   /// with the span they were reported at: when the only candidate of a call
   /// fails, upstream reports them where they belong instead of folding them into
   /// the call's message (`Context.abortWith`).
-  mut muted_messages : Array[(Span, String)]
+  mut muted_messages : Array[Message]
   /// The hints that were suppressed while trying an overload candidate. They
   /// are replayed when the candidate is chosen: a hint that only a rejected
   /// candidate produced would point at code that type checks otherwise.
@@ -196,11 +196,18 @@ pub fn Typer::new(ctx : Context) -> Typer {
 
 ///|
 fn Typer::error(self : Typer, span : Span, msg : String) -> Unit {
+  self.error_message(Message::error(span, msg))
+}
+
+///|
+/// Reports a fully built diagnostic (with notes and helps), honouring the
+/// overload candidate muting.
+fn Typer::error_message(self : Typer, msg : Message) -> Unit {
   if self.muting {
     self.muted_error = true
-    self.muted_messages.push((span, msg))
+    self.muted_messages.push(msg)
   } else {
-    self.ctx.error(span, msg)
+    self.ctx.report(msg)
   }
 }
 
@@ -234,20 +241,22 @@ fn[T] Typer::abort(
   span : Span,
   msg : String,
 ) -> T raise EffektError {
-  if self.muting {
-    self.muted_error = true
-    self.muted_messages.push((span, msg))
-  } else {
-    self.ctx.error(span, msg)
-  }
+  self.error_message(Message::error(span, msg))
   raise EffektError::Fatal(msg)
+}
+
+///|
+/// Aborts with a fully built diagnostic (upstream `E.abort(msg) { ... }`).
+fn[T] Typer::abort_message(self : Typer, msg : Message) -> T raise EffektError {
+  self.error_message(msg)
+  raise EffektError::Fatal(msg.text)
 }
 
 ///|
 fn[T] Typer::panic(self : Typer, msg : String) -> T raise EffektError {
   if self.muting {
     self.muted_error = true
-    self.muted_messages.push((self.focus, msg))
+    self.muted_messages.push(Message::error(self.focus, msg))
   } else {
     self.ctx.info("Internal compiler error: \{msg}")
   }
@@ -592,7 +601,11 @@ fn Typer::types_compatible(
   self.muted_messages = []
   self.muted_infos = []
   let mut ok = true
-  self.unify_value_types(inferred, concrete, MergeTypes(inferred, concrete)) catch {
+  self.unify_value_types(
+    inferred,
+    concrete,
+    MergeTypes(inferred, concrete, NoArms),
+  ) catch {
     _ => ok = false
   }
   if self.muted_error {
@@ -690,7 +703,7 @@ fn Typer::unify_capability_interface(
               self.unify_value_types(
                 args[i],
                 args2[i],
-                MergeTypes(self.st.u.prune_value(args[i]), args2[i]),
+                MergeTypes(self.st.u.prune_value(args[i]), args2[i], NoArms),
               )
             }
           }
@@ -927,6 +940,52 @@ fn Typer::without(
       self.st.u.link(y.uid(), x.uid(), others.copy())
       let _ = self.st.u.propagate()
       @symbols.Captures::CaptVar(y)
+    }
+  }
+}
+
+///|
+/// `require_subregion` with an error context: a capture that is not allowed is
+/// reported as a *note* of the surrounding comparison (upstream's
+/// `requireSubregion(c1, c2, ctx)`).
+pub fn Typer::require_subregion_ctx(
+  self : Typer,
+  from : Captures,
+  to : Captures,
+  ctx : ErrCtx,
+) -> Unit {
+  let from = self.st.u.prune_captures(from)
+  let to = self.st.u.prune_captures(to)
+  if from == to {
+    return
+  }
+  match (from, to) {
+    (@symbols.Captures::CaptureSetOf(ls), _) if ls.length() == 0 => return
+    (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptureSetOf(us)) => {
+      let not_allowed = ls.filter(c => !us.contains(c))
+      if not_allowed.length() > 0 {
+        self.error_issue(
+          "Used captures \{@symbols.Captures::CaptureSetOf(not_allowed)} are not in the allowed set \{to}",
+          ctx,
+        )
+      }
+    }
+    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptureSetOf(us)) =>
+      match self.st.u.require_upper(us, x) {
+        Some(msg) => self.error_issue(msg, ctx)
+        None => ()
+      }
+    (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptVar(y)) =>
+      match self.st.u.require_lower(ls, y) {
+        Some(msg) => self.error_issue(msg, ctx)
+        None => ()
+      }
+    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptVar(y)) => {
+      self.st.u.link(x.uid(), y.uid(), [])
+      match self.st.u.propagate() {
+        Some(msg) => self.error_issue(msg, ctx)
+        None => ()
+      }
     }
   }
 }
@@ -1929,10 +1988,12 @@ fn Typer::check_expr_kind(
       let geffs = self.check_guards(guards)
       let thn_res = self.check_stmt(thn, expected)
       let els_res = self.check_stmt(els, expected)
-      let joined = self.join(expected, [
-        (thn_res.tpe, Some(thn.span)),
-        (els_res.tpe, Some(els.span)),
-      ])
+      let joined = self.at(e.span, () => {
+        self.join(expected, IfKind, [
+          (thn_res.tpe, Some(thn.span)),
+          (els_res.tpe, Some(els.span)),
+        ])
+      })
       TyRes::new(joined, eff_union_of([geffs, thn_res.effs, els_res.effs]))
     }
     @source.TermKind::While(guards, body, default) => {
@@ -1946,10 +2007,12 @@ fn Typer::check_expr_kind(
         Some(d) => self.check_stmt(d, expected_type)
         None => TyRes::new(t_unit(), Effects::empty())
       }
-      let joined = self.join(expected, [
-        (body_res.tpe, Some(body.span)),
-        (default_res.tpe, None),
-      ])
+      let joined = self.at(e.span, () => {
+        self.join(expected, WhileKind, [
+          (body_res.tpe, Some(body.span)),
+          (default_res.tpe, None),
+        ])
+      })
       TyRes::new(joined, eff_union_of([geffs, body_res.effs, default_res.effs]))
     }
     @source.TermKind::Var(id) => {
@@ -2187,7 +2250,9 @@ fn Typer::check_expr_kind(
       // reporting at the match term (upstream's `C.at(tree)`) rather than at
       // whichever clause body happened to be checked last
       self.focus = e.span
-      let joined = self.join(expected, tpes_and_terms)
+      let joined = self.at(e.span, () => {
+        self.join(expected, MatchKind, tpes_and_terms)
+      })
       // Exhaustivity and unreachable cases are checked after the whole module
       // has been typed (see `exhaustivity.mbt`): the `default` branch of a
       // `with val` is passed as an irrefutable clause.
@@ -2402,16 +2467,21 @@ fn datatype_tparams(ctor : Sym) -> Array[Sym]? {
 ///
 /// Mirrors upstream's `ErrorContext`: the first group are the *roots* (they
 /// name the comparison), the second group are wrappers that record how the
-/// comparison descended into a component. `explain_mismatch` walks the
-/// wrappers from the root outwards and appends one line per wrapper, which is
-/// how `lambdas/inference` gets its "comparing the argument types of ... when
-/// comparing the return type of the function." explanation.
+/// comparison descended into a component. The root's claim is the diagnostic's
+/// message; the failing component becomes a `* note:` item when the claim does
+/// not already say it (upstream's `ErrorContext.claim` / `explain`).
 pub(all) enum ErrCtx {
+  /// `Expected(got, exp)`: the compared type against the expected one.
   Expected(ValueType, ValueType)
-  MergeTypes(ValueType, ValueType)
+  /// The same for a block type (a block argument against the expected one).
+  ExpectedBlock(BlockType, BlockType)
+  /// The arms of an `if`/`while`/`match` are joined.
+  MergeTypes(ValueType, ValueType, MergeOrigin)
+  /// A declared type against the type at the definition.
   Declaration(ValueType, ValueType)
   DeclarationBlock(BlockType, BlockType)
-  PatternMatch
+  /// A pattern against the scrutinee it matches.
+  PatternMatch(ValueType, ValueType)
   MergeInvariant(ErrCtx)
   TypeConstructor(ErrCtx)
   TypeConstructorArgument(ErrCtx)
@@ -2424,94 +2494,279 @@ pub(all) enum ErrCtx {
 }
 
 ///|
-fn explain_mismatch(left : String, right : String, ctx : ErrCtx) -> String {
+/// Where the arms of a `MergeTypes` comparison come from: the two spans (absent
+/// for a `while` without an `else` branch) name the place of each arm.
+///
+/// Mirrors `ErrorContext.Arm`.
+pub(all) enum MergeOrigin {
+  IfArms(Span?, Span?)
+  WhileArms(Span?, Span?)
+  MatchArms(Span?, Span?)
+  /// A merge that is not the arms of a syntactic construct. Upstream has no
+  /// such context; it is the neutral context that the remaining port sites
+  /// pass, and it renders like `Other`.
+  NoArms
+}
+
+///|
+/// "branch" or "clause", as the notes of a `MergeTypes` failure say it.
+fn MergeOrigin::noun(self : MergeOrigin) -> String {
+  match self {
+    IfArms(_, _) => "branch"
+    WhileArms(_, _) => "branch"
+    MatchArms(_, _) => "clause"
+    NoArms => "branch"
+  }
+}
+
+///|
+fn MergeOrigin::left_span(self : MergeOrigin) -> Span? {
+  match self {
+    IfArms(span, _) => span
+    WhileArms(span, _) => span
+    MatchArms(span, _) => span
+    NoArms => None
+  }
+}
+
+///|
+fn MergeOrigin::right_span(self : MergeOrigin) -> Span? {
+  match self {
+    IfArms(_, span) => span
+    WhileArms(_, span) => span
+    MatchArms(_, span) => span
+    NoArms => None
+  }
+}
+
+///|
+/// The root of a comparison context, i.e. the part that names the diagnostic
+/// (upstream `ErrorContext.root`).
+fn root_of(ctx : ErrCtx) -> ErrCtx {
   match ctx {
     MergeInvariant(outer)
     | TypeConstructor(outer)
     | TypeConstructorArgument(outer)
     | BoxedTypeBlock(outer)
     | BoxedTypeCapture(outer)
-    | FunctionEffects(outer) => explain_mismatch(left, right, outer)
-    FunctionArgument(given, expected, outer) => {
-      let chain =
-        $|
-        $|  comparing the argument types of
-        $|    \{given} (given)
-        $|    \{expected} (expected)
-      explain_mismatch(left, right, outer) + chain
-    }
-    FunctionReturn(outer) => {
-      let chain =
-        $|
-        $|  when comparing the return type of the function.
-      explain_mismatch(left, right, outer) + chain
-    }
-    _ => explain_root_mismatch(left, right, ctx)
+    | FunctionArgument(_, _, outer)
+    | FunctionReturn(outer)
+    | FunctionEffects(outer) => root_of(outer)
+    other => other
   }
 }
 
 ///|
-/// The message of the *root* of a comparison. `left`/`right` are the types the
-/// failing comparison was about (a component of the root's types when the
-/// comparison descended).
-fn explain_root_mismatch(left : String, right : String, ctx : ErrCtx) -> String {
-  match ctx {
-    Expected(got, exp) => {
-      // Upstream renders the two types of the *whole* comparison and uses the
-      // short form when they add up to fewer than 25 characters; when the
-      // mismatch was found in a component of them, the component is named
-      // afterwards (`ErrorContext.explainMismatch`).
-      let got_text = "\{got}"
-      let exp_text = "\{exp}"
-      let msg = if exp_text.length() + got_text.length() < 25 {
-        "Expected \{exp_text} but got \{got_text}."
-      } else {
-        (
-          $|Expected type
-          $|  \{exp_text}
-          $|but got type
-          $|  \{got_text}
-        )
-      }
-      if left != got_text || right != exp_text {
-        let mismatch =
-          $|
-          $|
-          $|Type mismatch between \{right} and \{left}.
-        msg + mismatch
-      } else {
-        msg
-      }
-    }
-    MergeTypes(merge_left, merge_right) => {
-      let left_text = "\{merge_left}"
-      let right_text = "\{merge_right}"
-      let msg =
-        $|Different arms of a conditional/match have incompatible types.
-        $|
-        $|One arm has type
-        $|  \{left_text}
-        $|while another one has type
-        $|  \{right_text}
-      if left != right_text || right != left_text {
-        let mismatch =
-          $|
-          $|
-          $|Type mismatch between \{right} and \{left}.
-        msg + mismatch
-      } else {
-        msg
-      }
-    }
+/// The type inside a `box`, which is what `is_claimed` compares (upstream
+/// `ErrorContext.isClaimed`'s `unboxed`).
+fn same_type(a : ValueType, b : ValueType) -> Bool {
+  match (a, b) {
+    (
+      @symbols.ValueType::BoxedType(inner_a, _),
+      @symbols.ValueType::BoxedType(inner_b, _),
+    ) => inner_a == inner_b
+    (@symbols.ValueType::BoxedType(_, _), _) => false
+    (_, @symbols.ValueType::BoxedType(_, _)) => false
+    _ => a == b
+  }
+}
+
+///|
+/// Does the root of `ctx` already claim this mismatch, i.e. does it talk about
+/// exactly these two types? Then the note repeating them is dropped.
+fn is_claimed(left : ValueType, right : ValueType, ctx : ErrCtx) -> Bool {
+  match root_of(ctx) {
+    Expected(got, exp) => same_type(left, got) && same_type(right, exp)
+    Declaration(declared, defined) =>
+      same_type(left, defined) && same_type(right, declared)
+    PatternMatch(scrutinee, matched) =>
+      same_type(left, scrutinee) && same_type(right, matched)
+    MergeTypes(root_left, root_right, _) =>
+      (same_type(left, root_left) && same_type(right, root_right)) ||
+      (same_type(left, root_right) && same_type(right, root_left))
+    _ => false
+  }
+}
+
+///|
+/// `is_claimed` for a comparison of two block types.
+fn is_claimed_block(left : BlockType, right : BlockType, ctx : ErrCtx) -> Bool {
+  match root_of(ctx) {
+    ExpectedBlock(got, exp) => left == got && right == exp
+    DeclarationBlock(declared, defined) => left == defined && right == declared
+    _ => false
+  }
+}
+
+///|
+/// The message of a mismatch between two types (upstream's `TypeMismatch`,
+/// which shows them aligned once they get long).
+fn type_mismatch_text(exp : String, got : String) -> String {
+  if exp.length() + got.length() < 25 {
+    "Expected \{exp} but got \{got}."
+  } else {
+    (
+      $|Expected type
+      $|  \{exp}
+      $|but got type
+      $|  \{got}
+    )
+  }
+}
+
+///|
+/// The claim of a failure: what the diagnostic says, which for a comparison
+/// that descended into a component is the *root*'s summary, not the component's
+/// (upstream `ErrorContext.claim`).
+fn claim_of(issue : String, ctx : ErrCtx) -> String {
+  match root_of(ctx) {
+    Expected(got, exp) => type_mismatch_text("\{exp}", "\{got}")
+    ExpectedBlock(got, exp) => type_mismatch_text("\{exp}", "\{got}")
     Declaration(declared, defined) =>
       "Type \{defined} does not match the declared type \{declared}."
     DeclarationBlock(declared, defined) =>
       "Type \{defined} does not match the declared type \{declared}."
-    PatternMatch =>
-      "Pattern matches against type \{right} but scrutinee has type \{left}."
-    _ => "Type mismatch between \{left} and \{right}."
+    PatternMatch(scrutinee, matched) =>
+      "Pattern matches against type \{matched} but scrutinee has type \{scrutinee}."
+    MergeTypes(_, _, origin) =>
+      match origin {
+        IfArms(_, _) => "The branches of this `if` have incompatible types."
+        WhileArms(_, _) =>
+          "The branches of this `while` have incompatible types."
+        MatchArms(_, _) =>
+          "The clauses of this `match` have incompatible types."
+        NoArms => issue
+      }
+    _ => issue
   }
 }
+
+///|
+/// How a mismatch reads (upstream `ErrorContext.mismatch`).
+fn mismatch_of(left : String, right : String, ctx : ErrCtx) -> String {
+  match root_of(ctx) {
+    MergeTypes(_, _, _) => "\{left} and \{right} differ"
+    _ => "Expected \{right} but got \{left}"
+  }
+}
+
+///|
+/// The notes of a failure: for an arm merge, the two arms' types at their own
+/// places, and otherwise (and additionally) the failing component, unless the
+/// claim already names it.
+fn failure_notes(
+  ctx : ErrCtx,
+  issue : String,
+  claimed : Bool,
+) -> Array[@util.Subdiagnostic] {
+  let notes : Array[@util.Subdiagnostic] = []
+  match root_of(ctx) {
+    MergeTypes(left, right, origin) =>
+      match origin {
+        NoArms => ()
+        _ => {
+          let noun = origin.noun()
+          notes.push(
+            @util.Note("This \{noun} has type \{left}.", origin.left_span()),
+          )
+          notes.push(
+            @util.Note("This \{noun} has type \{right}.", origin.right_span()),
+          )
+        }
+      }
+    _ => ()
+  }
+  if !claimed {
+    notes.push(@util.Note(issue + ".", None))
+  }
+  notes
+}
+
+///|
+/// A message with the given notes attached, in order.
+fn with_notes(msg : Message, notes : Array[@util.Subdiagnostic]) -> Message {
+  let mut out = msg
+  for note in notes {
+    out = match note {
+      @util.Note(text, at) => out.note(text, at)
+      @util.Help(text) => out.help(text)
+    }
+  }
+  out
+}
+
+///|
+/// Reports a mismatch between two value types (upstream
+/// `error(left, right, ctx)`).
+fn Typer::error_types(
+  self : Typer,
+  left : ValueType,
+  right : ValueType,
+  ctx : ErrCtx,
+) -> Unit {
+  let issue = mismatch_of("\{left}", "\{right}", ctx)
+  let msg = Message::error(self.focus, claim_of(issue, ctx))
+  self.error_message(
+    with_notes(msg, failure_notes(ctx, issue, is_claimed(left, right, ctx))),
+  )
+}
+
+///|
+/// Reports a mismatch between two value types and aborts (upstream
+/// `abort(left, right, ctx)`).
+fn[T] Typer::abort_types(
+  self : Typer,
+  left : ValueType,
+  right : ValueType,
+  ctx : ErrCtx,
+) -> T raise EffektError {
+  let issue = mismatch_of("\{left}", "\{right}", ctx)
+  let msg = Message::error(self.focus, claim_of(issue, ctx))
+  self.abort_message(
+    with_notes(msg, failure_notes(ctx, issue, is_claimed(left, right, ctx))),
+  )
+}
+
+///|
+/// Reports a mismatch between two block types (upstream's block-type overload
+/// of `error`, which can only reach the claim and the issue note).
+fn Typer::error_blocks(
+  self : Typer,
+  left : BlockType,
+  right : BlockType,
+  ctx : ErrCtx,
+) -> Unit {
+  let issue = mismatch_of("\{left}", "\{right}", ctx)
+  let msg = Message::error(self.focus, claim_of(issue, ctx))
+  self.error_message(
+    with_notes(
+      msg,
+      failure_notes(ctx, issue, is_claimed_block(left, right, ctx)),
+    ),
+  )
+}
+
+///|
+/// Reports a failure that was found for a reason of its own (`issue` says what
+/// it is, e.g. the two effect sets), with the claim of the surrounding context
+/// (upstream `error(issue, ctx)`).
+fn Typer::error_issue(self : Typer, issue : String, ctx : ErrCtx) -> Unit {
+  let msg = Message::error(self.focus, claim_of(issue, ctx))
+  self.error_message(with_notes(msg, failure_notes(ctx, issue, false)))
+}
+
+///|
+/// Like `error_issue`, but aborts.
+fn[T] Typer::abort_issue(
+  self : Typer,
+  issue : String,
+  ctx : ErrCtx,
+) -> T raise EffektError {
+  let msg = Message::error(self.focus, claim_of(issue, ctx))
+  self.abort_message(with_notes(msg, failure_notes(ctx, issue, false)))
+}
+
+///|
 
 ///|
 pub fn Typer::require_subtype_value(
@@ -2558,6 +2813,32 @@ fn Typer::match_expected(
 }
 
 ///|
+/// `match_expected` for a block type (a block variable, a `new`, a literal
+/// where a block is expected): upstream's `matchExpected(got, exp)` is
+/// overloaded on value and block types.
+fn Typer::match_expected_block(
+  self : Typer,
+  got : BlockType,
+  expected : BlockType,
+  span : Span?,
+) -> Unit raise EffektError {
+  let saved = self.focus
+  match span {
+    Some(s) => self.focus = s
+    None => ()
+  }
+  errdefer {
+    self.focus = saved
+  }
+  self.unify_block_types(
+    self.st.u.prune_block(got),
+    self.st.u.prune_block(expected),
+    ExpectedBlock(self.st.u.prune_block(got), self.st.u.prune_block(expected)),
+  )
+  self.focus = saved
+}
+
+///|
 fn Typer::match_pattern(
   self : Typer,
   scrutinee : ValueType,
@@ -2568,7 +2849,10 @@ fn Typer::match_pattern(
   self.unify_value_types(
     self.st.u.prune_value(scrutinee),
     self.st.u.prune_value(pattern_tpe),
-    PatternMatch,
+    PatternMatch(
+      self.st.u.prune_value(scrutinee),
+      self.st.u.prune_value(pattern_tpe),
+    ),
   )
 }
 
@@ -2657,7 +2941,7 @@ fn Typer::unify_fail(
   tpe2 : ValueType,
   ctx : ErrCtx,
 ) -> Unit {
-  self.error(self.focus, explain_mismatch("\{tpe1}", "\{tpe2}", ctx))
+  self.error_types(tpe1, tpe2, ctx)
 }
 
 ///|
@@ -2732,7 +3016,12 @@ pub fn Typer::unify_block_types(
         )
       }
       if capts1.length() != capts2.length() {
-        self.abort(self.focus, "Capture parameter count does not match.")
+        // With as many block parameters, the capture parameters differ in
+        // number only through the effects.
+        self.abort_issue(
+          "Expected the effects \{effs2} but got \{effs1}",
+          FunctionEffects(ctx),
+        )
       }
       // The parameters of the *given* type are the ones the comparison is
       // about: map the expected type's type and capture parameters to them
@@ -2775,10 +3064,7 @@ pub fn Typer::unify_block_types(
       @symbols.BlockType::InterfaceType(c2, args2),
     ) =>
       if !(c1 == c2) {
-        self.error(
-          self.focus,
-          explain_mismatch("\{tpe1}", "\{tpe2}", TypeConstructor(ctx)),
-        )
+        self.error_blocks(tpe1, tpe2, TypeConstructor(ctx))
       } else {
         for i = 0; i < args1.length() && i < args2.length(); i = i + 1 {
           self.unify_value_types(
@@ -2788,7 +3074,7 @@ pub fn Typer::unify_block_types(
           )
         }
       }
-    _ => self.error(self.focus, explain_mismatch("\{tpe1}", "\{tpe2}", ctx))
+    _ => self.error_blocks(tpe1, tpe2, ctx)
   }
 }
 
@@ -2881,7 +3167,7 @@ pub fn Typer::unify_effects(
   if no_partner {
     // The sets cannot be equal (a known mismatch), even if one side still has
     // an unknown. The message names the unsubstituted sets, like upstream.
-    self.error(self.focus, "Expected the effects \{effs2} but got \{effs1}")
+    self.error_issue("Expected the effects \{effs2} but got \{effs1}", ctx)
     return
   }
   // If an effect may equal exactly one on the other side, it does: unify them
@@ -2945,9 +3231,48 @@ pub fn Typer::unify_captures(
   c2 : Captures,
   ctx : ErrCtx,
 ) -> Unit {
-  ignore(ctx)
-  self.require_subregion(c1, c2, self.focus)
-  self.require_subregion(c2, c1, self.focus)
+  self.require_subregion_ctx(c1, c2, ctx)
+  self.require_subregion_ctx(c2, c1, ctx)
+}
+
+///|
+/// Runs `f` with the focus set to `span`, restoring it afterwards (upstream's
+/// `C.at(tree)`: the focus is lexically scoped, so a nested check does not
+/// leak its own position into the enclosing one).
+fn[T] Typer::at(
+  self : Typer,
+  span : Span,
+  f : () -> T raise EffektError,
+) -> T raise EffektError {
+  let saved = self.focus
+  self.focus = span
+  errdefer {
+    self.focus = saved
+  }
+  let result = f()
+  self.focus = saved
+  result
+}
+
+///|
+/// Which construct's arms are joined (see `Typer::join`).
+pub(all) enum JoinKind {
+  IfKind
+  WhileKind
+  MatchKind
+}
+
+///|
+fn JoinKind::origin(
+  self : JoinKind,
+  left : Span?,
+  right : Span?,
+) -> MergeOrigin {
+  match self {
+    IfKind => IfArms(left, right)
+    WhileKind => WhileArms(left, right)
+    MatchKind => MatchArms(left, right)
+  }
 }
 
 ///|
@@ -2955,14 +3280,18 @@ pub fn Typer::unify_captures(
 pub fn Typer::join(
   self : Typer,
   expected : ValueType?,
+  kind : JoinKind,
   tpes_and_terms : Array[(ValueType, Span?)],
 ) -> ValueType raise EffektError {
   let mut result : ValueType? = None
+  let mut first_span : Span? = None
   for entry in tpes_and_terms {
     let (tpe, span) = entry
-    ignore(span)
     match result {
-      None => result = Some(tpe)
+      None => {
+        result = Some(tpe)
+        first_span = span
+      }
       Some(acc) => {
         // A mismatch between two arms is reported by the merge itself (upstream
         // reports it as an abort, but its recorded corpus output for
@@ -2975,8 +3304,16 @@ pub fn Typer::join(
         let merged = self.merge_value_types(
           acc,
           tpe,
-          MergeTypes(self.st.u.prune_value(acc), self.st.u.prune_value(tpe)),
+          MergeTypes(
+            self.st.u.prune_value(acc),
+            self.st.u.prune_value(tpe),
+            kind.origin(first_span, span),
+          ),
         ) catch {
+          // Upstream aborts the phase here, but its recorded corpus output for
+          // `examples/neg/inference` contains diagnostics of *later* definitions
+          // (and of the join's second pass), so type checking demonstrably
+          // continues. Keep the arm's own type as the join and go on.
           EffektError::Fatal(_) => tpe
           EffektError::Internal(m) => raise EffektError::Internal(m)
         }
@@ -2996,11 +3333,10 @@ pub fn Typer::join(
   // coercions; TODO this duplicates errors"). The context keeps the
   // *unsubstituted* arm and join types, which is why `examples/neg/patternmatch`
   // shows `Box[A]` on both sides and names the differing type arguments in the
-  // following line. The diagnostic is reported at the enclosing `match`/`if`
-  // (upstream passes the arm's tree only for the coercion, not for the
-  // position).
+  // note.
   for entry in tpes_and_terms {
-    let (tpe, _) = entry
+    let (tpe, arm_span) = entry
+    ignore(arm_span)
     self.require_subtype_value(tpe, joined, Expected(tpe, joined))
   }
   joined
@@ -3047,9 +3383,9 @@ pub fn Typer::merge_value_types(
               self.learn(y, old, ctx)
               new
             } else {
-              self.abort(self.focus, explain_mismatch("\{old}", "\{t}", ctx))
+              self.abort_types(old, t, ctx)
             }
-          _ => self.abort(self.focus, explain_mismatch("\{old}", "\{t}", ctx))
+          _ => self.abort_types(old, t, ctx)
         }
       }
     (t, @symbols.ValueType::ValueTypeRef(x)) =>
@@ -3057,7 +3393,7 @@ pub fn Typer::merge_value_types(
         self.learn(x, t, ctx)
         new
       } else {
-        self.abort(self.focus, explain_mismatch("\{old}", "\{t}", ctx))
+        self.abort_types(old, t, ctx)
       }
     (
       @symbols.ValueType::ValueTypeApp(c1, args1),
@@ -3066,7 +3402,7 @@ pub fn Typer::merge_value_types(
       if !(c1 == c2) {
         // `MergeTypes` explains this as incompatible arms of an `if`/`match`,
         // which is the only context `join` passes in.
-        self.abort(self.focus, explain_mismatch("\{old}", "\{new}", ctx))
+        self.abort_types(old, new, ctx)
       }
       for i = 0; i < args1.length() && i < args2.length(); i = i + 1 {
         self.unify_value_types(args1[i], args2[i], TypeConstructorArgument(ctx))
@@ -3081,7 +3417,7 @@ pub fn Typer::merge_value_types(
       self.unify_captures(c1, c2, BoxedTypeCapture(ctx))
       old_raw
     }
-    _ => self.abort(self.focus, explain_mismatch("\{old}", "\{new}", ctx))
+    _ => self.abort_types(old, new, ctx)
   }
 }
 

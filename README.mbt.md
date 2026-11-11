@@ -13,12 +13,11 @@ reference), and the standard library and the runtime are upstream's own files,
 so what compiles here is the whole language, not a subset of it.
 
 **Status.** The standard library and the test corpus follow upstream
-`6fbff0b0e`. The whole standard library compiles, **403 of the 417**
+`6fbff0b0e`. The whole standard library compiles, **410 of the 417**
 compiling-and-running corpus programs print exactly what upstream recorded, and
 **201 of the 203** programs that have to be rejected are rejected at the
-expected line (21 of them with a different message, mostly the new
-line-numbered excerpt and `* note:` subdiagnostics, which are not ported yet).
-The remaining differences are listed under [Differences from
+expected line (9 of them with a different message). The remaining differences
+are listed under [Differences from
 upstream](#differences-from-upstream).
 ## Quick start
 

@@ -7,7 +7,7 @@
 // lives in the `Typer` as well.
 
 ///|
-using @util {type Span, type EffektError}
+using @util {type Span, type EffektError, type Message}
 
 ///|
 using @symbols {

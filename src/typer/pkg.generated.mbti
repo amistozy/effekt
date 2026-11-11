@@ -86,10 +86,11 @@ pub fn CapScope::relevant_in_scope_for(Self, @symbols.BlockType) -> Array[String
 
 pub(all) enum ErrCtx {
   Expected(@symbols.ValueType, @symbols.ValueType)
-  MergeTypes(@symbols.ValueType, @symbols.ValueType)
+  ExpectedBlock(@symbols.BlockType, @symbols.BlockType)
+  MergeTypes(@symbols.ValueType, @symbols.ValueType, MergeOrigin)
   Declaration(@symbols.ValueType, @symbols.ValueType)
   DeclarationBlock(@symbols.BlockType, @symbols.BlockType)
-  PatternMatch
+  PatternMatch(@symbols.ValueType, @symbols.ValueType)
   MergeInvariant(ErrCtx)
   TypeConstructor(ErrCtx)
   TypeConstructorArgument(ErrCtx)
@@ -106,6 +107,19 @@ pub(all) struct Instantiated {
   bparams : Array[@symbols.BlockType]
   ret : @symbols.ValueType
   effs : @symbols.Effects
+}
+
+pub(all) enum JoinKind {
+  IfKind
+  WhileKind
+  MatchKind
+}
+
+pub(all) enum MergeOrigin {
+  IfArms(@util.Span?, @util.Span?)
+  WhileArms(@util.Span?, @util.Span?)
+  MatchArms(@util.Span?, @util.Span?)
+  NoArms
 }
 
 pub(all) struct PendingMatch {
@@ -147,7 +161,7 @@ pub struct Typer {
   mut st : TyperState
   mut muting : Bool
   mut muted_error : Bool
-  mut muted_messages : Array[(@util.Span, String)]
+  mut muted_messages : Array[@util.Message]
   mut muted_infos : Array[(@util.Span, String)]
   mut focus : @util.Span
   type_var_spans : Map[Int32, @util.Span]
@@ -183,7 +197,7 @@ pub fn Typer::infer_function_argument(Self, @source.Term) -> TyRes[@symbols.Bloc
 pub fn Typer::instantiate(Self, @symbols.BlockType, Array[@symbols.Sym], Array[@symbols.ValueType], Array[@symbols.Captures]) -> (Array[@symbols.ValueType], Array[@symbols.BlockType], @symbols.ValueType, @symbols.Effects) raise @util.EffektError
 pub fn Typer::instantiate_fresh(Self, @symbols.BlockType, Array[@symbols.Sym]) -> (Array[@symbols.ValueType], Array[@symbols.Captures], Instantiated) raise @util.EffektError
 pub fn Typer::instantiate_value(Self, @symbols.BlockType, Array[@symbols.Sym], Array[@symbols.ValueType], Array[@symbols.Captures]) -> (Array[@symbols.ValueType], @symbols.ValueType) raise @util.EffektError
-pub fn Typer::join(Self, @symbols.ValueType?, Array[(@symbols.ValueType, @util.Span?)]) -> @symbols.ValueType raise @util.EffektError
+pub fn Typer::join(Self, @symbols.ValueType?, JoinKind, Array[(@symbols.ValueType, @util.Span?)]) -> @symbols.ValueType raise @util.EffektError
 pub fn Typer::lookup_block(Self, @symbols.Sym) -> @symbols.BlockType raise @util.EffektError
 pub fn Typer::lookup_capture(Self, @symbols.Sym) -> @symbols.Captures
 pub fn Typer::lookup_first_value(Self, @symbols.Sym) -> @symbols.ValueType?
@@ -193,6 +207,7 @@ pub fn Typer::merge_value_types(Self, @symbols.ValueType, @symbols.ValueType, Er
 pub fn Typer::new(@source.Context) -> Self
 pub fn Typer::precheck_def(Self, @source.Def) -> Unit raise @util.EffektError
 pub fn Typer::require_subregion(Self, @symbols.Captures, @symbols.Captures, @util.Span) -> Unit
+pub fn Typer::require_subregion_ctx(Self, @symbols.Captures, @symbols.Captures, ErrCtx) -> Unit
 pub fn Typer::require_subtype_value(Self, @symbols.ValueType, @symbols.ValueType, ErrCtx) -> Unit raise @util.EffektError
 pub fn Typer::resolve_block_ref(Self, @source.TypeTree) -> @symbols.BlockType raise @util.EffektError
 pub fn Typer::resolve_block_type(Self, @source.TypeTree) -> @symbols.BlockType raise @util.EffektError
