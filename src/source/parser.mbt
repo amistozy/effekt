@@ -4045,6 +4045,7 @@ pub fn parse_module_decl(
   source : Source,
   context : Context,
 ) -> ModuleDecl? raise EffektError {
+  context.set_phase("parser")
   let tokens = Lexer::lex(source)
   let parser = Parser::new(tokens, source, context)
   parser.parse_program()
@@ -4057,6 +4058,7 @@ pub fn parse_term(
   source : Source,
   context : Context,
 ) -> Term? raise EffektError {
+  context.set_phase("parser")
   let tokens = Lexer::lex(source)
   let parser = Parser::new(tokens, source, context)
   parser.parse_term_entry()
@@ -4068,6 +4070,7 @@ pub fn parse_statement(
   source : Source,
   context : Context,
 ) -> Stmt? raise EffektError {
+  context.set_phase("parser")
   let tokens = Lexer::lex(source)
   let parser = Parser::new(tokens, source, context)
   try {

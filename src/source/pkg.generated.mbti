@@ -143,9 +143,11 @@ pub(all) struct Context {
   call_imports : Map[Int32, @symbols.Bindings]
   effekt_externs : Map[Int32, Bool]
   mut resolved_module : @symbols.Module?
+  mut phase : String?
   config : Config
 }
 pub fn Context::abort(Self, @util.Span, String) -> Unit raise @util.EffektError
+pub fn Context::abort_with(Self, @util.Message) -> Unit raise @util.EffektError
 pub fn Context::assign_block_type(Self, Int32, @symbols.BlockType) -> Unit
 pub fn Context::assign_bound_capabilities(Self, Int32, Array[@symbols.Sym]) -> Unit
 pub fn Context::assign_call_imports(Self, Int32, @symbols.Bindings) -> Unit
@@ -172,6 +174,7 @@ pub fn Context::capture_of(Self, Int32) -> @symbols.Captures?
 pub fn Context::copy_annotations(Self, Int32, Int32) -> Unit
 pub fn Context::effects_of(Self, Int32) -> @symbols.Effects?
 pub fn Context::error(Self, @util.Span, String) -> Unit
+pub fn Context::error_with(Self, @util.Message) -> Unit
 pub fn Context::feature_flags(Self) -> Array[String]
 pub fn Context::has_errors(Self) -> Bool
 pub fn Context::implicit_block_args_of(Self, Int32) -> Array[Term]
@@ -185,6 +188,7 @@ pub fn Context::panic(Self, String) -> Unit raise @util.EffektError
 pub fn Context::pattern_existentials_of(Self, Int32) -> Array[@symbols.Sym]?
 pub fn Context::report(Self, @util.Message) -> Unit
 pub fn Context::resolved_module(Self) -> @symbols.Module?
+pub fn Context::set_phase(Self, String) -> Unit
 pub fn Context::set_resolved_module(Self, @symbols.Module) -> Unit
 pub fn Context::supports(Self, String) -> Bool
 pub fn Context::symbol_of(Self, Int32) -> @symbols.Sym?

@@ -1148,6 +1148,7 @@ pub fn typecheck(
   context : Context,
 ) -> Unit raise EffektError {
   let rewritten = unbox_inference(module, context)
+  context.set_phase("typer")
   if rewritten.defs.length() == module.defs.length() {
     for i = 0; i < rewritten.defs.length(); i = i + 1 {
       module.defs[i] = rewritten.defs[i]
@@ -1186,10 +1187,12 @@ pub fn Typer::check_module(
   // when the typer did not report anything: a pattern-match error already
   // explains why a match is not exhaustive, so `examples/neg/patternmatch`
   // does not get the "missing case" diagnostic on top.
+  self.ctx.set_phase("wellformedness")
   if !self.ctx.has_errors() {
     self.check_pending_matches()
   }
   self.check_capture_escapes(module)
+  self.ctx.set_phase("typer")
   self.check_main(module)
 }
 

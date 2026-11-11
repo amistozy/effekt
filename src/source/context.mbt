@@ -80,6 +80,9 @@ pub(all) struct Context {
   /// The module produced by the namer phase (exports and includes), if the
   /// namer has run. See `resolve`/`resolve_module` in `src/namer`.
   mut resolved_module : @symbols.Module?
+  /// The phase that is currently running, tagged onto the messages it reports
+  /// (`[namer]`, `[typer]`, ...) and rendered after their first line.
+  mut phase : String?
   config : Config
 }
 
@@ -105,6 +108,7 @@ pub fn Context::new(config : Config) -> Context {
     call_imports: Map([]),
     effekt_externs: Map([]),
     resolved_module: None,
+    phase: None,
     config,
   }
 }
@@ -118,30 +122,41 @@ pub fn Context::has_errors(self : Context) -> Bool {
 // -----------
 
 ///|
+/// Records the phase whose diagnostics follow (upstream's `inPhase`). The phase
+/// is tagged onto every message reported from now on.
+pub fn Context::set_phase(self : Context, phase : String) -> Unit {
+  self.phase = Some(phase)
+}
+
+///|
 pub fn Context::report(self : Context, msg : Message) -> Unit {
+  let msg = match msg.phase {
+    Some(_) => msg
+    None => { ..msg, phase: self.phase, }
+  }
   self.messages.push(msg)
 }
 
 ///|
 pub fn Context::error(self : Context, span : Span, msg : String) -> Unit {
-  self.messages.push(Message::error(span, msg))
+  self.report(Message::error(span, msg))
 }
 
 ///|
 pub fn Context::warning(self : Context, span : Span, msg : String) -> Unit {
-  self.messages.push(Message::warning(span, msg))
+  self.report(Message::warning(span, msg))
 }
 
 ///|
 pub fn Context::info(self : Context, msg : String) -> Unit {
-  self.messages.push(Message::info(msg))
+  self.report(Message::info(msg))
 }
 
 ///|
 /// An informational hint at `span` (upstream `ErrorReporter.info` reports at
 /// the current focus, i.e. at a source position).
 pub fn Context::info_at(self : Context, span : Span, msg : String) -> Unit {
-  self.messages.push(Message::info_at(span, msg))
+  self.report(Message::info_at(span, msg))
 }
 
 ///|
@@ -153,6 +168,23 @@ pub fn Context::abort(
 ) -> Unit raise EffektError {
   self.error(span, msg)
   raise EffektError::Fatal(msg)
+}
+
+///|
+/// Reports a fully built message (with notes and helps) and aborts the phase.
+/// Upstream's `E.abort(msg) { ...subdiagnostics... }`.
+pub fn Context::abort_with(
+  self : Context,
+  msg : Message,
+) -> Unit raise EffektError {
+  self.report(msg)
+  raise EffektError::Fatal(msg.text)
+}
+
+///|
+/// Reports a fully built message (with notes and helps).
+pub fn Context::error_with(self : Context, msg : Message) -> Unit {
+  self.report(msg)
 }
 
 ///|

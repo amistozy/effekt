@@ -35,6 +35,7 @@ pub fn resolve_module(
   context : @source.Context,
   deps : Map[String, ResolvedModule],
 ) -> ResolvedModule raise EffektError {
+  context.set_phase("namer")
   let mod = Module::new(module.path, module.span)
   let namer = new_namer(context, mod, deps)
   namer.resolve_toplevel(module)
@@ -1950,17 +1951,14 @@ fn is_block_target(sym : Sym) -> Bool {
 
 ///|
 /// Suggests a similar type name when a type reference cannot be resolved
-/// (upstream `Scope.lookupType`'s `didYouMean`). The hint is reported at the
-/// reference, before the error.
-fn Namer::suggest_type(self : Namer, id : IdRef) -> Unit {
+/// (upstream `Scope.lookupType`'s `didYouMean`). The hint is a help item of the
+/// error, not a message of its own.
+fn Namer::suggest_type(self : Namer, id : IdRef) -> String? {
   let candidates = @symbols.available_type_names(
     self.scoping.scope,
     self.imports,
   )
-  match @util.did_you_mean(id.name, candidates, @util.did_you_mean_type) {
-    Some(suggestion) => self.context.info_at(id.span, suggestion)
-    None => ()
-  }
+  @util.did_you_mean(id.name, candidates, @util.did_you_mean_type)
 }
 
 ///|
@@ -1978,8 +1976,15 @@ fn Namer::resolve_type_ref(
       sym
     }
     None => {
-      self.suggest_type(id)
-      self.context.abort(id.span, "Could not resolve type \{id_text(id)}")
+      let error = @util.Message::error(
+        id.span,
+        "Could not resolve type \{id_text(id)}",
+      )
+      let error = match self.suggest_type(id) {
+        Some(hint) => error.help(hint)
+        None => error
+      }
+      self.context.abort_with(error)
       @symbols.Sym::wildcard()
     }
   }

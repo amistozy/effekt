@@ -19,6 +19,7 @@ pub fn unbox_inference(
   module : ModuleDecl,
   context : Context,
 ) -> ModuleDecl raise EffektError {
+  context.set_phase("unbox")
   let u = { ctx: context, }
   u.rewrite_module(module)
 }
@@ -61,8 +62,9 @@ fn Unboxer::error(self : Unboxer, span : Span, msg : String) -> Unit {
 }
 
 ///|
-fn Unboxer::info(self : Unboxer, span : Span, msg : String) -> Unit {
-  self.ctx.info_at(span, msg)
+/// Reports an error with its helps (upstream's `C.error(msg) { help(...) }`).
+fn Unboxer::error_with(self : Unboxer, msg : @util.Message) -> Unit {
+  self.ctx.report(msg)
 }
 
 ///|
@@ -134,35 +136,40 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
           if s.is_ref_binder() || s.is_value_symbol() {
             e
           } else {
-            // heuristic for a specific misunderstanding
-            match s {
+            // Upstream keeps the heuristics for a specific misunderstanding
+            // (`UnboxInference`), but they are help items of this error now.
+            let name = id.name
+            let error = @util.Message::error(
+              e.span,
+              "Expected a value, but \{name} is a computation.",
+            ).help("Use `box \{name}` to pass it as a value.")
+            let error = match s {
               @symbols.Sym::UserFunction(f) =>
                 if f.vparams.length() == 0 && f.bparams.length() == 0 {
-                  self.info(
-                    e.span,
-                    "Did you mean to call the function using `\{id.name}()`?",
+                  error.help(
+                    "Did you mean to call the function using `\{name}()`?",
                   )
+                } else {
+                  error
                 }
               @symbols.Sym::BlockParam(bp) =>
                 // A block parameter of nullary function type: `{ f: () => A }`
                 match bp.tpe {
                   Some(@symbols.BlockType::FunctionType(_, _, vps, bps, _, _)) =>
                     if vps.length() == 0 && bps.length() == 0 {
-                      self.info(
-                        e.span,
-                        "Did you mean to call the function using `\{id.name}()`?",
+                      error.help(
+                        "Did you mean to call the function using `\{name}()`?",
                       )
+                    } else {
+                      error
                     }
-                  _ => ()
+                  _ => error
                 }
               @symbols.Sym::ResumeParam(_) =>
-                self.info(e.span, "Did you mean to resume using `resume(...)`?")
-              _ => ()
+                error.help("Did you mean to resume using `resume(...)`?")
+              _ => error
             }
-            self.error(
-              e.span,
-              "Expected a value, but \{id.name} is a computation. Use `box \{id.name}` to pass it as a value instead",
-            )
+            self.error_with(error)
             e
           }
         None => e
@@ -174,17 +181,23 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
         Some(text) => text
         None => "T"
       }
-      self.error(
-        e.span,
-        "Expected a value, but `new` creates a computation (an object instance). Use `box new \{name}[...] { ... }` to pass it as a value instead",
+      self.error_with(
+        @util.Message::error(
+          e.span,
+          "Expected a value, but `new` creates a computation (an object instance).",
+        ).help("Use `box new \{name}[...] { ... }` to pass it as a value."),
       )
       self.rewrite_as_block(e)
     }
     @source.TermKind::BlockLiteral(_, vparams, _, _) => {
       let names : Array[String] = vparams.map(p => p.id.name)
-      self.error(
-        e.span,
-        "Expected a value, but block (function) literals are computations. Use `box { (\{names.join(", ")}) => ... }` to pass it as a value instead",
+      self.error_with(
+        @util.Message::error(
+          e.span,
+          "Expected a value, but block (function) literals are computations.",
+        ).help(
+          "Use `box { (\{names.join(", ")}) => ... }` to pass it as a value.",
+        ),
       )
       self.rewrite_as_block(e)
     }

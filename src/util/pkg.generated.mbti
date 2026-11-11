@@ -92,12 +92,18 @@ pub(all) struct Message {
   severity : Severity
   span : Span
   text : String
+  phase : String?
+  notes : Array[Subdiagnostic]
 }
 pub fn Message::error(Span, String) -> Self
+pub fn Message::help(Self, String) -> Self
 pub fn Message::info(String) -> Self
 pub fn Message::info_at(Span, String) -> Self
+pub fn Message::new(Severity, Span, String) -> Self
+pub fn Message::note(Self, String, Span?) -> Self
 pub fn Message::render(Self) -> String
 pub fn Message::warning(Span, String) -> Self
+pub fn Message::with_phase(Self, String) -> Self
 
 #derive(Eq)
 pub(all) enum Mode {
@@ -161,6 +167,12 @@ pub fn Span::text(Self) -> String?
 pub fn Span::to_span(Self, Self) -> Self
 pub fn Span::with_origin(Source, Int32, Int32, Origin) -> Self
 pub impl Show for Span
+
+pub(all) enum Subdiagnostic {
+  Note(String, Span?)
+  Help(String)
+}
+pub fn Subdiagnostic::text(Self) -> String
 
 pub(all) struct Template[T] {
   strings : Array[String]
