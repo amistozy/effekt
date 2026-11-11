@@ -105,13 +105,13 @@ test "the help text documents every option" {
 
 ///|
 test "parses the hello world example" {
-  let ctx = @source.Context::new(@source.Config::default())
+  let ctx = @source.Context(@source.Config::default())
   let hello =
     #|def main() = {
     #|  println("Hello, world!")
     #|}
     #|
-  let src = @util.Source::new("hello.effekt", hello)
+  let src = @util.Source("hello.effekt", hello)
   let tree = @source.parse_module_decl(src, ctx).unwrap()
   assert_eq(tree.path, "hello")
   assert_eq(tree.defs.length(), 1)
@@ -119,26 +119,26 @@ test "parses the hello world example" {
 
 ///|
 test "parses an effect declaration" {
-  let ctx = @source.Context::new(@source.Config::default())
+  let ctx = @source.Context(@source.Config::default())
   let exc =
     #|interface Exc {
     #|  def raise(msg: String): Nothing
     #|}
     #|
-  let src = @util.Source::new("prog.effekt", exc)
+  let src = @util.Source("prog.effekt", exc)
   let tree = @source.parse_module_decl(src, ctx).unwrap()
   assert_eq(tree.defs.length(), 1)
 }
 
 ///|
 test "parses a namespace" {
-  let ctx = @source.Context::new(@source.Config::default())
+  let ctx = @source.Context(@source.Config::default())
   let ns =
     #|namespace foo {
     #|  def bar(): Int = 42
     #|}
     #|
-  let src = @util.Source::new("prog.effekt", ns)
+  let src = @util.Source("prog.effekt", ns)
   let tree = @source.parse_module_decl(src, ctx).unwrap()
   assert_eq(tree.defs.length(), 1)
 }
@@ -147,8 +147,8 @@ test "parses a namespace" {
 /// Runs the whole frontend on a self-contained snippet (no prelude) and
 /// returns the diagnostics.
 fn check_program(name : String, text : String) -> Array[@util.Message] {
-  let ctx = @source.Context::new(@source.Config::default())
-  let src = @util.Source::new(name, text)
+  let ctx = @source.Context(@source.Config::default())
+  let src = @util.Source(name, text)
   try {
     let tree = @source.parse_module_decl(src, ctx).unwrap()
     @namer.resolve(tree, ctx)
@@ -235,7 +235,7 @@ test "loads and checks the standard library prelude" {
 
 ///|
 test "parses a match expression" {
-  let ctx = @source.Context::new(@source.Config::default())
+  let ctx = @source.Context(@source.Config::default())
   let text =
     #|type List[A] { Cons(head: A, tail: List[A]); Nil() }
     #|def len[A](xs: List[A]): Int = xs match {
@@ -243,7 +243,7 @@ test "parses a match expression" {
     #|  case Nil() => 0
     #|}
     #|
-  let src = @util.Source::new("m.effekt", text)
+  let src = @util.Source("m.effekt", text)
   let tree = @source.parse_module_decl(src, ctx).unwrap()
   assert_eq(tree.defs.length(), 2)
 }

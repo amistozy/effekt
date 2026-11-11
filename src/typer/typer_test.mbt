@@ -13,7 +13,7 @@ fn test_span() -> @util.Span {
 
 ///|
 fn test_ctx() -> @source.Context {
-  @source.Context::new(@source.Config::default())
+  @source.Context(@source.Config::default())
 }
 
 ///|
@@ -70,7 +70,7 @@ fn id_ref(
   name : String,
   sym : @symbols.Sym,
 ) -> @source.IdRef {
-  let id = @source.IdRef::new(name, test_span())
+  let id = @source.IdRef(name, test_span())
   ctx.assign_symbol(id.uid, sym)
   id
 }
@@ -81,7 +81,7 @@ fn id_def(
   name : String,
   sym : @symbols.Sym,
 ) -> @source.IdDef {
-  let id = @source.IdDef::new(name, test_span())
+  let id = @source.IdDef(name, test_span())
   ctx.assign_symbol(id.uid, sym)
   id
 }
@@ -165,7 +165,7 @@ fn extern_add_def(ctx : @source.Context) -> (@source.Def, @symbols.Sym) {
     Some(@symbols.t_int()),
     test_span(),
   )
-  let add_id = @source.IdDef::new("add", test_span())
+  let add_id = @source.IdDef("add", test_span())
   let add_sym : @symbols.Sym = @symbols.ExternFunction({
     base: base("add"),
     tparams: [],
@@ -183,8 +183,8 @@ fn extern_add_def(ctx : @source.Context) -> (@source.Def, @symbols.Sym) {
       add_id,
       [],
       [
-        value_param(@source.IdDef::new("a", test_span()), Some(int_tree())),
-        value_param(@source.IdDef::new("b", test_span()), Some(int_tree())),
+        value_param(@source.IdDef("a", test_span()), Some(int_tree())),
+        value_param(@source.IdDef("b", test_span()), Some(int_tree())),
       ],
       [],
       empty_captures(),
@@ -256,7 +256,7 @@ test "lambda has an inferred function type" {
     false,
     test_span(),
   )
-  let apply_id = @source.IdDef::new("apply", test_span())
+  let apply_id = @source.IdDef("apply", test_span())
   let apply_sym : @symbols.Sym = @symbols.ExternFunction({
     base: base("apply"),
     tparams: [],
@@ -277,7 +277,7 @@ test "lambda has an inferred function type" {
       [],
       [
         {
-          id: @source.IdDef::new("f", test_span()),
+          id: @source.IdDef("f", test_span()),
           tpe: Some(
             @source.mk_type(
               test_span(),
@@ -423,7 +423,7 @@ test "declared effects flow through calls" {
     bparams: [],
     annotated_captures: None,
     annotated_result: Some(@symbols.t_unit()),
-    annotated_effects: Some(@symbols.Effects::new([exc])),
+    annotated_effects: Some(@symbols.Effects([exc])),
   })
   let f_id = id_def(ctx, "f", f_sym)
   let f_def = @source.mk_def(
@@ -475,7 +475,7 @@ test "declared effects flow through calls" {
     bparams: [],
     annotated_captures: None,
     annotated_result: Some(@symbols.t_int()),
-    annotated_effects: Some(@symbols.Effects::new([exc])),
+    annotated_effects: Some(@symbols.Effects([exc])),
   })
   let g_id = id_def(ctx, "g", g_sym)
   let f_call = @source.mk_term(
@@ -568,11 +568,11 @@ test "effect polymorphism" {
     @source.Info::empty(),
     @source.DefKind::FunDef(
       h_id,
-      [@source.IdDef::new("A", test_span())],
+      [@source.IdDef("A", test_span())],
       [],
       [
         {
-          id: @source.IdDef::new("k", test_span()),
+          id: @source.IdDef("k", test_span()),
           tpe: Some(
             @source.mk_type(
               test_span(),
@@ -644,7 +644,7 @@ test "effect operation call gets a capability" {
     bparams: [],
     annotated_captures: None,
     annotated_result: Some(@symbols.t_unit()),
-    annotated_effects: Some(@symbols.Effects::new([exc])),
+    annotated_effects: Some(@symbols.Effects([exc])),
   })
   let f_id = id_def(ctx, "f", f_sym)
   let do_node = @source.mk_term(
@@ -890,7 +890,7 @@ fn extern_fn(
     let (n, t) = p
     @symbols.Sym::value_param(@symbols.Name::local(n), Some(t), test_span())
   })
-  let id = @source.IdDef::new(name, test_span())
+  let id = @source.IdDef(name, test_span())
   let sym : @symbols.Sym = @symbols.ExternFunction({
     base: base(name),
     tparams,
@@ -906,7 +906,7 @@ fn extern_fn(
     let t = params[i].1
     tree_params.push(
       value_param(
-        @source.IdDef::new(params[i].0, test_span()),
+        @source.IdDef(params[i].0, test_span()),
         Some(@source.mk_type(test_span(), @source.TypeKind::ValueTypeTree(t))),
       ),
     )
@@ -916,7 +916,7 @@ fn extern_fn(
     @source.Info::empty(),
     @source.DefKind::ExternDef(
       id,
-      tparams.map(t => @source.IdDef::new(t.name().name, test_span())),
+      tparams.map(t => @source.IdDef(t.name().name, test_span())),
       tree_params,
       [],
       empty_captures(),
@@ -937,7 +937,7 @@ fn user_fn(
   result : @symbols.ValueType,
   body : @source.Stmt,
 ) -> (@source.Def, @symbols.Sym) {
-  let id = @source.IdDef::new(name, test_span())
+  let id = @source.IdDef(name, test_span())
   let sym : @symbols.Sym = @symbols.UserFunction({
     base: base(name),
     tparams,
@@ -953,7 +953,7 @@ fn user_fn(
     let (n, _, t) = p
     tree_params.push(
       value_param(
-        @source.IdDef::new(n, test_span()),
+        @source.IdDef(n, test_span()),
         Some(@source.mk_type(test_span(), @source.TypeKind::ValueTypeTree(t))),
       ),
     )
@@ -963,7 +963,7 @@ fn user_fn(
     @source.Info::empty(),
     @source.DefKind::FunDef(
       id,
-      tparams.map(t => @source.IdDef::new(t.name().name, test_span())),
+      tparams.map(t => @source.IdDef(t.name().name, test_span())),
       tree_params,
       [],
       None,
@@ -1130,7 +1130,7 @@ test "overload resolution retries and picks the second candidate" {
     [("x", @symbols.t_string())],
     @symbols.t_string(),
   )
-  let show_ref = @source.IdRef::new("show", test_span())
+  let show_ref = @source.IdRef("show", test_span())
   ctx.assign_symbol(
     show_ref.uid,
     @symbols.Sym::call_target([[bool_show, int_show]]),
@@ -1144,7 +1144,7 @@ test "overload resolution retries and picks the second candidate" {
       [],
     ),
   )
-  let wrap_ref = @source.IdRef::new("wrap", test_span())
+  let wrap_ref = @source.IdRef("wrap", test_span())
   ctx.assign_symbol(wrap_ref.uid, wrap_sym)
   let outer = @source.mk_term(
     test_span(),
@@ -1448,7 +1448,7 @@ test "Nothing coerces to the expected type" {
     ),
   )
   // ... with the effect declared, so that the capability for E is in scope
-  let f_id = @source.IdDef::new("f", test_span())
+  let f_id = @source.IdDef("f", test_span())
   let f_sym : @symbols.Sym = @symbols.UserFunction({
     base: base("f"),
     tparams: [],
@@ -1456,7 +1456,7 @@ test "Nothing coerces to the expected type" {
     bparams: [],
     annotated_captures: None,
     annotated_result: Some(@symbols.t_int()),
-    annotated_effects: Some(@symbols.Effects::new([e])),
+    annotated_effects: Some(@symbols.Effects([e])),
   })
   ctx.assign_symbol(f_id.uid, f_sym)
   let f_def = @source.mk_def(
@@ -1465,7 +1465,7 @@ test "Nothing coerces to the expected type" {
     @source.DefKind::FunDef(
       f_id,
       [],
-      [value_param(@source.IdDef::new("y", test_span()), Some(int_tree()))],
+      [value_param(@source.IdDef("y", test_span()), Some(int_tree()))],
       [],
       None,
       Some(int_tree()),

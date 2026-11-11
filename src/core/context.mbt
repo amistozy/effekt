@@ -5,7 +5,7 @@
 // methods raise `EffektError` when no matching declaration can be found.
 //
 // Upstream lazily caches all declarations in maps; since MoonBit maps are
-// mutable, we build them eagerly in `DeclarationContext::new`.
+// mutable, we build them eagerly in `DeclarationContext`.
 
 ///|
 pub(all) struct ConstructorRef {
@@ -56,7 +56,7 @@ fn extern_def_key(name : String, params : Array[ValueType]) -> String {
 }
 
 ///|
-pub fn DeclarationContext::new(
+pub fn DeclarationContext::DeclarationContext(
   declarations : Array[Declaration],
   externs : Array[Extern],
 ) -> DeclarationContext {
@@ -448,7 +448,7 @@ pub fn QualifiedSignature::from_extern_function(
 ) -> QualifiedSignature {
   let callable = f.as_callable()
   match callable {
-    None => QualifiedSignature::new("\{module_name}::\{f.name().name}")
+    None => QualifiedSignature("\{module_name}::\{f.name().name}")
     Some(c) => {
       let tps = if c.tparams.length() == 0 {
         ""
@@ -463,7 +463,7 @@ pub fn QualifiedSignature::from_extern_function(
         .map(b => "{\{show_core_block_type(block_param_type(b))}}")
         .join("")
       let ps = if vps == "" && bps == "" { "()" } else { vps + bps }
-      QualifiedSignature::new("\{module_name}::\{f.name().name}\{tps}\{ps}")
+      QualifiedSignature("\{module_name}::\{f.name().name}\{tps}\{ps}")
     }
   }
 }

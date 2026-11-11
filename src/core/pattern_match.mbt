@@ -40,7 +40,7 @@ pub(all) struct PMVar {
 }
 
 ///|
-pub fn PMVar::new(id : Sym, tpe : ValueType) -> PMVar {
+pub fn PMVar::PMVar(id : Sym, tpe : ValueType) -> PMVar {
   { id, tpe, }
 }
 
@@ -51,7 +51,7 @@ pub fn PMVar::to_expr(self : PMVar) -> Expr {
 
 ///|
 pub fn PMVar::to_param(self : PMVar) -> ValueParam {
-  ValueParam::new(self.id, self.tpe)
+  ValueParam(self.id, self.tpe)
 }
 
 // ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ pub(all) struct PMEquals {
 }
 
 ///|
-pub fn PMEquals::new(symbol : Sym, targs : Array[ValueType]) -> PMEquals {
+pub fn PMEquals::PMEquals(symbol : Sym, targs : Array[ValueType]) -> PMEquals {
   { symbol, targs, }
 }
 
@@ -91,7 +91,10 @@ pub(all) struct PMSubPattern {
 }
 
 ///|
-pub fn PMSubPattern::new(pattern : PMPattern, tpe : ValueType) -> PMSubPattern {
+pub fn PMSubPattern::PMSubPattern(
+  pattern : PMPattern,
+  tpe : ValueType,
+) -> PMSubPattern {
   { pattern, tpe, }
 }
 
@@ -122,7 +125,10 @@ pub(all) struct PMVarPattern {
 }
 
 ///|
-pub fn PMVarPattern::new(variable : PMVar, pattern : PMPattern) -> PMVarPattern {
+pub fn PMVarPattern::PMVarPattern(
+  variable : PMVar,
+  pattern : PMPattern,
+) -> PMVarPattern {
   { variable, pattern, }
 }
 
@@ -149,7 +155,7 @@ pub(all) struct PMClause {
 }
 
 ///|
-pub fn PMClause::new(
+pub fn PMClause::PMClause(
   conditions : Array[PMCondition],
   label : BlockVar,
   targs : Array[ValueType],
@@ -267,7 +273,7 @@ pub fn pm_compile(
     )
   }
 
-  let rest_clause = PMClause::new(
+  let rest_clause = PMClause(
     pm_drop_first(head.conditions),
     head.label,
     head.targs,
@@ -384,7 +390,7 @@ fn pm_split_on_literal(
         let idx = pm_literal_index(variants, v)
         if idx >= 0 {
           clauses_for[idx].push(
-            PMClause::new(
+            PMClause(
               pm_prepend(PMPatterns(rest_patterns), rest_conds),
               c.label,
               c.targs,
@@ -517,7 +523,7 @@ fn pm_split_on_tag(
               _ => field_names[i]
             }
             vars.push(
-              PMVar::new(
+              PMVar(
                 Sym::value_param(Name::local(name), Some(tpe), Span::missing()),
                 tpe,
               ),
@@ -534,7 +540,7 @@ fn pm_split_on_tag(
         for i = 0; i < field_vars.length(); i = i + 1 {
           nested.set(
             field_vars[i].id.uid(),
-            PMVarPattern::new(field_vars[i], patterns_and_types[i].pattern),
+            PMVarPattern(field_vars[i], patterns_and_types[i].pattern),
           )
         }
         // it is important to add nested matches first, since they might include
@@ -546,7 +552,7 @@ fn pm_split_on_tag(
         for cond in rest_conds {
           conds.push(cond)
         }
-        let cl = PMClause::new(conds, c.label, c.targs, c.args)
+        let cl = PMClause(conds, c.label, c.targs, c.args)
         match clauses_for.get(constructor.uid()) {
           Some(list) => list.push(cl)
           None => clauses_for.set(constructor.uid(), [cl])
@@ -587,7 +593,7 @@ fn pm_split_on_tag(
       Some(p) => p.map(x => x.to_param())
       None => ([] : Array[ValueParam])
     }
-    branches.push(Clause::new(v, BlockLit::new(tparams, [], params, [], body)))
+    branches.push(Clause(v, BlockLit::new(tparams, [], params, [], body)))
   }
 
   let default = if defaults.length() == 0 {
@@ -656,7 +662,7 @@ pub fn pm_normalize(clause : PMClause) -> PMClause raise EffektError {
       None => a
     }
   })
-  PMClause::new(conditions, clause.label, clause.targs, args)
+  PMClause(conditions, clause.label, clause.targs, args)
 }
 
 ///|
@@ -691,7 +697,7 @@ fn pm_normalize_conditions(
         // The pattern is re-keyed by the (possibly substituted) variable:
         // `case a is x; x is Cons => ...` normalizes to `case a is Cons`, i.e.
         // the later pattern is now matched on `a`.
-        substituted.set(sc.id.uid(), PMVarPattern::new(sc, vp.pattern))
+        substituted.set(sc.id.uid(), PMVarPattern(sc, vp.pattern))
         match vp.pattern {
           PMAny(aid) => additional.push((aid.uid(), sc))
           _ => ()
@@ -750,7 +756,7 @@ fn pm_value_substitution(substitution : Map[Int32, PMVar]) -> Substitution {
   for k, v in substitution {
     values.set(k, v.to_expr())
   }
-  Substitution::new(Map([]), Map([]), values, Map([]))
+  Substitution(Map([]), Map([]), values, Map([]))
 }
 
 ///|

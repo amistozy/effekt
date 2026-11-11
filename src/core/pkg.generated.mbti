@@ -152,7 +152,7 @@ pub(all) struct BlockParam {
   tpe : @symbols.BlockType
   capt : @symbols.Captures
 }
-pub fn BlockParam::new(@symbols.Sym, @symbols.BlockType, @symbols.Captures) -> Self
+pub fn BlockParam::BlockParam(@symbols.Sym, @symbols.BlockType, @symbols.Captures) -> Self
 
 pub(all) struct BlockVar {
   id : @symbols.Sym
@@ -171,15 +171,15 @@ pub(all) struct Clause {
   tag : @symbols.Sym
   body : BlockLit
 }
+pub fn Clause::Clause(@symbols.Sym, BlockLit) -> Self
 pub fn Clause::free(Self) -> Free
-pub fn Clause::new(@symbols.Sym, BlockLit) -> Self
 
 pub(all) struct Constructor {
   id : @symbols.Sym
   tparams : Array[@symbols.Sym]
   fields : Array[Field]
 }
-pub fn Constructor::new(@symbols.Sym, Array[@symbols.Sym], Array[Field]) -> Self
+pub fn Constructor::Constructor(@symbols.Sym, Array[@symbols.Sym], Array[Field]) -> Self
 
 pub(all) struct ConstructorRef {
   data : Declaration
@@ -210,6 +210,7 @@ pub(all) struct DeclarationContext {
   extern_datas : Map[Int32, Int32]
   extern_defs_by_name : Map[String, Int32]
 }
+pub fn DeclarationContext::DeclarationContext(Array[Declaration], Array[Extern]) -> Self
 pub fn DeclarationContext::find_constructor(Self, @symbols.Sym) -> Constructor?
 pub fn DeclarationContext::find_constructor_of_field(Self, Field) -> Constructor?
 pub fn DeclarationContext::find_constructor_tag(Self, @symbols.Sym) -> Int32?
@@ -235,7 +236,6 @@ pub fn DeclarationContext::get_field(Self, @symbols.Sym) -> Field raise @util.Ef
 pub fn DeclarationContext::get_interface(Self, @symbols.Sym) -> Declaration raise @util.EffektError
 pub fn DeclarationContext::get_property(Self, @symbols.Sym) -> Property raise @util.EffektError
 pub fn DeclarationContext::get_property_tag(Self, @symbols.Sym) -> Int32 raise @util.EffektError
-pub fn DeclarationContext::new(Array[Declaration], Array[Extern]) -> Self
 
 pub(all) enum Expr {
   ValueVar(@symbols.Sym, @symbols.ValueType)
@@ -264,7 +264,7 @@ pub(all) struct Field {
   id : @symbols.Sym
   tpe : @symbols.ValueType
 }
-pub fn Field::new(@symbols.Sym, @symbols.ValueType) -> Self
+pub fn Field::Field(@symbols.Sym, @symbols.ValueType) -> Self
 
 pub(all) struct FieldRef {
   constructor_ref : ConstructorRef
@@ -305,8 +305,8 @@ pub(all) struct Implementation {
   interface : @symbols.BlockType
   operations : Array[Operation]
 }
+pub fn Implementation::Implementation(@symbols.BlockType, Array[Operation]) -> Self
 pub fn Implementation::free(Self) -> Free
-pub fn Implementation::new(@symbols.BlockType, Array[Operation]) -> Self
 
 pub(all) struct ModuleDecl {
   path : String
@@ -316,7 +316,7 @@ pub(all) struct ModuleDecl {
   definitions : Array[Toplevel]
   exports : Array[@symbols.Sym]
 }
-pub fn ModuleDecl::new(String, Array[String], Array[Declaration], Array[Extern], Array[Toplevel], Array[@symbols.Sym]) -> Self
+pub fn ModuleDecl::ModuleDecl(String, Array[String], Array[Declaration], Array[Extern], Array[Toplevel], Array[@symbols.Sym]) -> Self
 
 pub(all) struct Operation {
   name : @symbols.Sym
@@ -326,8 +326,8 @@ pub(all) struct Operation {
   bparams : Array[BlockParam]
   body : Stmt
 }
+pub fn Operation::Operation(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], Array[ValueParam], Array[BlockParam], Stmt) -> Self
 pub fn Operation::free(Self) -> Free
-pub fn Operation::new(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], Array[ValueParam], Array[BlockParam], Stmt) -> Self
 
 pub(all) struct PMClause {
   conditions : Array[PMCondition]
@@ -335,7 +335,7 @@ pub(all) struct PMClause {
   targs : Array[@symbols.ValueType]
   args : Array[PMVar]
 }
-pub fn PMClause::new(Array[PMCondition], BlockVar, Array[@symbols.ValueType], Array[PMVar]) -> Self
+pub fn PMClause::PMClause(Array[PMCondition], BlockVar, Array[@symbols.ValueType], Array[PMVar]) -> Self
 
 pub(all) enum PMCondition {
   PMPatterns(Map[Int32, PMVarPattern])
@@ -347,7 +347,7 @@ pub(all) struct PMEquals {
   symbol : @symbols.Sym
   targs : Array[@symbols.ValueType]
 }
-pub fn PMEquals::new(@symbols.Sym, Array[@symbols.ValueType]) -> Self
+pub fn PMEquals::PMEquals(@symbols.Sym, Array[@symbols.ValueType]) -> Self
 pub fn PMEquals::pm_apply(Self, Expr, Expr) -> Expr
 
 pub(all) enum PMPattern {
@@ -362,13 +362,13 @@ pub(all) struct PMSubPattern {
   pattern : PMPattern
   tpe : @symbols.ValueType
 }
-pub fn PMSubPattern::new(PMPattern, @symbols.ValueType) -> Self
+pub fn PMSubPattern::PMSubPattern(PMPattern, @symbols.ValueType) -> Self
 
 pub(all) struct PMVar {
   id : @symbols.Sym
   tpe : @symbols.ValueType
 }
-pub fn PMVar::new(@symbols.Sym, @symbols.ValueType) -> Self
+pub fn PMVar::PMVar(@symbols.Sym, @symbols.ValueType) -> Self
 pub fn PMVar::to_expr(Self) -> Expr
 pub fn PMVar::to_param(Self) -> ValueParam
 
@@ -376,13 +376,13 @@ pub(all) struct PMVarPattern {
   variable : PMVar
   pattern : PMPattern
 }
-pub fn PMVarPattern::new(PMVar, PMPattern) -> Self
+pub fn PMVarPattern::PMVarPattern(PMVar, PMPattern) -> Self
 
 pub(all) struct Property {
   id : @symbols.Sym
   tpe : @symbols.BlockType
 }
-pub fn Property::new(@symbols.Sym, @symbols.BlockType) -> Self
+pub fn Property::Property(@symbols.Sym, @symbols.BlockType) -> Self
 
 pub(all) struct PropertyRef {
   interface : Declaration
@@ -392,8 +392,8 @@ pub(all) struct PropertyRef {
 pub(all) struct QualifiedSignature {
   name : String
 }
+pub fn QualifiedSignature::QualifiedSignature(String) -> Self
 pub fn QualifiedSignature::from_extern_function(String, @symbols.Sym) -> Self
-pub fn QualifiedSignature::new(String) -> Self
 
 pub(all) struct ScrutineePattern {
   scrutinee : Expr
@@ -406,7 +406,7 @@ pub(all) struct ShowContext {
   tparam_lookup : Map[Int32, @symbols.ValueType]
   mut bindings : Array[Binding]
 }
-pub fn ShowContext::new() -> Self
+pub fn ShowContext::ShowContext() -> Self
 
 pub(all) enum Stmt {
   Def(@symbols.Sym, Block, Stmt)
@@ -436,8 +436,8 @@ pub(all) struct Substitution {
   values : Map[Int32, Expr]
   blocks : Map[Int32, Block]
 }
+pub fn Substitution::Substitution(Map[Int32, @symbols.ValueType], Map[Int32, @symbols.Captures], Map[Int32, Expr], Map[Int32, Block]) -> Self
 pub fn Substitution::empty() -> Self
-pub fn Substitution::new(Map[Int32, @symbols.ValueType], Map[Int32, @symbols.Captures], Map[Int32, Expr], Map[Int32, Block]) -> Self
 pub fn Substitution::shadow_blocks(Self, Array[@symbols.Sym]) -> Self
 pub fn Substitution::shadow_captures(Self, Array[@symbols.Sym]) -> Self
 pub fn Substitution::shadow_params(Self, Array[ValueParam], Array[BlockParam]) -> Self
@@ -460,13 +460,13 @@ pub(all) struct Transformer {
   region_captures : Map[Int32, @symbols.Sym]
   prompt_ctor : @symbols.Sym
 }
-pub fn Transformer::new(@source.Context, String, Array[@symbols.Sym]) -> Self
+pub fn Transformer::Transformer(@source.Context, String, Array[@symbols.Sym]) -> Self
 
 pub(all) struct ValueParam {
   id : @symbols.Sym
   tpe : @symbols.ValueType
 }
-pub fn ValueParam::new(@symbols.Sym, @symbols.ValueType) -> Self
+pub fn ValueParam::ValueParam(@symbols.Sym, @symbols.ValueType) -> Self
 
 // Type aliases
 

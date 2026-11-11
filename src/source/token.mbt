@@ -417,7 +417,7 @@ pub struct Token {
 }
 
 ///|
-pub fn Token::new(start : Int32, end : Int32, kind : TokenKind) -> Token {
+pub fn Token::Token(start : Int32, end : Int32, kind : TokenKind) -> Token {
   { start, end, kind, }
 }
 

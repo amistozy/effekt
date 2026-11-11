@@ -27,7 +27,7 @@ pub fn Substitution::empty() -> Substitution {
 }
 
 ///|
-pub fn Substitution::new(
+pub fn Substitution::Substitution(
   vtypes : Map[Int32, ValueType],
   captures : Map[Int32, Captures],
   values : Map[Int32, Expr],
@@ -207,7 +207,7 @@ pub fn substitute_block_type_with(
           substitute_block_type_with(t, vsubst_local, csubst_local)
         }),
         substitute_value_type_with(result, vsubst_local, csubst_local),
-        Effects::new(
+        Effects(
           effects
           .to_list()
           .map(e => substitute_block_type_with(e, vsubst, csubst)),
@@ -300,7 +300,7 @@ pub fn substitute_block_lit_call(
   for i = 0; i < block.bparams.length(); i = i + 1 {
     bsubst.set(block.bparams[i].id.uid(), bargs[i])
   }
-  substitute_stmt(block.body, Substitution::new(tsubst, csubst, vsubst, bsubst))
+  substitute_stmt(block.body, Substitution(tsubst, csubst, vsubst, bsubst))
 }
 
 ///|
@@ -398,7 +398,7 @@ pub fn substitute_stmt(
       Match(
         substitute_expr(scrutinee, subst),
         substitute_value_type(tpe, subst),
-        clauses.map(c => Clause::new(c.tag, substitute_block_lit(c.body, subst))),
+        clauses.map(c => Clause(c.tag, substitute_block_lit(c.body, subst))),
         match default {
           Some(body) => Some(substitute_stmt(body, subst))
           None => None
@@ -535,7 +535,7 @@ pub fn substitute_implementation(
   implementation : Implementation,
   subst : Substitution,
 ) -> Implementation raise EffektError {
-  Implementation::new(
+  Implementation(
     substitute_block_type(implementation.interface, subst),
     implementation.operations.map(op => substitute_operation(op, subst)),
   )
@@ -549,7 +549,7 @@ pub fn substitute_operation(
   let shadowed_typelevel = subst
     .shadow_types(op.tparams)
     .shadow_captures(op.cparams)
-  Operation::new(
+  Operation(
     op.name,
     op.tparams,
     op.cparams,
@@ -567,7 +567,7 @@ pub fn substitute_value_param(
   p : ValueParam,
   subst : Substitution,
 ) -> ValueParam {
-  ValueParam::new(p.id, substitute_value_type(p.tpe, subst))
+  ValueParam(p.id, substitute_value_type(p.tpe, subst))
 }
 
 ///|
@@ -575,7 +575,7 @@ pub fn substitute_block_param(
   p : BlockParam,
   subst : Substitution,
 ) -> BlockParam {
-  BlockParam::new(
+  BlockParam(
     p.id,
     substitute_block_type(p.tpe, subst),
     substitute_captures(p.capt, subst),

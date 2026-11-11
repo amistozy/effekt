@@ -11,7 +11,7 @@ pub(all) struct Template[T] {
 }
 
 ///|
-pub fn[T] Template::new(
+pub fn[T] Template::Template(
   strings : Array[String],
   args : Array[T],
 ) -> Template[T] {

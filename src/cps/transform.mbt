@@ -51,7 +51,7 @@ fn Continuation::apply(
   ks : Sym,
 ) -> Stmt raise EffektError {
   match self {
-    Dynamic(id) => Jump(id, [arg], MetaCont::new(ks))
+    Dynamic(id) => Jump(id, [arg], MetaCont(ks))
     Static(_, k) => k(arg, ks)
   }
 }
@@ -64,7 +64,7 @@ fn Continuation::reify(self : Continuation) -> Cont raise EffektError {
     Static(hint, k) => {
       let param = fresh_like(hint)
       let ks = fresh_sym("ks")
-      ContLam(ContLam::new([param], ks, k(ValueVar(param), ks)))
+      ContLam(ContLam([param], ks, k(ValueVar(param), ks)))
     }
   }
 }
@@ -185,7 +185,7 @@ pub fn transform(module : @core.ModuleDecl) -> ModuleDecl raise EffektError {
   for d in module.definitions {
     definitions.push(transform_toplevel(d, ctx))
   }
-  ModuleDecl::new(
+  ModuleDecl(
     module.path,
     module.includes,
     module.declarations,
@@ -342,7 +342,7 @@ fn transform_stmt(
         transform_block(callee, ctx),
         vargs.map(e => transform_expr(e, ctx)),
         bargs.map(b => transform_block(b, ctx)),
-        MetaCont::new(ks),
+        MetaCont(ks),
         k.reify_at(None),
       )
     @core.Invoke(callee, method, _tpe, _targs, vargs, bargs) =>
@@ -351,7 +351,7 @@ fn transform_stmt(
         method,
         vargs.map(e => transform_expr(e, ctx)),
         bargs.map(b => transform_block(b, ctx)),
-        MetaCont::new(ks),
+        MetaCont(ks),
         k.reify_at(None),
       )
     @core.If(cond, thn, els) =>
@@ -400,7 +400,7 @@ fn transform_stmt(
               k2,
               transform_stmt(block_lit.body, ks2, Dynamic(k2), ctx),
             ),
-            MetaCont::new(ks),
+            MetaCont(ks),
             k.reify(),
           )
         }
@@ -418,7 +418,7 @@ fn transform_stmt(
         k2,
         transform_stmt(body, ks2, Dynamic(k2), ctx),
       )
-      Shift(prompt.id, translated_body, MetaCont::new(ks), k.reify_at(None))
+      Shift(prompt.id, translated_body, MetaCont(ks), k.reify_at(None))
     }
     @core.Resume(cont, body) => {
       let ks2 = fresh_sym("ks")
@@ -432,7 +432,7 @@ fn transform_stmt(
           k2,
           transform_stmt(body, ks2, Dynamic(k2), ctx),
         ),
-        MetaCont::new(ks),
+        MetaCont(ks),
         k.reify_at(None),
       )
     }
@@ -442,7 +442,7 @@ fn transform_stmt(
         [region] =>
           Region(
             region.id,
-            MetaCont::new(ks),
+            MetaCont(ks),
             transform_stmt(
               block_lit.body,
               ks,
@@ -465,7 +465,7 @@ fn transform_stmt(
       Var(
         id,
         transform_expr(init, ctx),
-        MetaCont::new(ks),
+        MetaCont(ks),
         transform_stmt(
           body,
           ks,
@@ -513,7 +513,7 @@ fn transform_impl(
   for op in implementation.operations {
     operations.push(transform_op(op, ctx))
   }
-  Implementation::new(implementation.interface, operations)
+  Implementation(implementation.interface, operations)
 }
 
 ///|
@@ -531,7 +531,7 @@ fn transform_op(
   for p in op.bparams {
     bparams.push(p.id)
   }
-  Operation::new(
+  Operation(
     op.name,
     vparams,
     bparams,

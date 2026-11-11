@@ -16,17 +16,17 @@ fn missing() -> @util.Span {
 
 ///|
 fn tctx() -> @source.Context {
-  @source.Context::new(@source.Config::default())
+  @source.Context(@source.Config::default())
 }
 
 ///|
 fn id_def(name : String) -> @source.IdDef {
-  @source.IdDef::new(name, missing())
+  @source.IdDef(name, missing())
 }
 
 ///|
 fn id_ref(name : String) -> @source.IdRef {
-  @source.IdRef::new(name, missing())
+  @source.IdRef(name, missing())
 }
 
 ///|
@@ -497,7 +497,7 @@ test "match on a two-constructor data type produces tags 0 and 1" {
       // the tags the JS backend relies on are the indices of the constructors
       // in their data declaration
       assert_eq(core.declarations.length(), 1)
-      let dctx = @core.DeclarationContext::new(core.declarations, core.externs)
+      let dctx = @core.DeclarationContext(core.declarations, core.externs)
       assert_eq(dctx.get_constructor_tag(clauses[0].tag), 0)
       assert_eq(dctx.get_constructor_tag(clauses[1].tag), 1)
     }

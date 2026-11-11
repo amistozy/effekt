@@ -101,7 +101,7 @@ pub(all) struct Export {
   name : @symbols.JSName
   expr : Expr
 }
-pub fn Export::new(@symbols.JSName, Expr) -> Self
+pub fn Export::Export(@symbols.JSName, Expr) -> Self
 
 pub(all) enum Expr {
   Call(Expr, Array[Expr])
@@ -127,15 +127,15 @@ pub(all) struct Module {
   exports : Array[Export]
   stmts : Array[Stmt]
 }
+pub fn Module::Module(@symbols.JSName, Array[Import], Array[Export], Array[Stmt]) -> Self
 pub fn Module::commonjs(Self) -> Array[Stmt]
-pub fn Module::new(@symbols.JSName, Array[Import], Array[Export], Array[Stmt]) -> Self
 pub fn Module::virtual(Self) -> Array[Stmt]
 
 pub(all) struct ObjectProperty {
   name : @symbols.JSName
   value : Expr
 }
-pub fn ObjectProperty::new(@symbols.JSName, Expr) -> Self
+pub fn ObjectProperty::ObjectProperty(@symbols.JSName, Expr) -> Self
 
 pub(all) enum Pattern {
   PatternVariable(@symbols.JSName)
@@ -166,7 +166,7 @@ pub(all) struct SwitchBranch {
   tag : Expr
   body : Array[Stmt]
 }
-pub fn SwitchBranch::new(Expr, Array[Stmt]) -> Self
+pub fn SwitchBranch::SwitchBranch(Expr, Array[Stmt]) -> Self
 
 // Type aliases
 

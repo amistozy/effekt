@@ -178,7 +178,7 @@ pub fn Substitutions::substitute_effects(
   self : Substitutions,
   e : Effects,
 ) -> Effects {
-  Effects::new(e.effects.map(x => self.substitute_block(x)))
+  Effects(e.effects.map(x => self.substitute_block(x)))
 }
 
 ///|

@@ -16,7 +16,7 @@ pub(all) struct ModuleDecl {
 }
 
 ///|
-pub fn ModuleDecl::new(
+pub fn ModuleDecl::ModuleDecl(
   path : String,
   includes : Array[String],
   declarations : Array[Declaration],
@@ -173,7 +173,7 @@ pub(all) struct Clause {
 }
 
 ///|
-pub fn Clause::new(vparams : Array[Sym], body : Stmt) -> Clause {
+pub fn Clause::Clause(vparams : Array[Sym], body : Stmt) -> Clause {
   { vparams, body, }
 }
 
@@ -192,7 +192,7 @@ pub(all) struct ContLam {
 }
 
 ///|
-pub fn ContLam::new(results : Array[Sym], ks : Sym, body : Stmt) -> ContLam {
+pub fn ContLam::ContLam(results : Array[Sym], ks : Sym, body : Stmt) -> ContLam {
   { results, ks, body, }
 }
 
@@ -202,7 +202,7 @@ pub(all) struct MetaCont {
 }
 
 ///|
-pub fn MetaCont::new(id : Sym) -> MetaCont {
+pub fn MetaCont::MetaCont(id : Sym) -> MetaCont {
   { id, }
 }
 
@@ -213,7 +213,7 @@ pub(all) struct Implementation {
 }
 
 ///|
-pub fn Implementation::new(
+pub fn Implementation::Implementation(
   interface : BlockType,
   operations : Array[Operation],
 ) -> Implementation {
@@ -231,7 +231,7 @@ pub(all) struct Operation {
 }
 
 ///|
-pub fn Operation::new(
+pub fn Operation::Operation(
   name : Sym,
   vparams : Array[Sym],
   bparams : Array[Sym],
@@ -249,7 +249,7 @@ pub(all) struct Def {
 }
 
 ///|
-pub fn Def::new(id : Sym, block : Block) -> Def {
+pub fn Def::Def(id : Sym, block : Block) -> Def {
   { id, block, }
 }
 
@@ -855,7 +855,7 @@ pub fn Substitution::empty() -> Substitution {
 }
 
 ///|
-pub fn Substitution::new(
+pub fn Substitution::Substitution(
   values : Map[Int32, Expr],
   blocks : Map[Int32, Block],
   conts : Map[Int32, Cont],
@@ -1159,7 +1159,7 @@ pub fn substitute_implementation(
   implementation : Implementation,
   subst : Substitution,
 ) -> Implementation raise EffektError {
-  Implementation::new(
+  Implementation(
     implementation.interface,
     implementation.operations.map(op => substitute_operation(op, subst)),
   )
@@ -1170,7 +1170,7 @@ pub fn substitute_operation(
   op : Operation,
   subst : Substitution,
 ) -> Operation raise EffektError {
-  Operation::new(
+  Operation(
     op.name,
     op.vparams,
     op.bparams,
@@ -1191,7 +1191,7 @@ pub fn substitute_clause(
   clause : Clause,
   subst : Substitution,
 ) -> Clause raise EffektError {
-  Clause::new(
+  Clause(
     clause.vparams,
     substitute_stmt(clause.body, subst.shadow_values(clause.vparams)),
   )
@@ -1218,7 +1218,7 @@ pub fn substitute_cont_lam(
   k : ContLam,
   subst : Substitution,
 ) -> ContLam raise EffektError {
-  ContLam::new(
+  ContLam(
     k.results,
     k.ks,
     substitute_stmt(

@@ -44,7 +44,7 @@ fn closure_of(input : String, messages : Array[@util.Message]) -> Array[String] 
 
 ///|
 test "the exception module exports its interface as a type" {
-  let ctx = @source.Context::new(@source.Config::default())
+  let ctx = @source.Context(@source.Config::default())
   let opts : @compiler.Options = {
     input: "libraries/common/exception.effekt",
     output: None,
@@ -55,7 +55,7 @@ test "the exception module exports its interface as a type" {
     show_js: false,
     run: false,
   }
-  let loader = @compiler.Loader::new(@compiler.search_paths(opts.input, opts))
+  let loader = @compiler.Loader(@compiler.search_paths(opts.input, opts))
   let prelude_tree = loader.load_tree("effekt", ctx, @source.parse_module_decl)
   let prelude = @namer.resolve_module(prelude_tree, ctx, Map([]))
   let deps : Map[String, @namer.ResolvedModule] = { "effekt": prelude }

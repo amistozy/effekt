@@ -13,7 +13,10 @@ priv struct TypeSubst {
 }
 
 ///|
-fn TypeSubst::new(keys : Array[Sym], values : Array[ValueType]) -> TypeSubst {
+fn TypeSubst::TypeSubst(
+  keys : Array[Sym],
+  values : Array[ValueType],
+) -> TypeSubst {
   { keys, values, }
 }
 
@@ -78,5 +81,5 @@ fn TypeSubst::block_type(self : TypeSubst, tpe : BlockType) -> BlockType {
 
 ///|
 fn TypeSubst::effects(self : TypeSubst, effs : Effects) -> Effects {
-  @symbols.Effects::new(effs.effects.map(e => self.block_type(e)))
+  @symbols.Effects(effs.effects.map(e => self.block_type(e)))
 }

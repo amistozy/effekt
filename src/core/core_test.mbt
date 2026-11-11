@@ -27,7 +27,7 @@ fn def_identity(f : @symbols.Sym, x : @symbols.Sym) -> @core.Toplevel {
   let lit = @core.BlockLit::new(
     [],
     [],
-    [@core.ValueParam::new(x, @symbols.t_int())],
+    [@core.ValueParam(x, @symbols.t_int())],
     [],
     @core.Return(@core.ValueVar(x, @symbols.t_int())),
   )
@@ -47,7 +47,7 @@ test "core pretty: toplevel definition" {
 
 ///|
 test "core pretty: module" {
-  let m = @core.ModuleDecl::new(
+  let m = @core.ModuleDecl(
     "test",
     [],
     [],
@@ -83,7 +83,7 @@ test "core: free variables" {
   let lit = @core.BlockLit::new(
     [],
     [],
-    [@core.ValueParam::new(x, @symbols.t_int())],
+    [@core.ValueParam(x, @symbols.t_int())],
     [],
     @core.Return(@core.ValueVar(x, @symbols.t_int())),
   )
@@ -105,7 +105,7 @@ test "core: substitution" {
   let y = xsym("y")
   let values : Map[Int32, @core.Expr] = Map([])
   values.set(x.uid(), @core.ValueVar(y, @symbols.t_int()))
-  let subst = @core.Substitution::new(Map([]), Map([]), values, Map([]))
+  let subst = @core.Substitution(Map([]), Map([]), values, Map([]))
   let e = @core.substitute_expr(@core.ValueVar(x, @symbols.t_int()), subst)
   assert_eq(@core.show_core_expr(e), "y")
 }

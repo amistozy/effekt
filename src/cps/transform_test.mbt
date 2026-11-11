@@ -25,7 +25,7 @@ fn core_module(
   definition : @core.Toplevel,
   main : @symbols.Sym,
 ) -> @core.ModuleDecl {
-  @core.ModuleDecl::new("test", [], [], [], [definition], [main])
+  @core.ModuleDecl("test", [], [], [], [definition], [main])
 }
 
 // ---------------------------------------------------------------------------
@@ -167,16 +167,16 @@ test "cps.contify: a block that always returns to the same continuation becomes 
     [],
     ks,
     k,
-    @cps.Jump(k, [int_pure(1)], @cps.MetaCont::new(ks)),
+    @cps.Jump(k, [int_pure(1)], @cps.MetaCont(ks)),
   )
   let rest = @cps.App(
     @cps.Block::BlockVar(f),
     [],
     [],
-    @cps.MetaCont::new(ks),
+    @cps.MetaCont(ks),
     @cps.ContVar(k2),
   )
-  let module = @cps.ModuleDecl::new(
+  let module = @cps.ModuleDecl(
     "test",
     [],
     [],
@@ -239,17 +239,17 @@ test "cps.contify: a block used as a value is not contified" {
     [],
     ks,
     k,
-    @cps.Jump(k, [int_pure(1)], @cps.MetaCont::new(ks)),
+    @cps.Jump(k, [int_pure(1)], @cps.MetaCont(ks)),
   )
   // f is passed as a block argument: it escapes
   let rest = @cps.App(
     @cps.Block::BlockVar(k2),
     [],
     [@cps.Block::BlockVar(f)],
-    @cps.MetaCont::new(ks),
+    @cps.MetaCont(ks),
     @cps.ContVar(k2),
   )
-  let module = @cps.ModuleDecl::new(
+  let module = @cps.ModuleDecl(
     "test",
     [],
     [],

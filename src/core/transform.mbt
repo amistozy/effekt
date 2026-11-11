@@ -70,7 +70,7 @@ pub fn transform_with_exports(
   ctx : @source.Context,
   exports : Array[Sym],
 ) -> ModuleDecl raise EffektError {
-  let t = Transformer::new(ctx, module_path, find_equality_functions(module))
+  let t = Transformer(ctx, module_path, find_equality_functions(module))
   let toplevels : Array[CoreToplevel] = []
   for d in module.defs {
     for x in t.transform_toplevel(d) {
@@ -90,7 +90,7 @@ pub fn transform_with_exports(
   t.assert_no_bindings()
   let path = if module.path != "" { module.path } else { module_path }
   let includes = module.includes.map(i => i.path)
-  ModuleDecl::new(path, includes, declarations, externs, definitions, exports)
+  ModuleDecl(path, includes, declarations, externs, definitions, exports)
 }
 
 ///|
@@ -203,7 +203,7 @@ pub(all) struct Transformer {
 }
 
 ///|
-pub fn Transformer::new(
+pub fn Transformer::Transformer(
   ctx : @source.Context,
   module_path : String,
   eq_functions : Array[Sym],
@@ -681,7 +681,7 @@ fn Transformer::transform_value_param(
     Some(s) => s
     None => Sym::value_param(Name::local(p.id.name), None, p.id.span)
   }
-  ValueParam::new(sym, self.transform_value_type(self.value_type_of_sym(sym)))
+  ValueParam(sym, self.transform_value_type(self.value_type_of_sym(sym)))
 }
 
 ///|
@@ -700,7 +700,7 @@ fn Transformer::transform_block_param(
         p.id.span,
       )
   }
-  BlockParam::new(
+  BlockParam(
     sym,
     self.transform_block_type(self.block_type_of_sym(sym)),
     self.transform_captures(self.capture_of_sym(sym)),
@@ -843,7 +843,7 @@ fn Transformer::transform_toplevel(
       let properties : Array[Property] = []
       for op in op_syms {
         properties.push(
-          Property::new(op, self.operation_at_declaration(tparams, op)),
+          Property(op, self.operation_at_declaration(tparams, op)),
         )
       }
       result.push(
@@ -1040,11 +1040,9 @@ fn Transformer::transform_constructor(
       let tparams = array_drop(c.tparams, universals)
       let fields : Array[Field] = []
       for f in c.fields {
-        fields.push(
-          Field::new(f, self.transform_value_type(field_return_type(f))),
-        )
+        fields.push(Field(f, self.transform_value_type(field_return_type(f))))
       }
-      Constructor::new(ctor, tparams, fields)
+      Constructor(ctor, tparams, fields)
     }
     _ =>
       raise EffektError::Internal(
@@ -1310,7 +1308,7 @@ fn Transformer::transform_as_control_block(
           let vparams : Array[ValueParam] = []
           for t in vparamtps {
             vparams.push(
-              ValueParam::new(
+              ValueParam(
                 Sym::tmp_value("valueParam"),
                 self.transform_value_type(t),
               ),
@@ -1350,11 +1348,7 @@ fn Transformer::transform_as_control_block(
             for t in bparamtps {
               let id = Sym::tmp_block("etaParam")
               bparams.push(
-                BlockParam::new(
-                  id,
-                  self.transform_block_type(t),
-                  CaptureSetOf([id]),
-                ),
+                BlockParam(id, self.transform_block_type(t), CaptureSetOf([id])),
               )
             }
             let bargs = bparams.map(b => {
@@ -1646,17 +1640,17 @@ fn Transformer::transform_as_stmt(
           substitute_value_type_with(field_return_type(f), vsubst, Map([])),
         )
         if f.uid() == field.uid() {
-          params.push(ValueParam::new(selected, ftpe))
+          params.push(ValueParam(selected, ftpe))
         } else {
           params.push(
-            ValueParam::new(
+            ValueParam(
               Sym::value_param(Name::local("_"), Some(ftpe), tree.span),
               ftpe,
             ),
           )
         }
       }
-      let clause = Clause::new(
+      let clause = Clause(
         constructor,
         BlockLit::new([], [], params, [], Return(ValueVar(selected, tpe))),
       )
@@ -1686,7 +1680,7 @@ fn Transformer::transform_as_stmt(
         prompt_tpe,
         CaptureSetOf([prompt_capt]),
       )
-      let prompt_param = BlockParam::new(
+      let prompt_param = BlockParam(
         prompt_id,
         prompt_tpe,
         CaptureSetOf([prompt_capt]),
@@ -1720,7 +1714,7 @@ fn Transformer::transform_as_stmt(
       let region = self.sym_of_id_def(name)
       let cap = self.region_capture(region)
       let tpe = self.block_type_of_sym(region)
-      let param = BlockParam::new(
+      let param = BlockParam(
         region,
         self.transform_block_type(tpe),
         CaptureSetOf([cap]),
@@ -1999,7 +1993,7 @@ fn Transformer::transform_implementation(
         )
     }
   }
-  Implementation::new(core_type, operations)
+  Implementation(core_type, operations)
 }
 
 ///|
@@ -2050,13 +2044,11 @@ fn Transformer::transform_op_clause(
             answer_tpe,
             Effects::empty(),
           )
-          let resume_param = BlockParam::new(
-            resume_id, resume_type, resume_capture,
-          )
+          let resume_param = BlockParam(resume_id, resume_type, resume_capture)
           let resume_var = BlockVar::new(resume_id, resume_type, resume_capture)
           // (2) eta-expand and bind continuation as a function
           let resume_arg_id = Sym::tmp_value("a")
-          let resume_arg_param = ValueParam::new(resume_arg_id, result_tpe)
+          let resume_arg_param = ValueParam(resume_arg_id, result_tpe)
           let resume_fun = BlockLit::new(
             [],
             [],
@@ -2064,7 +2056,7 @@ fn Transformer::transform_op_clause(
             [],
             Resume(resume_var, Return(ValueVar(resume_arg_id, result_tpe))),
           )
-          Operation::new(
+          Operation(
             op,
             tps,
             [],
@@ -2112,7 +2104,7 @@ fn Transformer::transform_op_clause(
               unknown_block_type()
             }
             bparams.push(
-              BlockParam::new(
+              BlockParam(
                 Sym::tmp_block("g"),
                 tpe,
                 self.transform_captures(cps[i]),
@@ -2136,15 +2128,13 @@ fn Transformer::transform_op_clause(
             answer_tpe,
             Effects::empty(),
           )
-          let resume_param = BlockParam::new(
-            resume_id, resume_type, resume_capture,
-          )
+          let resume_param = BlockParam(resume_id, resume_type, resume_capture)
           let resume_var = BlockVar::new(resume_id, resume_type, resume_capture)
 
           // (2) eta-expand and bind continuation as a function
           let resume_arg_id = Sym::tmp_block("h")
           let resume_arg_capture = Sym::capture_param(Name::local("h"))
-          let resume_arg_param = BlockParam::new(
+          let resume_arg_param = BlockParam(
             resume_arg_id,
             arg_tpe_core,
             CaptureSetOf([resume_arg_capture]),
@@ -2162,7 +2152,7 @@ fn Transformer::transform_op_clause(
             Resume(resume_var, App(BlockVar(resume_arg_var), [], [], bvars)),
           )
 
-          Operation::new(
+          Operation(
             op,
             tps,
             cps.map(c => capture_of_captures(self.transform_captures(c))),
@@ -2200,7 +2190,7 @@ fn Transformer::transform_op_clause(
           ),
         )
       }
-      Operation::new(
+      Operation(
         op,
         tps,
         cps,
@@ -2408,7 +2398,7 @@ fn Transformer::preprocess_patterns(
     let sc = as_pm_var(p.scrutinee)
     transformed_patterns.set(
       sc.id.uid(),
-      PMVarPattern::new(sc, self.transform_pattern(p.pattern)),
+      PMVarPattern(sc, self.transform_pattern(p.pattern)),
     )
   }
 
@@ -2423,14 +2413,14 @@ fn Transformer::preprocess_patterns(
   }
 
   let targs : Array[ValueType] = tparams.map(t => ValueTypeRef(t))
-  let args = params.map(p => PMVar::new(p.id, p.tpe))
-  PMClause::new(conditions, joinpoint, targs, args)
+  let args = params.map(p => PMVar(p.id, p.tpe))
+  PMClause(conditions, joinpoint, targs, args)
 }
 
 ///|
 fn as_pm_var(e : Expr) -> PMVar raise EffektError {
   match e {
-    ValueVar(id, tpe) => PMVar::new(id, tpe)
+    ValueVar(id, tpe) => PMVar(id, tpe)
     _ => raise EffektError::Internal("Expected a value variable.")
   }
 }
@@ -2447,12 +2437,7 @@ fn Transformer::bound_in_pattern(
         Some(s) => s
         None => Sym::value_param(Name::local(id.name), None, id.span)
       }
-      [
-        ValueParam::new(
-          sym,
-          self.transform_value_type(self.value_type_of_sym(sym)),
-        ),
-      ]
+      [ValueParam(sym, self.transform_value_type(self.value_type_of_sym(sym)))]
     }
     @source.TagPattern(_id, patterns) => {
       let out : Array[ValueParam] = []
@@ -2504,7 +2489,7 @@ fn Transformer::transform_pattern(
       let sub : Array[PMSubPattern] = []
       for inner in patterns {
         sub.push(
-          PMSubPattern::new(
+          PMSubPattern(
             self.transform_pattern(inner),
             self.transform_value_type(self.inferred_type_of_pattern(inner)),
           ),
@@ -2546,7 +2531,7 @@ fn Transformer::equals_for(self : Transformer, tpe : ValueType) -> PMEquals? {
           value_type_equal(ret, t_bool()) {
           // specialized version: (T, T) => Bool
           if value_type_equal(vps[0], tpe) && value_type_equal(vps[1], tpe) {
-            return Some(PMEquals::new(sym, []))
+            return Some(PMEquals(sym, []))
           }
           // generic version: [A](A, A) => Bool
           if tparams.length() == 1 &&
@@ -2559,7 +2544,7 @@ fn Transformer::equals_for(self : Transformer, tpe : ValueType) -> PMEquals? {
               @symbols.ValueType::ValueTypeRef(tparams[0]),
             ) &&
             generic is None {
-            generic = Some(PMEquals::new(sym, [tpe]))
+            generic = Some(PMEquals(sym, [tpe]))
           }
         }
       _ => ()
@@ -2575,9 +2560,9 @@ fn Transformer::equals_for(self : Transformer, tpe : ValueType) -> PMEquals? {
           match only.as_callable() {
             Some(c) =>
               if c.tparams.length() == 1 {
-                Some(PMEquals::new(only, [tpe]))
+                Some(PMEquals(only, [tpe]))
               } else {
-                Some(PMEquals::new(only, []))
+                Some(PMEquals(only, []))
               }
             None => None
           }
@@ -2598,7 +2583,7 @@ fn Transformer::transform_guard(
       @source.PatternGuard(scrutinee, pattern) => {
         let x = as_pm_var(self.bind_expr(self.transform_as_expr(scrutinee)))
         let m : Map[Int32, PMVarPattern] = Map([])
-        m.set(x.id.uid(), PMVarPattern::new(x, self.transform_pattern(pattern)))
+        m.set(x.id.uid(), PMVarPattern(x, self.transform_pattern(pattern)))
         PMPatterns(m)
       }
     }

@@ -83,13 +83,13 @@ pub struct Loader {
   trees : Map[String, @source.ModuleDecl]
   modules : Map[String, @symbols.Module]
 }
+pub fn Loader::Loader(Array[String]) -> Self
 pub fn Loader::closure(Self, String, @source.Context, (@util.Source, @source.Context) -> @source.ModuleDecl? raise @util.EffektError) -> Array[String] raise @util.EffektError
 pub fn Loader::implicit_includes(Self, String) -> Array[@source.Include]
 pub fn Loader::is_library_prelude(Self, String, String) -> Bool
 pub fn Loader::load_tree(Self, String, @source.Context, (@util.Source, @source.Context) -> @source.ModuleDecl? raise @util.EffektError) -> @source.ModuleDecl raise @util.EffektError
 pub fn Loader::locate(Self, String) -> String?
 pub fn Loader::locate_relative(Self, @util.Source, String) -> String?
-pub fn Loader::new(Array[String]) -> Self
 pub fn Loader::prelude_includes(Self) -> Array[@source.Include]
 pub fn Loader::set_prelude_roots(Self, Array[String]) -> Unit
 pub fn Loader::source_of(Self, String) -> @util.Source?

@@ -23,7 +23,7 @@ pub(all) struct IdRef {
 }
 
 ///|
-pub fn IdDef::new(name : String, span : Span) -> IdDef {
+pub fn IdDef::IdDef(name : String, span : Span) -> IdDef {
   { uid: fresh_uid(), path: [], name, span, }
 }
 
@@ -37,7 +37,7 @@ pub fn IdDef::qualified(
 }
 
 ///|
-pub fn IdRef::new(name : String, span : Span) -> IdRef {
+pub fn IdRef::IdRef(name : String, span : Span) -> IdRef {
   { uid: fresh_uid(), path: [], name, span, }
 }
 
@@ -437,7 +437,7 @@ pub fn Def::id_def(self : Def) -> IdDef {
     ExternDef(id, _, _, _, _, _, _) => id
     ExternResource(id, _) => id
     ExternInterface(id, _, _) => id
-    ExternInclude(_, _, _) => IdDef::new("", self.span)
+    ExternInclude(_, _, _) => IdDef("", self.span)
   }
 }
 

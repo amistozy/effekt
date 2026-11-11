@@ -146,6 +146,7 @@ pub(all) struct Context {
   mut phase : String?
   config : Config
 }
+pub fn Context::Context(Config) -> Self
 pub fn Context::abort(Self, @util.Span, String) -> Unit raise @util.EffektError
 pub fn Context::abort_with(Self, @util.Message) -> Unit raise @util.EffektError
 pub fn Context::assign_block_type(Self, Int32, @symbols.BlockType) -> Unit
@@ -183,7 +184,6 @@ pub fn Context::info(Self, String) -> Unit
 pub fn Context::info_at(Self, @util.Span, String) -> Unit
 pub fn Context::is_effekt_extern(Self, Int32) -> Bool
 pub fn Context::messages(Self) -> Array[@util.Message]
-pub fn Context::new(Config) -> Self
 pub fn Context::panic(Self, String) -> Unit raise @util.EffektError
 pub fn Context::pattern_existentials_of(Self, Int32) -> Array[@symbols.Sym]?
 pub fn Context::report(Self, @util.Message) -> Unit
@@ -285,7 +285,7 @@ pub(all) struct IdDef {
   name : String
   span : @util.Span
 }
-pub fn IdDef::new(String, @util.Span) -> Self
+pub fn IdDef::IdDef(String, @util.Span) -> Self
 pub fn IdDef::qualified(Array[String], String, @util.Span) -> Self
 
 pub(all) struct IdRef {
@@ -294,7 +294,7 @@ pub(all) struct IdRef {
   name : String
   span : @util.Span
 }
-pub fn IdRef::new(String, @util.Span) -> Self
+pub fn IdRef::IdRef(String, @util.Span) -> Self
 pub fn IdRef::qualified(Array[String], String, @util.Span) -> Self
 
 pub(all) struct Implementation {
@@ -330,9 +330,9 @@ pub struct Lexer {
   mut resume_string_next : Bool
   mut eof : Bool
 }
+pub fn Lexer::Lexer(@util.Source) -> Self
 pub fn Lexer::has_next(Self) -> Bool
 pub fn Lexer::lex(@util.Source) -> Array[Token]
-pub fn Lexer::new(@util.Source) -> Self
 pub fn Lexer::next(Self) -> Token
 
 #derive(Eq)
@@ -366,8 +366,8 @@ pub struct Many[T] {
   items : Array[T]
   span : @util.Span
 }
+pub fn[T] Many::Many(Array[T], @util.Span) -> Self[T]
 pub fn[T] Many::empty(@util.Span) -> Self[T]
-pub fn[T] Many::new(Array[T], @util.Span) -> Self[T]
 pub fn[T] Many::size(Self[T]) -> Int32
 pub fn[T] Many::unspan(Self[T]) -> Array[T]
 
@@ -447,7 +447,7 @@ pub struct Parser {
   diagnostics : Array[RecoverableDiagnostic]
   precedence : PrecedenceTable
 }
-pub fn Parser::new(Array[Token], @util.Source, Context) -> Self raise @util.EffektError
+pub fn Parser::Parser(Array[Token], @util.Source, Context) -> Self raise @util.EffektError
 
 pub(all) enum PatternKind {
   AnyPattern(IdDef)
@@ -530,8 +530,8 @@ pub struct Token {
   end : Int32
   kind : TokenKind
 }
+pub fn Token::Token(Int32, Int32, TokenKind) -> Self
 pub fn Token::is_error(Self) -> Bool
-pub fn Token::new(Int32, Int32, TokenKind) -> Self
 pub impl Show for Token
 
 #derive(Eq)

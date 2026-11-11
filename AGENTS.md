@@ -80,6 +80,13 @@ You can browse and install extra skills here:
   `scripts/e2e.ps1` runs the compiled programs, so any accidental change to a
   string's content is caught.
 
+- **Constructors are named `T::T`**, so a call site reads `T(...)`:
+  `pub fn Span::Span(...)` is called as `Span(...)` (also qualified:
+  `@util.Span(...)`). Rename a `T::new` whenever a new one is written. The two
+  exceptions are types whose name is already a constructor of an enclosing
+  enum — `BlockVar` and `BlockLit` in `src/core`, where `T(...)` would be
+  ambiguous with `Block::BlockVar` / `Block::BlockLit`; those keep `::new`.
+
 - **Write lambdas as arrows**, never as anonymous `fn` literals: `x => …`,
   `(a, b) => …`, `() => { … }`. A `fn` literal whose body may raise has to
   repeat the effect (`fn() raise EffektError { … }`), and the annotated form is

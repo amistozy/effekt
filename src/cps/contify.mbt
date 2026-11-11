@@ -228,7 +228,7 @@ fn contify_in_stmt(id : Sym, s : Stmt) -> Stmt {
       let translated : Array[Clause] = []
       for clause in clauses {
         translated.push(
-          Clause::new(clause.vparams, contify_in_stmt(id, clause.body)),
+          Clause(clause.vparams, contify_in_stmt(id, clause.body)),
         )
       }
       Match(
@@ -302,7 +302,7 @@ fn contify_in_impl(id : Sym, implementation : Implementation) -> Implementation 
   let operations : Array[Operation] = []
   for op in implementation.operations {
     operations.push(
-      Operation::new(
+      Operation(
         op.name,
         op.vparams,
         op.bparams,
@@ -312,7 +312,7 @@ fn contify_in_impl(id : Sym, implementation : Implementation) -> Implementation 
       ),
     )
   }
-  Implementation::new(implementation.interface, operations)
+  Implementation(implementation.interface, operations)
 }
 
 ///|
@@ -338,7 +338,7 @@ fn contify_in_cont(id : Sym, k : Cont) -> Cont {
 
 ///|
 fn contify_in_cont_lam(id : Sym, lam : ContLam) -> ContLam {
-  ContLam::new(lam.results, lam.ks, contify_in_stmt(id, lam.body))
+  ContLam(lam.results, lam.ks, contify_in_stmt(id, lam.body))
 }
 
 // ---------------------------------------------------------------------------
@@ -382,10 +382,10 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
               if rest_free.contains(k2) {
                 let conts : Map[Int32, Cont] = Map([])
                 conts.set(lit.k.uid(), ContVar(k2))
-                let subst = Substitution::new(Map([]), Map([]), conts, Map([]))
+                let subst = Substitution(Map([]), Map([]), conts, Map([]))
                 LetCont(
                   id,
-                  ContLam::new(
+                  ContLam(
                     lit.vparams,
                     lit.ks,
                     substitute_stmt(rewritten_body, subst),
@@ -491,7 +491,7 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
 
 ///|
 fn rewrite_clause(clause : Clause) -> Clause raise EffektError {
-  Clause::new(clause.vparams, rewrite_stmt(clause.body))
+  Clause(clause.vparams, rewrite_stmt(clause.body))
 }
 
 ///|
@@ -536,7 +536,7 @@ fn rewrite_impl(
   let operations : Array[Operation] = []
   for op in implementation.operations {
     operations.push(
-      Operation::new(
+      Operation(
         op.name,
         op.vparams,
         op.bparams,
@@ -546,7 +546,7 @@ fn rewrite_impl(
       ),
     )
   }
-  Implementation::new(implementation.interface, operations)
+  Implementation(implementation.interface, operations)
 }
 
 ///|
@@ -560,7 +560,7 @@ fn rewrite_cont(k : Cont) -> Cont raise EffektError {
 
 ///|
 fn rewrite_cont_lam(lam : ContLam) -> ContLam raise EffektError {
-  ContLam::new(lam.results, lam.ks, rewrite_stmt(lam.body))
+  ContLam(lam.results, lam.ks, rewrite_stmt(lam.body))
 }
 
 ///|
@@ -583,7 +583,7 @@ fn rewrite_extern_body(
     StringExternBody(feature_flag, template) =>
       StringExternBody(
         feature_flag,
-        Template::new(template.strings, template.args.map(a => rewrite_expr(a))),
+        Template(template.strings, template.args.map(a => rewrite_expr(a))),
       )
     Unsupported(err) => Unsupported(err)
   }
@@ -616,7 +616,7 @@ pub fn contify(module : ModuleDecl) -> ModuleDecl raise EffektError {
   for d in module.definitions {
     definitions.push(rewrite_toplevel(d))
   }
-  ModuleDecl::new(
+  ModuleDecl(
     module.path,
     module.includes,
     module.declarations,

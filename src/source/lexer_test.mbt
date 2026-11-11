@@ -31,7 +31,7 @@ fn show_kind(k : @source.TokenKind) -> String {
 
 ///|
 fn lex_tokens(src : String) -> Array[@source.Token] {
-  let source = @util.Source::new("test.effekt", src)
+  let source = @util.Source("test.effekt", src)
   @source.Lexer::lex(source)
 }
 

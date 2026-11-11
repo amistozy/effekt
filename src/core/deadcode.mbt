@@ -576,14 +576,7 @@ fn Deadcode::rewrite_module(self : Deadcode, m : ModuleDecl) -> ModuleDecl {
       definitions.push(self.rewrite_toplevel(d))
     }
   }
-  ModuleDecl::new(
-    m.path,
-    m.includes,
-    declarations,
-    externs,
-    definitions,
-    m.exports,
-  )
+  ModuleDecl(m.path, m.includes, declarations, externs, definitions, m.exports)
 }
 
 ///|
@@ -637,13 +630,13 @@ fn Deadcode::rewrite_implementation(
       operations.push(self.rewrite_operation(op))
     }
   }
-  Implementation::new(implementation.interface, operations)
+  Implementation(implementation.interface, operations)
 }
 
 ///|
 /// `rewrite(o: Operation)` of `TrampolinedRewrite` (Tree.scala:793).
 fn Deadcode::rewrite_operation(self : Deadcode, op : Operation) -> Operation {
-  Operation::new(
+  Operation(
     op.name,
     op.tparams,
     op.cparams,
@@ -737,9 +730,7 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
       let clauses2 : Array[Clause] = []
       for clause in clauses {
         if self.used(clause.tag) {
-          clauses2.push(
-            Clause::new(clause.tag, self.rewrite_block_lit(clause.body)),
-          )
+          clauses2.push(Clause(clause.tag, self.rewrite_block_lit(clause.body)))
         }
       }
       let default2 = match default {

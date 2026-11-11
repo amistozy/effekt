@@ -61,7 +61,7 @@ fn show_test_extern(
 ) -> @core.Extern {
   @core.ExternDef(
     sym,
-    @core.QualifiedSignature::new("test::\{sym.name().name}"),
+    @core.QualifiedSignature("test::\{sym.name().name}"),
     tparams,
     [],
     vparams,
@@ -126,12 +126,10 @@ fn show_test_tree() -> (
     constructor: node,
   })
   let constructors : Array[@core.Constructor] = [
-    @core.Constructor::new(leaf, [], [
-      @core.Field::new(field_v, @symbols.t_int()),
-    ]),
-    @core.Constructor::new(node, [], [
-      @core.Field::new(field_l, tree_tpe),
-      @core.Field::new(field_r, tree_tpe),
+    @core.Constructor(leaf, [], [@core.Field(field_v, @symbols.t_int())]),
+    @core.Constructor(node, [], [
+      @core.Field(field_l, tree_tpe),
+      @core.Field(field_r, tree_tpe),
     ]),
   ]
   (tree, [leaf, node], constructors)
@@ -168,7 +166,7 @@ fn show_test_fixture(
     @symbols.Name::local("R"),
     @util.Span::missing(),
   )
-  let r_param = @core.ValueParam::new(
+  let r_param = @core.ValueParam(
     @symbols.Sym::value_param(
       @symbols.Name::local("value"),
       Some(@symbols.ValueTypeRef(r)),
@@ -177,7 +175,7 @@ fn show_test_fixture(
     @symbols.ValueTypeRef(r),
   )
   // extern def showBuiltin(value: Int): String
-  let int_param = @core.ValueParam::new(
+  let int_param = @core.ValueParam(
     @symbols.Sym::value_param(
       @symbols.Name::local("value"),
       Some(@symbols.t_int()),
@@ -187,7 +185,7 @@ fn show_test_fixture(
   )
   // extern def infixPlusPlus(s1: String, s2: String): String
   let str_param = (name : String) => {
-    @core.ValueParam::new(
+    @core.ValueParam(
       @symbols.Sym::value_param(
         @symbols.Name::local(name),
         Some(@symbols.t_string()),
@@ -246,13 +244,13 @@ fn show_test_fixture(
       @core.BlockLit::new(
         [],
         [],
-        [@core.ValueParam::new(value, tree_type)],
+        [@core.ValueParam(value, tree_type)],
         [],
         @core.Return(call),
       ),
     ),
   )
-  let module = @core.ModuleDecl::new(
+  let module = @core.ModuleDecl(
     "test",
     [],
     [@core.DeclarationData(tree, [], constructors)],
@@ -460,7 +458,7 @@ test "show phase: a type variable is not rewritten" {
     [],
     [@core.ValueVar(polymorphic, @symbols.ValueTypeRef(a))],
   )
-  let module = @core.ModuleDecl::new(
+  let module = @core.ModuleDecl(
     f.module.path,
     f.module.includes,
     f.module.declarations,
@@ -472,7 +470,7 @@ test "show phase: a type variable is not rewritten" {
           @core.BlockLit::new(
             [],
             [],
-            [@core.ValueParam::new(polymorphic, @symbols.ValueTypeRef(a))],
+            [@core.ValueParam(polymorphic, @symbols.ValueTypeRef(a))],
             [],
             @core.Return(call),
           ),
@@ -534,7 +532,7 @@ test "show phase: a call to a user function named show is not rewritten" {
     [],
     [@core.ValueVar(x, @symbols.t_int())],
   )
-  let module = @core.ModuleDecl::new(
+  let module = @core.ModuleDecl(
     f.module.path,
     f.module.includes,
     f.module.declarations,
@@ -546,7 +544,7 @@ test "show phase: a call to a user function named show is not rewritten" {
           @core.BlockLit::new(
             [],
             [],
-            [@core.ValueParam::new(x, @symbols.t_int())],
+            [@core.ValueParam(x, @symbols.t_int())],
             [],
             @core.Return(call),
           ),
@@ -591,7 +589,7 @@ test "show phase: builtins are shown by showBuiltin" {
     [],
     [@core.ValueVar(x, @symbols.t_int())],
   )
-  let module = @core.ModuleDecl::new(
+  let module = @core.ModuleDecl(
     f.module.path,
     f.module.includes,
     f.module.declarations,
@@ -603,7 +601,7 @@ test "show phase: builtins are shown by showBuiltin" {
           @core.BlockLit::new(
             [],
             [],
-            [@core.ValueParam::new(x, @symbols.t_int())],
+            [@core.ValueParam(x, @symbols.t_int())],
             [],
             @core.Return(call),
           ),

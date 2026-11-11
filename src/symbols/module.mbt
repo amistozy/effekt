@@ -15,7 +15,7 @@ pub(all) struct Module {
 }
 
 ///|
-pub fn Module::new(path : String, source : Span) -> Module {
+pub fn Module::Module(path : String, source : Span) -> Module {
   let segments : Array[String] = path
     .split("/")
     .map(s => s.to_owned())

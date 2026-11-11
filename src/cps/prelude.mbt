@@ -37,7 +37,7 @@ pub fn[T] internal_error(msg : String) -> T raise EffektError {
 /// clause body; `Clause::free`, `substitute_clause` and `Contify` are therefore
 /// unaffected by the extra entry.
 pub fn clause_with_tag(vparams : Array[Sym], tag : Sym, body : Stmt) -> Clause {
-  Clause::new(vparams + [tag], body)
+  Clause(vparams + [tag], body)
 }
 
 ///|

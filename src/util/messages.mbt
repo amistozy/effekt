@@ -50,23 +50,27 @@ pub(all) struct Message {
 }
 
 ///|
-pub fn Message::new(severity : Severity, span : Span, text : String) -> Message {
+pub fn Message::Message(
+  severity : Severity,
+  span : Span,
+  text : String,
+) -> Message {
   { severity, span, text, phase: None, notes: [], }
 }
 
 ///|
 pub fn Message::error(span : Span, text : String) -> Message {
-  Message::new(Error, span, text)
+  Message(Error, span, text)
 }
 
 ///|
 pub fn Message::warning(span : Span, text : String) -> Message {
-  Message::new(Warning, span, text)
+  Message(Warning, span, text)
 }
 
 ///|
 pub fn Message::info(text : String) -> Message {
-  Message::new(Info, Span::missing(), text)
+  Message(Info, Span::missing(), text)
 }
 
 ///|
@@ -74,7 +78,7 @@ pub fn Message::info(text : String) -> Message {
 /// mean ...?") are reported at the position they talk about, which is what
 /// places them in the IDE and in the test corpus (which matches by line).
 pub fn Message::info_at(span : Span, text : String) -> Message {
-  Message::new(Info, span, text)
+  Message(Info, span, text)
 }
 
 ///|

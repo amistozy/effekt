@@ -95,11 +95,11 @@ pub(all) struct Message {
   phase : String?
   notes : Array[Subdiagnostic]
 }
+pub fn Message::Message(Severity, Span, String) -> Self
 pub fn Message::error(Span, String) -> Self
 pub fn Message::help(Self, String) -> Self
 pub fn Message::info(String) -> Self
 pub fn Message::info_at(Span, String) -> Self
-pub fn Message::new(Severity, Span, String) -> Self
 pub fn Message::note(Self, String, Span?) -> Self
 pub fn Message::render(Self) -> String
 pub fn Message::warning(Span, String) -> Self
@@ -138,11 +138,11 @@ pub(all) struct Source {
   content : String
   line_starts : Array[Int32]
 }
+pub fn Source::Source(String, String) -> Self
 pub fn Source::empty() -> Self
 pub fn Source::line_count(Self) -> Int32
 pub fn Source::line_start(Self, Int32) -> Int32
 pub fn Source::line_text(Self, Int32) -> String
-pub fn Source::new(String, String) -> Self
 pub fn Source::offset_to_position(Self, Int32) -> Position
 pub fn Source::position_to_offset(Self, Position) -> Int32
 pub fn Source::renamed(Self, String) -> Self
@@ -154,13 +154,13 @@ pub(all) struct Span {
   end : Int32
   origin : Origin
 }
+pub fn Span::Span(Source, Int32, Int32) -> Self
 pub fn Span::compare(Self, Self) -> Int32
 pub fn Span::empty_after(Self) -> Self
 pub fn Span::is_missing(Self) -> Bool
 pub fn Span::merge(Self, Self) -> Self
 pub fn Span::missing() -> Self
 pub fn Span::missing_in(Source) -> Self
-pub fn Span::new(Source, Int32, Int32) -> Self
 pub fn Span::position(Self) -> Position
 pub fn Span::range_text(Self) -> String
 pub fn Span::synthesized(Self) -> Self
@@ -179,11 +179,11 @@ pub(all) struct Template[T] {
   strings : Array[String]
   args : Array[T]
 }
+pub fn[T] Template::Template(Array[String], Array[T]) -> Self[T]
 pub fn[T] Template::empty() -> Self[T]
 pub fn[T] Template::is_empty(Self[T]) -> Bool
 pub fn[T, U] Template::map(Self[T], (T) -> U) -> Self[U]
 pub fn[T, U] Template::map_raise(Self[T], (T) -> U raise EffektError) -> Self[U] raise EffektError
-pub fn[T] Template::new(Array[String], Array[T]) -> Self[T]
 pub fn[T] Template::render(Self[T], (T) -> String) -> String
 
 // Type aliases

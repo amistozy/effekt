@@ -302,7 +302,7 @@ pub fn Typer::check_call_to(
     ),
   )
 
-  TyRes::new(inst.ret, effs)
+  TyRes(inst.ret, effs)
 }
 
 ///|
@@ -805,7 +805,7 @@ pub fn Typer::check_overloaded_method_call(
       // an operation name to an overloaded `CallTarget`, and the backend needs
       // the concrete operation to build the `Invoke`.
       self.assign_symbol(id.uid, found)
-      return TyRes::new(res.tpe, eff_union(res.effs, recv.effs))
+      return TyRes(res.tpe, eff_union(res.effs, recv.effs))
     } else if successes.length() > 1 {
       self.abort(call.span, self.ambiguous_overload_message(successes))
     }

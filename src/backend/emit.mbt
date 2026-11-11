@@ -232,12 +232,5 @@ pub fn aggregate(
       }
     }
   }
-  @core.ModuleDecl::new(
-    main_path,
-    [],
-    declarations,
-    externs,
-    definitions,
-    exports,
-  )
+  @core.ModuleDecl(main_path, [], declarations, externs, definitions, exports)
 }

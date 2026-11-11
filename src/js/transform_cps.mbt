@@ -12,13 +12,13 @@
 ///|
 /// `RUN_TOPLEVEL`, defined in `effekt_runtime.js`.
 fn run_toplevel() -> Expr {
-  Variable(JSName::new("RUN_TOPLEVEL"))
+  Variable(JSName("RUN_TOPLEVEL"))
 }
 
 ///|
 /// `RESET`, defined in `effekt_runtime.js`.
 fn reset_fn() -> Expr {
-  Variable(JSName::new("RESET"))
+  Variable(JSName("RESET"))
 }
 
 ///|
@@ -26,31 +26,31 @@ fn reset_fn() -> Expr {
 /// provide it as a global `RETURN`; since upstream's multi-arity returns it is
 /// passed in by the caller (see `TransformerCps.returnFrom`).
 fn return_1_fn() -> Expr {
-  Variable(JSName::new("RETURN_1"))
+  Variable(JSName("RETURN_1"))
 }
 
 ///|
 /// `SHIFT`, defined in `effekt_runtime.js`.
 fn shift_fn() -> Expr {
-  Variable(JSName::new("SHIFT"))
+  Variable(JSName("SHIFT"))
 }
 
 ///|
 /// `RESUME`, defined in `effekt_runtime.js`.
 fn resume_fn() -> Expr {
-  Variable(JSName::new("RESUME"))
+  Variable(JSName("RESUME"))
 }
 
 ///|
 /// `VAR`, defined in `effekt_runtime.js`.
 fn var_fn() -> Expr {
-  Variable(JSName::new("VAR"))
+  Variable(JSName("VAR"))
 }
 
 ///|
 /// `REGION`, defined in `effekt_runtime.js`.
 fn region_fn() -> Expr {
-  Variable(JSName::new("REGION"))
+  Variable(JSName("REGION"))
 }
 
 ///|
@@ -274,17 +274,14 @@ pub fn compile_cps(
   reset_naming()
   check_main_signature(core_module, main)
   let module = input
-  let declarations = @core.DeclarationContext::new(
+  let declarations = @core.DeclarationContext(
     core_module.declarations,
     core_module.externs,
   )
   // The exports are generated first, so that the name of `main` is allocated
   // before the names of the definitions (as in the Scala original).
   let exports : Array[Export] = [
-    Export::new(
-      JSName::new("main"),
-      lambda([], call(run_toplevel(), [name_ref(main)])),
-    ),
+    Export(JSName("main"), lambda([], call(run_toplevel(), [name_ref(main)]))),
   ]
   let extern_defs : Map[Int32, @cps.Extern] = Map([])
   for e in module.externs {
@@ -335,8 +332,8 @@ pub fn compile_cps(
     preamble.push(RawStmt([return_1], no_values))
   }
 
-  let js_module = Module::new(
-    JSName::new(js_module_name(module.path)),
+  let js_module = Module(
+    JSName(js_module_name(module.path)),
     [],
     exports,
     js_declarations + js_externs + preamble + stmts,
@@ -620,7 +617,7 @@ fn to_js_implementation(
       params.push(name_def(p))
     }
     properties.push(
-      ObjectProperty::new(
+      ObjectProperty(
         name_def(op.name),
         lambda_stmts(
           params + [name_def(op.ks), name_def(op.k)],
@@ -675,13 +672,13 @@ fn maintain_direct_style(
     None => internal_error("Metacontinuation missing...")
   }
   let metaconts : Map[Int32, @cps.MetaCont] = Map([])
-  metaconts.set(ks.uid(), @cps.MetaCont::new(outer))
+  metaconts.set(ks.uid(), @cps.MetaCont(outer))
   let values : Map[Int32, @cps.Expr] = Map([])
   let blocks : Map[Int32, @cps.Block] = Map([])
   let conts : Map[Int32, @cps.Cont] = Map([])
   @cps.substitute_stmt(
     body,
-    @cps.Substitution::new(values, blocks, conts, metaconts),
+    @cps.Substitution(values, blocks, conts, metaconts),
   )
 }
 
@@ -788,7 +785,7 @@ fn inline_extern(
       let blocks : Map[Int32, @cps.Block] = Map([])
       let conts : Map[Int32, @cps.Cont] = Map([])
       let metaconts : Map[Int32, @cps.MetaCont] = Map([])
-      let subst = @cps.Substitution::new(values, blocks, conts, metaconts)
+      let subst = @cps.Substitution(values, blocks, conts, metaconts)
       let substituted : Array[Expr] = []
       for arg in template.args {
         substituted.push(to_js_cps_expr(@cps.substitute_expr(arg, subst), ctx))
@@ -979,7 +976,7 @@ fn to_js_stmt(
           let metaconts : Map[Int32, @cps.MetaCont] = Map([])
           let subst_block = @cps.substitute_block(
             block,
-            @cps.Substitution::new(values, blocks, conts, metaconts),
+            @cps.Substitution(values, blocks, conts, metaconts),
           )
           let ctx2 : TransformerContext = {
             ..ctx,
@@ -1104,14 +1101,7 @@ fn to_js_stmt(
             }
           }
           branches.push(
-            SwitchBranch::new(
-              tag,
-              if terminated {
-                stmts
-              } else {
-                stmts + [Break]
-              },
-            ),
+            SwitchBranch(tag, if terminated { stmts } else { stmts + [Break] }),
           )
         }
         let default_stmts = match default {
@@ -1119,11 +1109,7 @@ fn to_js_stmt(
           None => None
         }
         pure([
-          Switch(
-            Member(scrutinee_js, JSName::new("__tag")),
-            branches,
-            default_stmts,
-          ),
+          Switch(Member(scrutinee_js, JSName("__tag")), branches, default_stmts),
         ])
       }
     }
@@ -1240,13 +1226,11 @@ fn to_js_stmt(
               }
               let metaconts : Map[Int32, @cps.MetaCont] = Map([])
               match tmp_ks {
-                Some(t) => metaconts.set(info.ks.uid(), @cps.MetaCont::new(t))
+                Some(t) => metaconts.set(info.ks.uid(), @cps.MetaCont(t))
                 None => ()
               }
               let blocks : Map[Int32, @cps.Block] = Map([])
-              let subst = @cps.Substitution::new(
-                values, blocks, conts, metaconts,
-              )
+              let subst = @cps.Substitution(values, blocks, conts, metaconts)
 
               // Update the continuation if this is not a tail call
               if !is_tail_call {
@@ -1347,7 +1331,7 @@ fn to_js_stmt(
           [
             Const(
               PatternVariable(name_def(id)),
-              method_call(name_ref(region), JSName::new("fresh"), [
+              method_call(name_ref(region), JSName("fresh"), [
                 to_js_cps_expr(init, ctx),
               ]),
             ),
@@ -1381,7 +1365,7 @@ fn to_js_stmt(
           [
             Const(
               PatternVariable(name_def(id)),
-              Member(name_ref(ref), JSName::new("value")),
+              Member(name_ref(ref), JSName("value")),
             ),
           ] +
           (to_js_stmt(body, ctx).run)(k)
@@ -1394,7 +1378,7 @@ fn to_js_stmt(
         run: k => {
           [
             ExprStmt(
-              method_call(name_ref(ref), JSName::new("set"), [
+              method_call(name_ref(ref), JSName("set"), [
                 to_js_cps_expr(value, ctx),
               ]),
             ),

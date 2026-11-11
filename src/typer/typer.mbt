@@ -49,7 +49,7 @@ pub(all) struct Annotations {
 }
 
 ///|
-pub fn Annotations::new() -> Annotations {
+pub fn Annotations::Annotations() -> Annotations {
   {
     value: Map([]),
     block: Map([]),
@@ -166,11 +166,11 @@ pub struct Typer {
 }
 
 ///|
-pub fn Typer::new(ctx : Context) -> Typer {
+pub fn Typer::Typer(ctx : Context) -> Typer {
   {
     ctx,
     st: {
-      u: Unification::new(),
+      u: Unification(),
       scope: GlobalScope,
       cap_scope: GlobalCap,
       current: Captures::empty(),
@@ -178,7 +178,7 @@ pub fn Typer::new(ctx : Context) -> Typer {
       vt: Map([]),
       bt: Map([]),
       ct: Map([]),
-      ann: Annotations::new(),
+      ann: Annotations(),
     },
     muting: false,
     muted_error: false,
@@ -1231,7 +1231,7 @@ pub fn typecheck(
   if context.has_errors() {
     return
   }
-  let t = Typer::new(context)
+  let t = Typer(context)
   t.check_module(rewritten)
 }
 
@@ -1700,21 +1700,21 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
       self.assert_concrete_function(id, substituted)
       self.bind_block(sym, substituted)
       self.annotate_block(d.uid, substituted)
-      TyRes::new((), unhandled)
+      TyRes((), unhandled)
     }
     @source.DefKind::ValDef(id, _, binding) => {
       let sym = self.symbol_of_def(id)
       let res = match self.lookup_first_value(sym) {
         Some(t) => {
           let r = self.check_stmt(binding, Some(t))
-          TyRes::new(t, r.effs)
+          TyRes(t, r.effs)
         }
         None => self.check_stmt(binding, None)
       }
       self.bind_value(sym, res.tpe)
       self.annotate_value(d.uid, res.tpe)
       self.annotate_effects(d.uid, res.effs)
-      TyRes::new((), res.effs)
+      TyRes((), res.effs)
     }
     @source.DefKind::RegDef(id, _, reg, binding) => {
       let sym = self.symbol_of_def(id)
@@ -1739,7 +1739,7 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
       let res = match self.lookup_first_value(sym) {
         Some(t) => {
           let r = self.check_stmt(binding, Some(t))
-          TyRes::new(t, r.effs)
+          TyRes(t, r.effs)
         }
         None => self.check_stmt(binding, None)
       }
@@ -1748,7 +1748,7 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
       self.bind_value(sym, res.tpe)
       self.annotate_value(d.uid, res.tpe)
       self.annotate_effects(d.uid, res.effs)
-      TyRes::new((), res.effs)
+      TyRes((), res.effs)
     }
     @source.DefKind::DefDef(id, _, _, binding) => {
       let sym = self.symbol_of_def(id)
@@ -1764,7 +1764,7 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
           self.bind_block(sym, r.tpe)
           self.annotate_block(d.uid, r.tpe)
           self.annotate_effects(d.uid, r.effs)
-          TyRes::new((), r.effs)
+          TyRes((), r.effs)
         })
       })
       res
@@ -1822,7 +1822,7 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
         })
         self.annotate_effects(d.uid, Effects::empty())
       })
-      TyRes::new((), Effects::empty())
+      TyRes((), Effects::empty())
     }
     @source.DefKind::NamespaceDef(_, defs) => {
       let mut acc = Effects::empty()
@@ -1830,10 +1830,10 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
         let r = self.synth_def(inner)
         acc = eff_union(acc, r.effs)
       }
-      TyRes::new((), acc)
+      TyRes((), acc)
     }
     // all other definitions have already been prechecked
-    _ => TyRes::new((), Effects::empty())
+    _ => TyRes((), Effects::empty())
   }
 }
 
@@ -1945,7 +1945,7 @@ fn Typer::check_stmt_kind(
             () => self.check_stmt(rest, expected),
           )
           self.annotate_value(d.uid, st_tpe)
-          TyRes::new(rest_res.tpe, eff_union(bind_res.effs, rest_res.effs))
+          TyRes(rest_res.tpe, eff_union(bind_res.effs, rest_res.effs))
         }
         _ => {
           let bind_res = {
@@ -1953,13 +1953,13 @@ fn Typer::check_stmt_kind(
             self.synth_def(d)
           }
           let rest_res = self.check_stmt(rest, expected)
-          TyRes::new(rest_res.tpe, eff_union(bind_res.effs, rest_res.effs))
+          TyRes(rest_res.tpe, eff_union(bind_res.effs, rest_res.effs))
         }
       }
     @source.StmtKind::ExprStmt(e, rest) => {
       let r1 = self.check_expr(e, None)
       let r2 = self.check_stmt(rest, expected)
-      TyRes::new(r2.tpe, eff_union(r1.effs, r2.effs))
+      TyRes(r2.tpe, eff_union(r1.effs, r2.effs))
     }
     @source.StmtKind::Return(e) => self.check_expr(e, expected)
     @source.StmtKind::BlockStmt(inner) => self.check_stmt(inner, expected)
@@ -1994,7 +1994,7 @@ fn Typer::check_expr_kind(
   expected : ValueType?,
 ) -> TyRes[ValueType] raise EffektError {
   match e.kind {
-    @source.TermKind::Literal(_, tpe) => TyRes::new(tpe, Effects::empty())
+    @source.TermKind::Literal(_, tpe) => TyRes(tpe, Effects::empty())
     @source.TermKind::If(guards, thn, els) => {
       let geffs = self.check_guards(guards)
       let thn_res = self.check_stmt(thn, expected)
@@ -2005,7 +2005,7 @@ fn Typer::check_expr_kind(
           (els_res.tpe, Some(els.span)),
         ])
       })
-      TyRes::new(joined, eff_union_of([geffs, thn_res.effs, els_res.effs]))
+      TyRes(joined, eff_union_of([geffs, thn_res.effs, els_res.effs]))
     }
     @source.TermKind::While(guards, body, default) => {
       let geffs = self.check_guards(guards)
@@ -2016,7 +2016,7 @@ fn Typer::check_expr_kind(
       let body_res = self.check_stmt(body, expected_type)
       let default_res = match default {
         Some(d) => self.check_stmt(d, expected_type)
-        None => TyRes::new(t_unit(), Effects::empty())
+        None => TyRes(t_unit(), Effects::empty())
       }
       let joined = self.at(e.span, () => {
         self.join(expected, WhileKind, [
@@ -2024,7 +2024,7 @@ fn Typer::check_expr_kind(
           (default_res.tpe, None),
         ])
       })
-      TyRes::new(joined, eff_union_of([geffs, body_res.effs, default_res.effs]))
+      TyRes(joined, eff_union_of([geffs, body_res.effs, default_res.effs]))
     }
     @source.TermKind::Var(id) => {
       let sym = self.symbol_of_id(id)
@@ -2032,18 +2032,18 @@ fn Typer::check_expr_kind(
         @symbols.Sym::RegBinder(_) => {
           let tpe = self.lookup_value(sym)
           self.using_capture(self.lookup_capture(sym))
-          TyRes::new(tpe, Effects::empty())
+          TyRes(tpe, Effects::empty())
         }
         @symbols.Sym::VarBinder(v) => {
           let tpe = self.lookup_value(sym)
           self.using_capture(@symbols.Captures::CaptureSetOf([v.capture]))
-          TyRes::new(tpe, Effects::empty())
+          TyRes(tpe, Effects::empty())
         }
         _ =>
           if sym.is_block_symbol() {
             self.abort(e.span, "Expected an expression, but got a block.")
           } else {
-            TyRes::new(self.lookup_value(sym), Effects::empty())
+            TyRes(self.lookup_value(sym), Effects::empty())
           }
       }
     }
@@ -2054,13 +2054,13 @@ fn Typer::check_expr_kind(
           let tpe = self.lookup_value(sym)
           self.using_capture(self.lookup_capture(sym))
           let r_res = self.check_expr(expr, Some(tpe))
-          TyRes::new(t_unit(), r_res.effs)
+          TyRes(t_unit(), r_res.effs)
         }
         @symbols.Sym::VarBinder(v) => {
           let tpe = self.lookup_value(sym)
           self.using_capture(@symbols.Captures::CaptureSetOf([v.capture]))
           let r_res = self.check_expr(expr, Some(tpe))
-          TyRes::new(t_unit(), r_res.effs)
+          TyRes(t_unit(), r_res.effs)
         }
         _ => self.abort(e.span, "Expected a mutable variable in assignment.")
       }
@@ -2094,7 +2094,7 @@ fn Typer::check_expr_kind(
         Some(exp) => self.match_expected(tpe, exp, Some(e.span))
         None => ()
       }
-      TyRes::new(tpe, res.effs)
+      TyRes(tpe, res.effs)
     }
     @source.TermKind::Unbox(_) =>
       self.abort(
@@ -2139,7 +2139,7 @@ fn Typer::check_expr_kind(
       self.using_capture(
         @symbols.Captures::CaptureSetOf([capture_of_capability(capability)]),
       )
-      TyRes::new(res.tpe, eff_union(res.effs, Effects::new([effect])))
+      TyRes(res.tpe, eff_union(res.effs, Effects([effect])))
     }
     @source.TermKind::Call(target, targs, vargs, bargs) => {
       let resolved_targs = targs.map(t => self.resolve_value_type(t))
@@ -2175,7 +2175,7 @@ fn Typer::check_expr_kind(
                 expected,
                 None,
               )
-              TyRes::new(res.tpe, eff_union(res.effs, callee_res.effs))
+              TyRes(res.tpe, eff_union(res.effs, callee_res.effs))
             }
             _ => self.abort(e.span, "Cannot infer function type for callee.")
           }
@@ -2205,7 +2205,7 @@ fn Typer::check_expr_kind(
       let res = self.flowing_into(self.without(inferred, [capture]), () => {
         self.check_stmt(body, expected)
       })
-      TyRes::new(res.tpe, res.effs)
+      TyRes(res.tpe, res.effs)
     }
     @source.TermKind::TryHandle(prog, handlers) =>
       self.check_try_handle(e, prog, handlers, expected)
@@ -2278,7 +2278,7 @@ fn Typer::check_expr_kind(
         },
         e.span,
       )
-      TyRes::new(joined, res_eff)
+      TyRes(joined, res_eff)
     }
     @source.TermKind::Hole(id, template) => {
       let sym = self.symbol_of_def(id)
@@ -2291,7 +2291,7 @@ fn Typer::check_expr_kind(
           }
           h.expected_type = expected
           h.arg_types = arg_types
-          TyRes::new(expected.unwrap_or(t_bottom()), Effects::empty())
+          TyRes(expected.unwrap_or(t_bottom()), Effects::empty())
         }
         _ => self.abort(e.span, "Expected a hole.")
       }
@@ -3611,9 +3611,7 @@ fn Typer::instantiate_block_type(
         vps.map(v => self.instantiate_value_type(v, inner)),
         bps.map(b => self.instantiate_block_type(b, inner)),
         self.instantiate_value_type(ret, inner),
-        Effects::new(
-          effs.effects.map(e => self.instantiate_block_type(e, inner)),
-        ),
+        Effects(effs.effects.map(e => self.instantiate_block_type(e, inner))),
       )
     }
   }
@@ -3660,9 +3658,7 @@ pub fn Typer::instantiate(
         vps.map(v => self.instantiate_value_type(v, inst)),
         bps.map(b => self.instantiate_block_type(b, inst)),
         self.instantiate_value_type(ret, inst),
-        Effects::new(
-          effs.effects.map(e => self.instantiate_block_type(e, inst)),
-        ),
+        Effects(effs.effects.map(e => self.instantiate_block_type(e, inst))),
       )
     }
     _ => self.abort(self.focus, "Expected function type.")
@@ -3814,7 +3810,7 @@ pub fn Typer::resolve_block_type(
         vps,
         bps,
         r,
-        Effects::new(distinct_effs),
+        Effects(distinct_effs),
       )
     }
     @source.TypeKind::Effectful(inner, effs) => {
@@ -3839,10 +3835,7 @@ pub fn Typer::resolve_block_type(
             vps,
             bps,
             ret,
-            eff_union(
-              inner_effs,
-              Effects::new(dedup_block_types(resolved_effs)),
-            ),
+            eff_union(inner_effs, Effects(dedup_block_types(resolved_effs))),
           )
         _ => b
       }

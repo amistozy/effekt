@@ -153,7 +153,7 @@ pub(all) struct ShowContext {
 }
 
 ///|
-pub fn ShowContext::new() -> ShowContext {
+pub fn ShowContext::ShowContext() -> ShowContext {
   {
     show_names: Map([]),
     show_defns: Map([]),
@@ -542,7 +542,7 @@ fn ShowContext::generate_show_instance(
   let show_id = fresh_show_id()
   self.show_names.set(value_type_key(vt), show_id)
   let param_id = Sym::tmp_value("value")
-  let vparam = ValueParam::new(param_id, vt)
+  let vparam = ValueParam(param_id, vt)
   let param_value_var = ValueVar(param_id, vt)
 
   let generate_def = (stmt : Stmt) => {
@@ -692,7 +692,7 @@ fn ShowContext::generate_data_instance(
     data_id,
     targs.map(t => self.lookup_type(t)),
   )
-  let vparam = ValueParam::new(value_id, value_tpe)
+  let vparam = ValueParam(value_id, value_tpe)
 
   let constructor_vparams : Array[Array[ValueParam]] = []
   for constr in constructors {
@@ -728,16 +728,16 @@ fn ShowContext::constructor_vparams(
   for field in constr.fields {
     let lookup = self.lookup_type(field.tpe)
     match lookup {
-      ValueTypeApp(_, _) => out.push(ValueParam::new(field.id, lookup))
+      ValueTypeApp(_, _) => out.push(ValueParam(field.id, lookup))
       ValueTypeRef(name) =>
         match self.tparam_lookup.get(name.uid()) {
-          Some(t) => out.push(ValueParam::new(field.id, t))
+          Some(t) => out.push(ValueParam(field.id, t))
           None =>
             raise EffektError::Internal(
               "Was not able to lookup var: \{name.name().name}",
             )
         }
-      BoxedType(_, _) => out.push(ValueParam::new(field.id, lookup))
+      BoxedType(_, _) => out.push(ValueParam(field.id, lookup))
     }
   }
   out
@@ -774,7 +774,7 @@ fn ShowContext::constructor_clauses(
   constr : Constructor,
   vparams : Array[ValueParam],
 ) -> Clause raise EffektError {
-  Clause::new(
+  Clause(
     constr.id,
     BlockLit::new([], [], vparams, [], self.constructor_stmt(dctx, constr)),
   )
@@ -878,8 +878,8 @@ fn ShowContext::field_pure(
 /// The generated definitions are appended to the definitions of the module,
 /// exactly like upstream's `Toplevel.Def`s.
 pub fn show_phase(module : ModuleDecl) -> ModuleDecl raise EffektError {
-  let ctx = ShowContext::new()
-  let dctx = DeclarationContext::new(module.declarations, module.externs)
+  let ctx = ShowContext()
+  let dctx = DeclarationContext(module.declarations, module.externs)
   let definitions : Array[Toplevel] = []
   for d in module.definitions {
     definitions.push(ctx.transform_toplevel(dctx, d))
@@ -887,7 +887,7 @@ pub fn show_phase(module : ModuleDecl) -> ModuleDecl raise EffektError {
   for defn in ctx.all_show_defs() {
     definitions.push(defn)
   }
-  ModuleDecl::new(
+  ModuleDecl(
     module.path,
     module.includes,
     module.declarations,
@@ -936,7 +936,7 @@ fn ShowContext::transform_implementation(
   for op in implementation.operations {
     operations.push(self.transform_operation(dctx, op))
   }
-  Implementation::new(implementation.interface, operations)
+  Implementation(implementation.interface, operations)
 }
 
 ///|
@@ -948,7 +948,7 @@ fn ShowContext::transform_operation(
   let body = self.without_bindings(() => {
     self.transform_stmt(dctx, operation.body)
   })
-  Operation::new(
+  Operation(
     operation.name,
     operation.tparams,
     operation.cparams,
@@ -1118,7 +1118,7 @@ fn ShowContext::transform_stmt(
         let clauses_ : Array[Clause] = []
         for clause in clauses {
           clauses_.push(
-            Clause::new(clause.tag, self.transform_block_lit(dctx, clause.body)),
+            Clause(clause.tag, self.transform_block_lit(dctx, clause.body)),
           )
         }
         Match(

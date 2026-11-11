@@ -24,7 +24,7 @@ test "cps: free variables of a let expression" {
   let s = @cps.LetExpr(
     x,
     some_value(@symbols.t_int()),
-    @cps.Jump(k, [@cps.ValueVar(x)], @cps.MetaCont::new(ks)),
+    @cps.Jump(k, [@cps.ValueVar(x)], @cps.MetaCont(ks)),
   )
   let free = s.free()
   assert_true(free.contains(k))
@@ -44,7 +44,7 @@ test "cps: free variables of a block literal exclude its parameters" {
     [],
     ks,
     k,
-    @cps.Jump(k, [@cps.ValueVar(x), @cps.ValueVar(y)], @cps.MetaCont::new(ks)),
+    @cps.Jump(k, [@cps.ValueVar(x), @cps.ValueVar(y)], @cps.MetaCont(ks)),
   )
   let blk : @cps.Block = @cps.BlockLit(lit)
   let free = blk.free()
@@ -60,7 +60,7 @@ test "cps: substitute as block var" {
   let r2 = bsym("r2")
   let blocks : Map[Int32, @cps.Block] = Map([])
   blocks.set(r.uid(), @cps.BlockVar(r2))
-  let subst = @cps.Substitution::new(Map([]), blocks, Map([]), Map([]))
+  let subst = @cps.Substitution(Map([]), blocks, Map([]), Map([]))
   assert_true(@cps.substitute_as_block_var(r, subst).uid() == r2.uid())
   assert_true(
     @cps.substitute_as_block_var(bsym("other"), subst).uid() != r2.uid(),

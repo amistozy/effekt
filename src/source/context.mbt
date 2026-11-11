@@ -87,7 +87,7 @@ pub(all) struct Context {
 }
 
 ///|
-pub fn Context::new(config : Config) -> Context {
+pub fn Context::Context(config : Config) -> Context {
   {
     messages: [],
     symbols: Map([]),

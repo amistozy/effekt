@@ -150,7 +150,7 @@ fn unique_name(sym : Sym) -> JSName {
   match generated_names.get(sym.uid()) {
     Some(name) => name
     None => {
-      let name = JSName::new(
+      let name = JSName(
         js_escape(unique_name_for(base_name_of(sym.name().name))),
       )
       generated_names.set(sym.uid(), name)
@@ -181,7 +181,7 @@ pub fn member_name_ref(id : Sym) -> JSName {
 /// A name that is guaranteed to be fresh (used for compiler-generated
 /// variables that have no symbol, e.g. the `other` of `__equals`).
 pub fn fresh_name(s : String) -> JSName {
-  JSName::new("\{s}\{@util.fresh_uid()}")
+  JSName("\{s}\{@util.fresh_uid()}")
 }
 
 // ---------------------------------------------------------------------------
@@ -196,7 +196,7 @@ pub fn should_export(id : Sym) -> Bool {
 
 ///|
 fn this_field(field : JSName) -> Expr {
-  Member(Variable(JSName::new("this")), field)
+  Member(Variable(JSName("this")), field)
 }
 
 ///|
@@ -242,10 +242,10 @@ pub fn generate_constructor(
   tag_value : Int32,
 ) -> Stmt {
   let fields = constructor.fields
-  let tag = JSName::new("__tag")
-  let data = JSName::new("__data")
-  let reflect = JSName::new("__reflect")
-  let equals = JSName::new("__equals")
+  let tag = JSName("__tag")
+  let data = JSName("__data")
+  let reflect = JSName("__reflect")
+  let equals = JSName("__equals")
 
   let params : Array[JSName] = []
   for f in fields {
@@ -259,7 +259,7 @@ pub fn generate_constructor(
   }
   let init_tag = Assign(this_field(tag), raw_expr(tag_value.to_string()))
   let js_constructor = Stmt::Function(
-    JSName::new("constructor"),
+    JSName("constructor"),
     params,
     [init_tag] + init_params,
   )
@@ -272,12 +272,9 @@ pub fn generate_constructor(
   let js_reflect = Stmt::Function(reflect, [], [
     Return(
       Object([
-        ObjectProperty::new(tag, raw_expr(tag_value.to_string())),
-        ObjectProperty::new(
-          JSName::new("__name"),
-          js_string(constructor.id.name().name),
-        ),
-        ObjectProperty::new(data, ArrayLiteral(reflected_data)),
+        ObjectProperty(tag, raw_expr(tag_value.to_string())),
+        ObjectProperty(JSName("__name"), js_string(constructor.id.name().name)),
+        ObjectProperty(data, ArrayLiteral(reflected_data)),
       ]),
     ),
   ])

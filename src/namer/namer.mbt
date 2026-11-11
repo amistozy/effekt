@@ -36,7 +36,7 @@ pub fn resolve_module(
   deps : Map[String, ResolvedModule],
 ) -> ResolvedModule raise EffektError {
   context.set_phase("namer")
-  let mod = Module::new(module.path, module.span)
+  let mod = Module(module.path, module.span)
   let namer = new_namer(context, mod, deps)
   namer.resolve_toplevel(module)
   mod.exports = namer.scoping.exports()
@@ -2057,7 +2057,7 @@ fn Namer::resolve_value_type(
                 "Type alias \{alias.base.name.name} expects \{alias.tparams.length()} type arguments, but got \{targs.length()}.",
               )
             }
-            TypeSubst::new(alias.tparams, targs).value_type(alias.tpe)
+            TypeSubst(alias.tparams, targs).value_type(alias.tpe)
           }
           _ =>
             if sym.is_value_type_constructor() {
@@ -2279,7 +2279,7 @@ fn Namer::resolve_with_aliases(
             )
           }
           let targs = args.map(a => self.resolve_value_type(a, false))
-          let subst = TypeSubst::new(alias.tparams, targs)
+          let subst = TypeSubst(alias.tparams, targs)
           alias.effs.to_list().map(e => subst.block_type(e))
         }
         _ =>
@@ -2349,7 +2349,7 @@ fn Namer::resolve_effects(
       all.push(resolved)
     }
   }
-  @symbols.Effects::new(all)
+  @symbols.Effects(all)
 }
 
 ///|

@@ -83,20 +83,20 @@ pub fn compile_file(
   pipeline : Pipeline,
   config : Config,
 ) -> CompileResult {
-  let ctx = Context::new(config)
+  let ctx = Context(config)
   let messages : Array[Message] = []
   let result = try {
     let source = match read_file(opts.input) {
       // The name is the path *as given* (upstream `Source(name, contents)`):
       // diagnostics and `sourcePosition` should print `examples/hello.effekt`
       // when that is what the user typed, not an absolute path.
-      Some(c) => Source::new(opts.input, c)
+      Some(c) => Source(opts.input, c)
       None => {
         ctx.error(Span::missing(), "Cannot read input file \{opts.input}")
         return { output: None, messages: ctx.messages.copy(), failed: true, }
       }
     }
-    let loader = Loader::new(search_paths(opts.input, opts))
+    let loader = Loader(search_paths(opts.input, opts))
     // The prelude is provided by the library, never by the input's directory.
     loader.set_prelude_roots(library_roots(opts))
     let parsed = (pipeline.parse)(source, ctx)

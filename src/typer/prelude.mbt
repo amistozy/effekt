@@ -68,7 +68,7 @@ pub struct TyRes[T] {
 }
 
 ///|
-pub fn[T] TyRes::new(tpe : T, effs : Effects) -> TyRes[T] {
+pub fn[T] TyRes::TyRes(tpe : T, effs : Effects) -> TyRes[T] {
   { tpe, effs, }
 }
 
@@ -129,7 +129,7 @@ pub fn captures_of_params(params : Array[Sym]) -> Array[Captures] {
 
 ///|
 pub fn effects_of(effs : Array[BlockType]) -> Effects {
-  Effects::new(effs)
+  Effects(effs)
 }
 
 ///|
@@ -148,7 +148,7 @@ pub fn eff_union_of(effs : Array[Effects]) -> Effects {
       }
     }
   }
-  Effects::new(out)
+  Effects(out)
 }
 
 ///|

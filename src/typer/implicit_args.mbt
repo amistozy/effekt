@@ -111,7 +111,7 @@ fn Typer::implicit_scope(
 ///|
 fn Typer::var_term_for(self : Typer, sym : Sym, span : Span) -> Term {
   let name = sym.name().name
-  let id = @source.IdRef::new(name, span)
+  let id = @source.IdRef(name, span)
   self.assign_symbol(id.uid, sym)
   mk_term(span, @source.TermKind::Var(id))
 }
@@ -172,7 +172,7 @@ fn Typer::source_position_term(
     @source.ValueArg::unnamed(int_literal_term(to.line.to_int64(), span)),
     @source.ValueArg::unnamed(int_literal_term(to.column.to_int64(), span)),
   ]
-  let target = @source.IdRef::new("SourcePosition", span)
+  let target = @source.IdRef("SourcePosition", span)
   self.assign_symbol(target.uid, @symbols.Sym::call_target(candidates))
   let call = mk_term(
     span,
@@ -203,7 +203,7 @@ fn Typer::implicit_block_term(
       for i, vp in vps {
         let pname = "value_arg\{i}"
         let sym = Sym::value_param(Name::local(pname), Some(vp), span)
-        let id = @source.IdDef::new(pname, span)
+        let id = @source.IdDef(pname, span)
         self.assign_symbol(id.uid, sym)
         vparams.push({
           id,
@@ -224,7 +224,7 @@ fn Typer::implicit_block_term(
           false,
           span,
         )
-        let id = @source.IdDef::new(pname, span)
+        let id = @source.IdDef(pname, span)
         self.assign_symbol(id.uid, sym)
         bparams.push({
           id,
@@ -245,7 +245,7 @@ fn Typer::implicit_block_term(
           "Cannot resolve the implicit block argument \{name}: no function of that name is in scope.",
         )
       }
-      let target = @source.IdRef::new(name, span)
+      let target = @source.IdRef(name, span)
       self.assign_symbol(target.uid, @symbols.Sym::call_target(candidates))
       let callee = mk_term(
         span,

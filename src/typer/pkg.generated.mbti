@@ -61,8 +61,8 @@ pub(all) struct Annotations {
   impl_bargs : Map[Int32, Array[@source.Term]]
   symbols : Map[Int32, @symbols.Sym]
 }
+pub fn Annotations::Annotations() -> Self
 pub fn Annotations::copy(Self) -> Self
-pub fn Annotations::new() -> Self
 
 pub struct CallLike {
   uid : Int32
@@ -154,7 +154,7 @@ pub struct TyRes[T] {
   tpe : T
   effs : @symbols.Effects
 }
-pub fn[T] TyRes::new(T, @symbols.Effects) -> Self[T]
+pub fn[T] TyRes::TyRes(T, @symbols.Effects) -> Self[T]
 
 pub struct Typer {
   ctx : @source.Context
@@ -167,6 +167,7 @@ pub struct Typer {
   type_var_spans : Map[Int32, @util.Span]
   pending_matches : Array[PendingMatch]
 }
+pub fn Typer::Typer(@source.Context) -> Self
 pub fn Typer::annotate_block(Self, Int32, @symbols.BlockType) -> Unit
 pub fn Typer::annotate_capture(Self, Int32, @symbols.Captures) -> Unit
 pub fn Typer::annotate_effects(Self, Int32, @symbols.Effects) -> Unit
@@ -204,7 +205,6 @@ pub fn Typer::lookup_first_value(Self, @symbols.Sym) -> @symbols.ValueType?
 pub fn Typer::lookup_function_type(Self, @symbols.Sym) -> @symbols.BlockType raise @util.EffektError
 pub fn Typer::lookup_value(Self, @symbols.Sym) -> @symbols.ValueType raise @util.EffektError
 pub fn Typer::merge_value_types(Self, @symbols.ValueType, @symbols.ValueType, ErrCtx) -> @symbols.ValueType raise @util.EffektError
-pub fn Typer::new(@source.Context) -> Self
 pub fn Typer::precheck_def(Self, @source.Def) -> Unit raise @util.EffektError
 pub fn Typer::require_subregion(Self, @symbols.Captures, @symbols.Captures, @util.Span) -> Unit
 pub fn Typer::require_subregion_ctx(Self, @symbols.Captures, @symbols.Captures, ErrCtx) -> Unit
@@ -257,6 +257,7 @@ pub struct Unification {
   var_of : Map[Int32, @symbols.Sym]
   capt_var : Map[Int32, @symbols.Sym]
 }
+pub fn Unification::Unification() -> Self
 pub fn Unification::copy(Self) -> Self
 pub fn Unification::fresh_capt_var(Self, String) -> @symbols.Sym
 pub fn Unification::fresh_type_var(Self, @symbols.Sym) -> @symbols.Sym
@@ -264,7 +265,6 @@ pub fn Unification::is_capt_var(Self, @symbols.Sym) -> Bool
 pub fn Unification::is_type_var(Self, @symbols.Sym) -> Bool
 pub fn Unification::link(Self, Int32, Int32, Array[@symbols.Sym]) -> Unit
 pub fn Unification::lower_of(Self, Int32) -> Array[@symbols.Sym]
-pub fn Unification::new() -> Self
 pub fn Unification::propagate(Self) -> String?
 pub fn Unification::prune_block(Self, @symbols.BlockType) -> @symbols.BlockType
 pub fn Unification::prune_captures(Self, @symbols.Captures) -> @symbols.Captures

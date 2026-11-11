@@ -200,13 +200,13 @@ pub(all) struct EffectAliasSym {
 pub(all) struct Effects {
   effects : Array[BlockType]
 }
+pub fn Effects::Effects(Array[BlockType]) -> Self
 pub fn Effects::distinct(Self) -> Self
 pub fn Effects::empty() -> Self
 pub fn Effects::exists(Self, (BlockType) -> Bool) -> Bool
 pub fn Effects::filter_not(Self, (BlockType) -> Bool) -> Self
 pub fn Effects::forall(Self, (BlockType) -> Bool) -> Bool
 pub fn Effects::is_empty(Self) -> Bool
-pub fn Effects::new(Array[BlockType]) -> Self
 pub fn Effects::non_empty(Self) -> Bool
 pub fn Effects::size(Self) -> Int32
 pub fn Effects::to_list(Self) -> Array[BlockType]
@@ -271,7 +271,7 @@ pub(all) struct InterfaceSym {
 pub(all) struct JSName {
   name : String
 }
-pub fn JSName::new(String) -> Self
+pub fn JSName::JSName(String) -> Self
 
 pub(all) struct LambdaSym {
   base : SymBase
@@ -291,10 +291,10 @@ pub(all) struct Module {
   mut exports : Bindings
   source : @util.Span
 }
+pub fn Module::Module(String, @util.Span) -> Self
 pub fn Module::dependencies(Self) -> Array[Self]
 pub fn Module::find_dependency(Self, Name) -> Self?
 pub fn Module::is_prelude(Self) -> Bool
-pub fn Module::new(String, @util.Span) -> Self
 pub impl Show for Module
 
 pub(all) struct Name {

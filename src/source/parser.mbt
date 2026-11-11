@@ -23,7 +23,7 @@ pub struct Many[T] {
 }
 
 ///|
-pub fn[T] Many::new(items : Array[T], span : Span) -> Many[T] {
+pub fn[T] Many::Many(items : Array[T], span : Span) -> Many[T] {
   { items, span, }
 }
 
@@ -334,7 +334,7 @@ pub struct Parser {
 }
 
 ///|
-pub fn Parser::new(
+pub fn Parser::Parser(
   tokens : Array[Token],
   source : Source,
   context : Context,
@@ -366,12 +366,12 @@ pub fn Parser::new(
 /// The token at a given index, or the last token (EOF) if out of range.
 fn Parser::raw_token_at(self : Parser, i : Int32) -> Token {
   if i < 0 {
-    Token::new(0, 0, TEOF)
+    Token(0, 0, TEOF)
   } else if i >= self.tokens.length() {
     if self.tokens.length() > 0 {
       self.tokens[self.tokens.length() - 1]
     } else {
-      Token::new(0, 0, TEOF)
+      Token(0, 0, TEOF)
     }
   } else {
     self.tokens[i]
@@ -411,11 +411,7 @@ fn Parser::fail_on_error_token(
 ) -> Token raise EffektError {
   match token.kind {
     TError(_) =>
-      Token::new(
-        token.start,
-        token.end,
-        self.recover(token.kind, token_position),
-      )
+      Token(token.start, token.end, self.recover(token.kind, token_position))
     _ => token
   }
 }
@@ -623,7 +619,7 @@ fn Parser::report(
 ) -> Unit {
   let from_token = self.raw_token_at(from)
   let to_token = self.raw_token_at(to)
-  let span = Span::new(self.source, from_token.start, to_token.end + 1)
+  let span = Span(self.source, from_token.start, to_token.end + 1)
   match severity {
     Error => self.context.report(Message::error(span, msg))
     Warning => self.context.report(Message::warning(span, msg))
@@ -648,9 +644,9 @@ fn Parser::span_from(self : Parser, start : Int32) -> Span {
   if start > end {
     // We did not consume anything (except for whitespace), so we generate an
     // empty span just after the previous token.
-    Span::new(self.source, end, end)
+    Span(self.source, end, end)
   } else {
-    Span::new(self.source, start, end)
+    Span(self.source, start, end)
   }
 }
 
@@ -741,9 +737,9 @@ fn[T] Parser::backtrack(
     let end = self.pos()
     let start = before_end
     let sp = if start > end {
-      Span::new(self.source, end, end)
+      Span(self.source, end, end)
     } else {
-      Span::new(self.source, start, end)
+      Span(self.source, start, end)
     }
     Maybe::some(value, sp)
   } catch {
@@ -843,7 +839,7 @@ fn[T] Parser::some(
   self.nonterminal(() => {
     self.consume(before)
     let items = self.delimited_until(p, sep, after, fail_on_singleton)
-    Many::new(items, self.span())
+    Many(items, self.span())
   })
 }
 
@@ -862,7 +858,7 @@ fn[T] Parser::some_sep(
       self.consume(sep)
       components.push(p())
     }
-    Many::new(components, self.span())
+    Many(components, self.span())
   })
 }
 
@@ -887,7 +883,7 @@ fn[T] Parser::some_while(
     while predicate() {
       components.push(p())
     }
-    Many::new(components, self.span())
+    Many(components, self.span())
   })
 }
 
@@ -946,7 +942,7 @@ fn[T] Parser::many(
       Many::empty(self.span())
     } else {
       let items = self.delimited_until(p, sep, after, false)
-      Many::new(items, self.span())
+      Many(items, self.span())
     }
   })
 }
@@ -1011,7 +1007,7 @@ fn[T] array_init(xs : Array[T]) -> Array[T] {
 fn[T] SpannedTemplate::unspan_template(
   self : SpannedTemplate[T],
 ) -> Template[T] {
-  Template::new(self.strings.map(s => s.unspan), self.args.map(a => a.unspan))
+  Template(self.strings.map(s => s.unspan), self.args.map(a => a.unspan))
 }
 
 // ---------------------------------------------------------------------------
@@ -1350,7 +1346,7 @@ fn Parser::val_stmt(self : Parser, in_braces : Bool) -> Stmt raise EffektError {
         let binding = self.stmt()
         let end_pos = self.pos()
         let def = mk_def(
-          Span::new(self.source, start_pos, end_pos),
+          Span(self.source, start_pos, end_pos),
           self.only_doc(info),
           ValDef(id, tpe, binding),
         )
@@ -1374,7 +1370,7 @@ fn Parser::val_stmt(self : Parser, in_braces : Bool) -> Stmt raise EffektError {
             let binding = self.stmt()
             let end_pos = self.pos()
             let def = mk_def(
-              Span::new(self.source, start_pos, end_pos),
+              Span(self.source, start_pos, end_pos),
               self.only_doc(info),
               ValDef(id, None, binding),
             )
@@ -1393,17 +1389,13 @@ fn Parser::val_stmt(self : Parser, in_braces : Bool) -> Stmt raise EffektError {
             let body = self.stmts(in_braces)
             let clause : MatchClause = {
               uid: fresh_uid(),
-              span: Span::new(
-                self.source,
-                pattern.span.start,
-                scrutinee.span.end,
-              ),
+              span: Span(self.source, pattern.span.start, scrutinee.span.end),
               pattern,
               guards,
               body,
             }
             let matching = mk_term(
-              Span::new(self.source, start_pos, end_pos),
+              Span(self.source, start_pos, end_pos),
               Match([scrutinee], [clause], default),
             )
             mk_stmt(self.span().synthesized(), StmtKind::Return(matching))
@@ -1558,7 +1550,7 @@ fn Parser::effect_def(self : Parser, info : Info) -> Def raise EffektError {
 fn Parser::operation_def(self : Parser, info : Info) -> Def raise EffektError {
   self.consume(KEffect)
   let op = self.operation(info)
-  let id = IdDef::new(op.id.name, op.id.span)
+  let id = IdDef(op.id.name, op.id.span)
   let single : Operation = { ..op, tparams: [], }
   mk_def(self.span(), info, InterfaceDef(id, op.tparams, [single]))
 }
@@ -1785,7 +1777,7 @@ fn Parser::maybe_extern_bodies(
       let bodies = self.many_while(() => self.extern_body(splice, eff), () => {
         self.is_extern_body_start()
       })
-      Many::new(bodies, self.span())
+      Many(bodies, self.span())
     } else {
       Many::empty(self.span())
     }
@@ -2068,7 +2060,7 @@ fn Parser::desugar_with_patterns(
         AnyPattern(id) => { id, tpe: None, is_implicit: false, }
         _ =>
           {
-            id: IdDef::new("__ignored", p.span.synthesized()),
+            id: IdDef("__ignored", p.span.synthesized()),
             tpe: None,
             is_implicit: false,
           }
@@ -2089,7 +2081,7 @@ fn Parser::desugar_with_patterns(
     for i = 0; i < pattern_list.length(); i = i + 1 {
       let sp = pattern_list[i].span
       vparams.push({
-        id: IdDef::new(names[i], sp.synthesized()),
+        id: IdDef(names[i], sp.synthesized()),
         tpe: None,
         is_implicit: false,
       })
@@ -2100,7 +2092,7 @@ fn Parser::desugar_with_patterns(
       scrutinees.push(
         mk_term(
           sp.synthesized(),
-          TermKind::Var(IdRef::new(names[i], sp.synthesized())),
+          TermKind::Var(IdRef(names[i], sp.synthesized())),
         ),
       )
     }
@@ -2400,7 +2392,7 @@ fn Parser::operation_implementation(
     BlockLiteral(_, vps, bps, body) => (vps, bps, body)
     _ => self.fail("Expected a block literal")
   }
-  let synthesized_id = IdRef::new(id.name, id.span.synthesized())
+  let synthesized_id = IdRef(id.name, id.span.synthesized())
   let interface = mk_type(
     id.span.synthesized(),
     TypeKind::TypeRef(id, tps.items),
@@ -2464,7 +2456,7 @@ fn Parser::op_clause(self : Parser) -> OpClause raise EffektError {
 
 ///|
 fn Parser::implicit_resume(self : Parser) -> IdDef raise EffektError {
-  self.nonterminal(() => IdDef::new("resume", self.span()))
+  self.nonterminal(() => IdDef("resume", self.span()))
 }
 
 // ---------------------------------------------------------------------------
@@ -2533,10 +2525,7 @@ fn Parser::match_pattern(self : Parser) -> MatchPattern raise EffektError {
         )
         mk_pattern(self.span(), PatternKind::TagPattern(id, args.items))
       } else if id.path.length() == 0 {
-        mk_pattern(
-          id.span,
-          PatternKind::AnyPattern(IdDef::new(id.name, id.span)),
-        )
+        mk_pattern(id.span, PatternKind::AnyPattern(IdDef(id.name, id.span)))
       } else {
         self.fail("Cannot use qualified names to bind a pattern variable")
       }
@@ -2764,8 +2753,8 @@ fn Parser::binary_op(
   rhs : Term,
 ) -> Term raise EffektError {
   self.nonterminal(() => {
-    let op_span = Span::new(self.source, op.start, op.end).synthesized()
-    let target = IdTarget(IdRef::new(self.op_name(op.kind), op_span))
+    let op_span = Span(self.source, op.start, op.end).synthesized()
+    let target = IdTarget(IdRef(self.op_name(op.kind), op_span))
     let full_span = Span::with_origin(
       self.source,
       lhs.span.start,
@@ -2853,7 +2842,7 @@ fn Parser::prim_expr(self : Parser) -> Term raise EffektError {
               TPlusEq | TMinusEq | TStarEq | TSlashEq => {
                 let op = self.next()
                 let operand = self.expr()
-                let op_span = Span::new(self.source, op.start, op.end).synthesized()
+                let op_span = Span(self.source, op.start, op.end).synthesized()
                 let rhs = mk_term(
                   Span::with_origin(
                     self.source,
@@ -2862,7 +2851,7 @@ fn Parser::prim_expr(self : Parser) -> Term raise EffektError {
                     Synthesized,
                   ),
                   TermKind::Call(
-                    IdTarget(IdRef::new(self.op_name(op.kind), op_span)),
+                    IdTarget(IdRef(self.op_name(op.kind), op_span)),
                     [],
                     [ValueArg::unnamed(lhs), ValueArg::unnamed(operand)],
                     [],
@@ -2910,7 +2899,7 @@ fn Parser::is_list_literal(self : Parser) -> Bool raise EffektError {
 ///|
 fn Parser::nil_tree(self : Parser) -> Term {
   let sp = self.span()
-  mk_term(sp, TermKind::Call(IdTarget(IdRef::new("Nil", sp)), [], [], []))
+  mk_term(sp, TermKind::Call(IdTarget(IdRef("Nil", sp)), [], [], []))
 }
 
 ///|
@@ -2919,7 +2908,7 @@ fn cons_tree(el : Spanned[Term], rest : Term) -> Term {
   mk_term(
     sp,
     TermKind::Call(
-      IdTarget(IdRef::new("Cons", sp)),
+      IdTarget(IdRef("Cons", sp)),
       [],
       [ValueArg::unnamed(el.unspan), ValueArg::unnamed(rest)],
       [],
@@ -2982,7 +2971,7 @@ fn Parser::hole(self : Parser) -> Term raise EffektError {
         let sp = self.span().synthesized()
         mk_term(
           self.span(),
-          TermKind::Hole(IdDef::new("hole", sp), Template::empty()),
+          TermKind::Hole(IdDef("hole", sp), Template::empty()),
         )
       }
       THoleStart => {
@@ -2992,13 +2981,13 @@ fn Parser::hole(self : Parser) -> Term raise EffektError {
         let sp = self.span().synthesized()
         mk_term(
           self.span(),
-          TermKind::Hole(IdDef::new("hole", sp), Template::new([], [body])),
+          TermKind::Hole(IdDef("hole", sp), Template([], [body])),
         )
       }
       THoleStr(_) => {
         let body = self.hole_template()
         let sp = self.span().synthesized()
-        mk_term(self.span(), TermKind::Hole(IdDef::new("hole", sp), body))
+        mk_term(self.span(), TermKind::Hole(IdDef("hole", sp), body))
       }
       _ => self.fail_expected("hole", kind)
     }
@@ -3020,7 +3009,7 @@ fn Parser::hole_template(self : Parser) -> Template[Stmt] raise EffektError {
     }
     let all_strings : Array[String] = [first]
     all_strings.append(strings)
-    Template::new(all_strings, bodies)
+    Template(all_strings, bodies)
   })
 }
 
@@ -3140,7 +3129,7 @@ fn Parser::template_string(
               "String interpolation requires an explicit interpolator. For example: s\"...\"",
               start, end,
             )
-            IdRef::new("s", synth_span)
+            IdRef("s", synth_span)
           }
         }
         let do_lits : Array[Term] = template.strings.map(s => {
@@ -3151,12 +3140,7 @@ fn Parser::template_string(
           )
           mk_term(
             sp,
-            TermKind::Do(
-              IdRef::new("write", sp),
-              [],
-              [ValueArg::unnamed(arg)],
-              [],
-            ),
+            TermKind::Do(IdRef("write", sp), [], [ValueArg::unnamed(arg)], []),
           )
         })
         let do_splices : Array[Term] = template.args.map(arg => {
@@ -3164,7 +3148,7 @@ fn Parser::template_string(
           mk_term(
             sp,
             TermKind::Do(
-              IdRef::new("splice", sp),
+              IdRef("splice", sp),
               [],
               [ValueArg::unnamed(arg.unspan)],
               [],
@@ -3387,7 +3371,7 @@ fn Parser::function_arg(self : Parser) -> Term raise EffektError {
           let vparams : Array[ValueParam] = []
           for i = 0; i < arg_spans.length(); i = i + 1 {
             vparams.push({
-              id: IdDef::new(names[i], arg_spans[i].synthesized()),
+              id: IdDef(names[i], arg_spans[i].synthesized()),
               tpe: None,
               is_implicit: false,
             })
@@ -3397,7 +3381,7 @@ fn Parser::function_arg(self : Parser) -> Term raise EffektError {
             scrutinees.push(
               mk_term(
                 arg_spans[i].synthesized(),
-                TermKind::Var(IdRef::new(names[i], arg_spans[i].synthesized())),
+                TermKind::Var(IdRef(names[i], arg_spans[i].synthesized())),
               ),
             )
           }
@@ -3905,7 +3889,7 @@ fn Parser::maybe_block_params(
       },
       TLBrace,
     )
-    Many::new(params, self.span())
+    Many(params, self.span())
   })
 }
 
@@ -4047,7 +4031,7 @@ pub fn parse_module_decl(
 ) -> ModuleDecl? raise EffektError {
   context.set_phase("parser")
   let tokens = Lexer::lex(source)
-  let parser = Parser::new(tokens, source, context)
+  let parser = Parser(tokens, source, context)
   parser.parse_program()
 }
 
@@ -4060,7 +4044,7 @@ pub fn parse_term(
 ) -> Term? raise EffektError {
   context.set_phase("parser")
   let tokens = Lexer::lex(source)
-  let parser = Parser::new(tokens, source, context)
+  let parser = Parser(tokens, source, context)
   parser.parse_term_entry()
 }
 
@@ -4072,7 +4056,7 @@ pub fn parse_statement(
 ) -> Stmt? raise EffektError {
   context.set_phase("parser")
   let tokens = Lexer::lex(source)
-  let parser = Parser::new(tokens, source, context)
+  let parser = Parser(tokens, source, context)
   try {
     let stmt = parser.nonterminal(() => {
       parser.spaces()

@@ -9,7 +9,7 @@
 
 ///|
 fn jname(s : String) -> @symbols.JSName {
-  @symbols.JSName::new(s)
+  @symbols.JSName(s)
 }
 
 ///|
@@ -36,7 +36,7 @@ fn main_binding() -> @js.Stmt {
 
 ///|
 test "js pretty: module skeleton (virtual)" {
-  let m = @js.Module::new(jname("mymod"), [], [], [main_binding()])
+  let m = @js.Module(jname("mymod"), [], [], [main_binding()])
   let expected =
     #|const $effekt = {};
     #|const mymod = {};
@@ -49,7 +49,7 @@ test "js pretty: module skeleton (virtual)" {
 
 ///|
 test "js pretty: module skeleton (commonjs)" {
-  let m = @js.Module::new(jname("mymod"), [], [], [main_binding()])
+  let m = @js.Module(jname("mymod"), [], [], [main_binding()])
   let stmts = m.commonjs()
   assert_eq(stmts.length(), 3)
   let rendered = @js.show_stmts(stmts)
@@ -68,7 +68,7 @@ test "js pretty: module skeleton (commonjs)" {
 
 ///|
 test "js pretty: import statements" {
-  let m = @js.Module::new(
+  let m = @js.Module(
     jname("mymod"),
     [
       @js.ImportAll(jname("dep"), "dep.js"),
@@ -91,12 +91,8 @@ test "js pretty: switch/case" {
   let stmt = @js.Switch(
     variable("sc"),
     [
-      @js.SwitchBranch::new(@js.raw_expr("0"), [
-        @js.Return(@js.js_string("zero")),
-      ]),
-      @js.SwitchBranch::new(@js.raw_expr("1"), [
-        @js.Return(@js.js_string("one")),
-      ]),
+      @js.SwitchBranch(@js.raw_expr("0"), [@js.Return(@js.js_string("zero"))]),
+      @js.SwitchBranch(@js.raw_expr("1"), [@js.Return(@js.js_string("one"))]),
     ],
     Some([@js.Return(@js.js_string("other"))]),
   )
@@ -161,8 +157,8 @@ test "js pretty: calls, members and objects" {
 ///|
 test "js pretty: object literal" {
   let e = @js.Object([
-    @js.ObjectProperty::new(jname("run"), variable("main")),
-    @js.ObjectProperty::new(jname("resume"), variable("k")),
+    @js.ObjectProperty(jname("run"), variable("main")),
+    @js.ObjectProperty(jname("resume"), variable("k")),
   ])
   assert_eq(@js.show_expr(e), "{ run: main,resume: k }")
 }

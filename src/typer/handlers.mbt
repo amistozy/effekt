@@ -61,7 +61,7 @@ fn Typer::check_expr_as_block_kind(
       match self.st.u.prune_value(res.tpe) {
         @symbols.ValueType::BoxedType(btpe, capt2) => {
           self.using_capture(capt2)
-          TyRes::new(btpe, res.effs)
+          TyRes(btpe, res.effs)
         }
         @symbols.ValueType::ValueTypeRef(x) =>
           if self.st.u.is_type_var(x) {
@@ -95,7 +95,7 @@ fn Typer::check_expr_as_block_kind(
                   None,
                 )
                 self.using_capture(capt_var)
-                TyRes::new(partial_fn, res.effs)
+                TyRes(partial_fn, res.effs)
               }
               None => self.abort(e.span, self.unbox_error(e, res.tpe))
             }
@@ -114,7 +114,7 @@ fn Typer::check_expr_as_block_kind(
           None => ()
         }
         self.using_capture(self.lookup_capture(sym))
-        TyRes::new(tpe, Effects::empty())
+        TyRes(tpe, Effects::empty())
       } else {
         self.abort(
           e.span,
@@ -385,7 +385,7 @@ pub fn Typer::check_function_argument(
       // an unsolved unification variable. Prune before subtracting, exactly as
       // `check_try_handle` does, or the handled operation is left over as
       // unhandled.
-      TyRes::new(
+      TyRes(
         tpe,
         eff_diff(
           self.st.u.prune_effects(res.effs),
@@ -472,7 +472,7 @@ pub fn Typer::infer_function_argument(
       self.using_capture_without(inferred, capt_param_syms)
       ignore(type_params)
       self.annotate_block(arg.uid, fun_type)
-      TyRes::new(fun_type, Effects::empty())
+      TyRes(fun_type, Effects::empty())
     }
     _ => self.abort(arg.span, "Expected a block literal.")
   }
@@ -525,7 +525,7 @@ pub fn Typer::check_implementation(
     handler_effects = eff_union(handler_effects, effs)
   }
   self.annotate_block(implementation.uid, tpe)
-  TyRes::new(tpe, handler_effects)
+  TyRes(tpe, handler_effects)
 }
 
 ///|
@@ -881,13 +881,10 @@ pub fn Typer::check_try_handle(
   // the escape checks live in wellformedness.mbt (the pass after this one)\n\n
   // the captures of the handler continue flowing into the outer scope
   self.using_capture(continuation_capt)
-  TyRes::new(
+  TyRes(
     prog_res.tpe,
     eff_union(
-      eff_diff(
-        self.st.u.prune_effects(prog_res.effs),
-        Effects::new(handled_effects),
-      ),
+      eff_diff(self.st.u.prune_effects(prog_res.effs), Effects(handled_effects)),
       handler_effs,
     ),
   )

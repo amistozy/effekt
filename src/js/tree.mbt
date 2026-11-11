@@ -10,19 +10,19 @@
 ///|
 /// The `$effekt` runtime namespace.
 pub fn effekt_namespace() -> Expr {
-  Variable(JSName::new("$effekt"))
+  Variable(JSName("$effekt"))
 }
 
 ///|
 /// `$effekt.<name>`: a reference to a runtime field.
 pub fn effekt_field(name : String) -> Expr {
-  Member(effekt_namespace(), JSName::new(name))
+  Member(effekt_namespace(), JSName(name))
 }
 
 ///|
 /// `$effekt.<name>(args...)`: a call into the runtime.
 pub fn effekt_call(name : String, args : Array[Expr]) -> Expr {
-  method_call(effekt_namespace(), JSName::new(name), args)
+  method_call(effekt_namespace(), JSName(name), args)
 }
 
 // ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ pub(all) struct Export {
 }
 
 ///|
-pub fn Export::new(name : JSName, expr : Expr) -> Export {
+pub fn Export::Export(name : JSName, expr : Expr) -> Export {
   { name, expr, }
 }
 
@@ -57,7 +57,7 @@ pub(all) struct Module {
 }
 
 ///|
-pub fn Module::new(
+pub fn Module::Module(
   name : JSName,
   imports : Array[Import],
   exports : Array[Export],
@@ -69,10 +69,7 @@ pub fn Module::new(
 ///|
 /// Generates the JavaScript module skeleton for whole program compilation.
 pub fn Module::commonjs(self : Module) -> Array[Stmt] {
-  let effekt = Stmt::Const(
-    PatternVariable(JSName::new("$effekt")),
-    Expr::Object([]),
-  )
+  let effekt = Stmt::Const(PatternVariable(JSName("$effekt")), Expr::Object([]))
   let import_stmts : Array[Stmt] = []
   for i in self.imports {
     match i {
@@ -81,7 +78,7 @@ pub fn Module::commonjs(self : Module) -> Array[Stmt] {
         import_stmts.push(
           Stmt::Const(
             PatternVariable(name),
-            call(Variable(JSName::new("require")), [js_string("./\{file}")]),
+            call(Variable(JSName("require")), [js_string("./\{file}")]),
           ),
         )
       // const {NAMES, ...} = require(PATH)
@@ -89,7 +86,7 @@ pub fn Module::commonjs(self : Module) -> Array[Stmt] {
         import_stmts.push(
           Stmt::Destruct(
             names,
-            call(Variable(JSName::new("require")), [js_string("./\{file}")]),
+            call(Variable(JSName("require")), [js_string("./\{file}")]),
           ),
         )
     }
@@ -101,7 +98,7 @@ pub fn Module::commonjs(self : Module) -> Array[Stmt] {
       ],
       [],
     ),
-    Expr::Object(self.exports.map(e => ObjectProperty::new(e.name, e.expr))),
+    Expr::Object(self.exports.map(e => ObjectProperty(e.name, e.expr))),
   )
   [effekt] + import_stmts + self.stmts + [export_statement]
 }
@@ -118,24 +115,21 @@ pub fn Module::commonjs(self : Module) -> Array[Stmt] {
 /// }
 /// ```
 pub fn Module::virtual(self : Module) -> Array[Stmt] {
-  let effekt = Stmt::Const(
-    PatternVariable(JSName::new("$effekt")),
-    Expr::Object([]),
-  )
+  let effekt = Stmt::Const(PatternVariable(JSName("$effekt")), Expr::Object([]))
   let import_stmts : Array[Stmt] = []
   for i in self.imports {
     match i {
       // const MOD = load(PATH)
       ImportAll(name, file) =>
         import_stmts.push(
-          js_const(name, call(Variable(JSName::new("load")), [js_string(file)])),
+          js_const(name, call(Variable(JSName("load")), [js_string(file)])),
         )
       // const {NAMES, ...} = load(PATH)
       ImportSelective(names, file) =>
         import_stmts.push(
           Stmt::Destruct(
             names,
-            call(Variable(JSName::new("load")), [js_string(file)]),
+            call(Variable(JSName("load")), [js_string(file)]),
           ),
         )
     }
@@ -143,7 +137,7 @@ pub fn Module::virtual(self : Module) -> Array[Stmt] {
   let declaration = Stmt::Const(PatternVariable(self.name), Expr::Object([]))
   let export_statement = Stmt::Assign(
     Expr::RawExpr(["module.exports"], []),
-    Expr::Object(self.exports.map(e => ObjectProperty::new(e.name, e.expr))),
+    Expr::Object(self.exports.map(e => ObjectProperty(e.name, e.expr))),
   )
   [effekt] + import_stmts + [declaration] + self.stmts + [export_statement]
 }
@@ -187,7 +181,10 @@ pub(all) struct ObjectProperty {
 }
 
 ///|
-pub fn ObjectProperty::new(name : JSName, value : Expr) -> ObjectProperty {
+pub fn ObjectProperty::ObjectProperty(
+  name : JSName,
+  value : Expr,
+) -> ObjectProperty {
   { name, value, }
 }
 
@@ -209,7 +206,10 @@ pub(all) struct SwitchBranch {
 }
 
 ///|
-pub fn SwitchBranch::new(tag : Expr, body : Array[Stmt]) -> SwitchBranch {
+pub fn SwitchBranch::SwitchBranch(
+  tag : Expr,
+  body : Array[Stmt],
+) -> SwitchBranch {
   { tag, body, }
 }
 

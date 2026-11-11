@@ -16,12 +16,12 @@ fn sym(name : String) -> @symbols.Sym {
 
 ///|
 fn vparam(name : String) -> @core.ValueParam {
-  @core.ValueParam::new(sym(name), @symbols.t_int())
+  @core.ValueParam(sym(name), @symbols.t_int())
 }
 
 ///|
 fn bparam(name : String) -> @core.BlockParam {
-  @core.BlockParam::new(
+  @core.BlockParam(
     @symbols.Sym::block_param(
       @symbols.Name::local(name),
       None,
@@ -57,7 +57,7 @@ fn int_pure(i : Int32) -> @cps.Expr {
 
 ///|
 fn empty_core_module() -> @core.ModuleDecl {
-  @core.ModuleDecl::new("test", [], [], [], [], [])
+  @core.ModuleDecl("test", [], [], [], [], [])
 }
 
 ///|
@@ -67,7 +67,7 @@ fn compile(
   block : @core.Block,
   core_module : @core.ModuleDecl,
 ) -> String raise @util.EffektError {
-  let module = @core.ModuleDecl::new(
+  let module = @core.ModuleDecl(
     "test",
     [],
     core_module.declarations,
@@ -91,7 +91,7 @@ fn compile_cps_block(
   main : @symbols.Sym,
   block : @cps.Block,
 ) -> String raise @util.EffektError {
-  let module = @cps.ModuleDecl::new(
+  let module = @cps.ModuleDecl(
     "test",
     [],
     [],
@@ -135,7 +135,7 @@ test "js: a toplevel val is run by RUN_TOPLEVEL" {
   let main = sym("main")
   let ks = sym("ks")
   let k = sym("k")
-  let module = @cps.ModuleDecl::new(
+  let module = @cps.ModuleDecl(
     "test",
     [],
     [],
@@ -145,7 +145,7 @@ test "js: a toplevel val is run by RUN_TOPLEVEL" {
         main,
         ks,
         k,
-        @cps.Jump(k, [int_pure(1)], @cps.MetaCont::new(ks)),
+        @cps.Jump(k, [int_pure(1)], @cps.MetaCont(ks)),
       ),
     ],
     [main],
@@ -255,14 +255,10 @@ test "js: a match compiles to a switch with numeric case labels" {
   let field0 = sym("field0")
   let field1 = sym("field1")
   let declaration = @core.DeclarationData(data, [], [
-    @core.Constructor::new(ctor0, [], [
-      @core.Field::new(field0, @symbols.t_int()),
-    ]),
-    @core.Constructor::new(ctor1, [], [
-      @core.Field::new(field1, @symbols.t_int()),
-    ]),
+    @core.Constructor(ctor0, [], [@core.Field(field0, @symbols.t_int())]),
+    @core.Constructor(ctor1, [], [@core.Field(field1, @symbols.t_int())]),
   ])
-  let core_module : @core.ModuleDecl = @core.ModuleDecl::new(
+  let core_module : @core.ModuleDecl = @core.ModuleDecl(
     "test",
     [],
     [declaration],
@@ -271,7 +267,7 @@ test "js: a match compiles to a switch with numeric case labels" {
     [],
   )
   let scrutinee = @core.Expr::ValueVar(x, @symbols.t_int())
-  let clause0 = @core.Clause::new(
+  let clause0 = @core.Clause(
     ctor0,
     @core.BlockLit::new(
       [],
@@ -281,7 +277,7 @@ test "js: a match compiles to a switch with numeric case labels" {
       @core.Stmt::Return(int_expr(1)),
     ),
   )
-  let clause1 = @core.Clause::new(
+  let clause1 = @core.Clause(
     ctor1,
     @core.BlockLit::new(
       [],
@@ -319,9 +315,9 @@ test "js: a data declaration generates a class with tag, reflect and equals" {
   let ctor = sym("Ctor")
   let field = sym("field")
   let declaration = @core.DeclarationData(data, [], [
-    @core.Constructor::new(ctor, [], [@core.Field::new(field, @symbols.t_int())]),
+    @core.Constructor(ctor, [], [@core.Field(field, @symbols.t_int())]),
   ])
-  let core_module : @core.ModuleDecl = @core.ModuleDecl::new(
+  let core_module : @core.ModuleDecl = @core.ModuleDecl(
     "test",
     [],
     [declaration],
@@ -412,7 +408,7 @@ test "js: a non-tail recursive call rebuilds the continuation" {
     @core.BlockLit::new(
       [],
       [],
-      [@core.ValueParam::new(x, @symbols.t_int())],
+      [@core.ValueParam(x, @symbols.t_int())],
       [],
       @core.Stmt::Val(
         tmp,
@@ -464,12 +460,12 @@ test "js: a continuation only jumped to is compiled in direct style" {
       k,
       @cps.LetCont(
         k1,
-        @cps.ContLam::new(
+        @cps.ContLam(
           [x],
           ks1,
-          @cps.Jump(k, [@cps.Expr::ValueVar(x)], @cps.MetaCont::new(ks1)),
+          @cps.Jump(k, [@cps.Expr::ValueVar(x)], @cps.MetaCont(ks1)),
         ),
-        @cps.Jump(k1, [int_pure(1)], @cps.MetaCont::new(ks)),
+        @cps.Jump(k1, [int_pure(1)], @cps.MetaCont(ks)),
       ),
     ),
   )
@@ -498,7 +494,7 @@ test "js: an extern with value parameters only is inlined" {
   let main = sym("main")
   let ext = sym("ext")
   let p = sym("p")
-  let template = @util.Template::new(["(", " + 1)"], [@cps.Expr::ValueVar(p)])
+  let template = @util.Template(["(", " + 1)"], [@cps.Expr::ValueVar(p)])
   let extern_def = @cps.ExternDef(
     ext,
     [p],
@@ -506,7 +502,7 @@ test "js: an extern with value parameters only is inlined" {
     false,
     @cps.StringExternBody(@source.Default, template),
   )
-  let module = @cps.ModuleDecl::new(
+  let module = @cps.ModuleDecl(
     "test",
     [],
     [],
@@ -523,7 +519,7 @@ test "js: an extern with value parameters only is inlined" {
             @cps.Jump(
               sym("k"),
               [@cps.Expr::PureApp(ext, [int_pure(1)])],
-              @cps.MetaCont::new(sym("ks")),
+              @cps.MetaCont(sym("ks")),
             ),
           ),
         ),
@@ -549,7 +545,7 @@ test "js: an async extern is not inlined" {
   let main = sym("main")
   let ext = sym("ext")
   let p = sym("p")
-  let template = @util.Template::new(["(", " + 1)"], [@cps.Expr::ValueVar(p)])
+  let template = @util.Template(["(", " + 1)"], [@cps.Expr::ValueVar(p)])
   let extern_def = @cps.ExternDef(
     ext,
     [p],
@@ -557,7 +553,7 @@ test "js: an async extern is not inlined" {
     true,
     @cps.StringExternBody(@source.Default, template),
   )
-  let module = @cps.ModuleDecl::new(
+  let module = @cps.ModuleDecl(
     "test",
     [],
     [],
@@ -574,7 +570,7 @@ test "js: an async extern is not inlined" {
             @cps.Jump(
               sym("k"),
               [@cps.Expr::PureApp(ext, [int_pure(1)])],
-              @cps.MetaCont::new(sym("ks")),
+              @cps.MetaCont(sym("ks")),
             ),
           ),
         ),
@@ -630,22 +626,20 @@ fn handled_body_module() -> @cps.ModuleDecl {
           [prompt],
           ks_p,
           k_p,
-          @cps.Jump(k_p, [int_pure(0)], @cps.MetaCont::new(ks_p)),
+          @cps.Jump(k_p, [int_pure(0)], @cps.MetaCont(ks_p)),
         ),
-        @cps.MetaCont::new(ks),
+        @cps.MetaCont(ks),
         @cps.Cont::ContLam(
-          @cps.ContLam::new(
+          @cps.ContLam(
             [r],
             ks_r,
-            @cps.Jump(k, [@cps.Expr::ValueVar(r)], @cps.MetaCont::new(ks_r)),
+            @cps.Jump(k, [@cps.Expr::ValueVar(r)], @cps.MetaCont(ks_r)),
           ),
         ),
       ),
     ),
   )
-  @cps.ModuleDecl::new("test", [], [], [], [@cps.ToplevelDef(main, block)], [
-    main,
-  ])
+  @cps.ModuleDecl("test", [], [], [], [@cps.ToplevelDef(main, block)], [main])
 }
 
 ///|
@@ -694,11 +688,11 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
     false,
     @cps.StringExternBody(
       @source.Default,
-      @util.Template::new(["$effekt.println(", ")"], [@cps.Expr::ValueVar(msg)]),
+      @util.Template(["$effekt.println(", ")"], [@cps.Expr::ValueVar(msg)]),
     ),
   )
   // def raise(e, msg) = shift(p) { (b_k, ks, k) => println(msg); jump k(0, ks) }
-  let operation = @cps.Operation::new(
+  let operation = @cps.Operation(
     raise_op,
     [e, msg],
     [],
@@ -716,10 +710,10 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
           println_ext,
           [@cps.Expr::ValueVar(msg)],
           [],
-          @cps.Jump(k_s, [int_pure(0)], @cps.MetaCont::new(ks_s)),
+          @cps.Jump(k_s, [int_pure(0)], @cps.MetaCont(ks_s)),
         ),
       ),
-      @cps.MetaCont::new(ks_o),
+      @cps.MetaCont(ks_o),
       @cps.ContVar(k_o),
     ),
   )
@@ -731,7 +725,7 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
     k_p,
     @cps.LetDef(
       exc_cap,
-      @cps.Block::New(@cps.Implementation::new(exc_tpe, [operation])),
+      @cps.Block::New(@cps.Implementation(exc_tpe, [operation])),
       @cps.Invoke(
         @cps.Block::BlockVar(exc_cap),
         raise_op,
@@ -740,7 +734,7 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
           @cps.Expr::Literal(@source.LString("boom"), @symbols.t_string()),
         ],
         [],
-        @cps.MetaCont::new(ks_p),
+        @cps.MetaCont(ks_p),
         @cps.ContVar(k_p),
       ),
     ),
@@ -753,18 +747,18 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
       k,
       @cps.Reset(
         prog,
-        @cps.MetaCont::new(ks),
+        @cps.MetaCont(ks),
         @cps.Cont::ContLam(
-          @cps.ContLam::new(
+          @cps.ContLam(
             [r],
             ks_r,
-            @cps.Jump(k, [@cps.Expr::ValueVar(r)], @cps.MetaCont::new(ks_r)),
+            @cps.Jump(k, [@cps.Expr::ValueVar(r)], @cps.MetaCont(ks_r)),
           ),
         ),
       ),
     ),
   )
-  let module = @cps.ModuleDecl::new(
+  let module = @cps.ModuleDecl(
     "test",
     [],
     [],
@@ -836,7 +830,7 @@ test "js: a handler operation whose body performs an effectful call" {
 /// `Typer.checkMain`).
 test "js: a main with capability parameters is rejected" {
   let main = sym("main")
-  let exc = @core.BlockParam::new(
+  let exc = @core.BlockParam(
     @symbols.Sym::block_param(
       @symbols.Name::local("Exception"),
       None,
@@ -850,7 +844,7 @@ test "js: a main with capability parameters is rejected" {
   let block = @core.Block::BlockLit(
     @core.BlockLit::new([], [], [], [exc], @core.Stmt::Return(int_expr(0))),
   )
-  let core_module = @core.ModuleDecl::new(
+  let core_module = @core.ModuleDecl(
     "test",
     [],
     [],
@@ -930,12 +924,12 @@ test "js: golden output" {
           k,
           @cps.LetCont(
             k1,
-            @cps.ContLam::new(
+            @cps.ContLam(
               [x],
               ks1,
-              @cps.Jump(k, [@cps.Expr::ValueVar(x)], @cps.MetaCont::new(ks1)),
+              @cps.Jump(k, [@cps.Expr::ValueVar(x)], @cps.MetaCont(ks1)),
             ),
-            @cps.Jump(k1, [int_pure(1)], @cps.MetaCont::new(ks)),
+            @cps.Jump(k1, [int_pure(1)], @cps.MetaCont(ks)),
           ),
         ),
       ),
@@ -950,14 +944,10 @@ test "js: golden output" {
   let field0 = sym("field0")
   let field1 = sym("field1")
   let declaration = @core.DeclarationData(data, [], [
-    @core.Constructor::new(ctor0, [], [
-      @core.Field::new(field0, @symbols.t_int()),
-    ]),
-    @core.Constructor::new(ctor1, [], [
-      @core.Field::new(field1, @symbols.t_int()),
-    ]),
+    @core.Constructor(ctor0, [], [@core.Field(field0, @symbols.t_int())]),
+    @core.Constructor(ctor1, [], [@core.Field(field1, @symbols.t_int())]),
   ])
-  let core_module : @core.ModuleDecl = @core.ModuleDecl::new(
+  let core_module : @core.ModuleDecl = @core.ModuleDecl(
     "test",
     [],
     [declaration],
@@ -970,7 +960,7 @@ test "js: golden output" {
     @core.Expr::ValueVar(x2, @symbols.t_int()),
     @symbols.t_int(),
     [
-      @core.Clause::new(
+      @core.Clause(
         ctor0,
         @core.BlockLit::new(
           [],
@@ -980,7 +970,7 @@ test "js: golden output" {
           @core.Stmt::Return(int_expr(1)),
         ),
       ),
-      @core.Clause::new(
+      @core.Clause(
         ctor1,
         @core.BlockLit::new(
           [],
@@ -1083,7 +1073,7 @@ test "js: golden output" {
             @core.BlockLit::new(
               [],
               [],
-              [@core.ValueParam::new(y, @symbols.t_int())],
+              [@core.ValueParam(y, @symbols.t_int())],
               [],
               @core.Stmt::Val(
                 tmp,

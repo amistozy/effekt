@@ -291,7 +291,7 @@ pub struct Lexer {
 }
 
 ///|
-pub fn Lexer::new(source : Source) -> Lexer {
+pub fn Lexer::Lexer(source : Source) -> Lexer {
   let content = source.content
   let current = char_at(content, 0)
   {
@@ -321,16 +321,16 @@ pub fn Lexer::next(self : Lexer) -> Token {
   let kind = self.next_token()
   if kind == TEOF {
     self.eof = true
-    Token::new(self.token_start, self.offset, kind)
+    Token(self.token_start, self.offset, kind)
   } else {
-    Token::new(self.token_start, self.offset - 1, kind)
+    Token(self.token_start, self.offset - 1, kind)
   }
 }
 
 ///|
 /// Lexes an entire source file. The result includes the final `TEOF` token.
 pub fn Lexer::lex(source : Source) -> Array[Token] {
-  let lexer = Lexer::new(source)
+  let lexer = Lexer(source)
   let tokens : Array[Token] = []
   while lexer.has_next() {
     tokens.push(lexer.next())

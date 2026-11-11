@@ -64,7 +64,7 @@ pub(all) struct ModuleDecl {
 }
 
 ///|
-pub fn ModuleDecl::new(
+pub fn ModuleDecl::ModuleDecl(
   path : String,
   includes : Array[String],
   declarations : Array[Declaration],
@@ -104,7 +104,7 @@ pub(all) struct Constructor {
 }
 
 ///|
-pub fn Constructor::new(
+pub fn Constructor::Constructor(
   id : Sym,
   tparams : Array[Sym],
   fields : Array[Field],
@@ -119,7 +119,7 @@ pub(all) struct Field {
 }
 
 ///|
-pub fn Field::new(id : Sym, tpe : ValueType) -> Field {
+pub fn Field::Field(id : Sym, tpe : ValueType) -> Field {
   { id, tpe, }
 }
 
@@ -130,7 +130,7 @@ pub(all) struct Property {
 }
 
 ///|
-pub fn Property::new(id : Sym, tpe : BlockType) -> Property {
+pub fn Property::Property(id : Sym, tpe : BlockType) -> Property {
   { id, tpe, }
 }
 
@@ -169,7 +169,9 @@ pub(all) struct QualifiedSignature {
 }
 
 ///|
-pub fn QualifiedSignature::new(name : String) -> QualifiedSignature {
+pub fn QualifiedSignature::QualifiedSignature(
+  name : String,
+) -> QualifiedSignature {
   { name, }
 }
 
@@ -288,7 +290,7 @@ pub(all) struct ValueParam {
 }
 
 ///|
-pub fn ValueParam::new(id : Sym, tpe : ValueType) -> ValueParam {
+pub fn ValueParam::ValueParam(id : Sym, tpe : ValueType) -> ValueParam {
   { id, tpe, }
 }
 
@@ -300,7 +302,7 @@ pub(all) struct BlockParam {
 }
 
 ///|
-pub fn BlockParam::new(
+pub fn BlockParam::BlockParam(
   id : Sym,
   tpe : BlockType,
   capt : Captures,
@@ -355,7 +357,7 @@ pub(all) struct Clause {
 }
 
 ///|
-pub fn Clause::new(tag : Sym, body : BlockLit) -> Clause {
+pub fn Clause::Clause(tag : Sym, body : BlockLit) -> Clause {
   { tag, body, }
 }
 
@@ -375,7 +377,7 @@ pub(all) struct Implementation {
 }
 
 ///|
-pub fn Implementation::new(
+pub fn Implementation::Implementation(
   interface : BlockType,
   operations : Array[Operation],
 ) -> Implementation {
@@ -394,7 +396,7 @@ pub(all) struct Operation {
 }
 
 ///|
-pub fn Operation::new(
+pub fn Operation::Operation(
   name : Sym,
   tparams : Array[Sym],
   cparams : Array[Sym],

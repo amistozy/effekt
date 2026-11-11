@@ -32,7 +32,7 @@ pub struct Unification {
 }
 
 ///|
-pub fn Unification::new() -> Unification {
+pub fn Unification::Unification() -> Unification {
   {
     types: Map([]),
     capts: Map([]),
@@ -134,7 +134,7 @@ pub fn Unification::prune_block(self : Unification, t : BlockType) -> BlockType 
         vps.map(v => self.prune_value(v)),
         bps.map(b => self.prune_block(b)),
         self.prune_value(ret),
-        Effects::new(effs.effects.map(e => self.prune_block(e))),
+        Effects(effs.effects.map(e => self.prune_block(e))),
       )
   }
 }
@@ -173,7 +173,7 @@ pub fn Unification::prune_effects(
   self : Unification,
   effs : Effects,
 ) -> Effects {
-  Effects::new(effs.effects.map(e => self.prune_block(e)))
+  Effects(effs.effects.map(e => self.prune_block(e)))
 }
 
 // Type constraints

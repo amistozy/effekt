@@ -107,7 +107,7 @@ pub struct Loader {
 }
 
 ///|
-pub fn Loader::new(roots : Array[String]) -> Loader {
+pub fn Loader::Loader(roots : Array[String]) -> Loader {
   {
     roots,
     prelude_roots: roots.copy(),
@@ -184,7 +184,7 @@ pub fn Loader::load_tree(
         )
       }
       let file = located.unwrap()
-      let source = Source::new(
+      let source = Source(
         file,
         match read_file(file) {
           Some(c) => c

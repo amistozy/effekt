@@ -67,6 +67,6 @@ pub(all) struct JSName {
 }
 
 ///|
-pub fn JSName::new(name : String) -> JSName {
+pub fn JSName::JSName(name : String) -> JSName {
   { name, }
 }

@@ -72,8 +72,8 @@ pub(all) struct Clause {
   vparams : Array[@symbols.Sym]
   body : Stmt
 }
+pub fn Clause::Clause(Array[@symbols.Sym], Stmt) -> Self
 pub fn Clause::free(Self) -> Variables
-pub fn Clause::new(Array[@symbols.Sym], Stmt) -> Self
 pub fn Clause::occurs(Self, @symbols.Sym) -> Bool
 pub fn Clause::size(Self) -> Int32
 
@@ -91,8 +91,8 @@ pub(all) struct ContLam {
   ks : @symbols.Sym
   body : Stmt
 }
+pub fn ContLam::ContLam(Array[@symbols.Sym], @symbols.Sym, Stmt) -> Self
 pub fn ContLam::free(Self) -> Variables
-pub fn ContLam::new(Array[@symbols.Sym], @symbols.Sym, Stmt) -> Self
 pub fn ContLam::occurs(Self, @symbols.Sym) -> Bool
 pub fn ContLam::size(Self) -> Int32
 
@@ -100,8 +100,8 @@ pub(all) struct Def {
   id : @symbols.Sym
   block : Block
 }
+pub fn Def::Def(@symbols.Sym, Block) -> Self
 pub fn Def::free(Self) -> Variables
-pub fn Def::new(@symbols.Sym, Block) -> Self
 pub fn Def::occurs(Self, @symbols.Sym) -> Bool
 pub fn Def::size(Self) -> Int32
 
@@ -134,16 +134,16 @@ pub(all) struct Implementation {
   interface : @symbols.BlockType
   operations : Array[Operation]
 }
+pub fn Implementation::Implementation(@symbols.BlockType, Array[Operation]) -> Self
 pub fn Implementation::free(Self) -> Variables
-pub fn Implementation::new(@symbols.BlockType, Array[Operation]) -> Self
 pub fn Implementation::occurs(Self, @symbols.Sym) -> Bool
 pub fn Implementation::size(Self) -> Int32
 
 pub(all) struct MetaCont {
   id : @symbols.Sym
 }
+pub fn MetaCont::MetaCont(@symbols.Sym) -> Self
 pub fn MetaCont::free(Self) -> Variables
-pub fn MetaCont::new(@symbols.Sym) -> Self
 pub fn MetaCont::size(Self) -> Int32
 
 pub(all) struct ModuleDecl {
@@ -154,7 +154,7 @@ pub(all) struct ModuleDecl {
   definitions : Array[ToplevelDefinition]
   exports : Array[@symbols.Sym]
 }
-pub fn ModuleDecl::new(String, Array[String], Array[@core.Declaration], Array[Extern], Array[ToplevelDefinition], Array[@symbols.Sym]) -> Self
+pub fn ModuleDecl::ModuleDecl(String, Array[String], Array[@core.Declaration], Array[Extern], Array[ToplevelDefinition], Array[@symbols.Sym]) -> Self
 pub fn ModuleDecl::size(Self) -> Int32
 
 pub(all) struct Operation {
@@ -165,8 +165,8 @@ pub(all) struct Operation {
   k : @symbols.Sym
   body : Stmt
 }
+pub fn Operation::Operation(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], @symbols.Sym, @symbols.Sym, Stmt) -> Self
 pub fn Operation::free(Self) -> Variables
-pub fn Operation::new(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], @symbols.Sym, @symbols.Sym, Stmt) -> Self
 pub fn Operation::occurs(Self, @symbols.Sym) -> Bool
 pub fn Operation::size(Self) -> Int32
 
@@ -201,8 +201,8 @@ pub(all) struct Substitution {
   conts : Map[Int32, Cont]
   metaconts : Map[Int32, MetaCont]
 }
+pub fn Substitution::Substitution(Map[Int32, Expr], Map[Int32, Block], Map[Int32, Cont], Map[Int32, MetaCont]) -> Self
 pub fn Substitution::empty() -> Self
-pub fn Substitution::new(Map[Int32, Expr], Map[Int32, Block], Map[Int32, Cont], Map[Int32, MetaCont]) -> Self
 pub fn Substitution::shadow_blocks(Self, Array[@symbols.Sym]) -> Self
 pub fn Substitution::shadow_conts(Self, Array[@symbols.Sym]) -> Self
 pub fn Substitution::shadow_metaconts(Self, Array[@symbols.Sym]) -> Self

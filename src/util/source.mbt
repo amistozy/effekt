@@ -30,7 +30,7 @@ pub(all) struct Source {
 }
 
 ///|
-pub fn Source::new(name : String, content : String) -> Source {
+pub fn Source::Source(name : String, content : String) -> Source {
   let starts : Array[Int32] = [0]
   for i = 0; i < content.length(); i = i + 1 {
     if content[i] == '\n' {
@@ -51,7 +51,7 @@ pub fn Source::renamed(self : Source, name : String) -> Source {
 ///|
 /// An empty source, used for synthetic spans.
 pub fn Source::empty() -> Source {
-  Source::new("", "")
+  Source("", "")
 }
 
 ///|
@@ -161,7 +161,7 @@ pub(all) struct Span {
 }
 
 ///|
-pub fn Span::new(source : Source, start : Int32, end : Int32) -> Span {
+pub fn Span::Span(source : Source, start : Int32, end : Int32) -> Span {
   { source, start, end, origin: Real, }
 }
 

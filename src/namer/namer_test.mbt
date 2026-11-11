@@ -14,17 +14,17 @@ fn sp() -> @util.Span {
 
 ///|
 fn fresh_context() -> @source.Context {
-  @source.Context::new(@source.Config::default())
+  @source.Context(@source.Config::default())
 }
 
 ///|
 fn id_def(name : String) -> @source.IdDef {
-  @source.IdDef::new(name, sp())
+  @source.IdDef(name, sp())
 }
 
 ///|
 fn id_ref(name : String) -> @source.IdRef {
-  @source.IdRef::new(name, sp())
+  @source.IdRef(name, sp())
 }
 
 ///|
@@ -827,7 +827,7 @@ test "resolves a hole and numbers it after the enclosing definition" {
     sp(),
     @source.TermKind::Hole(
       hole_id,
-      @util.Template::new(["???"], [returns(int_lit(0))]),
+      @util.Template(["???"], [returns(int_lit(0))]),
     ),
   )
   let main = fun_def(id_def("main"), [], None, returns(hole))

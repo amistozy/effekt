@@ -66,7 +66,7 @@ pub(all) struct Effects {
 }
 
 ///|
-pub fn Effects::new(effects : Array[BlockType]) -> Effects {
+pub fn Effects::Effects(effects : Array[BlockType]) -> Effects {
   { effects, }
 }
 

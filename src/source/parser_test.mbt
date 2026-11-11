@@ -2,8 +2,8 @@
 
 ///|
 fn parse_module(src : String) -> (@source.ModuleDecl?, String) {
-  let ctx = @source.Context::new(@source.Config::default())
-  let source = @util.Source::new("test.effekt", src)
+  let ctx = @source.Context(@source.Config::default())
+  let source = @util.Source("test.effekt", src)
   let decl = @source.parse_module_decl(source, ctx) catch {
     @util.Fatal(m) => {
       println("unexpected internal failure: \{m}")
@@ -19,8 +19,8 @@ fn parse_module(src : String) -> (@source.ModuleDecl?, String) {
 
 ///|
 fn parse_expr(src : String) -> (@source.Term?, String) {
-  let ctx = @source.Context::new(@source.Config::default())
-  let source = @util.Source::new("test.effekt", src)
+  let ctx = @source.Context(@source.Config::default())
+  let source = @util.Source("test.effekt", src)
   let term = @source.parse_term(source, ctx) catch {
     @util.Fatal(m) => {
       println("unexpected internal failure: \{m}")
