@@ -123,6 +123,14 @@ test "lexer: illegal byte notation" {
 }
 
 ///|
+test "lexer: hex literals with eight digits are integers" {
+  assert_eq(kinds("0x00000000"), "int:0 EOF")
+  assert_eq(kinds("0xffffffff"), "int:4294967295 EOF")
+  assert_eq(kinds("0x00bc614e"), "int:12345678 EOF")
+  assert_true(has_error("0xfffffff"))
+}
+
+///|
 test "lexer: big numbers" {
   assert_true(has_error("9223372036854775808"))
   assert_true(!has_error("9223372036854775807"))

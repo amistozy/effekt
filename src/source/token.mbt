@@ -42,7 +42,7 @@ pub fn LexerError::message(self : LexerError) -> String {
       "Invalid integer format, not a 64bit integer literal"
     InvalidDoubleFormat => "Invalid float format, not a double literal"
     InvalidByteFormat =>
-      "Invalid byte format, byte has to be exactly two hex digits"
+      "Invalid hex literal format, has to be exactly two or eight hex digits for byte or int respectively"
     UnterminatedInterpolation(depth) =>
       "Unterminated string interpolation (\{depth} unclosed splices)"
   }

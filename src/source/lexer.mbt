@@ -248,6 +248,24 @@ fn parse_byte_lit(s : String) -> Int32? {
   Some(acc)
 }
 
+///|
+/// Parses a hex string of exactly eight digits into an integer (`0xffffffff`
+/// is 4294967295, so the digits are not sign extended).
+fn parse_hex_int_lit(s : String) -> Int64? {
+  if s.length() != 8 {
+    return None
+  }
+  let mut acc : Int64 = 0
+  for i = 0; i < 8; i = i + 1 {
+    let u = s[i]
+    if !is_hex_digit(u.to_char().unwrap_or('\u{0}')) {
+      return None
+    }
+    acc = acc * 16 + hex_value(u.to_char().unwrap_or('0')).to_int64()
+  }
+  Some(acc)
+}
+
 // The lexer
 // ---------
 
@@ -605,13 +623,24 @@ fn Lexer::number(self : Lexer) -> TokenKind {
 }
 
 ///|
+/// Lexes a `0x` literal: exactly two hex digits are a byte, exactly eight are
+/// an integer (upstream `hexliteral`). The caller consumed the `0x`.
 fn Lexer::byte(self : Lexer) -> TokenKind {
   // Consume hex digits
   self.advance_while((curr, _) => is_hex_digit(curr))
   let hex_string = self.get_current_slice(2, 0)
-  match parse_byte_lit(hex_string) {
-    Some(b) => TByt(b)
-    None => TError(InvalidByteFormat)
+  if hex_string.length() == 2 {
+    match parse_byte_lit(hex_string) {
+      Some(b) => TByt(b)
+      None => TError(InvalidByteFormat)
+    }
+  } else if hex_string.length() == 8 {
+    match parse_hex_int_lit(hex_string) {
+      Some(i) => TInteger(i)
+      None => TError(InvalidByteFormat)
+    }
+  } else {
+    TError(InvalidByteFormat)
   }
 }
 
