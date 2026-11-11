@@ -943,10 +943,14 @@ fn Typer::warn_about_handlers(
       }
     }
     if count > 1 && !all_explicit {
-      let message =
-        $|There are multiple handlers for effect \{effect_name(effects[i]).name}; this might not be intended.
-        $|Maybe bind capabilities explicitly (e.g. `try { ... } with c: MyEffect { ... }`)?
-      self.warning(span, message)
+      // The suggestion is a help item of the warning, as upstream renders it.
+      let msg = Message::warning(
+        span,
+        "There are multiple handlers for effect \{effect_name(effects[i]).name}; this might not be intended.",
+      ).help(
+        "Maybe bind capabilities explicitly (e.g. `try { ... } with c: MyEffect { ... }`)?",
+      )
+      self.warning_message(msg)
     }
     if all_implicit && !eff_contains(used, effects[i]) {
       self.warning(

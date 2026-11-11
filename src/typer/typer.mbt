@@ -225,6 +225,17 @@ fn Typer::warning(self : Typer, span : Span, msg : String) -> Unit {
 }
 
 ///|
+/// Reports a fully built warning (with notes and helps). Muted while an
+/// overload candidate is checked, like `warning`.
+fn Typer::warning_message(self : Typer, msg : Message) -> Unit {
+  if self.muting {
+    ignore(msg)
+  } else {
+    self.ctx.report(msg)
+  }
+}
+
+///|
 fn Typer::info(self : Typer, span : Span, msg : String) -> Unit {
   if self.muting {
     self.muted_infos.push((span, msg))
