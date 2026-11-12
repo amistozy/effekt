@@ -29,7 +29,8 @@ pub fn LexerError::message(self : LexerError) -> String {
     InvalidEscapeSequence(str) =>
       "Invalid character in escape sequence: `\\" + str + "`"
     Expected(char) => "Expected '\{char}' while lexing"
-    UnknownChar(char) => "Unknown character '\{char}' in file"
+    UnknownChar(char) =>
+      "Unknown character '\{char}' (U+\{char.to_int().to_string(radix=16).to_upper()}) in file"
     UnterminatedStringLike(TStr(_, false)) =>
       "Unterminated single-line string; expected closing `\"` on the end of the line"
     UnterminatedStringLike(kind) => "Unterminated \{kind.explain()}"
@@ -61,6 +62,10 @@ pub(all) enum TokenKind {
   TInteger(Int64)
   TFloat(Double)
   TStr(String, Bool) // contents, multiline
+  /// One line of a raw multi-line string (`` #|... ``): the contents after the
+  /// `#|` and the newline that ended the line (`\n`, `\r\n`, or empty when an
+  /// interpolation starts).
+  TRawStr(String, String)
   THoleStr(String)
   TChr(Int32)
   TByt(Int32)
@@ -231,6 +236,7 @@ pub fn TokenKind::explain(self : TokenKind) -> String {
     TInteger(n) => "integer \{n}"
     TFloat(d) => "float \{d}"
     TStr(_, true) => "multi-line string literal"
+    TRawStr(_, _) => "raw string literal"
     TStr(s, false) => "string literal \"\{s}\""
     TChr(c) => "character literal '\{char_of_code(c)}'"
     THoleStr(_) => "natural language hole `<\" ... \">`"

@@ -231,11 +231,12 @@ pub(all) enum Delimiter {
   MultiString
   CharString
   HoleString
+  RawString
 }
 pub fn Delimiter::allows_escapes(Self) -> Bool
 pub fn Delimiter::allows_interpolation(Self) -> Bool
 pub fn Delimiter::is_multiline(Self) -> Bool
-pub fn Delimiter::to_token_kind(Self, String) -> TokenKind
+pub fn Delimiter::to_token_kind(Self, String, String) -> TokenKind
 
 pub(all) struct EffectsTree {
   span : @util.Span
@@ -542,6 +543,7 @@ pub(all) enum TokenKind {
   TInteger(Int64)
   TFloat(Double)
   TStr(String, Bool)
+  TRawStr(String, String)
   THoleStr(String)
   TChr(Int32)
   TByt(Int32)

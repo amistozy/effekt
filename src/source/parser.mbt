@@ -1855,10 +1855,34 @@ fn Parser::path_lit(self : Parser) -> String raise EffektError {
 
 ///|
 /// Parses a string literal (already unescaped by the lexer).
+///
+/// A raw multi-line string (`` #|... ``) is lexed one line at a time; the
+/// lines of one literal are glued back together here, each preceded by the
+/// newline that terminated the previous line (upstream's `string()`). The
+/// newline of the *last* line is not part of the literal.
 fn Parser::string_lit(self : Parser) -> String raise EffektError {
   self.nonterminal(() => {
     let kind = self.peek_kind()
     match kind {
+      TRawStr(first, terminator) => {
+        let _ = self.next()
+        let buf = StringBuilder()
+        buf.write_string(first)
+        let mut last_terminator = terminator
+        let mut more = true
+        while more {
+          match self.peek_kind() {
+            TRawStr(s, terminator) => {
+              let _ = self.next()
+              buf.write_string(last_terminator)
+              buf.write_string(s)
+              last_terminator = terminator
+            }
+            _ => more = false
+          }
+        }
+        buf.to_string()
+      }
       TStr(s, _) => {
         let _ = self.next()
         s
@@ -2836,7 +2860,8 @@ fn Parser::prim_expr(self : Parser) -> Term raise EffektError {
         }
         let next_kind = self.peek_kind()
         match next_kind {
-          TStr(_, _) => self.template_string(Maybe::some(lhs_id, lhs_id.span))
+          TStr(_, _) | TRawStr(_, _) =>
+            self.template_string(Maybe::some(lhs_id, lhs_id.span))
           _ =>
             match next_kind {
               TPlusEq | TMinusEq | TStarEq | TSlashEq => {
@@ -3030,8 +3055,14 @@ fn Parser::hole_string(self : Parser) -> String raise EffektError {
 ///|
 fn Parser::is_literal(self : Parser) -> Bool raise EffektError {
   match self.peek_kind() {
-    TInteger(_) | TFloat(_) | TStr(_, _) | TChr(_) | TByt(_) | KTrue | KFalse =>
-      true
+    TInteger(_)
+    | TFloat(_)
+    | TStr(_, _)
+    | TRawStr(_, _)
+    | TChr(_)
+    | TByt(_)
+    | KTrue
+    | KFalse => true
     _ => self.is_unit_literal()
   }
 }
@@ -3039,7 +3070,7 @@ fn Parser::is_literal(self : Parser) -> Bool raise EffektError {
 ///|
 fn Parser::is_string(self : Parser) -> Bool raise EffektError {
   match self.peek_kind() {
-    TStr(_, _) => true
+    TStr(_, _) | TRawStr(_, _) => true
     _ => false
   }
 }

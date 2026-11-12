@@ -847,3 +847,31 @@ test "parse: the span of a term starts at the right token" {
   let t = term_ok("1 + 2 * 3")
   assert_eq(t.span.range_text(), "1 + 2 * 3")
 }
+
+///|
+/// A raw multi-line string is lexed one line at a time; the parser glues the
+/// lines back together with the line break that ended the previous one.
+test "parser: the lines of a raw string are joined" {
+  let (term, messages) = parse_expr("#|a\n#|b\n")
+  assert_eq(messages, "")
+  let text = match term {
+    Some(t) =>
+      match t.kind {
+        @source.TermKind::Literal(@source.LString(s), _) => s
+        _ => "<not a string literal>"
+      }
+    None => "<no term>"
+  }
+  assert_eq(text, "a\nb")
+  let (term, messages) = parse_expr("#|a\r\n#|b\r\n")
+  assert_eq(messages, "")
+  let text = match term {
+    Some(t) =>
+      match t.kind {
+        @source.TermKind::Literal(@source.LString(s), _) => s
+        _ => "<not a string literal>"
+      }
+    None => "<no term>"
+  }
+  assert_eq(text, "a\r\nb")
+}

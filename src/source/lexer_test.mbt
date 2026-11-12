@@ -12,6 +12,16 @@ fn show_kind(k : @source.TokenKind) -> String {
     @source.TInteger(n) => "int:\{n}"
     @source.TFloat(d) => "float:\{d}"
     @source.TStr(s, m) => if m { "str3(\"\{s}\")" } else { "str(\"\{s}\")" }
+    @source.TRawStr(s, t) => {
+      let term = if t == "\n" {
+        "\\n"
+      } else if t == "\r\n" {
+        "\\r\\n"
+      } else {
+        ""
+      }
+      "rawstr(\"\{s}\", \"\{term}\")"
+    }
     @source.THoleStr(s) => "holestr(\"\{s}\")"
     @source.TChr(c) => "chr:\{c}"
     @source.TByt(b) => "byt:\{b}"
@@ -120,6 +130,22 @@ test "lexer: illegal byte notation" {
   assert_true(has_error("0x4"))
   assert_true(has_error("0x444"))
   assert_eq(kinds("0xFF"), "byt:255 EOF")
+}
+
+///|
+test "lexer: a raw string is one line" {
+  // the line break is part of the token (the parser glues the lines back
+  // together), and a `\r\n` line break is left to the lexer's newline token
+  assert_eq(kinds("#|a\n"), "rawstr(\"a\", \"\\n\") EOF")
+  assert_eq(kinds("#|a\r\n"), "rawstr(\"a\", \"\\r\\n\") NL EOF")
+  assert_eq(
+    kinds("#|a\n#|b\n"),
+    "rawstr(\"a\", \"\\n\") rawstr(\"b\", \"\\n\") EOF",
+  )
+  // no escapes, and `#|` is ordinary content
+  assert_eq(kinds("#|\\n #| #|\n"), "rawstr(\"\\n #| #|\", \"\\n\") EOF")
+  // a raw string at the end of the input is unterminated
+  assert_true(has_error("#|a"))
 }
 
 ///|

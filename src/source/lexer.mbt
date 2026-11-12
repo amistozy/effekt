@@ -13,17 +13,20 @@
 /// The different kinds of string-like literals supported by Effekt.
 #derive(Eq)
 pub(all) enum Delimiter {
-  //          "...",   """...""",      '...',    <"...">
+  //          "...",   """...""",      '...',    <"...">,   #|...
   SingleString
   MultiString
   CharString
   HoleString
+  /// A raw string ends with its line (upstream `Delimiter.RawString`); the
+  /// parser glues the consecutive lines of one literal back together.
+  RawString
 }
 
 ///|
 pub fn Delimiter::allows_interpolation(self : Delimiter) -> Bool {
   match self {
-    SingleString | MultiString | HoleString => true
+    SingleString | MultiString | HoleString | RawString => true
     CharString => false
   }
 }
@@ -32,7 +35,7 @@ pub fn Delimiter::allows_interpolation(self : Delimiter) -> Bool {
 pub fn Delimiter::is_multiline(self : Delimiter) -> Bool {
   match self {
     SingleString | CharString => false
-    MultiString | HoleString => true
+    MultiString | HoleString | RawString => true
   }
 }
 
@@ -42,13 +45,17 @@ pub fn Delimiter::allows_escapes(self : Delimiter) -> Bool {
 }
 
 ///|
+/// The token of a closed string. `terminator` is the newline that ended a raw
+/// string's line (`""` for every other kind of string).
 pub fn Delimiter::to_token_kind(
   self : Delimiter,
   contents : String,
+  terminator : String,
 ) -> TokenKind {
   match self {
     SingleString => TStr(contents, false)
     MultiString => TStr(contents, true)
+    RawString => TRawStr(contents, terminator)
     HoleString => THoleStr(contents)
     CharString =>
       if contents.is_empty() {
@@ -471,6 +478,10 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
       self.advance_k(2)
       self.string_like(HoleString, false)
     }
+    ('#', '|') => {
+      self.advance_k(2)
+      self.string_like(RawString, false)
+    }
     // Comments
     ('/', '*') => {
       self.advance_k(2)
@@ -591,7 +602,7 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
         let latest = self.delimiters[n - 1]
         self.delimiters.clear()
         // NOTE: We only report the most recent one here...
-        TError(UnterminatedStringLike(latest.to_token_kind("")))
+        TError(UnterminatedStringLike(latest.to_token_kind("", "")))
       } else {
         TEOF
       }
@@ -672,22 +683,34 @@ fn Lexer::string_like(
     let c = self.current_char
     let n = self.next_char
     match (c, n) {
+      // a raw string ends with its line: the terminator is kept in the token so
+      // that the parser can glue the lines of one literal back together
+      ('\n', _) if delimiter == RawString => {
+        let _ = self.advance()
+        self.pop_raw_strings()
+        return self.close_string(delimiter, contents, false, false, "\n")
+      }
+      ('\r', '\n') if delimiter == RawString => {
+        // the newline itself is lexed as usual (`TNewline`)
+        self.pop_raw_strings()
+        return self.close_string(delimiter, contents, false, false, "\r\n")
+      }
       // closing characters
       ('"', '"') if delimiter == MultiString && self.peek_ahead(2) == '"' => {
         self.advance_k(3)
-        return self.close_string(delimiter, contents, true, false)
+        return self.close_string(delimiter, contents, true, false, "")
       }
       ('"', _) if delimiter == SingleString => {
         self.advance_k(1)
-        return self.close_string(delimiter, contents, true, false)
+        return self.close_string(delimiter, contents, true, false, "")
       }
       ('"', '>') if delimiter == HoleString => {
         self.advance_k(2)
-        return self.close_string(delimiter, contents, true, false)
+        return self.close_string(delimiter, contents, true, false, "")
       }
       ('\'', _) if delimiter == CharString => {
         self.advance_k(1)
-        return self.close_string(delimiter, contents, true, false)
+        return self.close_string(delimiter, contents, true, false, "")
       }
       // escapes
       ('\\', _) if delimiter.allows_escapes() => {
@@ -725,18 +748,18 @@ fn Lexer::string_like(
       ('$', '{') if delimiter.allows_interpolation() =>
         // We *do not* pop in this case, we need to keep the delimiter on the
         // stack in order to know into what kind of string we should resume!
-        return self.close_string(delimiter, contents, false, false)
+        return self.close_string(delimiter, contents, false, false, "")
       // newlines
       ('\n', _) if !delimiter.is_multiline() =>
-        return self.close_string(delimiter, contents, true, true)
+        return self.close_string(delimiter, contents, true, true, "")
       ('\r', '\n') if !delimiter.is_multiline() =>
-        return self.close_string(delimiter, contents, true, true)
+        return self.close_string(delimiter, contents, true, true, "")
       // "normal" characters of a string
       (_, _) => contents.write_char(self.advance())
     }
   }
   // End of input reached
-  self.close_string(delimiter, contents, true, true)
+  self.close_string(delimiter, contents, true, true, "")
 }
 
 ///|
@@ -747,15 +770,31 @@ fn Lexer::close_string(
   contents : StringBuilder,
   should_pop : Bool,
   unterminated : Bool,
+  terminator : String,
 ) -> TokenKind {
   if should_pop {
     let _ = self.delimiters.pop()
   }
-  let kind = delimiter.to_token_kind(contents.to_string())
+  let kind = delimiter.to_token_kind(contents.to_string(), terminator)
   if unterminated {
     TError(UnterminatedStringLike(kind))
   } else {
     kind
+  }
+}
+
+///|
+/// A raw string ends with its line, so every raw-string delimiter on the stack
+/// is popped (upstream `delimiters.popWhile(_ == RawString)`): the next line is
+/// lexed as usual, and a splice that is still open is closed by its `}`.
+fn Lexer::pop_raw_strings(self : Lexer) -> Unit {
+  while self.delimiters.length() > 0 {
+    match self.delimiters[self.delimiters.length() - 1] {
+      RawString => {
+        let _ = self.delimiters.pop()
+      }
+      _ => break
+    }
   }
 }
 
