@@ -13,11 +13,13 @@ reference), and the standard library and the runtime are upstream's own files,
 so what compiles here is the whole language, not a subset of it.
 
 **Status.** The standard library and the test corpus follow upstream
-`6fbff0b0e`. The whole standard library compiles, **412 of the 417**
+`6fbff0b0e`. The whole standard library compiles, **413 of the 415**
 compiling-and-running corpus programs print exactly what upstream recorded, and
-**201 of the 203** programs that have to be rejected are rejected at the
-expected line, all of them with the recorded message. The remaining differences
-are listed under [Differences from
+**all 203** programs that have to be rejected are rejected at the expected line,
+with the recorded message. The two programs that still differ both overflow the
+JavaScript stack (`pos/loop_block_parameter.effekt` and `pos/issue1515.effekt`,
+a tail-call problem in the CPS backend); the remaining architectural
+differences are listed under [Differences from
 upstream](#differences-from-upstream).
 ## Quick start
 
@@ -169,9 +171,11 @@ severity on the expected line and upstream's message, either according to its
 own test driver does. `-Strict` additionally compares the whole rendered
 diagnostics of a negative test verbatim against its `.check` file, the way
 upstream's `assertNoDiff` does, and reports how many match.
-Three tests are skipped: one writes to `/dev/stdout`, one spawns the POSIX `cat`,
-and one imports a module that does not exist upstream either (`unsafe/cont`, in
-upstream's own ignore list for the JS backend).
+Five tests are skipped: one writes to `/dev/stdout`, three spawn POSIX tools
+that Windows does not have (`cat`, and `sh`/`sleep`/`echo`/`seq`/`yes`
+in the two `io` process tests), and one imports a module that does not exist
+upstream either (`unsafe/cont`, in upstream's own ignore list for the JS
+backend).
 
 `scripts/stdlib.ps1` and `scripts/upstream.ps1` record baselines, which may only
 grow; they are how a phase regression is caught long before the small examples

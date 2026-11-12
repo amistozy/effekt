@@ -32,11 +32,12 @@ Push-Location $root
 # Compiling one file loads the whole prelude, so the corpus is split across a
 # few background jobs to keep the wall-clock time reasonable.
 $jobs = 6
-$positiveBaseline = 412
-# Every negative test is matched now: severity and line, as `EffektTests.scala`
-# does for the tests that only carry `// ERROR` comments. A test whose wording
-# differs still counts (the summary reports how many).
-$negativeBaseline = 201
+$positiveBaseline = 413
+# Every negative test matches: severity and line as `EffektTests.scala` does for
+# the tests that only carry `// ERROR` comments, and the wording of all of them
+# (`-ShowWording` reports any that differ). `-Strict` additionally compares the
+# whole rendered diagnostic of the tests that carry a `.check` file.
+$negativeBaseline = 203
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
 moon build --target js 2>&1 | Out-Null
@@ -371,6 +372,8 @@ $skipped = @{
   "examples/pos/propagators.effekt" = "ignored upstream: imports the missing module unsafe/cont"
   "examples/pos/issue1087.effekt" = "writes to /dev/stdout"
   "examples/stdlib/io/process.effekt" = "spawns the POSIX tool cat"
+  "examples/stdlib/io/process_contract.effekt" = "spawns the POSIX tools sh and sleep"
+  "examples/stdlib/io/spawn_options.effekt" = "spawns the POSIX tools sh, echo, seq and yes"
 }
 $tests = @()
 foreach ($dir in @("pos", "stdlib")) {
