@@ -32,7 +32,7 @@ Push-Location $root
 # Compiling one file loads the whole prelude, so the corpus is split across a
 # few background jobs to keep the wall-clock time reasonable.
 $jobs = 6
-$positiveBaseline = 413
+$positiveBaseline = 415
 # Every negative test matches: severity and line as `EffektTests.scala` does for
 # the tests that only carry `// ERROR` comments, and the wording of all of them
 # (`-ShowWording` reports any that differ). `-Strict` additionally compares the

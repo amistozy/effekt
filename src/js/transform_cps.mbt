@@ -947,32 +947,53 @@ fn to_js_stmt(
         run: k => {
           let stmts : Array[Stmt] = []
 
-          // (1) determine all bound function parameters that may be subsequently
-          // altered when preparing calls to a tail-recursive function
-          let bound : Array[Sym] = []
+          // (1) the parameters of the enclosing functions, by kind: a nested
+          // definition that mentions one has to snapshot it, because preparing a
+          // tail call reassigns the parameters (upstream's `backupParameters`).
+          let scope_values : Array[Sym] = []
+          let scope_blocks : Array[Sym] = []
+          let scope_conts : Array[Sym] = []
           for entry in ctx.scope {
             let (_id, scoped_block) = entry
             match scoped_block {
-              @cps.Block::BlockLit(lit) =>
-                bound.append(lit.vparams + lit.bparams)
+              @cps.Block::BlockLit(lit) => {
+                scope_values.append(lit.vparams)
+                scope_blocks.append(lit.bparams)
+                scope_conts.push(lit.k)
+              }
               _ => ()
             }
           }
 
-          // (2) back up the parameters that the block mentions as const bindings
+          // (2) back up the parameters that the block mentions as const
+          // bindings, each substituted according to its kind
           let free_of_block = block.free()
           let values : Map[Int32, @cps.Expr] = Map([])
-          for param in bound {
+          let blocks : Map[Int32, @cps.Block] = Map([])
+          let conts : Map[Int32, @cps.Cont] = Map([])
+          for param in scope_values {
             if free_of_block.contains(param) {
               let tmp = fresh_sym("tmp_\{param.name().name}")
               stmts.push(Const(PatternVariable(name_def(tmp)), name_ref(param)))
               values.set(param.uid(), @cps.Expr::ValueVar(tmp))
             }
           }
+          for param in scope_blocks {
+            if free_of_block.contains(param) {
+              let tmp = fresh_sym("tmp_\{param.name().name}")
+              stmts.push(Const(PatternVariable(name_def(tmp)), name_ref(param)))
+              blocks.set(param.uid(), @cps.Block::BlockVar(tmp))
+            }
+          }
+          for param in scope_conts {
+            if free_of_block.contains(param) {
+              let tmp = fresh_sym("tmp_\{param.name().name}")
+              stmts.push(Const(PatternVariable(name_def(tmp)), name_ref(param)))
+              conts.set(param.uid(), @cps.Cont::ContVar(tmp))
+            }
+          }
 
           // (3) substitute the block, so that the backed up bindings are used
-          let blocks : Map[Int32, @cps.Block] = Map([])
-          let conts : Map[Int32, @cps.Cont] = Map([])
           let metaconts : Map[Int32, @cps.MetaCont] = Map([])
           let subst_block = @cps.substitute_block(
             block,
@@ -1285,14 +1306,21 @@ fn to_js_stmt(
         None =>
           pure([
             Return(
-              call(
-                to_js_block_expr(callee, ctx),
-                vargs.map(v => to_js_cps_expr(v, ctx)) +
-                bargs.map(b => argument_to_js(b, ctx)) +
-                [
-                  to_js_metacont(ks, ctx),
-                  requiring_thunk(ctx, c => to_js_cont(k, c)),
-                ],
+              // Upstream `maybeThunking`: a call in tail position of a *function*
+              // body returns a thunk, which the toplevel trampoline (`RUN_TOPLEVEL`,
+              // `TRAMPOLINE`) invokes. That is what keeps mutual recursion between
+              // nested and enclosing functions (`issue1515`) off the JS stack.
+              maybe_thunking_expr(
+                ctx,
+                call(
+                  to_js_block_expr(callee, ctx),
+                  vargs.map(v => to_js_cps_expr(v, ctx)) +
+                  bargs.map(b => argument_to_js(b, ctx)) +
+                  [
+                    to_js_metacont(ks, ctx),
+                    requiring_thunk(ctx, c => to_js_cont(k, c)),
+                  ],
+                ),
               ),
             ),
           ])
