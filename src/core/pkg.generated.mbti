@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub fn bind_subexpressions(ModuleDecl) -> ModuleDecl raise @util.EffektError
+
 pub fn bindings_to_stmt(Array[Binding], Stmt) -> Stmt
 
 pub fn block_captures(Block) -> @symbols.Captures

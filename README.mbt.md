@@ -218,7 +218,14 @@ These are deliberate, and documented at the point of use in the sources:
   `Normalizer`, `DirectStyle`, `StaticArguments`, …) is still skipped; those
   passes are semantics-preserving, so omitting them only affects the quality of
   the generated code, and the JS backend already implements its own direct-style
-  and loop optimizations (`src/js/transform_cps.mbt`).
+  and loop optimizations (`src/js/transform_cps.mbt`). One of them,
+  `BindSubexpressions` (the normal form in which every subexpression is named
+  and `val x = y` is inlined away), *is* ported
+  (`src/core/bind_subexpressions.mbt`) but not run: upstream only runs it from
+  the optimizer, and without the inliner that consumes its output it would only
+  make the core dumps and the generated JavaScript noisier. It is checked by
+  unit tests and was smoke tested by temporarily running it after `Deadcode`
+  over the whole test corpus.
 - **The Chez Scheme, LLVM and VM backends are not ported**, nor the LSP server,
   the REPL or the documentation generator.
 
