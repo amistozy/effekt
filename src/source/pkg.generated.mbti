@@ -473,6 +473,7 @@ pub struct PrecedenceTable {
 pub struct RecoverableDiagnostic {
   kind : @util.Severity
   message : String
+  helps : Array[String]
   start : Int32
   end : Int32
 }

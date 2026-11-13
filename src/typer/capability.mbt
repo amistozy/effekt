@@ -157,17 +157,18 @@ pub fn CapScope::capability_for(self : CapScope, tpe : BlockType) -> Sym? {
 }
 
 ///|
-/// All concrete interface types in scope that have the same type constructor as
-/// `tpe`; used for better error messages.
+/// All interface types in scope that have the same type constructor as `tpe`;
+/// used for better error messages. The caller filters out the ones that still
+/// have unsolved type arguments (upstream `unknowns(handlerTpe).isEmpty`).
 pub fn CapScope::relevant_in_scope_for(
   self : CapScope,
   tpe : BlockType,
-) -> Array[String] {
+) -> Array[BlockType] {
   let ctor = match tpe {
     @symbols.BlockType::InterfaceType(c, _) => Some(c)
     @symbols.BlockType::FunctionType(_, _, _, _, _, _) => None
   }
-  let out : Array[String] = []
+  let out : Array[BlockType] = []
   match ctor {
     None => ()
     Some(c) => {
@@ -181,7 +182,7 @@ pub fn CapScope::relevant_in_scope_for(
               match cap_type(cap) {
                 Some(@symbols.BlockType::InterfaceType(other, _)) =>
                   if other == c {
-                    out.push("\{cap_type(cap).unwrap()}")
+                    out.push(cap_type(cap).unwrap())
                   }
                 _ => ()
               }

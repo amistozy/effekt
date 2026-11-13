@@ -414,9 +414,10 @@ pub fn Typer::lookup_block(
                 // Upstream `lookupFunctionType`: `resume` has no type outside a
                 // `try … with`, most commonly because the object literal that
                 // contains it is not an operation clause.
-                self.abort(
-                  self.focus,
-                  "Cannot find `resume`. Maybe you are trying to resume inside of an object literal and not as part of `try { ... } with ...`?",
+                self.abort_message(
+                  Message::error(self.focus, "Cannot find `resume`.").help(
+                    "Maybe you are trying to resume inside of an object literal and not as part of `try { ... } with ...`?",
+                  ),
                 )
               } else {
                 self.abort(s.decl(), "Cannot find type for \{s.name().name}.")
@@ -760,13 +761,8 @@ fn Typer::capability_for(
           self.st.u.prune_block(t)
         }) {
         Some(cap) => cap
-        None => {
-          let message =
-            $|Effect \{tpe} is not allowed in this context.
-            $|
-            $|Maybe try annotating the function with the effect?
-          self.abort(span, message)
-        }
+        None =>
+          self.abort(span, "Effect \{tpe} is not allowed in this context.")
       }
   }
   self.assert_concrete_effect(self.st.u.prune_block(target), span)
@@ -959,12 +955,17 @@ fn Typer::without(
 /// `require_subregion` with an error context: a capture that is not allowed is
 /// reported as a *note* of the surrounding comparison (upstream's
 /// `requireSubregion(c1, c2, ctx)`).
+///
+/// The two capture *variables* are a different matter: registering a bound only
+/// detects the conflict later, in the constraint solver, and upstream's
+/// `Constraints.checkConsistency` aborts with a diagnostic that has no context
+/// at all — `Not allowed {io}` at the current focus, not a note of a claim.
 pub fn Typer::require_subregion_ctx(
   self : Typer,
   from : Captures,
   to : Captures,
   ctx : ErrCtx,
-) -> Unit {
+) -> Unit raise EffektError {
   let from = self.st.u.prune_captures(from)
   let to = self.st.u.prune_captures(to)
   if from == to {
@@ -983,18 +984,18 @@ pub fn Typer::require_subregion_ctx(
     }
     (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptureSetOf(us)) =>
       match self.st.u.require_upper(us, x) {
-        Some(msg) => self.error_issue(msg, ctx)
+        Some(msg) => self.abort_issue_plain(msg)
         None => ()
       }
     (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptVar(y)) =>
       match self.st.u.require_lower(ls, y) {
-        Some(msg) => self.error_issue(msg, ctx)
+        Some(msg) => self.abort_issue_plain(msg)
         None => ()
       }
     (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptVar(y)) => {
       self.st.u.link(x.uid(), y.uid(), [])
       match self.st.u.propagate() {
-        Some(msg) => self.error_issue(msg, ctx)
+        Some(msg) => self.abort_issue_plain(msg)
         None => ()
       }
     }
@@ -1059,20 +1060,23 @@ pub fn Typer::assert_concrete_effect(
   let eff = self.st.u.prune_block(eff)
   match self.unknowns_block(eff) {
     us if us.length() > 0 => {
+      let mut msg = Message::error(
+        span,
+        "Effects need to be fully known, but effect \{eff}'s type parameter(s) \{us.join(", ")} could not be inferred.",
+      )
+      msg = msg.help("Maybe try annotating them?")
       // Upstream's `assertConcreteEffect` hints at the concrete interfaces of
       // the same effect that *are* in scope (see
-      // `examples/neg/lexical_capability_selection_*`).
+      // `examples/neg/lexical_capability_selection_*`); an interface that still
+      // has unsolved type arguments is not a hint.
       for hint in self.st.cap_scope.relevant_in_scope_for(eff) {
-        self.info(
-          span,
-          "Did you mean to use an operation of the concrete interface \{hint}?",
-        )
+        if self.unknowns_block(hint).length() == 0 {
+          msg = msg.help(
+            "Did you mean to use an operation of the concrete interface \{hint}?",
+          )
+        }
       }
-      let message =
-        $|Effects need to be fully known, but effect \{eff}'s type parameter(s) \{us.join(", ")} could not be inferred.
-        $|
-        $|Maybe try annotating them?
-      self.abort(span, message)
+      self.abort_message(msg)
     }
     _ => ()
   }
@@ -2778,6 +2782,18 @@ fn[T] Typer::abort_issue(
 }
 
 ///|
+/// Aborts with a plain diagnostic at the current focus. The constraint solver
+/// reports a violated capture bound this way: upstream's
+/// `Constraints.checkConsistency` aborts without an `ErrorContext`, so the
+/// message is just `Not allowed {io}`.
+fn[T] Typer::abort_issue_plain(
+  self : Typer,
+  issue : String,
+) -> T raise EffektError {
+  self.abort_message(Message::error(self.focus, issue))
+}
+
+///|
 
 ///|
 pub fn Typer::require_subtype_value(
@@ -3241,7 +3257,7 @@ pub fn Typer::unify_captures(
   c1 : Captures,
   c2 : Captures,
   ctx : ErrCtx,
-) -> Unit {
+) -> Unit raise EffektError {
   self.require_subregion_ctx(c1, c2, ctx)
   self.require_subregion_ctx(c2, c1, ctx)
 }

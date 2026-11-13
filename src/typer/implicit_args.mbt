@@ -16,6 +16,57 @@
 // annotations that `ExplicitCapabilities` splices into the call.
 
 ///|
+/// What the type checker is trying to instantiate: upstream's
+/// `GenerateImplicitArgs.ImplicitStencil`, reduced to what the diagnostic needs.
+/// `explanation` is the stencil-specific paragraph that upstream prints between
+/// the heading and the nested diagnostics (`None` for an ordinary `?name`).
+pub struct ImplicitStencil {
+  name : String
+  /// `"value argument"` or `"block argument"`.
+  kind : String
+  /// Position of the parameter in the parameter list, rendered as `1st`, ...
+  index : Int32
+  explanation : String?
+}
+
+///|
+/// `Cannot instantiate 1st block argument foo of type ...`: upstream's
+/// `ImplicitInstantiation.formatIndex`.
+fn ordinal(index : Int32) -> String {
+  match index {
+    0 => "1st"
+    1 => "2nd"
+    2 => "3rd"
+    n => "\{n + 1}th"
+  }
+}
+
+///|
+/// The paragraph a stencil prints between its heading and the nested
+/// diagnostics (upstream `ImplicitStencil.explanation`). The text contains its
+/// own line breaks and is indented as a whole.
+fn implicit_explanation(name : String, tpe : ValueType) -> String? {
+  match name {
+    "callId" =>
+      Some(
+        "Implicit callId will generate a unique Int for each call to this function in the source code.",
+      )
+    "sourcePosition" =>
+      Some(
+        "Implicit sourcePosition will call\nSourcePosition(file, start_line, start_col, end_line, end_col)\nwith the respective values for the source position of the call.",
+      )
+    _ =>
+      match tpe {
+        @symbols.ValueType::BoxedType(_, _) =>
+          Some(
+            "An implicit argument of a boxed type will be instantiated by boxing the block\n  that an implicit block argument of the same name would be instantiated to.",
+          )
+        _ => None
+      }
+  }
+}
+
+///|
 /// Checks a generated implicit argument (upstream's `GenerateImplicitArgs.Try`
 /// around each attempt). A failure — an abort inside the check or a diagnostic
 /// it recorded — is not reported as itself: upstream turns it into an
@@ -24,7 +75,7 @@
 fn[T] Typer::check_implicit(
   self : Typer,
   call : CallLike,
-  name : String,
+  stencil : ImplicitStencil,
   tpe : String,
   run : () -> T raise EffektError,
 ) -> T raise EffektError {
@@ -58,15 +109,30 @@ fn[T] Typer::check_implicit(
   self.muted_messages = messages_before
   self.muted_infos = infos_before
   if failed {
-    let nested = match failure {
-      Some(msg) => msg
-      None => errors.map(entry => entry.text).join("\n  ")
-    }
-    let message =
+    // Upstream's `ImplicitInstantiation.show`: the claim, one line naming the
+    // argument and its type, the stencil's explanation, the nested diagnostics
+    // (each indented, with their notes and helps on their own lines) and a
+    // trailing newline, which renders as the blank line before the excerpt.
+    let mut text =
       $|Cannot instantiate implicit argument.
-      $|Cannot instantiate the implicit argument \{name} of type \{tpe}.
-      $|  \{nested}
-    self.abort(call.span, message)
+      $|Cannot instantiate \{ordinal(stencil.index)} \{stencil.kind} \{stencil.name} of type \{tpe}.
+    text = text + "\n"
+    match stencil.explanation {
+      Some(explanation) => text = text + indent_message(explanation) + "\n"
+      None => ()
+    }
+    if errors.length() > 0 {
+      text = text +
+        indent_message(
+          errors.map(entry => entry.content_with_notes()).join("\n"),
+        )
+    } else {
+      match failure {
+        Some(msg) => text = text + indent_message(msg)
+        None => ()
+      }
+    }
+    self.abort(call.span, text + "\n")
   }
   for entry in infos {
     self.info(entry.0, entry.1)
@@ -132,10 +198,9 @@ fn Typer::implicit_var_term(
   match @symbols.lookup_term_in_scope(scope.scope, scope.imports, name) {
     Some(sym) => self.var_term_for(sym, call.span.synthesized())
     None =>
-      self.abort(
-        call.span,
-        "Cannot resolve the implicit argument \{name}: no term of that name is in scope.",
-      )
+      // Upstream's `Scope.lookupFirstTerm`: the failure is reported at the
+      // generated reference and ends up nested under "Cannot instantiate ...".
+      self.abort(call.span.synthesized(), "Could not resolve term \{name}")
   }
 }
 
@@ -240,10 +305,7 @@ fn Typer::implicit_block_term(
         name,
       )
       if candidates.length() == 0 {
-        self.abort(
-          call.span,
-          "Cannot resolve the implicit block argument \{name}: no function of that name is in scope.",
-        )
+        self.abort(call.span.synthesized(), "Could not resolve term \{name}")
       }
       let target = @source.IdRef(name, span)
       self.assign_symbol(target.uid, @symbols.Sym::call_target(candidates))

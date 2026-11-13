@@ -96,6 +96,7 @@ pub(all) struct Message {
   notes : Array[Subdiagnostic]
 }
 pub fn Message::Message(Severity, Span, String) -> Self
+pub fn Message::content_with_notes(Self) -> String
 pub fn Message::error(Span, String) -> Self
 pub fn Message::help(Self, String) -> Self
 pub fn Message::info(String) -> Self

@@ -4,7 +4,7 @@
 // syntax tree, so it needs a lot of names from all three foundation packages.
 
 ///|
-using @util {type EffektError, type Span, fresh_uid}
+using @util {type EffektError, type Message, type Span, fresh_uid}
 
 ///|
 using @symbols {

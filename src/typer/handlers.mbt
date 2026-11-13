@@ -9,16 +9,20 @@
 /// distinguishes the unbox that a `def` binding forced (which suggests `val`) and
 /// the one a call forced (whose callee is a value), and falls back to the plain
 /// message (upstream's `Annotations.UnboxParent`).
-fn Typer::unbox_error(self : Typer, e : Term, tpe : ValueType) -> String {
+fn Typer::unbox_error(self : Typer, e : Term, tpe : ValueType) -> Message {
   match self.ctx.unbox_parent_of(e.uid) {
     Some(@source.UnboxParent::DefBinding) =>
-      (
-        $|Expected the right-hand side of a `def` binding to be a block, but got a value of type \{tpe}.
-        $|Maybe try `val` if you're defining a value.
-      )
+      Message::error(
+        e.span,
+        "Expected the right-hand side of a `def` binding to be a block, but got a value of type \{tpe}.",
+      ).help("Maybe try `val` if you're defining a value.")
     Some(@source.UnboxParent::CallTarget(name)) =>
-      "Expected \{name} to be a function, but got a value of type \{tpe} instead, which cannot be called as a function."
-    None => "Unbox requires a boxed type, but got \{tpe}."
+      Message::error(
+        e.span,
+        "Expected \{name} to be a function, but got a value of type \{tpe} instead, which cannot be called as a function.",
+      )
+    None =>
+      Message::error(e.span, "Unbox requires a boxed type, but got \{tpe}.")
   }
 }
 
@@ -97,12 +101,12 @@ fn Typer::check_expr_as_block_kind(
                 self.using_capture(capt_var)
                 TyRes(partial_fn, res.effs)
               }
-              None => self.abort(e.span, self.unbox_error(e, res.tpe))
+              None => self.abort_message(self.unbox_error(e, res.tpe))
             }
           } else {
-            self.abort(e.span, self.unbox_error(e, res.tpe))
+            self.abort_message(self.unbox_error(e, res.tpe))
           }
-        _ => self.abort(e.span, self.unbox_error(e, res.tpe))
+        _ => self.abort_message(self.unbox_error(e, res.tpe))
       }
     }
     @source.TermKind::Var(id) => {
@@ -214,18 +218,20 @@ fn Typer::match_declared_value(
 ///
 ///   - `foo { case (x, y) => ... }` where `foo` expects two arguments,
 ///   - `foo { (x, y) => ... }` where `foo` expects a single tuple argument.
-fn Typer::lambda_case_hint(
+///
+/// They are attached to the arity error that follows them.
+fn Typer::lambda_case_hints(
   self : Typer,
-  span : Span,
   vps : Array[ValueType],
   vparams : Array[@source.ValueParam],
-) -> Unit {
+) -> Array[String] {
+  let hints : Array[String] = []
   if vparams.length() == 1 && vps.length() > 1 {
     // A lambda case binds a single synthetic parameter (`__arg0`), while the
     // expected function type has one parameter per tuple component.
     if vparams[0].id.name.has_prefix("__arg") {
-      self.info(
-        span, "Did you mean to use `(x, y) => ...` instead of `case (x, y) => ...`?",
+      hints.push(
+        "Did you mean to use `(x, y) => ...` instead of `case (x, y) => ...`?",
       )
     }
   } else if vps.length() == 1 && vparams.length() > 1 {
@@ -233,14 +239,14 @@ fn Typer::lambda_case_hint(
     match tpe {
       @symbols.ValueType::ValueTypeApp(ctor, args) =>
         if is_tuple_name(ctor.name().name) && args.length() == vparams.length() {
-          self.info(
-            span,
+          hints.push(
             "Did you mean to use `case (x, y) => ...` to pattern match on the tuple \{tpe}?",
           )
         }
       _ => ()
     }
   }
+  hints
 }
 
 ///|
@@ -269,11 +275,14 @@ pub fn Typer::check_function_argument(
         type_params.map(t => @symbols.ValueType::ValueTypeRef(t)),
       )
       if vparams.length() != vps.length() {
-        self.lambda_case_hint(arg.span, vps, vparams)
-        self.abort(
+        let mut msg = Message::error(
           arg.span,
           "Wrong number of arguments to function: expected \{describe_args(0, vps.length(), 0)}, but got \{describe_args(0, vparams.length(), 0)}",
         )
+        for hint in self.lambda_case_hints(vps, vparams) {
+          msg = msg.help(hint)
+        }
+        self.abort_message(msg)
       }
       if bparams.length() != bps.length() {
         self.abort(

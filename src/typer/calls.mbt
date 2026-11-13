@@ -31,19 +31,20 @@ fn indent_message(text : String) -> String {
 ///   - `foo(x, y)` where `foo` takes a single tuple argument,
 ///   - `foo((x, y))` where `foo` takes two arguments.
 ///
-/// Only hints are reported here; the arity error itself follows.
-fn Typer::tuple_call_hint(
+/// The hints are attached to the arity error that follows them (upstream's
+/// `assertArgsParamsAlign` collects them in its `hints` block).
+fn Typer::tuple_call_hints(
   self : Typer,
   call : CallLike,
   fun_vps : Array[ValueType],
   vargs : Array[ValueArg],
-) -> Unit {
+) -> Array[String] {
+  let hints : Array[String] = []
   if fun_vps.length() == 1 && vargs.length() > 1 {
     match self.st.u.prune_value(fun_vps[0]) {
       @symbols.ValueType::ValueTypeApp(ctor, args) =>
         if is_tuple_name(ctor.name().name) && args.length() == vargs.length() {
-          self.info(
-            call.span,
+          hints.push(
             "Did you mean to call \{call.name} with a single tuple argument instead of separate arguments?",
           )
         }
@@ -53,14 +54,14 @@ fn Typer::tuple_call_hint(
     match vargs[0].value.kind {
       @source.TermKind::Call(@source.CallTarget::IdTarget(id), _, args, _) =>
         if is_tuple_name(id.name) && args.length() == fun_vps.length() {
-          self.info(
-            call.span,
+          hints.push(
             "Did you mean to call \{call.name} with \{args.length()} separate arguments instead of a tuple?",
           )
         }
       _ => ()
     }
   }
+  hints
 }
 
 ///|
@@ -109,8 +110,10 @@ pub fn Typer::check_call_to(
     known_bps,
   )
   if !values_aligned || !blocks_aligned {
-    if !values_aligned {
-      self.tuple_call_hint(call, fun_vps, vargs)
+    let hints = if !values_aligned {
+      self.tuple_call_hints(call, fun_vps, vargs)
+    } else {
+      []
     }
     // Upstream's `assertArgsParamsAlign`: every *misaligned* kind is listed on
     // both sides, including a count of zero.
@@ -124,22 +127,28 @@ pub fn Typer::check_call_to(
       expected_parts.push(pluralized(fun_bps.length(), "block argument"))
       got_parts.push(pluralized(bargs.length(), "block argument"))
     }
-    let msg = Message::error(
+    let mut msg = Message::error(
       span,
       "Wrong number of arguments to \{call.name}: expected \{format_args(expected_parts)}, but got \{format_args(got_parts)}",
     )
+    for hint in hints {
+      msg = msg.help(hint)
+    }
+    // Only when the *total* number of arguments is right is it likely that a
+    // value was passed where a block is expected, or the other way around
+    // (upstream: `values.delta + blocks.delta == 0`).
     let block_delta = bargs.length() - fun_bps.length()
     let value_delta = vargs.length() - fun_vps.length()
-    let msg = if block_delta > 0 {
-      msg.help(
-        "Did you mean to pass \{pluralized(block_delta, "block argument")} as a value? e.g. box it using `box { ... }`",
-      )
-    } else if value_delta > 0 {
-      msg.help(
-        "Did you mean to pass \{pluralized(value_delta, "value argument")} as a block (computation)?",
-      )
-    } else {
-      msg
+    if !values_aligned && !blocks_aligned && block_delta + value_delta == 0 {
+      if block_delta > 0 {
+        msg = msg.help(
+          "Did you mean to pass \{pluralized(block_delta, "block argument")} as a value? e.g. box it using `box { ... }`",
+        )
+      } else if value_delta > 0 {
+        msg = msg.help(
+          "Did you mean to pass \{pluralized(value_delta, "value argument")} as a block (computation)?",
+        )
+      }
     }
     self.abort_message(msg)
   }
@@ -228,13 +237,20 @@ pub fn Typer::check_call_to(
   let implicit_vargs : Array[Term] = []
   for i = vargs.length(); i < fun_vps.length(); i = i + 1 {
     let tpe = inst.vparams[i]
-    let term = self.implicit_value_term(call, known_vps[i], tpe)
-    let res = self.check_implicit(call, known_vps[i].name().name, "\{tpe}", () => {
-      self.with_implicit_guard(
-        known_vps[i].name().name,
+    let stencil : ImplicitStencil = {
+      name: known_vps[i].name().name,
+      kind: "value argument",
+      index: i,
+      explanation: implicit_explanation(known_vps[i].name().name, tpe),
+    }
+    let (term, res) = self.check_implicit(call, stencil, "\{tpe}", () => {
+      let term = self.implicit_value_term(call, known_vps[i], tpe)
+      let res = self.with_implicit_guard(
+        stencil.name,
         value_type_size(self.st.u.prune_value(tpe)),
         () => self.check_expr(term, Some(tpe)),
       )
+      (term, res)
     })
     match tpe {
       @symbols.ValueType::BoxedType(_, capt) =>
@@ -254,10 +270,16 @@ pub fn Typer::check_call_to(
     let btpe = inst.bparams[j]
     let capt = capt_args[j]
     self.flows_into(capt, callsite, span)
-    let term = self.implicit_block_arg_term(call, known_bps[j], btpe)
-    let res = self.check_implicit(call, known_bps[j].name().name, "\{btpe}", () => {
-      self.with_implicit_guard(
-        known_bps[j].name().name,
+    let stencil : ImplicitStencil = {
+      name: known_bps[j].name().name,
+      kind: "block argument",
+      index: j,
+      explanation: None,
+    }
+    let (term, res) = self.check_implicit(call, stencil, "\{btpe}", () => {
+      let term = self.implicit_block_arg_term(call, known_bps[j], btpe)
+      let res = self.with_implicit_guard(
+        stencil.name,
         block_type_size(self.st.u.prune_block(btpe)),
         () => {
           self.flowing_into(capt, () => {
@@ -265,6 +287,7 @@ pub fn Typer::check_call_to(
           })
         },
       )
+      (term, res)
     })
     effs = eff_union(effs, res.effs)
     implicit_bargs.push(term)
@@ -571,24 +594,10 @@ pub fn Typer::check_overloaded_function_call(
       self.assign_symbol(id.uid, found)
       return res
     } else if successes.length() > 1 {
-      // An implicit argument is instantiated by an eta-expanded call to a
-      // function with the parameter's name. If several overloads type check,
-      // the name is ambiguous — upstream reports exactly that instead of
-      // choosing one (see `examples/neg/name-based-implicits`).
-      if self.st.ann.implicit_calls.get(call.uid) is Some(_) {
-        let names : Array[String] = successes.map(s => {
-          let (sym, _, _, _) = s
-          "\{sym.name().qualified_name()}"
-        })
-        // Upstream reports an `ImplicitInstantiationError`, whose title is the
-        // first line; the details follow below it.
-        let message =
-          $|Cannot instantiate implicit argument.
-          $|The implicit argument \{call.name} is ambiguous. Could be: \{names.join(", ")}.
-        self.abort(call.span, message)
-      }
       // Same scope, several candidates typecheck: upstream reports an
-      // ambiguity error here (`AmbiguousOverloadError`).
+      // ambiguity error here (`AmbiguousOverloadError`). That also covers the
+      // eta-expanded call of an implicit argument whose name has several
+      // overloads that would all type check (`qualified-error`).
       self.abort(call.span, self.ambiguous_overload_message(successes))
     }
     for f in failures {
@@ -621,12 +630,19 @@ pub fn Typer::check_overloaded_function_call(
       // Upstream's `FailedOverloadError`: a title line, then one paragraph per
       // candidate with the candidate's own diagnostics indented below it, and a
       // trailing newline (which is the blank line before the excerpt in the
-      // recorded `.check` files).
+      // recorded `.check` files). A diagnostic of a candidate is rendered like
+      // any other *except* for the `* note:`/`* help:` markers: upstream's
+      // `contentWithSubdiagnostics` puts them on their own indented lines.
       let explanations : Array[String] = all_failures.map(f => {
-        let (sym, msg, _) = f
+        let (sym, msg, muted) = f
+        let content = if muted.length() > 0 {
+          muted.map(m => m.content_with_notes()).join("\n")
+        } else {
+          msg
+        }
         let explanation =
           $|Possible overload: \{sym.name().qualified_name()} of type \{self.lookup_block(sym)}
-          $|\{indent_message(msg)}
+          $|\{indent_message(content)}
         explanation
       })
       let message =

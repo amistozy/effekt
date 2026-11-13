@@ -36,8 +36,10 @@ $positiveBaseline = 415
 # Every negative test matches: severity and line as `EffektTests.scala` does for
 # the tests that only carry `// ERROR` comments, and the wording of all of them
 # (`-ShowWording` reports any that differ). `-Strict` additionally compares the
-# whole rendered diagnostic of the tests that carry a `.check` file.
+# whole rendered diagnostic of the tests that carry a `.check` file; the
+# baseline counts the ones whose full text is identical to upstream's.
 $negativeBaseline = 203
+$negativeStrictBaseline = 179
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
 moon build --target js 2>&1 | Out-Null
@@ -518,6 +520,12 @@ if ($Filter -ne "") {
     Write-Host ("negative: {0} match, below the baseline of {1}" -f $negOk, $negativeBaseline) -ForegroundColor Red
     $failed = $true
   }
+  if ($Strict -and $negStrictOk -lt $negativeStrictBaseline) {
+    Write-Host ("negative (full text): {0} match, below the baseline of {1}" -f $negStrictOk, $negativeStrictBaseline) -ForegroundColor Red
+    $failed = $true
+  }
   if ($failed) { exit 1 }
-  Write-Host ("baselines: positive {0}, negative {1}" -f $positiveBaseline, $negativeBaseline) -ForegroundColor Green
+  $baselines = "baselines: positive {0}, negative {1}" -f $positiveBaseline, $negativeBaseline
+  if ($Strict) { $baselines += ", negative (full text) {0}" -f $negativeStrictBaseline }
+  Write-Host $baselines -ForegroundColor Green
 }

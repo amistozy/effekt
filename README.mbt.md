@@ -16,8 +16,11 @@ so what compiles here is the whole language, not a subset of it.
 `6fbff0b0e`. The whole standard library compiles, **all 415**
 compiling-and-running corpus programs print exactly what upstream recorded, and
 **all 203** programs that have to be rejected are rejected at the expected line,
-with the recorded message. The remaining architectural differences are listed
-under [Differences from upstream](#differences-from-upstream).
+with the recorded message. Of the 203, **179** also reproduce the `.check` file
+upstream recorded — the whole rendered diagnostics, not just the message the
+test asks for — which is what `scripts/upstream.ps1 -Strict` compares. The
+remaining architectural differences are listed under
+[Differences from upstream](#differences-from-upstream).
 ## Quick start
 
 The compiler needs [moon](https://www.moonbitlang.com/download) (developed with
@@ -153,8 +156,8 @@ uses). Each package below names its upstream counterpart.
 | Command | What it covers |
 |---|---|
 | `moon check --target js -d` | The compiler type checks with warnings as errors |
-| `moon test --target js` | 207 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output), the driver's host layer |
-| `scripts/e2e.ps1` | 14 example programs in 25 runs across the two standard libraries, plus a `--show-core` dump check (26 checks): compiled and executed with `node`, output compared |
+| `moon test --target js` | 210 unit tests across every package: lexer (ported from upstream `LexerTests.scala`), parser (all tour snippets), namer, typer, core ANF transformation, pattern matching, the structural `show` generator, CPS, JS code generation (`node --check`ed golden output), the driver's host layer |
+| `scripts/e2e.ps1` | 13 example programs in 25 runs across the two standard libraries, plus a `--show-core` dump check (26 checks): compiled and executed with `node`, output compared |
 | `scripts/stdlib.ps1` | Every module under `libraries/` compiled, failures grouped by cause; a library module counts when it gets through code generation and stops at "no `main`", and the run fails below 49 modules |
 | `scripts/upstream.ps1` | The upstream test corpus (`testdata/upstream`, 565 programs) |
 
@@ -167,7 +170,8 @@ severity on the expected line and upstream's message, either according to its
 `.check` file or its `// ERROR` / `// WARN` comments, which is what upstream's
 own test driver does. `-Strict` additionally compares the whole rendered
 diagnostics of a negative test verbatim against its `.check` file, the way
-upstream's `assertNoDiff` does, and reports how many match.
+upstream's `assertNoDiff` does; 179 of the 203 now match, and that number is a
+baseline like the others.
 Five tests are skipped: one writes to `/dev/stdout`, three spawn POSIX tools
 that Windows does not have (`cat`, and `sh`/`sleep`/`echo`/`seq`/`yes`
 in the two `io` process tests), and one imports a module that does not exist

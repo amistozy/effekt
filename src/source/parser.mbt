@@ -309,6 +309,8 @@ fn PrecedenceTable::compare(
 pub struct RecoverableDiagnostic {
   kind : Severity
   message : String
+  /// Suggestions rendered as `* help:` items under the diagnostic.
+  helps : Array[String]
   start : Int32
   end : Int32
 }
@@ -578,7 +580,20 @@ fn Parser::soft_fail(
   start : Int32,
   end : Int32,
 ) -> Unit {
-  self.diagnostics.push({ kind: Error, message, start, end, })
+  self.soft_fail_helps(message, [], start, end)
+}
+
+///|
+/// A soft diagnostic with `* help:` suggestions (upstream's
+/// `Context.abort(msg) { help(...) }` in the parser).
+fn Parser::soft_fail_helps(
+  self : Parser,
+  message : String,
+  helps : Array[String],
+  start : Int32,
+  end : Int32,
+) -> Unit {
+  self.diagnostics.push({ kind: Error, message, helps, start, end, })
 }
 
 ///|
@@ -588,7 +603,7 @@ fn Parser::warn(
   start : Int32,
   end : Int32,
 ) -> Unit {
-  self.diagnostics.push({ kind: Warning, message, start, end, })
+  self.diagnostics.push({ kind: Warning, message, helps: [], start, end, })
 }
 
 ///|
@@ -613,6 +628,7 @@ fn[T] Parser::soft_fail_with(
 fn Parser::report(
   self : Parser,
   msg : String,
+  helps : Array[String],
   from : Int32,
   to : Int32,
   severity : Severity,
@@ -620,17 +636,21 @@ fn Parser::report(
   let from_token = self.raw_token_at(from)
   let to_token = self.raw_token_at(to)
   let span = Span(self.source, from_token.start, to_token.end + 1)
-  match severity {
-    Error => self.context.report(Message::error(span, msg))
-    Warning => self.context.report(Message::warning(span, msg))
-    Info => self.context.report(Message::info(msg))
+  let mut message = match severity {
+    Error => Message::error(span, msg)
+    Warning => Message::warning(span, msg)
+    Info => Message::info(msg)
   }
+  for help in helps {
+    message = message.help(help)
+  }
+  self.context.report(message)
 }
 
 ///|
 fn Parser::report_recoverable_diagnostics(self : Parser) -> Unit {
   for d in self.diagnostics {
-    self.report(d.message, d.start, d.end, d.kind)
+    self.report(d.message, d.helps, d.start, d.end, d.kind)
   }
 }
 
@@ -815,8 +835,12 @@ fn[T] Parser::delimited_until(
       // if `after` follows `sep`, then it was trailing
       components.push(p())
     } else if fail_on_singleton && components.length() == 1 {
-      self.soft_fail(
-        "There are no one-element tuples. Remove the trailing `\{sep.explain()}` to group, or add another element.",
+      self.soft_fail_helps(
+        "There are no one-element tuples.",
+        [
+          "Remove the trailing `\{sep.explain()}` to group.",
+          "Add another element.",
+        ],
         self.position - 1,
         self.position - 1,
       )
@@ -4016,7 +4040,7 @@ fn Parser::parse_program(self : Parser) -> ModuleDecl? raise EffektError {
       // Don't forget soft fails!
       self.report_recoverable_diagnostics()
       let pos = self.fail_position
-      self.report(msg, pos, pos, Error)
+      self.report(msg, [], pos, pos, Error)
       None
     }
     Internal(m) => raise EffektError::Internal(m)
@@ -4046,7 +4070,7 @@ fn Parser::parse_term_entry(self : Parser) -> Term? raise EffektError {
     Fatal(msg) => {
       self.report_recoverable_diagnostics()
       let pos = self.fail_position
-      self.report(msg, pos, pos, Error)
+      self.report(msg, [], pos, pos, Error)
       None
     }
     Internal(m) => raise EffektError::Internal(m)
@@ -4108,7 +4132,7 @@ pub fn parse_statement(
     Fatal(msg) => {
       parser.report_recoverable_diagnostics()
       let pos = parser.fail_position
-      parser.report(msg, pos, pos, Error)
+      parser.report(msg, [], pos, pos, Error)
       None
     }
     Internal(m) => raise EffektError::Internal(m)

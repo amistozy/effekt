@@ -2074,16 +2074,16 @@ fn Namer::resolve_value_type(
               }
               @symbols.ValueTypeRef(sym)
             } else {
-              self.context.error(
+              let mut msg = Message::error(
                 t.span,
                 "Expected value type, but got block type \{sym.name().name}.",
               )
               if sym.is_block_type_constructor() {
-                self.context.info_at(
-                  t.span,
+                msg = msg.help(
                   "Did you mean to box the interface \{sym.name().name}, i.e. `\{sym.name().name} at {}`?",
                 )
               }
+              self.context.error_with(msg)
               // Dummy value type in order to aggregate more errors.
               @symbols.ValueTypeApp(@symbols.Sym::error_value_type(t.span), [])
             }
@@ -2096,20 +2096,18 @@ fn Namer::resolve_value_type(
           self.resolve_capture_set(capt),
         )
       _ => {
-        self.context.error(
+        let mut msg = Message::error(
           t.span,
           "Expected value type, but got \{describe_type(t)}.",
         )
         match t.kind {
           @source.FunctionType(_, _, _, _, _) => {
             if is_param {
-              self.context.info_at(
-                t.span,
+              msg = msg.help(
                 "Did you mean to use braces in order to receive a block type `\{tree_text(t)}`?",
               )
             }
-            self.context.info_at(
-              t.span,
+            msg = msg.help(
               "Did you mean to use a first-class, boxed function type `\{tree_text(t)} at {}`?",
             )
           }
@@ -2119,26 +2117,24 @@ fn Namer::resolve_value_type(
                 let combined = pretty_source_effect_set(
                   fun_effects.effs + effects.effs,
                 )
-                self.context.info_at(
-                  t.span,
+                msg = msg.help(
                   "A function type cannot have multiple effect sets, did you mean to use `/ \{combined}` instead of `/ \{span_text(fun_effects.span)} / \{span_text(effects.span)}`?",
                 )
               }
               _ => {
                 if is_param {
-                  self.context.info_at(
-                    t.span,
+                  msg = msg.help(
                     "Did you mean to use braces and a function type `() => \{tree_text(inner)} / \{span_text(effects.span)}`?",
                   )
                 }
-                self.context.info_at(
-                  t.span,
+                msg = msg.help(
                   "Did you mean to use a first-class, boxed type `() => \{tree_text(inner)} at {} / \{span_text(effects.span)}`?",
                 )
               }
             }
           _ => ()
         }
+        self.context.error_with(msg)
         // Dummy value type in order to aggregate more errors.
         @symbols.ValueTypeApp(@symbols.Sym::error_value_type(t.span), [])
       }
@@ -2159,20 +2155,18 @@ fn Namer::resolve_block_type(
       @source.BlockTypeTree(eff) => eff
       @source.TypeRef(_, _) => self.resolve_block_ref(t)
       _ => {
-        self.context.error(
+        let mut msg = Message::error(
           t.span,
           "Expected block type, but got \{describe_type(t)}.",
         )
         match t.kind {
           @source.BoxedType(inner, capts) => {
             if is_param {
-              self.context.info_at(
-                t.span,
+              msg = msg.help(
                 "Did you mean to use parentheses in order to receive a value type \{tree_text(t)}?",
               )
             }
-            self.context.info_at(
-              t.span,
+            msg = msg.help(
               "Did you mean to use the block type \{tree_text(inner)} without 'at \{span_text(capts.span)}'?",
             )
           }
@@ -2182,24 +2176,22 @@ fn Namer::resolve_block_type(
                 let combined = pretty_source_effect_set(
                   fun_effects.effs + effects.effs,
                 )
-                self.context.info_at(
-                  t.span,
+                msg = msg.help(
                   "A function type cannot have multiple effect sets, did you mean to use `/ \{combined}` instead of `/ \{span_text(fun_effects.span)} / \{span_text(effects.span)}`?",
                 )
               }
               @source.BoxedType(inner_tpe, capts) =>
-                self.context.info_at(
-                  t.span,
+                msg = msg.help(
                   "Did you want to write a boxed type with effects, `\{tree_text(inner_tpe)} / \{span_text(effects.span)} at \{span_text(capts.span)}`?",
                 )
               _ =>
-                self.context.info_at(
-                  t.span,
+                msg = msg.help(
                   "Did you mean to use a function type () => \{tree_text(inner)} / \{span_text(effects.span)}?",
                 )
             }
           _ => ()
         }
+        self.context.error_with(msg)
         // Dummy interface type in order to aggregate more errors.
         @symbols.InterfaceType(@symbols.Sym::error_block_type(t.span), [])
       }

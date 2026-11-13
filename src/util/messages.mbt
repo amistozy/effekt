@@ -88,6 +88,20 @@ pub fn Message::with_phase(self : Message, phase : String) -> Message {
 }
 
 ///|
+/// The content of the message followed by one line per note and help, without
+/// any markers. This is what a *nested* diagnostic looks like inside the text of
+/// another one — upstream's `Style.contentWithSubdiagnostics`, which
+/// `FailedOverloadError` and `ImplicitInstantiationError` indent under the
+/// heading of their candidate.
+pub fn Message::content_with_notes(self : Message) -> String {
+  let parts : Array[String] = [self.text]
+  for note in self.notes {
+    parts.push(note.text())
+  }
+  parts.join("\n")
+}
+
+///|
 /// Adds a note, optionally at a place of its own.
 pub fn Message::note(self : Message, text : String, at : Span?) -> Message {
   let notes = self.notes.copy()
@@ -158,18 +172,18 @@ fn align_line(line : Int32, width : Int32) -> String {
 
 ///|
 /// The reason text with the phase appended to its *first* line; continuation
-/// lines are printed verbatim (`ColoredMessaging.contentWithPhase`).
+/// lines are printed verbatim (`ColoredMessaging.contentWithPhase`). A trailing
+/// newline is kept: a reason whose text ends with one (upstream's
+/// `ImplicitInstantiation` does) renders as a blank line before the excerpt.
 fn with_phase(text : String, phase : String?) -> String {
   let suffix = match phase {
     Some(p) => " [\{p}]"
     None => ""
   }
-  let lines = text.split("\n").map(s => s.to_owned()).collect()
-  if lines.length() == 0 {
-    return suffix
+  match text.find("\n") {
+    Some(i) => text[:i].to_owned() + suffix + text[i:].to_owned()
+    None => text + suffix
   }
-  lines[0] = lines[0] + suffix
-  lines.join("\n")
 }
 
 ///|
