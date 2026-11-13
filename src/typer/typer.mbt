@@ -893,9 +893,10 @@ fn[T] Typer::flowing_into(
 ) -> T raise EffektError {
   let saved = self.st.current
   self.st.current = c
-  let r = f()
-  self.st.current = saved
-  r
+  defer {
+    self.st.current = saved
+  }
+  f()
 }
 
 ///|
@@ -2398,10 +2399,7 @@ pub fn Typer::check_pattern(
   sc : ValueType,
   pattern : MatchPattern,
 ) -> Array[(Sym, ValueType)] raise EffektError {
-  let saved = self.focus
-  self.focus = pattern.span
-  let res = self.check_pattern_kind(sc, pattern)
-  self.focus = saved
+  let res = self.at(pattern.span, () => self.check_pattern_kind(sc, pattern))
   self.annotate_value(pattern.uid, sc)
   res
 }
@@ -2859,6 +2857,9 @@ fn Typer::match_expected(
     Some(s) => self.focus = s
     None => ()
   }
+  defer {
+    self.focus = saved
+  }
   let ctx = Expected(
     self.st.u.prune_value(got),
     self.st.u.prune_value(expected),
@@ -2868,7 +2869,6 @@ fn Typer::match_expected(
     self.st.u.prune_value(expected),
     ctx,
   )
-  self.focus = saved
 }
 
 ///|
@@ -2886,7 +2886,7 @@ fn Typer::match_expected_block(
     Some(s) => self.focus = s
     None => ()
   }
-  errdefer {
+  defer {
     self.focus = saved
   }
   self.unify_block_types(
@@ -2894,7 +2894,6 @@ fn Typer::match_expected_block(
     self.st.u.prune_block(expected),
     ExpectedBlock(self.st.u.prune_block(got), self.st.u.prune_block(expected)),
   )
-  self.focus = saved
 }
 
 ///|
@@ -3305,12 +3304,12 @@ fn[T] Typer::at(
 ) -> T raise EffektError {
   let saved = self.focus
   self.focus = span
-  errdefer {
+  // `defer` also runs when `f` raises, so a comparison that aborts cannot leak
+  // its focus into an enclosing diagnostic.
+  defer {
     self.focus = saved
   }
-  let result = f()
-  self.focus = saved
-  result
+  f()
 }
 
 ///|

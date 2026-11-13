@@ -128,9 +128,12 @@ fn[T] Namer::in_local_scope(
 ) -> T raise EffektError {
   let before = self.scoping.scope
   self.scoping.scope = @symbols.Scope::Local(None, Bindings::empty(), before)
-  let result = f()
-  self.scoping.scope = before
-  result
+  // `defer` restores the scope on the error path as well, so an abort in the
+  // middle of a definition cannot leave the namer in a nested scope.
+  defer {
+    self.scoping.scope = before
+  }
+  f()
 }
 
 ///|
@@ -145,9 +148,10 @@ fn[T] Namer::in_named_scope(
     Bindings::empty(),
     before,
   )
-  let result = f()
-  self.scoping.scope = before
-  result
+  defer {
+    self.scoping.scope = before
+  }
+  f()
 }
 
 ///|
@@ -162,9 +166,10 @@ fn[T] Namer::in_namespace(
   let before = self.scoping.scope
   let child = before.bindings().namespace(name)
   self.scoping.scope = @symbols.Scope::Named(name, child, before)
-  let result = f()
-  self.scoping.scope = before
-  result
+  defer {
+    self.scoping.scope = before
+  }
+  f()
 }
 
 ///|

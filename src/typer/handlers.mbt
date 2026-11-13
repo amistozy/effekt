@@ -184,17 +184,16 @@ fn Typer::match_declared(
   declared : BlockType,
   span : Span,
 ) -> Unit raise EffektError {
-  let saved = self.focus
-  self.focus = span
-  self.unify_block_types(
-    self.st.u.prune_block(got),
-    self.st.u.prune_block(declared),
-    DeclarationBlock(
-      self.st.u.prune_block(declared),
+  self.at(span, () => {
+    self.unify_block_types(
       self.st.u.prune_block(got),
-    ),
-  )
-  self.focus = saved
+      self.st.u.prune_block(declared),
+      DeclarationBlock(
+        self.st.u.prune_block(declared),
+        self.st.u.prune_block(got),
+      ),
+    )
+  })
 }
 
 ///|
@@ -206,14 +205,13 @@ fn Typer::match_declared_value(
 ) -> Unit raise EffektError {
   // Upstream wraps the comparison in `Context.at(param)`: a declared type that
   // does not match is reported at the declaration, not at the enclosing tree.
-  let saved = self.focus
-  self.focus = span
-  self.unify_value_types(
-    self.st.u.prune_value(got),
-    self.st.u.prune_value(declared),
-    Declaration(self.st.u.prune_value(declared), self.st.u.prune_value(got)),
-  )
-  self.focus = saved
+  self.at(span, () => {
+    self.unify_value_types(
+      self.st.u.prune_value(got),
+      self.st.u.prune_value(declared),
+      Declaration(self.st.u.prune_value(declared), self.st.u.prune_value(got)),
+    )
+  })
 }
 
 ///|

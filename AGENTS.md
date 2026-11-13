@@ -110,6 +110,16 @@ You can browse and install extra skills here:
   pretty printer (`show_core_*`) is likewise not `Show`: it lays out a whole
   module at a fixed width.
 
+- **Restore saved state with `defer`, not `errdefer` plus a manual restore.**
+  MoonBit's `defer` runs on both exits (return and raise, verified), so
+  `let saved = …; …; defer { … = saved }; f()` is enough for the "run `f` with
+  this state temporarily changed" helpers (`Typer::at`, `flowing_into`,
+  `match_expected`, the namer's `in_*_scope`). `errdefer` alone leaves the
+  success path to a second assignment, and forgetting that assignment is
+  exactly the bug that leaks state into a caller after an aborted unification.
+  Keep `errdefer` only when the error path must do *something else* than the
+  success path.
+
 ## Host access: prefer the standard library over `extern`
 
 - **Do not hand-write JavaScript when `moonbitlang/core` or `moonbitlang/x` has
