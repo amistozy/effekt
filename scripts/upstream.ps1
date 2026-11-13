@@ -39,7 +39,7 @@ $positiveBaseline = 415
 # whole rendered diagnostic of the tests that carry a `.check` file; the
 # baseline counts the ones whose full text is identical to upstream's.
 $negativeBaseline = 203
-$negativeStrictBaseline = 179
+$negativeStrictBaseline = 197
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
 moon build --target js 2>&1 | Out-Null
@@ -294,9 +294,12 @@ $worker = {
       }
     } else {
       $expected = Get-Expected $file
-      $r = Invoke-Effekt $file $jsOut $false $rel
+      # Upstream's `runNegativeTestsIn` calls `run(f, true)`, i.e. it *runs* a
+      # negative test that has a `.check` file as well — the file records the
+      # program's output (a test may only warn) followed by the diagnostics.
+      $r = Invoke-Effekt $file $jsOut $true $rel
       if ($r.timeout) {
-        $r = Invoke-Effekt $file $jsOut $false $rel 60000
+        $r = Invoke-Effekt $file $jsOut $true $rel 60000
       }
       if ($r.timeout) {
         "$kind`tfail`t$rel`ttimeout (90s)"
@@ -333,7 +336,11 @@ $worker = {
         # verbatim (`assertNoDiff`) when there is one. Report the first line that
         # differs, so the remaining work is visible one difference at a time.
         $check = [IO.Path]::ChangeExtension($file, ".check")
-        $actualText = (Remove-AnsiColors (Get-DiagnosticText $r.stderr)).TrimEnd()
+        $actualText = (Remove-AnsiColors $r.stdout).TrimEnd()
+        $diagText = (Remove-AnsiColors (Get-DiagnosticText $r.stderr)).TrimEnd()
+        if ($diagText -ne "") {
+          if ($actualText -eq "") { $actualText = $diagText } else { $actualText = "$actualText`n$diagText" }
+        }
         $expectedText = ([IO.File]::ReadAllText($check)).Replace("`r`n", "`n").TrimEnd()
         if ($actualText -eq $expectedText) {
           "$kind`tok`t$rel`t"

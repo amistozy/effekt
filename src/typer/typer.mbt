@@ -163,6 +163,10 @@ pub struct Typer {
   /// The matches whose exhaustiveness is checked after type checking (see
   /// exhaustivity.mbt).
   pending_matches : Array[PendingMatch]
+  /// Set once the wellformedness pass has reported an escape: upstream's
+  /// `wellformed` uses `E.abort`, so the first escaped capture or type
+  /// parameter ends the pass and the remaining trees are not checked.
+  mut wf_aborted : Bool
 }
 
 ///|
@@ -187,6 +191,7 @@ pub fn Typer::Typer(ctx : Context) -> Typer {
     focus: Span::missing(),
     type_var_spans: Map([]),
     pending_matches: [],
+    wf_aborted: false,
   }
 }
 
@@ -2605,10 +2610,28 @@ fn is_claimed(left : ValueType, right : ValueType, ctx : ErrCtx) -> Bool {
 
 ///|
 /// `is_claimed` for a comparison of two block types.
+///
+/// The root may be a *value* type comparison: `BoxedType(B, c)` against
+/// `BoxedType(C, d)` compares the block types `B` and `C` under
+/// `BoxedTypeBlock`, and upstream's `unboxed` then matches `B` against the
+/// boxed type's inner block type.
 fn is_claimed_block(left : BlockType, right : BlockType, ctx : ErrCtx) -> Bool {
   match root_of(ctx) {
     ExpectedBlock(got, exp) => left == got && right == exp
     DeclarationBlock(declared, defined) => left == defined && right == declared
+    Expected(got, exp) =>
+      block_is_inner_of(left, got) && block_is_inner_of(right, exp)
+    Declaration(declared, defined) =>
+      block_is_inner_of(left, defined) && block_is_inner_of(right, declared)
+    _ => false
+  }
+}
+
+///|
+/// Is `v` the boxed version of the block type `b`?
+fn block_is_inner_of(b : BlockType, v : ValueType) -> Bool {
+  match v {
+    @symbols.ValueType::BoxedType(inner, _) => inner == b
     _ => false
   }
 }
@@ -3312,6 +3335,7 @@ pub fn Typer::join(
 ) -> ValueType raise EffektError {
   let mut result : ValueType? = None
   let mut first_span : Span? = None
+  let mut failed = false
   for entry in tpes_and_terms {
     let (tpe, span) = entry
     match result {
@@ -3341,7 +3365,10 @@ pub fn Typer::join(
           // `examples/neg/inference` contains diagnostics of *later* definitions
           // (and of the join's second pass), so type checking demonstrably
           // continues. Keep the arm's own type as the join and go on.
-          EffektError::Fatal(_) => tpe
+          EffektError::Fatal(_) => {
+            failed = true
+            tpe
+          }
           EffektError::Internal(m) => raise EffektError::Internal(m)
         }
         result = Some(merged)
@@ -3361,6 +3388,15 @@ pub fn Typer::join(
   // *unsubstituted* arm and join types, which is why `examples/neg/patternmatch`
   // shows `Box[A]` on both sides and names the differing type arguments in the
   // note.
+  //
+  // When a merge failed, upstream never gets here: the failure aborts the phase.
+  // Reporting the arms against a join that is only "the arm's own type" would
+  // repeat the same mismatch in a different wording
+  // (`examples/neg/typer/mismatch/if_arms_int_and_string`), so the pass is
+  // skipped — the merge diagnostic already says it.
+  if failed {
+    return joined
+  }
   for entry in tpes_and_terms {
     let (tpe, arm_span) = entry
     ignore(arm_span)

@@ -173,6 +173,7 @@ pub struct Typer {
   mut focus : @util.Span
   type_var_spans : Map[Int32, @util.Span]
   pending_matches : Array[PendingMatch]
+  mut wf_aborted : Bool
 }
 pub fn Typer::Typer(@source.Context) -> Self
 pub fn Typer::annotate_block(Self, Int32, @symbols.BlockType) -> Unit

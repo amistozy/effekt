@@ -222,9 +222,18 @@ fn WFScope::bind_types(self : WFScope, types : Array[Sym]) -> WFScope {
 
 ///|
 /// Runs the escape checks over a checked module (upstream `Wellformedness`).
+///
+/// Upstream's `wellformed` aborts the pass at the first escaped capture or type
+/// parameter, so only the first failure of a module is reported (`wf_aborted`
+/// makes the walk stop). That is why `examples/neg/lambdas/closure` reports the
+/// escape in the operation clause and not the one of the handled statement.
 pub fn Typer::check_capture_escapes(self : Typer, module : ModuleDecl) -> Unit {
+  self.wf_aborted = false
   for d in module.defs {
     self.wf_def(d, WFScope::empty())
+    if self.wf_aborted {
+      break
+    }
   }
 }
 
@@ -303,6 +312,9 @@ fn Typer::wf_check(
   scope : WFScope,
   detail : String,
 ) -> Unit {
+  if self.wf_aborted {
+    return
+  }
   let escaping = self
     .free_captures_of(tpe)
     .filter(c => !scope.captures.contains(c))
@@ -315,6 +327,7 @@ fn Typer::wf_check(
     "Captures \{@symbols.Captures::CaptureSetOf(escaping)} escape through type \{tpe}\{detail}."
   }
   self.error(span, message)
+  self.wf_aborted = true
 }
 
 ///|
@@ -329,6 +342,9 @@ fn Typer::wf_check_types(
   scope : WFScope,
   detail : String,
 ) -> Unit {
+  if self.wf_aborted {
+    return
+  }
   let escaping = free_types_value(tpe, [])
     .filter(t => !self.st.u.is_type_var(t))
     .filter(t => !scope.types.contains(t))
@@ -341,6 +357,7 @@ fn Typer::wf_check_types(
     "Types \{escaping.map(t => t.name().name).join(", ")} escape through type \{tpe}\{detail}."
   }
   self.error(span, message)
+  self.wf_aborted = true
 }
 
 ///|
@@ -421,21 +438,37 @@ fn Typer::wf_check_handled(
   scope : WFScope,
   bound : Array[Sym],
 ) -> Unit {
-  let free = self.free_captures_of(tpe)
-  let mentioned = free.filter(c => bound.contains(c))
-  if mentioned.length() > 0 {
+  if self.wf_aborted {
+    return
+  }
+  let escaping = self
+    .free_captures_of(tpe)
+    .filter(c => !scope.captures.contains(c))
+  if escaping.length() == 0 {
+    return
+  }
+  if escaping.any(c => bound.contains(c)) {
+    // Upstream's `specificCaptures` for `TryHandle`.
     self.error(
       span,
-      "The return type \{tpe} of the handled statement is not allowed to refer to any of the bound capabilities, but mentions: \{@symbols.Captures::CaptureSetOf(mentioned)}.",
+      "The return type \{tpe} of the handled statement is not allowed to refer to any of the bound capabilities, but mentions: \{@symbols.Captures::CaptureSetOf(escaping)}.",
     )
+  } else {
+    let message = if escaping.length() == 1 {
+      "Capture \{escaping[0].name().name} escapes through type \{tpe} inferred as return type of the handled statement."
+    } else {
+      "Captures \{@symbols.Captures::CaptureSetOf(escaping)} escape through type \{tpe} inferred as return type of the handled statement."
+    }
+    self.error(span, message)
   }
-  self.wf_check(
-    tpe, span, scope, " inferred as return type of the handled statement",
-  )
+  self.wf_aborted = true
 }
 
 ///|
 fn Typer::wf_def(self : Typer, d : Def, scope : WFScope) -> Unit {
+  if self.wf_aborted {
+    return
+  }
   match d.kind {
     @source.DefKind::FunDef(id, tparams, _, bparams, _, _, body) => {
       let captures = self.wf_capability_captures(d.uid) +
@@ -514,57 +547,69 @@ fn Typer::wf_def(self : Typer, d : Def, scope : WFScope) -> Unit {
 
 ///|
 fn Typer::wf_stmt(self : Typer, s : Stmt, scope : WFScope) -> Unit {
+  if self.wf_aborted {
+    return
+  }
   match s.kind {
     @source.StmtKind::DefStmt(d, rest) =>
       match d.kind {
         @source.DefKind::VarDef(id, _, rhs) => {
           // The variable's own capture is in scope for the initial value and
-          // for the rest of the computation, but not outside it: the type of
-          // the rest has to be checked before it is added.
+          // for the rest of the computation, but not outside it (upstream's
+          // `binding(captures = Set(capt))` wraps both the queries and the two
+          // checks).
           let var_captures = match self.ctx.symbol_of(id.uid) {
             Some(sym) => self.wf_mutable_captures(sym)
             None => []
           }
+          let inner = scope.bind(var_captures)
+          self.wf_stmt(rhs, inner)
+          self.wf_stmt(rest, inner)
           match self.ctx.value_type_of(rest.uid) {
             Some(tpe) => {
               let escaping = self
                 .free_captures_of(tpe)
-                .filter(c => var_captures.contains(c))
-              if escaping.length() > 0 {
+                .filter(c => !inner.captures.contains(c))
+              if escaping.length() == 1 && var_captures.contains(escaping[0]) {
+                // The variable itself escapes: upstream's `specificCaptures`
+                // for a `VarDef`.
                 self.error(
                   s.span,
                   "Local variable \{id.name} escapes through the returned value of type \{tpe}.",
                 )
+                self.wf_aborted = true
+              } else if escaping.length() > 0 {
+                let message = if escaping.length() == 1 {
+                  "Capture \{escaping[0].name().name} escapes through type \{tpe} inferred as return type."
+                } else {
+                  "Captures \{@symbols.Captures::CaptureSetOf(escaping)} escape through type \{tpe} inferred as return type."
+                }
+                self.error(s.span, message)
+                self.wf_aborted = true
               }
             }
             None => ()
           }
-          // Upstream also checks the type inferred *for the variable itself*:
-          // an assignment inside the scope may have added captures of a
-          // capability that is bound there and gone afterwards. The variable's
-          // own capture is in scope for this check (upstream's
-          // `binding(captures = Set(capt))` wraps both queries).
-          let var_scope = scope.bind(var_captures)
+          // The type inferred *for the variable*: an assignment inside the
+          // scope may have added captures of a capability that is bound there
+          // and gone afterwards.
           match self.ctx.value_type_of(d.uid) {
             Some(tpe) => {
               self.wf_check(
                 tpe,
                 s.span,
-                var_scope,
+                inner,
                 " inferred for mutable variable \{id.name}",
               )
               self.wf_check_types(
                 tpe,
                 s.span,
-                var_scope,
+                inner,
                 " inferred for mutable variable \{id.name}",
               )
             }
             None => ()
           }
-          let inner = scope.bind(var_captures)
-          self.wf_stmt(rhs, inner)
-          self.wf_stmt(rest, inner)
         }
         _ => {
           self.wf_def(d, scope)
@@ -582,6 +627,9 @@ fn Typer::wf_stmt(self : Typer, s : Stmt, scope : WFScope) -> Unit {
 
 ///|
 fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
+  if self.wf_aborted {
+    return
+  }
   match t.kind {
     @source.TermKind::Var(_) | @source.TermKind::Literal(_, _) => ()
     @source.TermKind::Assign(_, e) => self.wf_term(e, scope)
@@ -684,6 +732,9 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
       self.wf_stmt(prog, scope.bind(bound))
       for h in handlers {
         self.wf_implementation(h.implementation, scope)
+      }
+      if self.wf_aborted {
+        return
       }
       match self.ctx.value_type_of(prog.uid) {
         Some(tpe) => self.wf_check_handled(tpe, prog.span, scope, bound)
@@ -788,6 +839,9 @@ fn Typer::wf_implementation(
   scope : WFScope,
 ) -> Unit {
   for clause in implementation.clauses {
+    if self.wf_aborted {
+      return
+    }
     let captures = self.wf_capability_captures(clause.uid) +
       self.wf_param_captures(clause.bparams)
     // The clause's own type parameters are in scope for its body (upstream's

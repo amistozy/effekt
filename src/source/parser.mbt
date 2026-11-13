@@ -3449,23 +3449,29 @@ fn Parser::function_arg(self : Parser) -> Term raise EffektError {
           mk_term(sp, TermKind::BlockLiteral([], vparams, [], body))
         })
       } else {
-        // { (x: Int) => ... }
-        let lambda = self.backtrack(true, () => {
-          let (tps, vps, bps) = self.lambda_params()
-          self.consume(TArrow)
-          (tps, vps, bps)
+        // Upstream computes the span *inside* `braces { ... }`, so a block
+        // literal starts at its first parameter or statement, not at `{`. The
+        // recorded corpus output depends on it: the arity error of
+        // `apply(box { (x: Int, y: Int) => ... })` points at the `(`.
+        self.nonterminal(() => {
+          // { (x: Int) => ... }
+          let lambda = self.backtrack(true, () => {
+            let (tps, vps, bps) = self.lambda_params()
+            self.consume(TArrow)
+            (tps, vps, bps)
+          })
+          match lambda.value {
+            Some((tps, vps, bps)) => {
+              let body = self.stmts(true)
+              mk_term(self.span(), TermKind::BlockLiteral(tps, vps, bps, body))
+            }
+            None => {
+              // { <STMTS> }
+              let body = self.stmts(true)
+              mk_term(self.span(), TermKind::BlockLiteral([], [], [], body))
+            }
+          }
         })
-        match lambda.value {
-          Some((tps, vps, bps)) => {
-            let body = self.stmts(true)
-            mk_term(self.span(), TermKind::BlockLiteral(tps, vps, bps, body))
-          }
-          None => {
-            // { <STMTS> }
-            let body = self.stmts(true)
-            mk_term(self.span(), TermKind::BlockLiteral([], [], [], body))
-          }
-        }
       }
     }
     self.consume(TRBrace)

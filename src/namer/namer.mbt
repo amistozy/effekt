@@ -1407,17 +1407,18 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
         @symbols.Sym::VarBinder(_) | @symbols.Sym::RegBinder(_) =>
           self.resolve_term(expr)
         @symbols.Sym::ValBinder(_) | @symbols.Sym::ValueParam(_) =>
+          // Upstream's `Context.abort` reports at the current focus, which is
+          // the whole assignment.
           self.context.abort(
-            id.span,
+            t.span,
             "Can only assign to mutable variables, but \{id.name} is a constant.",
           )
         @symbols.Sym::Wildcard(_) =>
           self.context.abort(
-            id.span,
+            t.span,
             "Trying to assign to a wildcard, which is not allowed.",
           )
-        _ =>
-          self.context.abort(id.span, "Can only assign to mutable variables.")
+        _ => self.context.abort(t.span, "Can only assign to mutable variables.")
       }
     }
   }
@@ -1832,18 +1833,19 @@ fn Namer::resolve_function_calltarget(
     BlockTargets(blocks) => {
       if blocks.length() == 0 {
         let ops = flatten_syms(self.lookup_operation(id.path, id.name))
-        // Provide specific info messages for operations.
-        for op in ops {
-          self.context.info_at(
-            id.span,
-            "There is an equally named effect operation \{op.name().name} of interface \{operation_interface(op).name().name}. Use syntax `do \{id_text(id)}()` to call it.",
-          )
-        }
-        // Always abort with the generic message.
-        self.context.abort(
+        // The operations of the same name are *help* items of the error, not
+        // diagnostics of their own (upstream's
+        // `Context.abort(msg) { help(...) }`).
+        let mut error = Message::error(
           id.span,
           "Cannot find a function named `\{id_text(id)}`.",
         )
+        for op in ops {
+          error = error.help(
+            "There is an equally named effect operation \{op.name().name} of interface \{operation_interface(op).name().name}. Use syntax `do \{id_text(id)}()` to call it.",
+          )
+        }
+        self.context.abort_with(error)
       }
       let sym = @symbols.Sym::call_target(blocks)
       self.context.assign_symbol(id.uid, sym)
