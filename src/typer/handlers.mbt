@@ -28,17 +28,21 @@ fn Typer::unbox_error(self : Typer, e : Term, tpe : ValueType) -> Message {
 
 ///|
 /// Checks a term in a *block* position, i.e. where a computation is expected.
+///
+/// Like `check_expr`, the focus is restored afterwards (`Context.at`), so a
+/// capture conflict the caller reports points at the caller.
 pub fn Typer::check_expr_as_block(
   self : Typer,
   e : Term,
   expected : BlockType?,
   hint : (Int32, ValueType)?,
 ) -> TyRes[BlockType] raise EffektError {
-  self.focus = e.span
-  let res = self.check_expr_as_block_kind(e, expected, hint)
-  self.annotate_block(e.uid, res.tpe)
-  self.annotate_effects(e.uid, res.effs)
-  res
+  self.at(e.span, () => {
+    let res = self.check_expr_as_block_kind(e, expected, hint)
+    self.annotate_block(e.uid, res.tpe)
+    self.annotate_effects(e.uid, res.effs)
+    res
+  })
 }
 
 ///|

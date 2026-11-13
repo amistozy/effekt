@@ -1980,20 +1980,29 @@ fn Typer::check_stmt_kind(
 // ---------------------------------------------------------------------------
 
 ///|
+/// Checks an expression against an optional expected type.
+///
+/// The focus is set for the duration of the check and restored afterwards
+/// (upstream's `Context.at`): a diagnostic that the *caller* reports after the
+/// expression has been checked must point at the caller, not at the last
+/// subexpression that happened to be checked. `usingCapture` of a call site is
+/// the case the corpus pins down (`examples/neg/issue362`: "Not allowed {arr}"
+/// belongs to `read {arr}`, not to its `{arr}` argument).
 pub fn Typer::check_expr(
   self : Typer,
   e : Term,
   expected : ValueType?,
 ) -> TyRes[ValueType] raise EffektError {
-  self.focus = e.span
-  let res = self.check_expr_kind(e, expected)
-  self.annotate_value(e.uid, res.tpe)
-  self.annotate_effects(e.uid, res.effs)
-  match expected {
-    Some(exp) => self.match_expected(res.tpe, exp, Some(e.span))
-    None => ()
-  }
-  res
+  self.at(e.span, () => {
+    let res = self.check_expr_kind(e, expected)
+    self.annotate_value(e.uid, res.tpe)
+    self.annotate_effects(e.uid, res.effs)
+    match expected {
+      Some(exp) => self.match_expected(res.tpe, exp, Some(e.span))
+      None => ()
+    }
+    res
+  })
 }
 
 ///|

@@ -16,7 +16,7 @@ so what compiles here is the whole language, not a subset of it.
 `6fbff0b0e`. The whole standard library compiles, **all 415**
 compiling-and-running corpus programs print exactly what upstream recorded, and
 **all 203** programs that have to be rejected are rejected at the expected line,
-with the recorded message. Of the 203, **197** also reproduce the `.check` file
+with the recorded message. Every one of them also reproduces the `.check` file
 upstream recorded — the whole rendered diagnostics, not just the message the
 test asks for — which is what `scripts/upstream.ps1 -Strict` compares. The
 remaining architectural differences are listed under
@@ -170,8 +170,8 @@ severity on the expected line and upstream's message, either according to its
 `.check` file or its `// ERROR` / `// WARN` comments, which is what upstream's
 own test driver does. `-Strict` additionally compares the whole rendered
 diagnostics of a negative test verbatim against its `.check` file, the way
-upstream's `assertNoDiff` does; 197 of the 203 now match, and that number is a
-baseline like the others.
+upstream's `assertNoDiff` does; all 203 match, and that number is a baseline like
+the others.
 Five tests are skipped: one writes to `/dev/stdout`, three spawn POSIX tools
 that Windows does not have (`cat`, and `sh`/`sleep`/`echo`/`seq`/`yes`
 in the two `io` process tests), and one imports a module that does not exist

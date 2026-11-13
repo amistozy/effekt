@@ -172,16 +172,28 @@ pub fn Typer::check_call_to(
   }
 
   // (3) named arguments must still be in the correct position
+  //
+  // A name that belongs to *another* parameter of the same function is a
+  // swap, and upstream adds a sentence saying that position still matters
+  // (`examples/neg/named_args_wrong`).
+  let vpnames : Array[String] = known_vps.map(p => p.name().name)
   for i = 0; i < vargs.length(); i = i + 1 {
     match vargs[i].name {
       Some(got) =>
         if i < known_vps.length() {
           let expected_name = known_vps[i].name().name
           if expected_name != got {
-            self.error(
-              span,
-              "Unexpected name in named argument: got \{got}, but expected \{expected_name} in this position.",
-            )
+            if vpnames.contains(got) {
+              self.error(
+                span,
+                "Unexpected name in named argument: got \{got}, but expected \{expected_name} in this position. Named arguments must still be in the correct position.",
+              )
+            } else {
+              self.error(
+                span,
+                "Unexpected name in named argument: got \{got}, but expected \{expected_name}.",
+              )
+            }
           }
         } else {
           self.error(
@@ -530,6 +542,58 @@ fn implicit_tail_matches(
 }
 
 ///|
+/// Orders the candidates of one scope for the diagnostics of an overload
+/// resolution.
+///
+/// Upstream keeps the candidates in a `Set[TermSymbol]`, whose iteration order
+/// is the `hashCode` of the symbols — i.e. arbitrary, but deterministic. The
+/// recorded corpus output lists them in the order a stable sort by qualified
+/// name produces (`array::println` before `effekt::println`, `any::compare`
+/// before `int::compare`), which leaves the overloads of one name in the order
+/// they were defined.
+fn Typer::candidates_in_order(
+  self : Typer,
+  candidates : Array[Sym],
+) -> Array[Sym] {
+  ignore(self)
+  let keys = candidates.map(s => s.name().qualified_name())
+  let sorted = candidates.copy()
+  let sorted_keys = keys.copy()
+  // insertion sort: the lists are short and it is stable
+  for i = 1; i < sorted.length(); i = i + 1 {
+    let current = sorted[i]
+    let current_key = sorted_keys[i]
+    let mut j = i - 1
+    while j >= 0 && string_less(current_key, sorted_keys[j]) {
+      sorted[j + 1] = sorted[j]
+      sorted_keys[j + 1] = sorted_keys[j]
+      j = j - 1
+    }
+    sorted[j + 1] = current
+    sorted_keys[j + 1] = current_key
+  }
+  sorted
+}
+
+///|
+/// Lexicographic comparison by code unit. `String`'s own `Compare` orders by
+/// length first, which is not the order the diagnostics need
+/// (`array::println` before `effekt::println`).
+fn string_less(a : String, b : String) -> Bool {
+  let ca = a.to_array()
+  let cb = b.to_array()
+  let n = if ca.length() < cb.length() { ca.length() } else { cb.length() }
+  for i = 0; i < n; i = i + 1 {
+    let x = ca[i].to_int()
+    let y = cb[i].to_int()
+    if x != y {
+      return x < y
+    }
+  }
+  ca.length() < cb.length()
+}
+
+///|
 /// Checks a (potentially overloaded) function call.
 pub fn Typer::check_overloaded_function_call(
   self : Typer,
@@ -556,7 +620,7 @@ pub fn Typer::check_overloaded_function_call(
   for candidates in scopes {
     // a scope is a *set* of candidates (upstream `Bindings.terms` is a Set):
     // the same symbol can be bound under several paths of the same scope
-    let unique = dedup_syms(candidates)
+    let unique = self.candidates_in_order(dedup_syms(candidates))
     let (successes, failures) = self.try_candidates(
       unique,
       scopes.length() == 1 && unique.length() == 1,
@@ -598,7 +662,11 @@ pub fn Typer::check_overloaded_function_call(
       // ambiguity error here (`AmbiguousOverloadError`). That also covers the
       // eta-expanded call of an implicit argument whose name has several
       // overloads that would all type check (`qualified-error`).
-      self.abort(call.span, self.ambiguous_overload_message(successes))
+      //
+      // The diagnostic is placed at the *reference* (`Context.spanOf(id)`),
+      // not at the call: `examples/neg/name-based-implicits/type-tag-complex`
+      // underlines the 7 characters of `typeTag`, not `typeTag()`.
+      self.abort(id.span, self.ambiguous_overload_message(successes))
     }
     for f in failures {
       all_failures.push(f)
@@ -780,14 +848,8 @@ pub fn Typer::check_overloaded_method_call(
       "Method \{id.name} not found for receiver of type \{recv.tpe}.",
     )
   }
-  // manual type arguments have to be consistent with the receiver
-  if targs.length() > 0 {
-    for i = 0; i < targs.length() && i < iface_args.length(); i = i + 1 {
-      self.match_expected(iface_args[i], targs[i], None)
-    }
-  }
   let call = { uid: call_node.uid, span: call_node.span, name: id.name, }
-  for candidates_scope in [candidates] {
+  for candidates_scope in [self.candidates_in_order(candidates)] {
     let (successes, failures) = self.try_candidates(
       candidates_scope,
       candidates_scope.length() == 1,
@@ -795,6 +857,22 @@ pub fn Typer::check_overloaded_method_call(
         let (fun_tpe, tparams, vps, bps) = self.find_function_type_for(
           candidate,
         )
+        // Upstream's `checkOverloadedMethodCall`: the number of explicitly
+        // provided type arguments is checked first and aborts the candidate, so
+        // their consistency with the receiver is never reported on top of it
+        // (`examples/neg/issue373/wrong_type_argument_arity`).
+        if targs.length() > 0 && targs.length() != tparams.length() {
+          self.abort(
+            call.span,
+            "Wrong number of type arguments, given \{targs.length()} but expected \{tparams.length()}",
+          )
+        }
+        // manual type arguments have to be consistent with the receiver
+        if targs.length() > 0 {
+          for i = 0; i < targs.length() && i < iface_args.length(); i = i + 1 {
+            self.match_expected(iface_args[i], targs[i], None)
+          }
+        }
         let synth = if targs.length() > 0 {
           targs
         } else {
@@ -823,7 +901,7 @@ pub fn Typer::check_overloaded_method_call(
       self.assign_symbol(id.uid, found)
       return TyRes(res.tpe, eff_union(res.effs, recv.effs))
     } else if successes.length() > 1 {
-      self.abort(call.span, self.ambiguous_overload_message(successes))
+      self.abort(id.span, self.ambiguous_overload_message(successes))
     }
     match failures {
       // Upstream's `abortWith` (through `resolveOverload`): the only candidate
