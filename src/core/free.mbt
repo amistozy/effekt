@@ -193,8 +193,14 @@ pub fn Stmt::free(self : Stmt) -> Free {
       .union(free_all(vargs, e => e.free()))
       .union(free_all(bargs, b => b.free()))
       .union(body.free().remove_value(id))
-    Return(expr) => expr.free()
-    Val(id, binding, body) => body.free().remove_value(id).union(binding.free())
+    Return(exprs) => free_all(exprs, e => e.free())
+    Val(ids, binding, body) => {
+      let mut body_free = body.free()
+      for id in ids {
+        body_free = body_free.remove_value(id)
+      }
+      body_free.union(binding.free())
+    }
     App(callee, _, vargs, bargs) =>
       callee
       .free()

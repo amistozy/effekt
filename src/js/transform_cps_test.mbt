@@ -111,7 +111,7 @@ test "js: a toplevel definition becomes a function of (params..., ks, k)" {
   let main = sym("main")
   let js = compile(
     main,
-    unit_block(@core.Stmt::Return(int_expr(42))),
+    unit_block(@core.Stmt::Return([int_expr(42)])),
     empty_core_module(),
   )
   let name = @js.name_def(main).name
@@ -166,7 +166,7 @@ test "js: the exports call main through RUN_TOPLEVEL" {
   let main = sym("main")
   let js = compile(
     main,
-    unit_block(@core.Stmt::Return(int_expr(1))),
+    unit_block(@core.Stmt::Return([int_expr(1)])),
     empty_core_module(),
   )
   let name = @js.name_def(main).name
@@ -185,7 +185,7 @@ test "js: a reset compiles to a RESET call" {
   let main = sym("main")
   let prompt = bparam("prompt")
   let reset = @core.Stmt::Reset(
-    @core.BlockLit::new([], [], [], [prompt], @core.Stmt::Return(int_expr(1))),
+    @core.BlockLit::new([], [], [], [prompt], @core.Stmt::Return([int_expr(1)])),
   )
   let js = compile(main, unit_block(reset), empty_core_module())
   assert_true(js.contains("RESET("), msg="expected a RESET call:\n\{js}")
@@ -208,7 +208,7 @@ test "js: a shift compiles to a SHIFT call" {
       @symbols.Captures::empty(),
     ),
     resume,
-    @core.Stmt::Return(int_expr(1)),
+    @core.Stmt::Return([int_expr(1)]),
   )
   let js = compile(main, unit_block(shift), empty_core_module())
   assert_true(js.contains("SHIFT("), msg="expected a SHIFT call:\n\{js}")
@@ -231,7 +231,7 @@ test "js: a var compiles to a VAR call" {
     x,
     int_expr(0),
     cap,
-    @core.Stmt::Return(int_expr(1)),
+    @core.Stmt::Return([int_expr(1)]),
   )
   let js = compile(main, unit_block(var_stmt), empty_core_module())
   assert_true(js.contains("VAR("), msg="expected a VAR call:\n\{js}")
@@ -274,7 +274,7 @@ test "js: a match compiles to a switch with numeric case labels" {
       [],
       [vparam("f")],
       [],
-      @core.Stmt::Return(int_expr(1)),
+      @core.Stmt::Return([int_expr(1)]),
     ),
   )
   let clause1 = @core.Clause(
@@ -284,7 +284,7 @@ test "js: a match compiles to a switch with numeric case labels" {
       [],
       [vparam("g")],
       [],
-      @core.Stmt::Return(int_expr(2)),
+      @core.Stmt::Return([int_expr(2)]),
     ),
   )
   let match_stmt = @core.Stmt::Match(
@@ -327,7 +327,7 @@ test "js: a data declaration generates a class with tag, reflect and equals" {
   )
   let js = compile(
     main,
-    unit_block(@core.Stmt::Return(int_expr(0))),
+    unit_block(@core.Stmt::Return([int_expr(0)])),
     core_module,
   )
   let class_name = @js.name_def(ctor).name
@@ -366,7 +366,7 @@ test "js: a tail-recursive definition becomes a labelled while loop" {
       @core.Stmt::App(block_var(f), [], [], []),
     ),
   )
-  let body = @core.Stmt::Def(f, definition, @core.Stmt::Return(int_expr(0)))
+  let body = @core.Stmt::Def(f, definition, @core.Stmt::Return([int_expr(0)]))
   let js = compile(main, unit_block(body), empty_core_module())
   assert_true(js.contains("while (true)"), msg="expected a loop:\n\{js}")
   let label = @js.name_def(f).name
@@ -385,9 +385,9 @@ test "js: a non-recursive definition does not become a loop" {
   let main = sym("main")
   let f = sym("f")
   let definition = @core.Block::BlockLit(
-    @core.BlockLit::new([], [], [], [], @core.Stmt::Return(int_expr(0))),
+    @core.BlockLit::new([], [], [], [], @core.Stmt::Return([int_expr(0)])),
   )
-  let body = @core.Stmt::Def(f, definition, @core.Stmt::Return(int_expr(0)))
+  let body = @core.Stmt::Def(f, definition, @core.Stmt::Return([int_expr(0)]))
   let js = compile(main, unit_block(body), empty_core_module())
   assert_true(
     !js.contains("while (true)"),
@@ -411,18 +411,18 @@ test "js: a non-tail recursive call rebuilds the continuation" {
       [@core.ValueParam(x, @symbols.t_int())],
       [],
       @core.Stmt::Val(
-        tmp,
+        [tmp],
         @core.Stmt::App(
           block_var(f),
           [],
           [@core.Expr::ValueVar(x, @symbols.t_int())],
           [],
         ),
-        @core.Stmt::Return(@core.Expr::ValueVar(tmp, @symbols.t_int())),
+        @core.Stmt::Return([@core.Expr::ValueVar(tmp, @symbols.t_int())]),
       ),
     ),
   )
-  let body = @core.Stmt::Def(f, definition, @core.Stmt::Return(int_expr(0)))
+  let body = @core.Stmt::Def(f, definition, @core.Stmt::Return([int_expr(0)]))
   let js = compile(main, unit_block(body), empty_core_module())
   let label = @js.name_def(f).name
   assert_true(js.contains("while (true)"), msg="expected a loop:\n\{js}")
@@ -842,7 +842,7 @@ test "js: a main with capability parameters is rejected" {
     @symbols.Captures::empty(),
   )
   let block = @core.Block::BlockLit(
-    @core.BlockLit::new([], [], [], [exc], @core.Stmt::Return(int_expr(0))),
+    @core.BlockLit::new([], [], [], [exc], @core.Stmt::Return([int_expr(0)])),
   )
   let core_module = @core.ModuleDecl(
     "test",
@@ -889,8 +889,8 @@ test "js: golden output" {
   let if_block = unit_block(
     @core.Stmt::If(
       int_expr(1),
-      @core.Stmt::Return(int_expr(2)),
-      @core.Stmt::Return(int_expr(3)),
+      @core.Stmt::Return([int_expr(2)]),
+      @core.Stmt::Return([int_expr(3)]),
     ),
   )
   println("===BEGIN-JS===")
@@ -901,7 +901,7 @@ test "js: golden output" {
   println(
     compile(
       main,
-      unit_block(@core.Stmt::Return(int_expr(0))),
+      unit_block(@core.Stmt::Return([int_expr(0)])),
       empty_core_module(),
     ),
   )
@@ -967,7 +967,7 @@ test "js: golden output" {
           [],
           [vparam("f")],
           [],
-          @core.Stmt::Return(int_expr(1)),
+          @core.Stmt::Return([int_expr(1)]),
         ),
       ),
       @core.Clause(
@@ -977,7 +977,7 @@ test "js: golden output" {
           [],
           [vparam("g")],
           [],
-          @core.Stmt::Return(int_expr(2)),
+          @core.Stmt::Return([int_expr(2)]),
         ),
       ),
     ],
@@ -1015,7 +1015,7 @@ test "js: golden output" {
               @core.Stmt::App(block_var(f), [], [], []),
             ),
           ),
-          @core.Stmt::Return(int_expr(0)),
+          @core.Stmt::Return([int_expr(0)]),
         ),
       ),
       empty_core_module(),
@@ -1049,7 +1049,7 @@ test "js: golden output" {
                 @symbols.Captures::empty(),
               ),
               resume,
-              @core.Stmt::Return(int_expr(1)),
+              @core.Stmt::Return([int_expr(1)]),
             ),
           ),
         ),
@@ -1076,18 +1076,18 @@ test "js: golden output" {
               [@core.ValueParam(y, @symbols.t_int())],
               [],
               @core.Stmt::Val(
-                tmp,
+                [tmp],
                 @core.Stmt::App(
                   block_var(g),
                   [],
                   [@core.Expr::ValueVar(y, @symbols.t_int())],
                   [],
                 ),
-                @core.Stmt::Return(@core.Expr::ValueVar(tmp, @symbols.t_int())),
+                @core.Stmt::Return([@core.Expr::ValueVar(tmp, @symbols.t_int())]),
               ),
             ),
           ),
-          @core.Stmt::Return(int_expr(0)),
+          @core.Stmt::Return([int_expr(0)]),
         ),
       ),
       empty_core_module(),

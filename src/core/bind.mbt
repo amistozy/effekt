@@ -11,7 +11,7 @@
 /// Invariant: all binding occurrences store the id separately from the
 /// (implicit) body.
 pub(all) enum Binding {
-  BindingVal(Sym, Stmt)
+  BindingVal(Array[Sym], Stmt)
   BindingLet(Sym, Expr)
   BindingImpureApp(Sym, BlockVar, Array[ValueType], Array[Expr], Array[Block])
   BindingDef(Sym, Block)
@@ -25,7 +25,7 @@ pub(all) enum Binding {
 /// Turns this binding into the corresponding statement with the given rest.
 pub fn Binding::to_stmt(self : Binding, rest : Stmt) -> Stmt {
   match self {
-    BindingVal(id, binding) => Val(id, binding, rest)
+    BindingVal(ids, binding) => Val(ids, binding, rest)
     BindingLet(id, binding) => Let(id, binding, rest)
     BindingImpureApp(id, callee, targs, vargs, bargs) =>
       ImpureApp(id, callee, targs, vargs, bargs, rest)
@@ -60,7 +60,11 @@ pub fn Binding::kind_name(self : Binding) -> String {
 /// and block definitions (upstream leaves the other cases as `???`).
 pub fn Binding::to_toplevel(self : Binding) -> Toplevel raise EffektError {
   match self {
-    BindingVal(id, binding) => ToplevelVal(id, binding)
+    BindingVal([id], binding) => ToplevelVal(id, binding)
+    BindingVal(_, _) =>
+      raise EffektError::Internal(
+        "Binding.Val with more than one pattern is not allowed on the toplevel.",
+      )
     BindingDef(id, binding) => ToplevelDef(id, binding)
     _ =>
       raise EffektError::Internal(

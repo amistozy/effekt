@@ -40,19 +40,19 @@ fn fresh_like(hint : Sym) -> Sym {
 /// materialised (reified) when needed.
 priv enum Continuation {
   Dynamic(Sym)
-  Static(Sym, (Expr, Sym) -> Stmt raise EffektError)
+  Static(Array[Sym], (Array[Expr], Sym) -> Stmt raise EffektError)
 }
 
 ///|
 /// `k(arg, ks)`: jump to the continuation, or inline its body.
 fn Continuation::apply(
   self : Continuation,
-  arg : Expr,
+  args : Array[Expr],
   ks : Sym,
 ) -> Stmt raise EffektError {
   match self {
-    Dynamic(id) => Jump(id, [arg], MetaCont(ks))
-    Static(_, k) => k(arg, ks)
+    Dynamic(id) => Jump(id, args, MetaCont(ks))
+    Static(_, k) => k(args, ks)
   }
 }
 
@@ -61,10 +61,10 @@ fn Continuation::apply(
 fn Continuation::reify(self : Continuation) -> Cont raise EffektError {
   match self {
     Dynamic(id) => ContVar(id)
-    Static(hint, k) => {
-      let param = fresh_like(hint)
+    Static(hints, k) => {
+      let params = hints.map(fresh_like)
       let ks = fresh_sym("ks")
-      ContLam(ContLam([param], ks, k(ValueVar(param), ks)))
+      ContLam(ContLam(params, ks, k(params.map(p => ValueVar(p)), ks)))
     }
   }
 }
@@ -327,13 +327,17 @@ fn transform_stmt(
           )
         _ => internal_error("The callee of an ImpureApp should be a variable")
       }
-    @core.Return(value) => k.apply(transform_expr(value, ctx), ks)
-    @core.Val(id, rhs, body) =>
+    @core.Return(values) => k.apply(values.map(e => transform_expr(e, ctx)), ks)
+    @core.Val(ids, rhs, body) =>
       transform_stmt(
         rhs,
         ks,
-        Static(id, (value, ks2) => {
-          transform_stmt(body, ks2, k, ctx.bind_value(id, value))
+        Static(ids, (values, ks2) => {
+          let mut ctx2 = ctx
+          for i, id in ids {
+            ctx2 = ctx2.bind_value(id, values[i])
+          }
+          transform_stmt(body, ks2, k, ctx2)
         }),
         ctx,
       )
@@ -446,8 +450,8 @@ fn transform_stmt(
             transform_stmt(
               block_lit.body,
               ks,
-              Static(fresh_sym("tmp"), (x, ks2) => {
-                Dealloc(region.id, k.apply(x, ks2))
+              Static([fresh_sym("tmp")], (xs, ks2) => {
+                Dealloc(region.id, k.apply(xs, ks2))
               }),
               ctx,
             ),
@@ -469,7 +473,7 @@ fn transform_stmt(
         transform_stmt(
           body,
           ks,
-          Static(fresh_sym("tmp"), (x, ks2) => Dealloc(id, k.apply(x, ks2))),
+          Static([fresh_sym("tmp")], (xs, ks2) => Dealloc(id, k.apply(xs, ks2))),
           ctx,
         ),
       )

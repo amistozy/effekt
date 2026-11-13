@@ -175,7 +175,7 @@ fn ShowContext::all_show_defs(self : ShowContext) -> Array[Toplevel] {
 ///|
 /// Records a binding that has to be emitted before the current statement.
 fn ShowContext::emit(self : ShowContext, id : Sym, stmt : Stmt) -> Unit {
-  self.bindings.push(BindingVal(id, stmt))
+  self.bindings.push(BindingVal([id], stmt))
 }
 
 ///|
@@ -560,7 +560,7 @@ fn ShowContext::generate_show_instance(
       [],
       [param_value_var],
       [],
-      Return(ValueVar(ret_id, t_string())),
+      Return([ValueVar(ret_id, t_string())]),
     )
   }
   let generate_show = (value_type : ValueType) => {
@@ -569,9 +569,9 @@ fn ShowContext::generate_show_instance(
 
   match builtin_type_name(vt) {
     // Strings are already strings.
-    Some("String") => Some(generate_def(Return(param_value_var)))
+    Some("String") => Some(generate_def(Return([param_value_var])))
     Some("Unit") =>
-      Some(generate_def(Return(Literal(LString("()"), t_string()))))
+      Some(generate_def(Return([Literal(LString("()"), t_string())])))
     Some("Int") => Some(generate_show(t_int()))
     Some("Char") => Some(generate_show(t_char()))
     Some("Byte") => Some(generate_show(t_byte()))
@@ -581,8 +581,8 @@ fn ShowContext::generate_show_instance(
         generate_def(
           If(
             param_value_var,
-            Return(Literal(LString("true"), t_string())),
-            Return(Literal(LString("false"), t_string())),
+            Return([Literal(LString("true"), t_string())]),
+            Return([Literal(LString("false"), t_string())]),
           ),
         ),
       )
@@ -623,7 +623,7 @@ fn ShowContext::generate_show_instance(
         BoxedType(_, _) =>
           // TODO: Handle this better, but honestly your fault for using this.
           // (upstream warns here; the port has no warning sink)
-          Some(generate_def(Return(Literal(LString("BOXED"), t_string()))))
+          Some(generate_def(Return([Literal(LString("BOXED"), t_string())])))
       }
   }
 }
@@ -843,10 +843,10 @@ fn field_val_stmts(
   concatenated : Expr,
 ) -> Stmt {
   if pure_fields.length() == 0 {
-    Return(concatenated)
+    Return([concatenated])
   } else {
     let (id, app) = pure_fields[0]
-    Val(id, app, field_val_stmts(array_drop(pure_fields, 1), concatenated))
+    Val([id], app, field_val_stmts(array_drop(pure_fields, 1), concatenated))
   }
 }
 
@@ -1002,7 +1002,7 @@ fn ShowContext::transform_stmt(
           let vargs_ = vargs.map(e => self.transform_expr(dctx, e))
           self.with_bindings(() => {
             Val(
-              id,
+              [id],
               App(BlockVar(self.get_show_block_var(dctx, targ)), [], vargs_, []),
               self.transform_stmt(dctx, body),
             )
@@ -1025,9 +1025,9 @@ fn ShowContext::transform_stmt(
         Let(id, binding_, self.transform_stmt(dctx, body))
       })
     }
-    Return(expr) => {
-      let expr_ = self.transform_expr(dctx, expr)
-      self.with_bindings(() => Return(expr_))
+    Return(exprs) => {
+      let exprs_ = exprs.map(e => self.transform_expr(dctx, e))
+      self.with_bindings(() => Return(exprs_))
     }
     // let x = show[R](value){...}; body  ==>  val x = show0(value){...}; body
     ImpureApp(id, block_var, targs, vargs, bargs, body) => {
@@ -1042,7 +1042,7 @@ fn ShowContext::transform_stmt(
           let bargs_ = bargs.map(b => self.transform_block(dctx, b))
           self.with_bindings(() => {
             Val(
-              id,
+              [id],
               App(
                 BlockVar(self.get_show_block_var(dctx, targ)),
                 [],
@@ -1075,9 +1075,9 @@ fn ShowContext::transform_stmt(
         self.transform_block(dctx, block),
         self.transform_stmt(dctx, body),
       )
-    Val(id, binding, body) =>
+    Val(ids, binding, body) =>
       Val(
-        id,
+        ids,
         self.transform_stmt(dctx, binding),
         self.transform_stmt(dctx, body),
       )

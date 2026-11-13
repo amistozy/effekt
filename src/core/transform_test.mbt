@@ -211,7 +211,7 @@ test "toplevel def with a value parameter becomes a BlockLit" {
       assert_eq(lit.vparams.length(), 1)
       assert_eq(lit.vparams[0].id.uid(), x_sym.uid())
       assert_eq(lit.cparams.length(), 0)
-      assert_true(lit.body is @core.Return(_))
+      assert_true(lit.body is @core.Return([_]))
     }
     _ => abort("expected ToplevelDef(id, BlockLit(...))")
   }
@@ -244,7 +244,7 @@ test "1 + 2 stays a pure application without a statement wrapper" {
   let core = @core.transform(module_with([d]), "test", ctx)
   match body_of(core, 0) {
     // a pure call is returned directly, without wrapping it in a Val
-    @core.Return(@core.PureApp(callee, targs, vargs)) => {
+    @core.Return([@core.PureApp(callee, targs, vargs)]) => {
       assert_eq(callee.id.uid(), add_sym.uid())
       assert_eq(targs.length(), 0)
       assert_eq(vargs.length(), 2)
@@ -303,7 +303,7 @@ test "val x = f(); g(x) nests Let/Val in the right order" {
 
   let core = @core.transform(module_with([d]), "test", ctx)
   match body_of(core, 0) {
-    @core.Val(v, @core.App(callee_f, _, _, _), rest) => {
+    @core.Val([v], @core.App(callee_f, _, _, _), rest) => {
       assert_eq(v.uid(), x_sym.uid())
       assert_true(callee_f is @core.BlockVar(_))
       match callee_f {
@@ -323,7 +323,7 @@ test "val x = f(); g(x) nests Let/Val in the right order" {
             }
             _ => abort("expected a block variable")
           }
-          assert_true(tail is @core.Return(_))
+          assert_true(tail is @core.Return([_]))
         }
         other =>
           abort("expected a nested Val, got \{@core.show_core_stmt(other)}")
@@ -369,8 +369,8 @@ test "if/else becomes Stmt.If" {
   match body_of(core, 0) {
     @core.If(cond, thn, els) => {
       assert_true(cond is @core.ValueVar(id, _) && id.uid() == c_sym.uid())
-      assert_true(thn is @core.Return(@core.Literal(@source.LInt(1), _)))
-      assert_true(els is @core.Return(@core.Literal(@source.LInt(2), _)))
+      assert_true(thn is @core.Return([@core.Literal(@source.LInt(1), _)]))
+      assert_true(els is @core.Return([@core.Literal(@source.LInt(2), _)]))
     }
     other => abort("expected Stmt.If, got \{@core.show_core_stmt(other)}")
   }
@@ -648,7 +648,7 @@ test "try/handle becomes Reset/Shift" {
                   assert_eq(resume.uid(), resume_sym.uid())
                   assert_eq(resume_lit.vparams.length(), 1)
                   match resume_lit.body {
-                    @core.Resume(k_var, @core.Return(@core.ValueVar(arg, _))) => {
+                    @core.Resume(k_var, @core.Return([@core.ValueVar(arg, _)])) => {
                       assert_eq(k_var.id.uid(), k.id.uid())
                       assert_eq(arg.uid(), resume_lit.vparams[0].id.uid())
                     }
@@ -877,7 +877,7 @@ test "unidirectional resume of an operation with a value parameter" {
           assert_eq(resume_lit.vparams.length(), 1)
           assert_eq(resume_lit.bparams.length(), 0)
           match resume_lit.body {
-            @core.Resume(k_var, @core.Return(@core.ValueVar(arg, _))) => {
+            @core.Resume(k_var, @core.Return([@core.ValueVar(arg, _)])) => {
               assert_eq(k_var.id.uid(), k.id.uid())
               assert_eq(arg.uid(), resume_lit.vparams[0].id.uid())
             }
@@ -1129,7 +1129,7 @@ test "var and assignment become Var/Get/Put" {
                       _,
                       ref3,
                       _,
-                      @core.Return(@core.ValueVar(result, _))
+                      @core.Return([@core.ValueVar(result, _)])
                     ) => {
                       assert_eq(ref3.uid(), var_sym.uid())
                       assert_eq(result.uid(), s2.uid())
@@ -1223,7 +1223,7 @@ test "regions become Region and Alloc" {
                 lit.bparams[0].capt.to_array()[0].uid(),
               )
               assert_true(
-                lit.body is @core.Return(@core.Literal(@source.LUnit, _)),
+                lit.body is @core.Return([@core.Literal(@source.LUnit, _)]),
               )
             }
             other =>

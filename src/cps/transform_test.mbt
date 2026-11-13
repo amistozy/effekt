@@ -41,7 +41,7 @@ test "cps.transform: dealiases a let-bound variable" {
   let stmt = @core.Stmt::Let(
     x,
     @core.Expr::ValueVar(y, @symbols.t_int()),
-    @core.Stmt::Return(@core.Expr::ValueVar(x, @symbols.t_int())),
+    @core.Stmt::Return([@core.Expr::ValueVar(x, @symbols.t_int())]),
   )
   let module = @cps.transform(core_module(@core.ToplevelVal(main, stmt), main))
   match module.definitions[0] {
@@ -68,9 +68,9 @@ test "cps.transform: inlines a value binding (static continuation)" {
   let main = tb("main")
   // val x = 42; return x
   let stmt = @core.Stmt::Val(
-    x,
-    @core.Stmt::Return(int_expr(42)),
-    @core.Stmt::Return(@core.Expr::ValueVar(x, @symbols.t_int())),
+    [x],
+    @core.Stmt::Return([int_expr(42)]),
+    @core.Stmt::Return([@core.Expr::ValueVar(x, @symbols.t_int())]),
   )
   let module = @cps.transform(core_module(@core.ToplevelVal(main, stmt), main))
   match module.definitions[0] {
@@ -96,7 +96,7 @@ test "cps.transform: an application passes metacont and continuation" {
   let main = tb("main")
   // def f = { () => return 1 }; f()
   let definition = @core.Block::BlockLit(
-    @core.BlockLit::new([], [], [], [], @core.Stmt::Return(int_expr(1))),
+    @core.BlockLit::new([], [], [], [], @core.Stmt::Return([int_expr(1)])),
   )
   let stmt = @core.Stmt::Def(
     f,

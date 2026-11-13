@@ -246,7 +246,7 @@ fn show_test_fixture(
         [],
         [@core.ValueParam(value, tree_type)],
         [],
-        @core.Return(call),
+        @core.Return([call]),
       ),
     ),
   )
@@ -368,7 +368,7 @@ test "show phase: generates a structural instance and rewrites the call" {
         @core.Val(
           _,
           @core.App(_, targs, vargs, bargs),
-          @core.Return(@core.ValueVar(_, _))
+          @core.Return([@core.ValueVar(_, _)])
         ) => {
           assert_eq(targs.length(), 0)
           assert_eq(vargs.length(), 1)
@@ -410,7 +410,7 @@ test "show phase: the generated instance matches on the constructors" {
   assert_true(rendered.contains("infixPlusPlus"))
   let int_lit = show_test_instance_for(f, out, @symbols.t_int())
   match int_lit.body {
-    @core.ImpureApp(_, callee, _, _, _, @core.Return(_)) =>
+    @core.ImpureApp(_, callee, _, _, _, @core.Return([_])) =>
       assert_eq(callee.id.uid(), f.show_builtin.uid())
     other =>
       abort(
@@ -472,7 +472,7 @@ test "show phase: a type variable is not rewritten" {
             [],
             [@core.ValueParam(polymorphic, @symbols.ValueTypeRef(a))],
             [],
-            @core.Return(call),
+            @core.Return([call]),
           ),
         ),
       ),
@@ -485,7 +485,7 @@ test "show phase: a type variable is not rewritten" {
   match out.definitions[0] {
     @core.ToplevelDef(_, @core.BlockLit(lit)) =>
       match lit.body {
-        @core.Return(@core.PureApp(callee, _, vargs)) => {
+        @core.Return([@core.PureApp(callee, _, vargs)]) => {
           assert_eq(callee.id.uid(), f.show.uid())
           assert_eq(vargs.length(), 1)
         }
@@ -546,7 +546,7 @@ test "show phase: a call to a user function named show is not rewritten" {
             [],
             [@core.ValueParam(x, @symbols.t_int())],
             [],
-            @core.Return(call),
+            @core.Return([call]),
           ),
         ),
       ),
@@ -558,7 +558,7 @@ test "show phase: a call to a user function named show is not rewritten" {
   match out.definitions[0] {
     @core.ToplevelDef(_, @core.BlockLit(lit)) =>
       match lit.body {
-        @core.Return(@core.PureApp(callee, _, _)) =>
+        @core.Return([@core.PureApp(callee, _, _)]) =>
           assert_eq(callee.id.uid(), user_show.uid())
         other =>
           abort(
@@ -603,7 +603,7 @@ test "show phase: builtins are shown by showBuiltin" {
             [],
             [@core.ValueParam(x, @symbols.t_int())],
             [],
-            @core.Return(call),
+            @core.Return([call]),
           ),
         ),
       ),
@@ -615,7 +615,7 @@ test "show phase: builtins are shown by showBuiltin" {
   // the instance for `Int` calls `showBuiltin`
   let lit = show_test_instance_for(f, out, @symbols.t_int())
   match lit.body {
-    @core.ImpureApp(_, callee, _, _, _, @core.Return(_)) =>
+    @core.ImpureApp(_, callee, _, _, _, @core.Return([_])) =>
       assert_eq(callee.id.uid(), f.show_builtin.uid())
     other =>
       abort(

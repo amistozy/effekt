@@ -272,10 +272,10 @@ fn Transformer::bind_expr(self : Transformer, e : Expr) -> Expr {
 /// Introduces a binding for the given statement.
 fn Transformer::bind_stmt(self : Transformer, s : Stmt) -> Expr {
   match s {
-    Return(e) => self.bind_expr(e)
+    Return([e]) => self.bind_expr(e)
     _ => {
       let x = Sym::tmp_value("r")
-      self.emit(BindingVal(x, s))
+      self.emit(BindingVal([x], s))
       ValueVar(x, unknown_value_type())
     }
   }
@@ -1132,7 +1132,7 @@ fn Transformer::transform_stmt(
           let transformed = self.insert_bindings(() => {
             self.transform_stmt(binding)
           })
-          self.emit(BindingVal(self.sym_of_def(d), transformed))
+          self.emit(BindingVal([self.sym_of_def(d)], transformed))
           self.transform_stmt(rest)
         }
         @source.DefDef(_id, _captures, _annot, binding) => {
@@ -1324,7 +1324,7 @@ fn Transformer::transform_as_control_block(
                 [],
                 vparams,
                 [],
-                Return(PureApp(self.block_var(f), targs, vargs)),
+                Return([PureApp(self.block_var(f), targs, vargs)]),
               ),
             )
           }
@@ -1337,7 +1337,7 @@ fn Transformer::transform_as_control_block(
                 [],
                 vparams,
                 [],
-                Return(Make(data, f, targs, vargs)),
+                Return([Make(data, f, targs, vargs)]),
               ),
             )
           }
@@ -1362,7 +1362,7 @@ fn Transformer::transform_as_control_block(
               targs,
               vargs,
               bargs,
-              Return(ValueVar(result_id, self.transform_value_type(restpe))),
+              Return([ValueVar(result_id, self.transform_value_type(restpe))]),
             )
             BlockLit(
               BlockLit::new(
@@ -1487,7 +1487,7 @@ fn Transformer::transform_as_expr(
     | @source.Call(_, _, _, _) => {
       let stmt = self.transform_as_stmt(tree)
       match stmt {
-        Return(expr) => expr
+        Return([expr]) => expr
         _ => self.bind_stmt(stmt)
       }
     }
@@ -1565,14 +1565,14 @@ fn Transformer::transform_as_stmt(
       )
 
       let then_branch = Val(
-        Sym::tmp_value("while_thn"),
+        [Sym::tmp_value("while_thn")],
         self.insert_bindings(() => self.transform_stmt(body)),
         loop_call,
       )
       let else_branch = self.insert_bindings(() => {
         match default {
           Some(d) => self.transform_stmt(d)
-          None => Return(Literal(LUnit, t_unit()))
+          None => Return([Literal(LUnit, t_unit())])
         }
       })
 
@@ -1652,7 +1652,7 @@ fn Transformer::transform_as_stmt(
       }
       let clause = Clause(
         constructor,
-        BlockLit::new([], [], params, [], Return(ValueVar(selected, tpe))),
+        BlockLit::new([], [], params, [], Return([ValueVar(selected, tpe)])),
       )
       Match(self.transform_as_expr(receiver), tpe, [clause], None)
     }
@@ -1802,7 +1802,7 @@ fn Transformer::transform_as_stmt(
     | @source.New(_)
     | @source.BlockLiteral(_, _, _, _)
     | @source.Assign(_, _)
-    | @source.Do(_, _, _, _) => Return(self.transform_as_expr(tree))
+    | @source.Do(_, _, _, _) => Return([self.transform_as_expr(tree)])
   }
 }
 
@@ -1898,16 +1898,16 @@ fn Transformer::make_function_call(
   match sym {
     ExternFunction(_) =>
       match self.calling_convention(sym) {
-        ConvPure => Return(PureApp(self.block_var(sym), targs, value_args))
+        ConvPure => Return([PureApp(self.block_var(sym), targs, value_args)])
         ConvDirect =>
-          Return(
+          Return([
             self.bind_impure_app(
               self.block_var(sym),
               targs,
               value_args,
               block_args,
             ),
-          )
+          ])
         ConvControl =>
           App(BlockVar(self.block_var(sym)), targs, value_args, block_args)
       }
@@ -1917,7 +1917,7 @@ fn Transformer::make_function_call(
       }
       let universals = type_constructor_tparams(c.tpe).length()
       let existentials = array_drop(targs, universals)
-      Return(Make(c.tpe, sym, existentials, value_args))
+      Return([Make(c.tpe, sym, existentials, value_args)])
     }
     Operation(_) =>
       raise EffektError::Internal(
@@ -2054,7 +2054,7 @@ fn Transformer::transform_op_clause(
             [],
             [resume_arg_param],
             [],
-            Resume(resume_var, Return(ValueVar(resume_arg_id, result_tpe))),
+            Resume(resume_var, Return([ValueVar(resume_arg_id, result_tpe)])),
           )
           Operation(
             op,

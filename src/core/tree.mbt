@@ -321,8 +321,12 @@ pub(all) enum Stmt {
   Let(Sym, Expr, Stmt)
   ImpureApp(Sym, BlockVar, Array[ValueType], Array[Expr], Array[Block], Stmt)
   // Fine-grain CBV
-  Return(Expr)
-  Val(Sym, Stmt, Stmt)
+  /// Returns the given values to the enclosing continuation. Usually there is
+  /// exactly one, but the optimizer's transformations pack multiple values
+  /// into a single block result (upstream #1481).
+  Return(Array[Expr])
+  /// Binds the values returned by `binding` to the given patterns.
+  Val(Array[Sym], Stmt, Stmt)
   App(Block, Array[ValueType], Array[Expr], Array[Block])
   Invoke(Block, Sym, BlockType, Array[ValueType], Array[Expr], Array[Block])
   // Local control flow

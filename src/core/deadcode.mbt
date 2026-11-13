@@ -381,7 +381,10 @@ fn Reachable::process_stmt(self : Reachable, s : Stmt) -> Unit {
       // TODO what to do here? (upstream does not add `id -> binding` either)
       self.process_stmt(body)
     }
-    Return(expr) => self.process_expr(expr)
+    Return(exprs) =>
+      for expr in exprs {
+        self.process_expr(expr)
+      }
     Val(_, binding, body) => {
       self.process_stmt(binding)
       self.process_stmt(body)
@@ -714,8 +717,8 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
     // mutable variables), and dropping the `val` that performs the call loses
     // the loop. The two rules above only look at *reachability* and are
     // therefore sound with approximate captures.
-    Val(id, binding, body) =>
-      Val(id, self.rewrite_stmt(binding), self.rewrite_stmt(body))
+    Val(ids, binding, body) =>
+      Val(ids, self.rewrite_stmt(binding), self.rewrite_stmt(body))
 
     // `Reset({ [cap]{p} => body })` with an unused prompt is the body
     Reset(body) => {
@@ -750,7 +753,7 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
         bargs.map(b => self.rewrite_block(b)),
         self.rewrite_stmt(body),
       )
-    Return(expr) => Return(self.rewrite_expr(expr))
+    Return(exprs) => Return(exprs.map(e => self.rewrite_expr(e)))
     App(callee, targs, vargs, bargs) =>
       App(
         self.rewrite_block(callee),

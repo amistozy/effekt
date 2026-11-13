@@ -116,7 +116,7 @@ pub fn[A] Bind::run(Self[A], (A) -> Stmt) -> Stmt
 pub fn[S, T] Bind::traverse(Array[S], (S) -> Self[T]) -> Self[Array[T]]
 
 pub(all) enum Binding {
-  BindingVal(@symbols.Sym, Stmt)
+  BindingVal(Array[@symbols.Sym], Stmt)
   BindingLet(@symbols.Sym, Expr)
   BindingImpureApp(@symbols.Sym, BlockVar, Array[@symbols.ValueType], Array[Expr], Array[Block])
   BindingDef(@symbols.Sym, Block)
@@ -412,8 +412,8 @@ pub(all) enum Stmt {
   Def(@symbols.Sym, Block, Stmt)
   Let(@symbols.Sym, Expr, Stmt)
   ImpureApp(@symbols.Sym, BlockVar, Array[@symbols.ValueType], Array[Expr], Array[Block], Stmt)
-  Return(Expr)
-  Val(@symbols.Sym, Stmt, Stmt)
+  Return(Array[Expr])
+  Val(Array[@symbols.Sym], Stmt, Stmt)
   App(Block, Array[@symbols.ValueType], Array[Expr], Array[Block])
   Invoke(Block, @symbols.Sym, @symbols.BlockType, Array[@symbols.ValueType], Array[Expr], Array[Block])
   If(Expr, Stmt, Stmt)

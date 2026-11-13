@@ -29,7 +29,7 @@ fn def_identity(f : @symbols.Sym, x : @symbols.Sym) -> @core.Toplevel {
     [],
     [@core.ValueParam(x, @symbols.t_int())],
     [],
-    @core.Return(@core.ValueVar(x, @symbols.t_int())),
+    @core.Return([@core.ValueVar(x, @symbols.t_int())]),
   )
   @core.ToplevelDef(f, @core.BlockLit(lit))
 }
@@ -73,7 +73,7 @@ test "core pretty: expressions" {
     @core.ValueVar(x, @symbols.t_int()),
   ])
   assert_eq(@core.show_core_expr(e), "make Leaf[Int](x)")
-  assert_eq(@core.show_core_stmt(@core.Return(e)), "return make Leaf[Int](x)")
+  assert_eq(@core.show_core_stmt(@core.Return([e])), "return make Leaf[Int](x)")
 }
 
 ///|
@@ -85,12 +85,12 @@ test "core: free variables" {
     [],
     [@core.ValueParam(x, @symbols.t_int())],
     [],
-    @core.Return(@core.ValueVar(x, @symbols.t_int())),
+    @core.Return([@core.ValueVar(x, @symbols.t_int())]),
   )
   let s = @core.Def(
     f,
     @core.BlockLit(lit),
-    @core.Return(@core.ValueVar(x, @symbols.t_int())),
+    @core.Return([@core.ValueVar(x, @symbols.t_int())]),
   )
   let free = s.free()
   // x is bound inside the block, but free in the body of the definition

@@ -365,12 +365,12 @@ pub fn substitute_stmt(
         bargs.map(b => substitute_block(b, subst)),
         substitute_stmt(body, subst.shadow_values([id])),
       )
-    Return(expr) => Return(substitute_expr(expr, subst))
-    Val(id, binding, body) =>
+    Return(exprs) => Return(exprs.map(e => substitute_expr(e, subst)))
+    Val(ids, binding, body) =>
       Val(
-        id,
+        ids,
         substitute_stmt(binding, subst),
-        substitute_stmt(body, subst.shadow_values([id])),
+        substitute_stmt(body, subst.shadow_values(ids)),
       )
     App(callee, targs, vargs, bargs) =>
       App(
@@ -588,7 +588,7 @@ pub fn substitute_binding(
   subst : Substitution,
 ) -> Binding raise EffektError {
   match binding {
-    BindingVal(id, b) => BindingVal(id, substitute_stmt(b, subst))
+    BindingVal(ids, b) => BindingVal(ids, substitute_stmt(b, subst))
     BindingLet(id, b) => BindingLet(id, substitute_expr(b, subst))
     BindingImpureApp(id, callee, targs, vargs, bargs) =>
       BindingImpureApp(

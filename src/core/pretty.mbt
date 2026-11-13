@@ -70,6 +70,12 @@ fn d_id(id : Sym) -> Doc {
 }
 
 ///|
+/// A comma separated list of binders, e.g. the patterns of a `val`.
+fn d_ids(ids : Array[Sym]) -> Doc {
+  punctuate(ids.map(d_id), comma())
+}
+
+///|
 /// `emptyline` upstream: two line breaks.
 fn emptyline() -> Doc {
   doc_cat(doc_line(), doc_line())
@@ -448,9 +454,10 @@ fn d_stmts(s : Stmt) -> Doc {
         ),
         doc_cat(doc_line(), d_stmts(rest)),
       )
-    Return(e) => doc_spacecat(text("return"), d_expr(e))
+    Return(exprs) =>
+      doc_spacecat(text("return"), punctuate(exprs.map(d_expr), comma()))
     // the most common case: binding the result of a single statement
-    Val(id, binding, body) =>
+    Val(ids, binding, body) =>
       match binding {
         App(_, _, _, _)
         | Hole(_, _)
@@ -464,7 +471,7 @@ fn d_stmts(s : Stmt) -> Doc {
         | Return(_) =>
           doc_cat(
             doc_spacecat(
-              doc_spacecat(text("val"), d_id(id)),
+              doc_spacecat(text("val"), d_ids(ids)),
               doc_spacecat(text("="), doc_cat(d_stmt(binding), text(";"))),
             ),
             doc_cat(doc_line(), d_stmts(body)),
@@ -473,7 +480,7 @@ fn d_stmts(s : Stmt) -> Doc {
         _ =>
           doc_cat(
             doc_spacecat(
-              doc_spacecat(text("val"), d_id(id)),
+              doc_spacecat(text("val"), d_ids(ids)),
               doc_spacecat(
                 text("="),
                 doc_cat(braced_block(d_stmts(binding)), text(";")),
