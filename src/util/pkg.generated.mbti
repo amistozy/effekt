@@ -183,7 +183,7 @@ pub(all) struct Template[T] {
 pub fn[T] Template::Template(Array[String], Array[T]) -> Self[T]
 pub fn[T] Template::empty() -> Self[T]
 pub fn[T] Template::is_empty(Self[T]) -> Bool
-pub fn[T, U] Template::map(Self[T], (T) -> U raise EffektError) -> Self[U] raise EffektError
+pub fn[T, U] Template::map(Self[T], (T) -> U raise?) -> Self[U] raise?
 pub fn[T] Template::render(Self[T], (T) -> String) -> String
 
 // Type aliases

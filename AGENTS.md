@@ -118,7 +118,10 @@ You can browse and install extra skills here:
   `each`, `filter`, … declare their callback as `(T) -> U raise?`, so an arrow
   that aborts compilation is a legal argument: write `xs.map(x => …)` /
   `xs.any(x => …)` rather than hand-rolling a `map_raise` loop that pushes into
-  a fresh array. `Template::map` raises for the same reason.
+  a fresh array. When writing such a helper yourself, spell the callback *and*
+  the result `raise?` (as `Template::map` does) instead of a concrete error
+  type: the error is then inferred per call site, so a pure `f` keeps the
+  result pure.
 
 - **Restore saved state with `defer`, not `errdefer` plus a manual restore.**
   MoonBit's `defer` runs on both exits (return and raise, verified), so

@@ -29,11 +29,12 @@ pub fn[T] Template::is_empty(self : Template[T]) -> Bool {
 }
 
 ///|
-/// Maps the arguments of the template. `f` may abort compilation.
+/// Maps the arguments of the template. The error type is inferred from `f`, so
+/// a pure `f` keeps the result pure.
 pub fn[T, U] Template::map(
   self : Template[T],
-  f : (T) -> U raise EffektError,
-) -> Template[U] raise EffektError {
+  f : (T) -> U raise?,
+) -> Template[U] raise? {
   { strings: self.strings, args: self.args.map(f), }
 }
 
