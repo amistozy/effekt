@@ -87,6 +87,16 @@ You can browse and install extra skills here:
   enum — `BlockVar` and `BlockLit` in `src/core`, where `T(...)` would be
   ambiguous with `Block::BlockVar` / `Block::BlockLit`; those keep `::new`.
 
+- **Qualify a constructor by its type when the bare name is unbound.** In
+  `@core`, the constructors of `@symbols`' types are written bare
+  (`FunctionType(…)`, `CaptureSetOf(…)`), because `prelude.mbt`'s
+  `using {type BlockType}` brings the type into scope. Such a bare name is
+  occasionally still reported as unbound inside a single function
+  (`StaticArguments::wrap_definition` was one), while `BlockType::FunctionType`
+  and `Captures::CaptureSetOf` resolve fine there — the type name is in scope
+  even when the constructor is not. It is the same constructor, so use the
+  qualified spelling at that spot rather than moving the code somewhere else.
+
 - **Write lambdas as arrows**, never as anonymous `fn` literals: `x => …`,
   `(a, b) => …`, `() => { … }`. A `fn` literal whose body may raise has to
   repeat the effect (`fn() raise EffektError { … }`), and the annotated form is

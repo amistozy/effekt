@@ -132,24 +132,6 @@ fn is_static(found : RecursiveFunction) -> IsStatic raise EffektError {
 }
 
 ///|
-/// The type of the worker: the parameters of the definition that are not
-/// static, and the type of its body (upstream `blockLit.returnType`).
-fn worker_type_of(
-  lit : BlockLit,
-  flags : IsStatic,
-) -> BlockType raise EffektError {
-  FunctionType(
-    drop_static(flags.types, lit.tparams),
-    // the capture parameters of the static block parameters are dropped
-    drop_static(flags.blocks, lit.cparams).map(c => CaptureSetOf([c])),
-    drop_static(flags.values, lit.vparams).map(p => p.tpe),
-    drop_static(flags.blocks, lit.bparams).map(p => p.tpe),
-    single(lit.body.infer_type()),
-    Effects::empty(),
-  )
-}
-
-///|
 /// The context of the rewrite (upstream `StaticArgumentsContext`).
 priv struct StaticArguments {
   /// uid of a definition -> which of its parameters are static.
@@ -232,8 +214,15 @@ fn StaticArguments::wrap_definition(
       "Can only apply the static arguments translation when all type arguments are static.",
     )
   }
-  let worker_type = worker_type_of(lit, flags)
-  // Fresh parameters for the wrapper and its call to the worker. Only the
+  let worker_type = BlockType::FunctionType(
+    drop_static(static_t, lit.tparams),
+    // the capture parameters of the static block parameters are dropped
+    drop_static(static_b, lit.cparams).map(c => Captures::CaptureSetOf([c])),
+    drop_static(static_v, lit.vparams).map(p => p.tpe),
+    drop_static(static_b, lit.bparams).map(p => p.tpe),
+    single(lit.body.infer_type()),
+    Effects::empty(),
+  ) // Fresh parameters for the wrapper and its call to the worker. Only the
   // non-static ones are freshened, so that the static ones keep their names and
   // the worker closes over exactly those.
   let fresh_cparams : Array[Sym] = []
