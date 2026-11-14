@@ -111,8 +111,8 @@ fn find_equality_functions(module : @source.ModuleDecl) -> Array[Sym] {
               tparams: [],
               vparams: [],
               bparams: [],
-              result: t_bool(),
-              effects: Effects::empty(),
+              result: @symbols.t_bool(),
+              effects: @symbols.Effects::empty(),
               capture: [],
             }),
           )
@@ -197,9 +197,6 @@ pub(all) struct Transformer {
   /// Synthesized capture parameters of regions: the port's `Sym` has no
   /// `LexicalRegion.capture`, so we memoize one per region symbol.
   region_captures : Map[Int32, Sym]
-  /// The type constructor used for prompts (`Type.TPrompt` upstream, which the
-  /// port's type language does not have).
-  prompt_ctor : Sym
 }
 
 ///|
@@ -215,24 +212,13 @@ pub fn Transformer::Transformer(
     bindings: [],
     capture_substitution: Map([]),
     region_captures: Map([]),
-    prompt_ctor: Sym::ErrorBlockType({
-      base: {
-        uid: @util.fresh_uid(),
-        name: Name::local("Prompt"),
-        decl: Span::missing(),
-      },
-      tparams: [],
-    }),
   }
 }
 
 ///|
-/// The type of a prompt delimited by `reset`.
-fn Transformer::prompt_type(
-  self : Transformer,
-  answer : ValueType,
-) -> BlockType {
-  InterfaceType(self.prompt_ctor, [answer])
+/// The type of a prompt delimited by `reset` (`Prompt[(answer)]`).
+fn prompt_type(answer : ValueType) -> BlockType {
+  PromptType([answer])
 }
 
 // ---------------------------------------------------------------------------
@@ -405,37 +391,81 @@ fn Transformer::sym_of_ref(
 }
 
 ///|
+/// The *core* type of a value symbol: the source type the typer recorded (or the
+/// binder's own annotation) translated by `transform_value_type`.
 fn Transformer::value_type_of_sym(self : Transformer, sym : Sym) -> ValueType {
   match self.ctx.value_type_of(sym.uid()) {
-    Some(t) => t
+    Some(t) => self.transform_value_type(t)
     None =>
       match sym {
-        ValueParam(p) => p.tpe.unwrap_or(unknown_value_type())
-        ValBinder(v) => v.tpe.unwrap_or(unknown_value_type())
-        VarBinder(v) => v.tpe.unwrap_or(unknown_value_type())
-        RegBinder(r) => r.tpe.unwrap_or(unknown_value_type())
+        ValueParam(p) =>
+          match p.tpe {
+            Some(t) => self.transform_value_type(t)
+            None => unknown_value_type()
+          }
+        ValBinder(v) =>
+          match v.tpe {
+            Some(t) => self.transform_value_type(t)
+            None => unknown_value_type()
+          }
+        VarBinder(v) =>
+          match v.tpe {
+            Some(t) => self.transform_value_type(t)
+            None => unknown_value_type()
+          }
+        RegBinder(r) =>
+          match r.tpe {
+            Some(t) => self.transform_value_type(t)
+            None => unknown_value_type()
+          }
         _ => unknown_value_type()
       }
   }
 }
 
 ///|
+/// The *core* block type of a symbol; see `value_type_of_sym`.
 fn Transformer::block_type_of_sym(self : Transformer, sym : Sym) -> BlockType {
   match self.ctx.block_type_of(sym.uid()) {
-    Some(t) => t
+    Some(t) => self.transform_block_type(t)
     None =>
       match sym {
-        BlockParam(p) => p.tpe.unwrap_or(unknown_block_type())
-        DefBinder(d) => d.tpe.unwrap_or(unknown_block_type())
-        ExternResource(r) => r.tpe
+        BlockParam(p) =>
+          match p.tpe {
+            Some(t) => self.transform_block_type(t)
+            None => unknown_block_type()
+          }
+        DefBinder(d) =>
+          match d.tpe {
+            Some(t) => self.transform_block_type(t)
+            None => unknown_block_type()
+          }
+        ExternResource(r) => self.transform_block_type(r.tpe)
         LexicalRegion(_) => t_region()
         // Upstream computes the block type of a reference binder from its
         // value type: a `var` (in the current region or in an explicit one)
         // has type `Ref[S]`, a region is a `Region`.
-        VarBinder(v) => t_state(v.tpe.unwrap_or(unknown_value_type()))
-        RegBinder(r) => t_state(r.tpe.unwrap_or(unknown_value_type()))
-        _ => sym.annotated_type().unwrap_or(unknown_block_type())
+        VarBinder(v) => t_state(self.source_value_type(v.tpe))
+        RegBinder(r) => t_state(self.source_value_type(r.tpe))
+        _ =>
+          match sym.annotated_type() {
+            Some(t) => self.transform_block_type(t)
+            None => unknown_block_type()
+          }
       }
+  }
+}
+
+///|
+/// The source type of a binder annotation, translated to core (`unknown` when
+/// the binder has none).
+fn Transformer::source_value_type(
+  self : Transformer,
+  tpe : @symbols.ValueType?,
+) -> ValueType {
+  match tpe {
+    Some(t) => self.transform_value_type(t)
+    None => unknown_value_type()
   }
 }
 
@@ -488,7 +518,19 @@ fn Transformer::capture_of_sym(self : Transformer, sym : Sym) -> Captures {
 /// The inferred type of a tree node, or an unknown type if the typer did not
 /// annotate it.
 fn Transformer::type_of_uid(self : Transformer, uid : Int32) -> ValueType {
-  self.ctx.value_type_of(uid).unwrap_or(unknown_value_type())
+  match self.ctx.value_type_of(uid) {
+    Some(t) => self.transform_value_type(t)
+    None => unknown_value_type()
+  }
+}
+
+///|
+/// The *source* type the typer recorded for a node, untransformed.
+fn Transformer::source_type_of(
+  self : Transformer,
+  t : @source.Term,
+) -> @symbols.ValueType {
+  self.ctx.value_type_of(t.uid).unwrap_or(@symbols.t_top())
 }
 
 ///|
@@ -517,7 +559,7 @@ fn Transformer::inferred_capture(
 fn Transformer::type_arguments_of(
   self : Transformer,
   t : @source.Term,
-) -> Array[ValueType] {
+) -> Array[@symbols.ValueType] {
   self.ctx.type_arguments_of(t.uid)
 }
 
@@ -550,7 +592,7 @@ fn Transformer::is_pure_or_io_uid(self : Transformer, uid : Int32) -> Bool {
 ///|
 /// Mirrors the effect-level part of `CaptureSet.pureOrIO`: only `IO` effects
 /// may escape to the toplevel.
-fn effects_pure_or_io(effs : Effects) -> Bool {
+fn effects_pure_or_io(effs : @symbols.Effects) -> Bool {
   let io : Sym? = match @symbols.t_io() {
     InterfaceType(ctor, _) => Some(ctor)
     _ => None
@@ -597,19 +639,19 @@ fn captures_pure_or_io(capt : Captures) -> Bool {
 ///|
 fn Transformer::transform_value_type(
   self : Transformer,
-  tpe : ValueType,
+  tpe : @symbols.ValueType,
 ) -> ValueType {
   match tpe {
-    BoxedType(t, capt) =>
-      BoxedType(self.transform_block_type(t), self.transform_captures(capt))
-    ValueTypeRef(tvar) => ValueTypeRef(tvar)
-    ValueTypeApp(tc, args) =>
+    @symbols.ValueType::BoxedType(t, capt) =>
+      ValueBoxed(self.transform_block_type(t), self.transform_captures(capt))
+    @symbols.ValueType::ValueTypeRef(tvar) => ValueVar(tvar)
+    @symbols.ValueType::ValueTypeApp(tc, args) =>
       if args.length() == 0 && core_builtin_to_string(tc) == Some("Any") {
         // We translate to Unit in core, to be consistent with coercions
         // introducing unit values.
         t_unit()
       } else {
-        ValueTypeApp(tc, args.map(t => self.transform_value_type(t)))
+        ValueData(tc, args.map(t => self.transform_value_type(t)))
       }
   }
 }
@@ -619,10 +661,17 @@ fn Transformer::transform_value_type(
 /// type carries no effects anymore.
 fn Transformer::transform_block_type(
   self : Transformer,
-  tpe : BlockType,
+  tpe : @symbols.BlockType,
 ) -> BlockType {
   match tpe {
-    FunctionType(tparams, cparams, vparams, bparams, result, effects) => {
+    @symbols.BlockType::FunctionType(
+      tparams,
+      cparams,
+      vparams,
+      bparams,
+      result,
+      effects
+    ) => {
       let capability_types = @symbols.canonical_order(effects.to_list()).map(e => {
         self.transform_block_type(e)
       })
@@ -635,11 +684,10 @@ fn Transformer::transform_block_type(
         cparams,
         vparams.map(t => self.transform_value_type(t)),
         all_block_params,
-        self.transform_value_type(result),
-        Effects::empty(),
+        [self.transform_value_type(result)],
       )
     }
-    InterfaceType(tc, args) =>
+    @symbols.BlockType::InterfaceType(tc, args) =>
       InterfaceType(tc, args.map(t => self.transform_value_type(t)))
   }
 }
@@ -681,7 +729,7 @@ fn Transformer::transform_value_param(
     Some(s) => s
     None => Sym::value_param(Name::local(p.id.name), None, p.id.span)
   }
-  ValueParam(sym, self.transform_value_type(self.value_type_of_sym(sym)))
+  ValueParam(sym, self.value_type_of_sym(sym))
 }
 
 ///|
@@ -702,7 +750,7 @@ fn Transformer::transform_block_param(
   }
   BlockParam(
     sym,
-    self.transform_block_type(self.block_type_of_sym(sym)),
+    self.block_type_of_sym(sym),
     self.transform_captures(self.capture_of_sym(sym)),
   )
 }
@@ -710,7 +758,7 @@ fn Transformer::transform_block_param(
 ///|
 /// A typed value variable.
 fn Transformer::value_var(self : Transformer, sym : Sym) -> Expr {
-  ValueVar(sym, self.transform_value_type(self.value_type_of_sym(sym)))
+  ValueVar(sym, self.value_type_of_sym(sym))
 }
 
 ///|
@@ -718,7 +766,7 @@ fn Transformer::value_var(self : Transformer, sym : Sym) -> Expr {
 fn Transformer::block_var(self : Transformer, sym : Sym) -> BlockVar {
   BlockVar::new(
     sym,
-    self.transform_block_type(self.block_type_of_sym(sym)),
+    self.block_type_of_sym(sym),
     self.transform_captures(self.capture_of_sym(sym)),
   )
 }
@@ -1260,9 +1308,15 @@ fn Transformer::transform_as_block(
     @source.Var(id) => {
       let sym = self.sym_of_ref(id)
       // an unannotated block variable is treated as a function
-      match self.block_type_of_sym(sym) {
-        FunctionType(_, _, _, _, _, _) => self.transform_as_control_block(tree)
+      let tpe = self.block_type_of_sym(sym)
+      match tpe {
+        FunctionType(_, _, _, _, _) => self.transform_as_control_block(tree)
         InterfaceType(_, _) => self.transform_as_object(tree)
+        // A prompt or a resumption is never used as an ordinary block.
+        _ =>
+          raise EffektError::Internal(
+            "Expected a function or an object, but got: \{tpe}",
+          )
       }
     }
     @source.BlockLiteral(_, _, _, _) => self.transform_as_control_block(tree)
@@ -1301,20 +1355,15 @@ fn Transformer::transform_as_control_block(
       let sym = self.sym_of_ref(id)
       let tpe = self.block_type_of_sym(sym)
       match tpe {
-        FunctionType(tparams, _cparams, vparamtps, bparamtps, restpe, _effects) => {
+        FunctionType(tparams, _cparams, vparamtps, bparamtps, restpe) => {
           // if this block argument expects to be called using PureApp or
           // ImpureApp, make sure it is by wrapping it in a BlockLit.
-          let targs : Array[ValueType] = tparams.map(t => ValueTypeRef(t))
+          let targs : Array[ValueType] = tparams.map(t => ValueVar(t))
           let vparams : Array[ValueParam] = []
           for t in vparamtps {
-            vparams.push(
-              ValueParam(
-                Sym::tmp_value("valueParam"),
-                self.transform_value_type(t),
-              ),
-            )
+            vparams.push(ValueParam(Sym::tmp_value("valueParam"), t))
           }
-          let vargs = vparams.map(p => ValueVar(p.id, p.tpe))
+          let vargs = vparams.map(p => Expr::ValueVar(p.id, p.tpe))
 
           // [[ f ]] = { (x) => f(x) }
           let eta_expand_pure = (f : Sym) => {
@@ -1337,7 +1386,7 @@ fn Transformer::transform_as_control_block(
                 [],
                 vparams,
                 [],
-                Return([Make(data, f, targs, vargs)]),
+                Return([Make(ValueData(data, targs), f, targs, vargs)]),
               ),
             )
           }
@@ -1347,9 +1396,7 @@ fn Transformer::transform_as_control_block(
             let bparams : Array[BlockParam] = []
             for t in bparamtps {
               let id = Sym::tmp_block("etaParam")
-              bparams.push(
-                BlockParam(id, self.transform_block_type(t), CaptureSetOf([id])),
-              )
+              bparams.push(BlockParam(id, t, CaptureSetOf([id])))
             }
             let bargs = bparams.map(b => {
               BlockVar(BlockVar::new(b.id, b.tpe, b.capt))
@@ -1362,7 +1409,7 @@ fn Transformer::transform_as_control_block(
               targs,
               vargs,
               bargs,
-              Return([ValueVar(result_id, self.transform_value_type(restpe))]),
+              Return([ValueVar(result_id, single(restpe))]),
             )
             BlockLit(
               BlockLit::new(
@@ -1390,7 +1437,7 @@ fn Transformer::transform_as_control_block(
             }
           }
         }
-        InterfaceType(_, _) =>
+        _ =>
           raise EffektError::Internal("Expected a function but got an object.")
       }
     }
@@ -1442,12 +1489,12 @@ fn Transformer::transform_as_expr(
         self.emit(
           BindingGet(
             state_id,
-            self.transform_value_type(tpe),
+            tpe,
             sym,
             self.transform_captures(self.capture_of_sym(sym)),
           ),
         )
-        ValueVar(state_id, self.transform_value_type(tpe))
+        ValueVar(state_id, tpe)
       } else if sym.is_value_symbol() {
         self.value_var(sym)
       } else {
@@ -1538,7 +1585,7 @@ fn Transformer::transform_as_stmt(
             [],
             self.insert_bindings(() => self.transform_stmt(els)),
           )
-          let tpe = self.transform_value_type(self.inferred_type_of(tree))
+          let tpe = self.inferred_type_of(tree)
           pm_compile([thn_clause, els_clause], tpe)
         }
       }
@@ -1548,14 +1595,7 @@ fn Transformer::transform_as_stmt(
     //   loop$()
     @source.While(guards, body, default) => {
       let loop_name = Sym::tmp_block("while")
-      let loop_type : BlockType = FunctionType(
-        [],
-        [],
-        [],
-        [],
-        t_unit(),
-        Effects::empty(),
-      )
+      let loop_type : BlockType = FunctionType([], [], [], [], [t_unit()])
       let loop_capt = self.transform_captures(self.capture_of_uid(body.uid))
       let loop_call = App(
         BlockVar(BlockVar::new(loop_name, loop_type, loop_capt)),
@@ -1619,8 +1659,8 @@ fn Transformer::transform_as_stmt(
           _ => constructor
         },
       )
-      let scrutinee_type_args = match self.inferred_type_of(receiver) {
-        ValueTypeApp(_, args) => args
+      let scrutinee_type_args = match self.source_type_of(receiver) {
+        @symbols.ValueType::ValueTypeApp(_, args) => args
         _ =>
           raise EffektError::Internal(
             "Should not happen: selection from a non ValueTypeApp.",
@@ -1629,22 +1669,27 @@ fn Transformer::transform_as_stmt(
       let vsubst : Map[Int32, ValueType] = Map([])
       for i = 0; i < universals.length(); i = i + 1 {
         if i < scrutinee_type_args.length() {
-          vsubst.set(universals[i].uid(), scrutinee_type_args[i])
+          vsubst.set(
+            universals[i].uid(),
+            self.transform_value_type(scrutinee_type_args[i]),
+          )
         }
       }
       let selected = Sym::value_param(Name::local("x"), None, tree.span)
-      let tpe = self.transform_value_type(self.inferred_type_of(tree))
+      let tpe = self.inferred_type_of(tree)
       let params : Array[ValueParam] = []
       for f in constructor_fields(constructor) {
-        let ftpe = self.transform_value_type(
-          substitute_value_type_with(field_return_type(f), vsubst, Map([])),
+        let ftpe = substitute_value_type_with(
+          self.transform_value_type(field_return_type(f)),
+          vsubst,
+          Map([]),
         )
         if f.uid() == field.uid() {
           params.push(ValueParam(selected, ftpe))
         } else {
           params.push(
             ValueParam(
-              Sym::value_param(Name::local("_"), Some(ftpe), tree.span),
+              Sym::value_param(Name::local("_"), None, tree.span),
               ftpe,
             ),
           )
@@ -1654,27 +1699,27 @@ fn Transformer::transform_as_stmt(
         constructor,
         BlockLit::new([], [], params, [], Return([ValueVar(selected, tpe)])),
       )
-      Match(self.transform_as_expr(receiver), tpe, [clause], None)
+      Match(self.transform_as_expr(receiver), [tpe], [clause], None)
     }
 
     // Empty match (matching on Nothing)
     @source.Match(scs, cs, None) =>
       if scs.length() == 1 && cs.length() == 0 {
         let scrutinee = self.bind_expr(self.transform_as_expr(scs[0]))
-        let tpe = self.transform_value_type(self.inferred_type_of(tree))
-        Match(scrutinee, tpe, [], None)
+        let tpe = self.inferred_type_of(tree)
+        Match(scrutinee, [tpe], [], None)
       } else {
         self.transform_match(tree, scs, cs, None)
       }
     @source.Match(scs, cs, default) =>
       self.transform_match(tree, scs, cs, default)
     @source.TryHandle(prog, handlers) => {
-      let answer_type = self.transform_value_type(self.type_of_uid(prog.uid))
+      let answer_type = self.type_of_uid(prog.uid)
       // create a fresh prompt, a variable referring to it, and a parameter
       // binding it
       let prompt_id = Sym::tmp_block("p")
       let prompt_capt = Sym::capture_param(Name::local("pCapt"))
-      let prompt_tpe = self.prompt_type(answer_type)
+      let prompt_tpe = prompt_type(answer_type)
       let prompt_var = BlockVar::new(
         prompt_id,
         prompt_tpe,
@@ -1714,11 +1759,7 @@ fn Transformer::transform_as_stmt(
       let region = self.sym_of_id_def(name)
       let cap = self.region_capture(region)
       let tpe = self.block_type_of_sym(region)
-      let param = BlockParam(
-        region,
-        self.transform_block_type(tpe),
-        CaptureSetOf([cap]),
-      )
+      let param = BlockParam(region, tpe, CaptureSetOf([cap]))
       let body = self.insert_bindings(() => self.transform_stmt(body))
       Region(BlockLit::new([], [cap], [], [param], body))
     }
@@ -1738,9 +1779,10 @@ fn Transformer::transform_as_stmt(
       for b in bargs {
         block_args.push(self.transform_as_block(b))
       }
-      let receiver_type = self.ctx
-        .block_type_of(receiver.uid)
-        .unwrap_or(unknown_block_type())
+      let receiver_type = match self.ctx.block_type_of(receiver.uid) {
+        Some(t) => self.transform_block_type(t)
+        None => unknown_block_type()
+      }
       let operation = self.sym_of_ref(id)
       let op_type = self.operation_at_callsite(receiver_type, operation)
       // Do not pass type arguments for the type constructor of the receiver.
@@ -1748,17 +1790,9 @@ fn Transformer::transform_as_stmt(
         type_args,
         type_constructor_tparams(operation_interface(operation)).length(),
       )
-      Invoke(
-        rec,
-        operation,
-        self.transform_block_type(op_type),
-        remaining,
-        value_args,
-        block_args,
-      )
+      Invoke(rec, operation, op_type, remaining, value_args, block_args)
     }
-    @source.Hole(_, _) =>
-      Hole(self.transform_value_type(self.inferred_type_of(tree)), tree.span)
+    @source.Hole(_, _) => Hole([self.inferred_type_of(tree)], tree.span)
     @source.Call(target, _targs, vargs, bargs) =>
       match target {
         @source.IdTarget(id) =>
@@ -1766,11 +1800,11 @@ fn Transformer::transform_as_stmt(
         @source.ExprTarget(t) =>
           match t.kind {
             @source.Unbox(expr) => {
-              let (fun_tpe, capture) = match self.inferred_type_of(expr) {
-                BoxedType(s, c) => (s, c)
+              let (fun_tpe, capture) = match self.source_type_of(expr) {
+                @symbols.ValueType::BoxedType(s, c) => (s, c)
                 got =>
                   raise EffektError::Internal(
-                    "Should be a boxed function type with a known capture set, but got \{describe_value_type(got)}.",
+                    "Should be a boxed function type with a known capture set, but got \{got}.",
                   )
               }
               let _ = fun_tpe
@@ -1807,24 +1841,6 @@ fn Transformer::transform_as_stmt(
 }
 
 ///|
-/// A short description of a value type, for internal error messages.
-fn describe_value_type(t : ValueType) -> String {
-  match t {
-    ValueTypeRef(sym) => "the value type \{sym.name().name}"
-    ValueTypeApp(sym, _) => "the value type \{sym.name().name}"
-    BoxedType(block, _) => "a boxed type (\{show_block_kind(block)})"
-  }
-}
-
-///|
-fn show_block_kind(t : BlockType) -> String {
-  match t {
-    @symbols.BlockType::InterfaceType(sym, _) => "interface \{sym.name().name}"
-    @symbols.BlockType::FunctionType(_, _, _, _, _, _) => "function type"
-  }
-}
-
-///|
 fn Transformer::transform_match(
   self : Transformer,
   tree : @source.Term,
@@ -1854,7 +1870,7 @@ fn Transformer::transform_match(
       )
     None => ()
   }
-  let tpe = self.transform_value_type(self.inferred_type_of(tree))
+  let tpe = self.inferred_type_of(tree)
   pm_compile(clauses, tpe)
 }
 
@@ -1917,7 +1933,7 @@ fn Transformer::make_function_call(
       }
       let universals = type_constructor_tparams(c.tpe).length()
       let existentials = array_drop(targs, universals)
-      Return([Make(c.tpe, sym, existentials, value_args)])
+      Return([Make(ValueData(c.tpe, targs), sym, existentials, value_args)])
     }
     Operation(_) =>
       raise EffektError::Internal(
@@ -2025,25 +2041,15 @@ fn Transformer::transform_op_clause(
         //   def resume123(y) = resume(k) { return y };
         //   ... resume123(...) ...
         // }
-        FunctionType(_, _, [result], _, answer, _) => {
-          let result_tpe = self.transform_value_type(result)
-          let answer_tpe = self.transform_value_type(answer)
+        FunctionType(_, _, [result], _, [answer]) => {
+          let result_tpe = result
+          let answer_tpe = answer
           // (1) bind the continuation (k) itself
           let resume_capture = self.transform_captures(
             self.capture_of_sym(resume_symbol),
           )
           let resume_id = Sym::tmp_block("k")
-          // upstream types the continuation as `Type.TResume(result, answer)`,
-          // which the port's type language does not have; `(result) => answer`
-          // carries the same information.
-          let resume_type : BlockType = FunctionType(
-            [],
-            [],
-            [result_tpe],
-            [],
-            answer_tpe,
-            Effects::empty(),
-          )
+          let resume_type : BlockType = ResumeType([result_tpe], [answer_tpe])
           let resume_param = BlockParam(resume_id, resume_type, resume_capture)
           let resume_var = BlockVar::new(resume_id, resume_type, resume_capture)
           // (2) eta-expand and bind continuation as a function
@@ -2082,17 +2088,16 @@ fn Transformer::transform_op_clause(
         //   def resume123 {h} = resume(k) { h {g} }
         //   ... resume123 { {f} => ... } ...
         // }
-        FunctionType(_, _, _, [arg_tpe], answer, _) => {
+        FunctionType(_, _, _, [arg_tpe], [answer]) => {
           let result_tpe = match arg_tpe {
-            FunctionType(_, _, _, _, result, _) =>
-              self.transform_value_type(result)
+            FunctionType(_, _, _, _, result) => single(result)
             _ => unknown_value_type()
           }
-          let answer_tpe = self.transform_value_type(answer)
-          let arg_tpe_core = self.transform_block_type(arg_tpe)
+          let answer_tpe = answer
+          let arg_tpe_core = arg_tpe
           let (cps, bps) : (Array[Captures], Array[BlockType]) = match
             arg_tpe_core {
-            FunctionType(_, cps, _, bps, _, _) => (cps, bps)
+            FunctionType(_, cps, _, bps, _) => (cps, bps)
             _ => ([], [])
           }
           // (0) compute the block parameters from the type of the continuation
@@ -2120,14 +2125,7 @@ fn Transformer::transform_op_clause(
             self.capture_of_sym(resume_symbol),
           )
           let resume_id = Sym::tmp_block("k")
-          let resume_type : BlockType = FunctionType(
-            [],
-            [],
-            [result_tpe],
-            [],
-            answer_tpe,
-            Effects::empty(),
-          )
+          let resume_type : BlockType = ResumeType([result_tpe], [answer_tpe])
           let resume_param = BlockParam(resume_id, resume_type, resume_capture)
           let resume_var = BlockVar::new(resume_id, resume_type, resume_capture)
 
@@ -2247,14 +2245,13 @@ fn Transformer::operation_at_callsite(
               Map([]),
             )
           })
-          FunctionType(
-            remaining,
-            cparams,
-            vparam_tpes,
-            bparam_tpes,
-            substitute_value_type_with(o.result_type, vsubst, Map([])),
-            Effects::empty(),
-          )
+          FunctionType(remaining, cparams, vparam_tpes, bparam_tpes, [
+            substitute_value_type_with(
+              self.transform_value_type(o.result_type),
+              vsubst,
+              Map([]),
+            ),
+          ])
         }
         ExternInterface(_) =>
           raise EffektError::Internal("Cannot select from an extern interface.")
@@ -2278,15 +2275,11 @@ fn Transformer::operation_at_declaration(
       // in the result type
       let capabilities = @symbols.canonical_order(o.effects.to_list())
       let tparams = array_drop(o.tparams, tparams_interface.length())
-      let bparams_blocks = o.bparams.map(b => {
-        self.transform_block_type(self.block_type_of_sym(b))
-      })
+      let bparams_blocks = o.bparams.map(b => self.block_type_of_sym(b))
       let bparams_capabilities = capabilities.map(t => {
         self.transform_block_type(t)
       })
-      let vparams = o.vparams.map(p => {
-        self.transform_value_type(self.value_type_of_sym(p))
-      })
+      let vparams = o.vparams.map(p => self.value_type_of_sym(p))
       let cparams = o.bparams.map(b => self.capture_of_sym(b)) +
         capabilities.map(t => CaptureSetOf([capture_param_of_type(t)]))
       FunctionType(
@@ -2294,8 +2287,7 @@ fn Transformer::operation_at_declaration(
         cparams,
         vparams,
         bparams_blocks + bparams_capabilities,
-        self.transform_value_type(o.result_type),
-        Effects::empty(),
+        [self.transform_value_type(o.result_type)],
       )
     }
     _ => raise EffektError::Internal("Expected an operation.")
@@ -2304,10 +2296,10 @@ fn Transformer::operation_at_declaration(
 
 ///|
 /// The capture parameter standing in for an effect in a block type.
-fn capture_param_of_type(t : BlockType) -> Sym {
+fn capture_param_of_type(t : @symbols.BlockType) -> Sym {
   match t {
-    InterfaceType(c, _) => Sym::capture_param(c.name())
-    FunctionType(_, _, _, _, _, _) => Sym::capture_param(Name::anon())
+    @symbols.BlockType::InterfaceType(c, _) => Sym::capture_param(c.name())
+    _ => Sym::capture_param(Name::anon())
   }
 }
 
@@ -2412,7 +2404,7 @@ fn Transformer::preprocess_patterns(
     }
   }
 
-  let targs : Array[ValueType] = tparams.map(t => ValueTypeRef(t))
+  let targs : Array[ValueType] = tparams.map(t => ValueVar(t))
   let args = params.map(p => PMVar(p.id, p.tpe))
   PMClause(conditions, joinpoint, targs, args)
 }
@@ -2437,7 +2429,7 @@ fn Transformer::bound_in_pattern(
         Some(s) => s
         None => Sym::value_param(Name::local(id.name), None, id.span)
       }
-      [ValueParam(sym, self.transform_value_type(self.value_type_of_sym(sym)))]
+      [ValueParam(sym, self.value_type_of_sym(sym))]
     }
     @source.TagPattern(_id, patterns) => {
       let out : Array[ValueParam] = []
@@ -2491,7 +2483,7 @@ fn Transformer::transform_pattern(
         sub.push(
           PMSubPattern(
             self.transform_pattern(inner),
-            self.transform_value_type(self.inferred_type_of_pattern(inner)),
+            self.inferred_type_of_pattern(inner),
           ),
         )
       }
@@ -2510,7 +2502,10 @@ fn Transformer::inferred_type_of_pattern(
   self : Transformer,
   p : @source.MatchPattern,
 ) -> ValueType {
-  self.ctx.value_type_of(p.uid).unwrap_or(unknown_value_type())
+  match self.ctx.value_type_of(p.uid) {
+    Some(t) => self.transform_value_type(t)
+    None => unknown_value_type()
+  }
 }
 
 ///|
@@ -2520,31 +2515,35 @@ fn Transformer::inferred_type_of_pattern(
 /// builtin type plus a generic one, and the one matching the literal's type is
 /// used (specialized `(T, T) => Bool` first, then `[A](A, A) => Bool` with the
 /// literal's type as type argument).
-fn Transformer::equals_for(self : Transformer, tpe : ValueType) -> PMEquals? {
-  let tpe = self.transform_value_type(tpe)
+fn Transformer::equals_for(
+  self : Transformer,
+  tpe : @symbols.ValueType,
+) -> PMEquals? {
+  let core_tpe = self.transform_value_type(tpe)
   let mut generic : PMEquals? = None
   for sym in self.eq_functions {
     match sym.annotated_type() {
       Some(@symbols.BlockType::FunctionType(tparams, _, vps, bps, ret, _)) =>
         if bps.length() == 0 &&
           vps.length() == 2 &&
-          value_type_equal(ret, t_bool()) {
+          @symbols.value_type_equal(ret, @symbols.t_bool()) {
           // specialized version: (T, T) => Bool
-          if value_type_equal(vps[0], tpe) && value_type_equal(vps[1], tpe) {
+          if @symbols.value_type_equal(vps[0], tpe) &&
+            @symbols.value_type_equal(vps[1], tpe) {
             return Some(PMEquals(sym, []))
           }
           // generic version: [A](A, A) => Bool
           if tparams.length() == 1 &&
-            value_type_equal(
+            @symbols.value_type_equal(
               vps[0],
               @symbols.ValueType::ValueTypeRef(tparams[0]),
             ) &&
-            value_type_equal(
+            @symbols.value_type_equal(
               vps[1],
               @symbols.ValueType::ValueTypeRef(tparams[0]),
             ) &&
             generic is None {
-            generic = Some(PMEquals(sym, [tpe]))
+            generic = Some(PMEquals(sym, [core_tpe]))
           }
         }
       _ => ()
@@ -2560,7 +2559,7 @@ fn Transformer::equals_for(self : Transformer, tpe : ValueType) -> PMEquals? {
           match only.as_callable() {
             Some(c) =>
               if c.tparams.length() == 1 {
-                Some(PMEquals(only, [tpe]))
+                Some(PMEquals(only, [core_tpe]))
               } else {
                 Some(PMEquals(only, []))
               }

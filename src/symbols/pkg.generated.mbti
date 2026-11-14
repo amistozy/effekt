@@ -12,11 +12,19 @@ pub fn async_capture() -> Sym
 
 pub fn available_type_names(Scope, Bindings) -> Array[String]
 
+pub fn bool_type_sym() -> Sym
+
+pub fn bottom_type_sym() -> Sym
+
+pub fn byte_type_sym() -> Sym
+
 pub fn canonical_compare(BlockType, BlockType) -> Int32
 
 pub fn canonical_compare_value(ValueType, ValueType) -> Int32
 
 pub fn canonical_order(Array[BlockType]) -> Array[BlockType]
+
+pub fn char_type_sym() -> Sym
 
 pub fn constructor_applied_datatype(Sym) -> ValueType
 
@@ -28,6 +36,8 @@ pub fn core_builtins() -> Map[String, Sym]
 
 pub fn dedup_syms(Array[Sym]) -> Array[Sym]
 
+pub fn double_type_sym() -> Sym
+
 pub fn field_param(Sym) -> Sym
 
 pub fn field_return_type(Sym) -> ValueType
@@ -35,6 +45,8 @@ pub fn field_return_type(Sym) -> ValueType
 pub fn global_capability_sym() -> Sym
 
 pub fn global_capture() -> Sym
+
+pub fn int_type_sym() -> Sym
 
 pub fn interface_type_equal(BlockType, BlockType) -> Bool
 
@@ -50,9 +62,13 @@ pub fn lookup_term_in_scope(Scope, Bindings, String) -> Sym? raise @util.EffektE
 
 pub fn[T] or_else(T?, () -> T? raise @util.EffektError) -> T? raise @util.EffektError
 
+pub fn region_type_sym() -> Sym
+
 pub fn root_bindings() -> Bindings
 
 pub fn state_effect_sym() -> Sym
+
+pub fn string_type_sym() -> Sym
 
 pub fn t_bool() -> ValueType
 
@@ -80,7 +96,11 @@ pub fn t_top() -> ValueType
 
 pub fn t_unit() -> ValueType
 
+pub fn top_type_sym() -> Sym
+
 pub fn toplevel(Array[String], Bindings) -> Scoping
+
+pub fn unit_type_sym() -> Sym
 
 pub fn value_type_equal(ValueType, ValueType) -> Bool
 

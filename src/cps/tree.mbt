@@ -91,7 +91,7 @@ pub(all) enum Expr {
   Literal(LiteralValue, ValueType)
   /// Pure FFI calls. Invariant: the block is pure.
   PureApp(Sym, Array[Expr])
-  Make(Sym, Sym, Array[Expr])
+  Make(ValueType, Sym, Array[Expr])
   Box(Block)
 }
 

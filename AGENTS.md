@@ -88,14 +88,29 @@ You can browse and install extra skills here:
   ambiguous with `Block::BlockVar` / `Block::BlockLit`; those keep `::new`.
 
 - **Qualify a constructor by its type when the bare name is unbound.** In
-  `@core`, the constructors of `@symbols`' types are written bare
-  (`FunctionType(…)`, `CaptureSetOf(…)`), because `prelude.mbt`'s
-  `using {type BlockType}` brings the type into scope. Such a bare name is
-  occasionally still reported as unbound inside a single function
-  (`StaticArguments::wrap_definition` was one), while `BlockType::FunctionType`
-  and `Captures::CaptureSetOf` resolve fine there — the type name is in scope
-  even when the constructor is not. It is the same constructor, so use the
-  qualified spelling at that spot rather than moving the code somewhere else.
+  `@core`, the constructors of its own types are written bare
+  (`FunctionType(…)`, `CaptureSetOf(…)`), because `prelude.mbt`'s `using` brings
+  the type into scope. Such a bare name is occasionally still reported as unbound
+  inside a single function (`StaticArguments::wrap_definition` was one), while
+  `BlockType::FunctionType` and `Captures::CaptureSetOf` resolve fine there — the
+  type name is in scope even when the constructor is not. It is the same
+  constructor, so use the qualified spelling at that spot rather than moving the
+  code somewhere else. Note that `ValueVar` is both a core *expression*
+  (`Expr::ValueVar(id, tpe)`) and a core *type* (`ValueType::ValueVar(id)`), so a
+  call in a position without an expected type (`let x = ValueVar(a, b)`) is
+  ambiguous and must be qualified.
+
+- **Core trees carry core types, not source types.** `src/core/types.mbt` is the
+  core type language (upstream `core/Type.scala`): `ValueType` is
+  `ValueVar | ValueData | ValueBoxed`, `BlockType` is
+  `FunctionType | InterfaceType | PromptType | ResumeType`, a function type has a
+  *list* of results and no effect set. `@symbols`' type language is the *source*
+  language: it appears only in `Sym` annotations, `@source` nodes and
+  `core.transform`, which converts at the boundary (`transform_value_type`,
+  `transform_block_type`). A pass that needs the annotation of a *symbol* uses
+  `Transformer::value_type_of_sym`/`block_type_of_sym` (which transform), while
+  `ctx.value_type_of(uid)` returns the source type. `src/cps` uses the core types
+  too, as upstream's `cps.Tree` does.
 
 - **Write lambdas as arrows**, never as anonymous `fn` literals: `x => …`,
   `(a, b) => …`, `() => { … }`. A `fn` literal whose body may raise has to

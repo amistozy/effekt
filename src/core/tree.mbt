@@ -228,8 +228,9 @@ pub(all) enum Expr {
   Literal(LiteralValue, ValueType)
   /// Pure FFI calls. Invariant: the block is a variable.
   PureApp(BlockVar, Array[ValueType], Array[Expr])
-  /// A constructor call. `data` is the data type, `tag` the constructor.
-  Make(Sym, Sym, Array[ValueType], Array[Expr])
+  /// A constructor call. `data` is the data type the constructor belongs to,
+  /// `tag` the constructor.
+  Make(ValueType, Sym, Array[ValueType], Array[Expr])
   Box(Block, Captures)
 }
 
@@ -331,7 +332,7 @@ pub(all) enum Stmt {
   Invoke(Block, Sym, BlockType, Array[ValueType], Array[Expr], Array[Block])
   // Local control flow
   If(Expr, Stmt, Stmt)
-  Match(Expr, ValueType, Array[Clause], Stmt?)
+  Match(Expr, Array[ValueType], Array[Clause], Stmt?)
   // (Type-monomorphic?) regions
   Region(BlockLit)
   Alloc(Sym, Expr, Sym, Stmt)
@@ -350,7 +351,7 @@ pub(all) enum Stmt {
   /// Bidirectional resume: runs the given statement in the original context.
   Resume(BlockVar, Stmt)
   // Others
-  Hole(ValueType, Span)
+  Hole(Array[ValueType], Span)
 }
 
 ///|
@@ -420,7 +421,7 @@ pub fn Operation::Operation(
 /// Upstream infers those with `Type.inferType`, which `type.mbt` ports for the
 /// optimizer; this sentinel marks the places that still do without.
 pub fn unknown_value_type() -> ValueType {
-  ValueTypeApp(Sym::error_value_type(Span::missing()), [])
+  ValueData(Sym::error_value_type(Span::missing()), [])
 }
 
 ///|
@@ -433,7 +434,7 @@ pub fn unknown_block_type() -> BlockType {
 /// Whether this is the placeholder written by `unknown_value_type()`.
 pub fn is_unknown_value_type(tpe : ValueType) -> Bool {
   match tpe {
-    ValueTypeApp(sym, _) =>
+    ValueData(sym, _) =>
       match sym {
         Sym::ErrorValueType(_) => true
         _ => false

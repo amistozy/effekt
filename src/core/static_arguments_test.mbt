@@ -3,21 +3,14 @@
 // are static) and the shape of the wrapper and the worker.
 
 ///|
-fn fn_bvar(f : @symbols.Sym, tpe : @symbols.BlockType) -> @core.BlockVar {
+fn fn_bvar(f : @symbols.Sym, tpe : @core.BlockType) -> @core.BlockVar {
   @core.BlockVar::new(f, tpe, @symbols.Captures::empty())
 }
 
 ///|
 /// `(Int) => Int`, the type of a recursive function over one static `Int`.
-fn unary_fun() -> @symbols.BlockType {
-  @symbols.BlockType::FunctionType(
-    [],
-    [],
-    [@symbols.t_int()],
-    [],
-    @symbols.t_int(),
-    @symbols.Effects::empty(),
-  )
+fn unary_fun() -> @core.BlockType {
+  @core.FunctionType([], [], [@core.t_int()], [], [@core.t_int()])
 }
 
 ///|
@@ -37,7 +30,7 @@ test "static arguments: an unchanged argument becomes a worker parameter" {
       @core.BlockLit::new(
         [],
         [],
-        [@core.ValueParam(x, @symbols.t_int())],
+        [@core.ValueParam(x, @core.t_int())],
         [],
         @core.App(@core.BlockVar(fn_bvar(f, unary_fun())), [], [int_var(x)], []),
       ),
@@ -64,7 +57,7 @@ test "static arguments: an unread parameter is vacuously static" {
       @core.BlockLit::new(
         [],
         [],
-        [@core.ValueParam(x, @symbols.t_int())],
+        [@core.ValueParam(x, @core.t_int())],
         [],
         @core.App(@core.BlockVar(fn_bvar(f, unary_fun())), [], [int_lit(1)], []),
       ),
@@ -88,14 +81,9 @@ test "static arguments: a type argument that is passed through is dropped" {
     @symbols.Name::local("t"),
     @util.Span::missing(),
   )
-  let polymorphic = @symbols.BlockType::FunctionType(
-    [t],
-    [],
-    [@symbols.t_int()],
-    [],
-    @symbols.t_int(),
-    @symbols.Effects::empty(),
-  )
+  let polymorphic = @core.FunctionType([t], [], [@core.t_int()], [], [
+    @core.t_int(),
+  ])
   // def f[t](x: Int) = { f[t](x) }
   let definition = @core.ToplevelDef(
     f,
@@ -103,11 +91,11 @@ test "static arguments: a type argument that is passed through is dropped" {
       @core.BlockLit::new(
         [t],
         [],
-        [@core.ValueParam(x, @symbols.t_int())],
+        [@core.ValueParam(x, @core.t_int())],
         [],
         @core.App(
           @core.BlockVar(fn_bvar(f, polymorphic)),
-          [@symbols.ValueType::ValueTypeRef(t)],
+          [@core.ValueVar(t)],
           [int_var(x)],
           [],
         ),
@@ -136,7 +124,7 @@ test "static arguments: a changing argument keeps the definition" {
       @core.BlockLit::new(
         [],
         [],
-        [@core.ValueParam(x, @symbols.t_int())],
+        [@core.ValueParam(x, @core.t_int())],
         [],
         @core.Val(
           [y],
@@ -167,7 +155,7 @@ test "static arguments: mutual recursion is not detected" {
         @core.BlockLit::new(
           [],
           [],
-          [@core.ValueParam(x, @symbols.t_int())],
+          [@core.ValueParam(x, @core.t_int())],
           [],
           @core.App(
             @core.BlockVar(fn_bvar(callee, unary_fun())),

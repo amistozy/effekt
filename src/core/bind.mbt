@@ -126,7 +126,7 @@ pub fn expr_type_hint(e : Expr) -> ValueType {
   match e {
     ValueVar(_, tpe) => tpe
     Literal(_, tpe) => tpe
-    Make(data, _, targs, _) => ValueTypeApp(data, targs)
+    Make(data, _, _, _) => data
     _ => unknown_value_type()
   }
 }

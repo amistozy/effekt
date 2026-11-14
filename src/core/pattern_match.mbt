@@ -211,7 +211,7 @@ fn pm_literal_equal(a : LiteralValue, b : LiteralValue) -> Bool {
 /// special cases of `splitOnLiteral` for `Bool`, `Unit` and `Nothing`.
 fn pm_finite_literals(tpe : ValueType) -> Array[LiteralValue]? {
   match tpe {
-    ValueTypeApp(sym, _) =>
+    ValueData(sym, _) =>
       match core_builtin_to_string(sym) {
         Some("Bool") => Some([LBool(true), LBool(false)])
         Some("Unit") => Some([LUnit])
@@ -249,7 +249,7 @@ pub fn pm_compile(
   // This shouldn't be reachable anymore since we specialize matching on void
   // before calling compile.
   if clauses.length() == 0 {
-    return Hole(motif, Span::missing())
+    return Hole([motif], Span::missing())
   }
 
   // (0) normalize clauses
@@ -524,7 +524,7 @@ fn pm_split_on_tag(
             }
             vars.push(
               PMVar(
-                Sym::value_param(Name::local(name), Some(tpe), Span::missing()),
+                Sym::value_param(Name::local(name), None, Span::missing()),
                 tpe,
               ),
             )
@@ -602,7 +602,7 @@ fn pm_split_on_tag(
     Some(pm_compile(defaults, motif))
   }
 
-  Match(scrutinee.to_expr(), motif, branches, default)
+  Match(scrutinee.to_expr(), [motif], branches, default)
 }
 
 ///|

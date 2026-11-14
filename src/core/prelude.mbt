@@ -31,26 +31,12 @@ using @util {
 using @symbols {
   type Sym,
   type Name,
-  type ValueType,
-  type BlockType,
   type Captures,
-  type Effects,
   dedup_syms,
-  // built-in types and effects
-  t_unit,
-  t_bool,
-  t_int,
-  t_double,
-  t_string,
-  t_char,
-  t_byte,
-  t_region,
-  t_state,
   // built-in symbols
   core_builtin_to_string,
   // type queries (mirrors the parts of `core/Type.scala` we do port)
   field_return_type,
-  value_type_equal,
 }
 
 ///|

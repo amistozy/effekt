@@ -139,14 +139,14 @@ fn string_literal(s : String) -> Doc {
 ///|
 fn d_value_type(t : ValueType) -> Doc {
   match t {
-    ValueTypeRef(id) => doc_cat(text("'"), d_id(id))
-    ValueTypeApp(symbol, targs) =>
+    ValueVar(id) => doc_cat(text("'"), d_id(id))
+    ValueData(symbol, targs) =>
       if targs.length() == 0 {
         d_id(symbol)
       } else {
         doc_cat(d_id(symbol), brackets_list(targs.map(d_value_type)))
       }
-    BoxedType(tpe, capt) =>
+    ValueBoxed(tpe, capt) =>
       doc_spacecat(
         d_block_type(tpe),
         doc_spacecat(text("at"), d_captures(capt)),
@@ -155,15 +155,20 @@ fn d_value_type(t : ValueType) -> Doc {
 }
 
 ///|
-fn d_effects(effs : Effects) -> Doc {
-  let docs = effs.to_list().map(d_block_type)
-  braces_list(docs)
+/// A list of types in a position where a single type prints bare:
+/// `Int`, or `(Int, Bool)` for several results.
+fn d_type_list(tpes : Array[ValueType]) -> Doc {
+  if tpes.length() == 1 {
+    d_value_type(tpes[0])
+  } else {
+    parens_list(tpes.map(d_value_type))
+  }
 }
 
 ///|
 fn d_block_type(t : BlockType) -> Doc {
   match t {
-    FunctionType(tparams, cparams, vparams, bparams, result, effects) => {
+    FunctionType(tparams, cparams, vparams, bparams, result) => {
       let tps = d_type_params(tparams)
       let vps = parens_list(vparams.map(d_value_type))
       let n = if cparams.length() < bparams.length() {
@@ -185,18 +190,17 @@ fn d_block_type(t : BlockType) -> Doc {
       // After `=>` the grammar expects a primValueType, so boxed results are
       // parenthesized.
       let res = match result {
-        BoxedType(_, _) => parens_inner(d_value_type(result))
-        _ => d_value_type(result)
+        [single] =>
+          match single {
+            ValueBoxed(_, _) => parens_inner(d_value_type(single))
+            _ => d_value_type(single)
+          }
+        _ => parens_list(result.map(d_value_type))
       }
-      let base = doc_spacecat(
+      doc_spacecat(
         doc_spacecat(doc_cat(tps, doc_cat(vps, hsep(bps))), text("=>")),
         res,
       )
-      if effects.is_empty() {
-        base
-      } else {
-        doc_spacecat(doc_spacecat(base, text("/")), d_effects(effects))
-      }
     }
     InterfaceType(symbol, targs) =>
       if targs.length() == 0 {
@@ -204,6 +208,13 @@ fn d_block_type(t : BlockType) -> Doc {
       } else {
         doc_cat(d_id(symbol), brackets_list(targs.map(d_value_type)))
       }
+    PromptType(answer) =>
+      doc_cat(text("Prompt"), brackets_list([d_type_list(answer)]))
+    ResumeType(result, answer) =>
+      doc_spacecat(
+        doc_spacecat(parens_list(result.map(d_value_type)), text("~>")),
+        d_type_list(answer),
+      )
   }
 }
 
@@ -564,7 +575,7 @@ fn d_stmts(s : Stmt) -> Doc {
         doc_spacecat(
           d_expr(scrutinee),
           doc_spacecat(
-            doc_cat(text("match"), brackets_list([d_value_type(tpe)])),
+            doc_cat(text("match"), brackets_list(tpe.map(d_value_type))),
             d_match_clauses(clauses),
           ),
         ),
@@ -572,7 +583,7 @@ fn d_stmts(s : Stmt) -> Doc {
       )
     Hole(tpe, span) =>
       doc_spacecat(
-        doc_cat(text("<>"), doc_spacecat(text(":"), d_value_type(tpe))),
+        doc_cat(text("<>"), doc_spacecat(text(":"), d_type_list(tpe))),
         text("@ \"\{span.source.name}\":\{span.start}:\{span.end}"),
       )
   }

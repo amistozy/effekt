@@ -26,6 +26,20 @@ struct ShowFixture {
 }
 
 ///|
+/// The core type of the simple source types this test builds: the symbol
+/// annotations of a `Sym` stay in the source language, the tree annotations are
+/// core types.
+fn show_test_core_type(t : @symbols.ValueType) -> @core.ValueType {
+  match t {
+    @symbols.ValueType::ValueTypeRef(sym) => @core.ValueVar(sym)
+    @symbols.ValueType::ValueTypeApp(sym, args) =>
+      @core.ValueData(sym, args.map(show_test_core_type))
+    @symbols.ValueType::BoxedType(_, _) =>
+      abort("the show tests do not build boxed types")
+  }
+}
+
+///|
 fn show_test_base(name : String) -> @symbols.SymBase {
   {
     uid: @util.fresh_uid(),
@@ -57,7 +71,7 @@ fn show_test_extern(
   sym : @symbols.Sym,
   tparams : Array[@symbols.Sym],
   vparams : Array[@core.ValueParam],
-  result : @symbols.ValueType,
+  result : @core.ValueType,
 ) -> @core.Extern {
   @core.ExternDef(
     sym,
@@ -126,10 +140,10 @@ fn show_test_tree() -> (
     constructor: node,
   })
   let constructors : Array[@core.Constructor] = [
-    @core.Constructor(leaf, [], [@core.Field(field_v, @symbols.t_int())]),
+    @core.Constructor(leaf, [], [@core.Field(field_v, @core.t_int())]),
     @core.Constructor(node, [], [
-      @core.Field(field_l, tree_tpe),
-      @core.Field(field_r, tree_tpe),
+      @core.Field(field_l, show_test_core_type(tree_tpe)),
+      @core.Field(field_r, show_test_core_type(tree_tpe)),
     ]),
   ]
   (tree, [leaf, node], constructors)
@@ -143,7 +157,7 @@ fn show_test_tree() -> (
 /// the shown value: upstream's `Show` reads the inferred type arguments, while
 /// `core.transform` produces calls without any (see `show_type_argument`).
 fn show_test_fixture(
-  targs_of : (@symbols.ValueType) -> Array[@symbols.ValueType],
+  targs_of : (@core.ValueType) -> Array[@core.ValueType],
 ) -> ShowFixture {
   let show = show_test_extern_sym("show", [], [], @symbols.t_string())
   let show_builtin = show_test_extern_sym(
@@ -172,7 +186,7 @@ fn show_test_fixture(
       Some(@symbols.ValueTypeRef(r)),
       @util.Span::missing(),
     ),
-    @symbols.ValueTypeRef(r),
+    @core.ValueVar(r),
   )
   // extern def showBuiltin(value: Int): String
   let int_param = @core.ValueParam(
@@ -181,7 +195,7 @@ fn show_test_fixture(
       Some(@symbols.t_int()),
       @util.Span::missing(),
     ),
-    @symbols.t_int(),
+    @core.t_int(),
   )
   // extern def infixPlusPlus(s1: String, s2: String): String
   let str_param = (name : String) => {
@@ -191,17 +205,17 @@ fn show_test_fixture(
         Some(@symbols.t_string()),
         @util.Span::missing(),
       ),
-      @symbols.t_string(),
+      @core.t_string(),
     )
   }
   let externs : Array[@core.Extern] = [
-    show_test_extern(show, [r], [r_param], @symbols.t_string()),
-    show_test_extern(show_builtin, [], [int_param], @symbols.t_string()),
+    show_test_extern(show, [r], [r_param], @core.t_string()),
+    show_test_extern(show_builtin, [], [int_param], @core.t_string()),
     show_test_extern(
       concat,
       [],
       [str_param("s1"), str_param("s2")],
-      @symbols.t_string(),
+      @core.t_string(),
     ),
   ]
 
@@ -214,18 +228,11 @@ fn show_test_fixture(
   let call = @core.PureApp(
     @core.BlockVar::new(
       show,
-      @symbols.FunctionType(
-        [],
-        [],
-        [@symbols.ValueTypeRef(r)],
-        [],
-        @symbols.t_string(),
-        @symbols.Effects::empty(),
-      ),
+      @core.FunctionType([], [], [@core.ValueVar(r)], [], [@core.t_string()]),
       @symbols.CaptureSetOf([]),
     ),
-    targs_of(tree_type),
-    [@core.ValueVar(value, tree_type)],
+    targs_of(show_test_core_type(tree_type)),
+    [@core.ValueVar(value, show_test_core_type(tree_type))],
   )
 
   // def entry(t: Tree): String = return show(t)
@@ -244,7 +251,7 @@ fn show_test_fixture(
       @core.BlockLit::new(
         [],
         [],
-        [@core.ValueParam(value, tree_type)],
+        [@core.ValueParam(value, show_test_core_type(tree_type))],
         [],
         @core.Return([call]),
       ),
@@ -280,13 +287,12 @@ fn show_test_fixture(
 fn show_test_instance_def(
   f : ShowFixture,
   out : @core.ModuleDecl,
-  tpe : @symbols.ValueType,
+  tpe : @core.ValueType,
 ) -> (@symbols.Sym, @core.BlockLit)? {
   for i = f.module.definitions.length(); i < out.definitions.length(); i = i + 1 {
     match out.definitions[i] {
       @core.ToplevelDef(id, @core.BlockLit(lit)) =>
-        if lit.vparams.length() == 1 &&
-          @symbols.value_type_equal(lit.vparams[0].tpe, tpe) {
+        if lit.vparams.length() == 1 && lit.vparams[0].tpe == tpe {
           return Some((id, lit))
         }
       _ => ()
@@ -300,7 +306,7 @@ fn show_test_instance_def(
 fn show_test_instance_for(
   f : ShowFixture,
   out : @core.ModuleDecl,
-  tpe : @symbols.ValueType,
+  tpe : @core.ValueType,
 ) -> @core.BlockLit {
   match show_test_instance_def(f, out, tpe) {
     Some((_, lit)) => lit
@@ -316,7 +322,7 @@ fn show_test_instance_for(
 fn show_test_instance_id(
   f : ShowFixture,
   out : @core.ModuleDecl,
-  tpe : @symbols.ValueType,
+  tpe : @core.ValueType,
 ) -> @symbols.Sym {
   match show_test_instance_def(f, out, tpe) {
     Some((id, _)) => id
@@ -357,8 +363,8 @@ test "show phase: generates a structural instance and rewrites the call" {
   // two definitions are appended: one for `Tree` and the one its `Leaf` field
   // needs for `Int`
   assert_eq(out.definitions.length(), f.module.definitions.length() + 2)
-  let tree_id = show_test_instance_id(f, out, f.tree_type)
-  let _ = show_test_instance_for(f, out, @symbols.t_int())
+  let tree_id = show_test_instance_id(f, out, show_test_core_type(f.tree_type))
+  let _ = show_test_instance_for(f, out, @core.t_int())
   // the call is rewritten to a call of the generated instance, with the
   // `showApp` binding emitted in front of the statement
   let callee = show_test_callee(f, out)
@@ -390,7 +396,7 @@ test "show phase: generates a structural instance and rewrites the call" {
 test "show phase: the generated instance matches on the constructors" {
   let f = show_test_fixture(t => [t])
   let out = @core.show_phase(f.module)
-  let lit = show_test_instance_for(f, out, f.tree_type)
+  let lit = show_test_instance_for(f, out, show_test_core_type(f.tree_type))
   assert_eq(lit.tparams.length(), 0)
   assert_eq(lit.vparams.length(), 1)
   match lit.body {
@@ -408,7 +414,7 @@ test "show phase: the generated instance matches on the constructors" {
   let rendered = @core.show_core(out)
   assert_true(rendered.contains("showBuiltin"))
   assert_true(rendered.contains("infixPlusPlus"))
-  let int_lit = show_test_instance_for(f, out, @symbols.t_int())
+  let int_lit = show_test_instance_for(f, out, @core.t_int())
   match int_lit.body {
     @core.ImpureApp(_, callee, _, _, _, @core.Return([_])) =>
       assert_eq(callee.id.uid(), f.show_builtin.uid())
@@ -434,7 +440,10 @@ test "show phase: without type arguments the shown type is recovered from the ar
   // explicit type arguments
   assert_eq(out.definitions.length(), f.module.definitions.length() + 2)
   let callee = show_test_callee(f, out)
-  assert_eq(callee.uid(), show_test_instance_id(f, out, f.tree_type).uid())
+  assert_eq(
+    callee.uid(),
+    show_test_instance_id(f, out, show_test_core_type(f.tree_type)).uid(),
+  )
 }
 
 ///|
@@ -456,7 +465,7 @@ test "show phase: a type variable is not rewritten" {
       _ => abort("expected a pure application")
     },
     [],
-    [@core.ValueVar(polymorphic, @symbols.ValueTypeRef(a))],
+    [@core.ValueVar(polymorphic, @core.ValueVar(a))],
   )
   let module = @core.ModuleDecl(
     f.module.path,
@@ -470,7 +479,7 @@ test "show phase: a type variable is not rewritten" {
           @core.BlockLit::new(
             [],
             [],
-            [@core.ValueParam(polymorphic, @symbols.ValueTypeRef(a))],
+            [@core.ValueParam(polymorphic, @core.ValueVar(a))],
             [],
             @core.Return([call]),
           ),
@@ -519,18 +528,11 @@ test "show phase: a call to a user function named show is not rewritten" {
   let call = @core.PureApp(
     @core.BlockVar::new(
       user_show,
-      @symbols.FunctionType(
-        [],
-        [],
-        [@symbols.t_int()],
-        [],
-        @symbols.t_string(),
-        @symbols.Effects::empty(),
-      ),
+      @core.FunctionType([], [], [@core.t_int()], [], [@core.t_string()]),
       @symbols.CaptureSetOf([]),
     ),
     [],
-    [@core.ValueVar(x, @symbols.t_int())],
+    [@core.ValueVar(x, @core.t_int())],
   )
   let module = @core.ModuleDecl(
     f.module.path,
@@ -544,7 +546,7 @@ test "show phase: a call to a user function named show is not rewritten" {
           @core.BlockLit::new(
             [],
             [],
-            [@core.ValueParam(x, @symbols.t_int())],
+            [@core.ValueParam(x, @core.t_int())],
             [],
             @core.Return([call]),
           ),
@@ -587,7 +589,7 @@ test "show phase: builtins are shown by showBuiltin" {
       _ => abort("expected a pure application")
     },
     [],
-    [@core.ValueVar(x, @symbols.t_int())],
+    [@core.ValueVar(x, @core.t_int())],
   )
   let module = @core.ModuleDecl(
     f.module.path,
@@ -601,7 +603,7 @@ test "show phase: builtins are shown by showBuiltin" {
           @core.BlockLit::new(
             [],
             [],
-            [@core.ValueParam(x, @symbols.t_int())],
+            [@core.ValueParam(x, @core.t_int())],
             [],
             @core.Return([call]),
           ),
@@ -613,7 +615,7 @@ test "show phase: builtins are shown by showBuiltin" {
   let out = @core.show_phase(module)
   assert_eq(out.definitions.length(), f.module.definitions.length() + 1)
   // the instance for `Int` calls `showBuiltin`
-  let lit = show_test_instance_for(f, out, @symbols.t_int())
+  let lit = show_test_instance_for(f, out, @core.t_int())
   match lit.body {
     @core.ImpureApp(_, callee, _, _, _, @core.Return([_])) =>
       assert_eq(callee.id.uid(), f.show_builtin.uid())

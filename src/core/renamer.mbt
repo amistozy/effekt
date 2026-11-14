@@ -178,7 +178,7 @@ fn Renamer::rewrite_stmt(self : Renamer, s : Stmt) -> Stmt {
     Match(scrutinee, tpe, clauses, default) =>
       Match(
         self.rewrite_expr(scrutinee),
-        self.rewrite_value_type(tpe),
+        tpe.map(t => self.rewrite_value_type(t)),
         clauses.map(clause => {
           Clause(
             self.rewrite_id(clause.tag),
@@ -201,7 +201,7 @@ fn Renamer::rewrite_stmt(self : Renamer, s : Stmt) -> Stmt {
     Reset(body) => Reset(self.rewrite_block_lit(body))
     Resume(k, body) =>
       Resume(self.rewrite_block_var(k), self.rewrite_stmt(body))
-    Hole(tpe, span) => Hole(self.rewrite_value_type(tpe), span)
+    Hole(tpe, span) => Hole(tpe.map(t => self.rewrite_value_type(t)), span)
   }
 }
 
@@ -300,7 +300,7 @@ fn Renamer::rewrite_expr(self : Renamer, e : Expr) -> Expr {
       )
     Make(data, tag, targs, vargs) =>
       Make(
-        self.rewrite_id(data),
+        self.rewrite_value_type(data),
         self.rewrite_id(tag),
         targs.map(t => self.rewrite_value_type(t)),
         vargs.map(v => self.rewrite_expr(v)),
@@ -312,33 +312,39 @@ fn Renamer::rewrite_expr(self : Renamer, e : Expr) -> Expr {
 ///|
 fn Renamer::rewrite_value_type(self : Renamer, tpe : ValueType) -> ValueType {
   match tpe {
-    ValueTypeRef(name) => ValueTypeRef(self.rewrite_id(name))
-    ValueTypeApp(name, targs) =>
-      ValueTypeApp(
+    ValueVar(name) => ValueVar(self.rewrite_id(name))
+    ValueData(name, targs) =>
+      ValueData(
         self.rewrite_id(name),
         targs.map(t => self.rewrite_value_type(t)),
       )
-    BoxedType(block, capt) =>
-      BoxedType(self.rewrite_block_type(block), self.rewrite_captures(capt))
+    ValueBoxed(block, capt) =>
+      ValueBoxed(self.rewrite_block_type(block), self.rewrite_captures(capt))
   }
 }
 
 ///|
 fn Renamer::rewrite_block_type(self : Renamer, tpe : BlockType) -> BlockType {
   match tpe {
-    FunctionType(tparams, cparams, vparams, bparams, result, effects) =>
+    FunctionType(tparams, cparams, vparams, bparams, result) =>
       FunctionType(
         tparams.map(id => self.rewrite_id(id)),
         cparams.map(c => self.rewrite_captures(c)),
         vparams.map(t => self.rewrite_value_type(t)),
         bparams.map(t => self.rewrite_block_type(t)),
-        self.rewrite_value_type(result),
-        Effects::Effects(effects.effects.map(t => self.rewrite_block_type(t))),
+        result.map(t => self.rewrite_value_type(t)),
       )
     InterfaceType(name, targs) =>
       InterfaceType(
         self.rewrite_id(name),
         targs.map(t => self.rewrite_value_type(t)),
+      )
+    PromptType(answer) =>
+      PromptType(answer.map(t => self.rewrite_value_type(t)))
+    ResumeType(result, answer) =>
+      ResumeType(
+        result.map(t => self.rewrite_value_type(t)),
+        answer.map(t => self.rewrite_value_type(t)),
       )
   }
 }

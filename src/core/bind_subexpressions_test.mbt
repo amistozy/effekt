@@ -13,12 +13,12 @@ fn bvar(id : @symbols.Sym) -> @core.BlockVar {
 
 ///|
 fn int_lit(n : Int64) -> @core.Expr {
-  @core.Literal(@source.LInt(n), @symbols.t_int())
+  @core.Literal(@source.LInt(n), @core.t_int())
 }
 
 ///|
 fn int_var(id : @symbols.Sym) -> @core.Expr {
-  @core.ValueVar(id, @symbols.t_int())
+  @core.ValueVar(id, @core.t_int())
 }
 
 ///|

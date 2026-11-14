@@ -16,7 +16,7 @@ fn sym(name : String) -> @symbols.Sym {
 
 ///|
 fn vparam(name : String) -> @core.ValueParam {
-  @core.ValueParam(sym(name), @symbols.t_int())
+  @core.ValueParam(sym(name), @core.t_int())
 }
 
 ///|
@@ -47,12 +47,12 @@ fn block_var(id : @symbols.Sym) -> @core.Block {
 
 ///|
 fn int_expr(i : Int32) -> @core.Expr {
-  @core.Expr::Literal(@source.LInt(i.to_int64()), @symbols.t_int())
+  @core.Expr::Literal(@source.LInt(i.to_int64()), @core.t_int())
 }
 
 ///|
 fn int_pure(i : Int32) -> @cps.Expr {
-  @cps.Expr::Literal(@source.LInt(i.to_int64()), @symbols.t_int())
+  @cps.Expr::Literal(@source.LInt(i.to_int64()), @core.t_int())
 }
 
 ///|
@@ -255,8 +255,8 @@ test "js: a match compiles to a switch with numeric case labels" {
   let field0 = sym("field0")
   let field1 = sym("field1")
   let declaration = @core.DeclarationData(data, [], [
-    @core.Constructor(ctor0, [], [@core.Field(field0, @symbols.t_int())]),
-    @core.Constructor(ctor1, [], [@core.Field(field1, @symbols.t_int())]),
+    @core.Constructor(ctor0, [], [@core.Field(field0, @core.t_int())]),
+    @core.Constructor(ctor1, [], [@core.Field(field1, @core.t_int())]),
   ])
   let core_module : @core.ModuleDecl = @core.ModuleDecl(
     "test",
@@ -266,7 +266,7 @@ test "js: a match compiles to a switch with numeric case labels" {
     [],
     [],
   )
-  let scrutinee = @core.Expr::ValueVar(x, @symbols.t_int())
+  let scrutinee = @core.Expr::ValueVar(x, @core.t_int())
   let clause0 = @core.Clause(
     ctor0,
     @core.BlockLit::new(
@@ -289,7 +289,7 @@ test "js: a match compiles to a switch with numeric case labels" {
   )
   let match_stmt = @core.Stmt::Match(
     scrutinee,
-    @symbols.t_int(),
+    [@core.t_int()],
     [clause0, clause1],
     None,
   )
@@ -297,7 +297,7 @@ test "js: a match compiles to a switch with numeric case labels" {
   let block = unit_block(
     @core.Stmt::Let(
       x,
-      @core.Expr::Make(data, ctor0, [], [int_expr(1)]),
+      @core.Expr::Make(@core.ValueData(data, []), ctor0, [], [int_expr(1)]),
       match_stmt,
     ),
   )
@@ -315,7 +315,7 @@ test "js: a data declaration generates a class with tag, reflect and equals" {
   let ctor = sym("Ctor")
   let field = sym("field")
   let declaration = @core.DeclarationData(data, [], [
-    @core.Constructor(ctor, [], [@core.Field(field, @symbols.t_int())]),
+    @core.Constructor(ctor, [], [@core.Field(field, @core.t_int())]),
   ])
   let core_module : @core.ModuleDecl = @core.ModuleDecl(
     "test",
@@ -408,17 +408,17 @@ test "js: a non-tail recursive call rebuilds the continuation" {
     @core.BlockLit::new(
       [],
       [],
-      [@core.ValueParam(x, @symbols.t_int())],
+      [@core.ValueParam(x, @core.t_int())],
       [],
       @core.Stmt::Val(
         [tmp],
         @core.Stmt::App(
           block_var(f),
           [],
-          [@core.Expr::ValueVar(x, @symbols.t_int())],
+          [@core.Expr::ValueVar(x, @core.t_int())],
           [],
         ),
-        @core.Stmt::Return([@core.Expr::ValueVar(tmp, @symbols.t_int())]),
+        @core.Stmt::Return([@core.Expr::ValueVar(tmp, @core.t_int())]),
       ),
     ),
   )
@@ -668,7 +668,7 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
 
   let exc = sym("Exception")
   let exc_cap = sym("Exception_cap")
-  let exc_tpe = @symbols.InterfaceType(exc, [@symbols.t_int()])
+  let exc_tpe = @core.InterfaceType(exc, [@core.t_int()])
   let raise_op = sym("raise")
   let e = sym("e")
   let msg = sym("msg")
@@ -731,7 +731,7 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
         raise_op,
         [
           int_pure(1),
-          @cps.Expr::Literal(@source.LString("boom"), @symbols.t_string()),
+          @cps.Expr::Literal(@source.LString("boom"), @core.t_string()),
         ],
         [],
         @cps.MetaCont(ks_p),
@@ -838,7 +838,7 @@ test "js: a main with capability parameters is rejected" {
       false,
       @util.Span::missing(),
     ),
-    @symbols.InterfaceType(sym("Exception"), [@symbols.t_int()]),
+    @core.InterfaceType(sym("Exception"), [@core.t_int()]),
     @symbols.Captures::empty(),
   )
   let block = @core.Block::BlockLit(
@@ -944,8 +944,8 @@ test "js: golden output" {
   let field0 = sym("field0")
   let field1 = sym("field1")
   let declaration = @core.DeclarationData(data, [], [
-    @core.Constructor(ctor0, [], [@core.Field(field0, @symbols.t_int())]),
-    @core.Constructor(ctor1, [], [@core.Field(field1, @symbols.t_int())]),
+    @core.Constructor(ctor0, [], [@core.Field(field0, @core.t_int())]),
+    @core.Constructor(ctor1, [], [@core.Field(field1, @core.t_int())]),
   ])
   let core_module : @core.ModuleDecl = @core.ModuleDecl(
     "test",
@@ -957,8 +957,8 @@ test "js: golden output" {
   )
   let x2 = sym("x")
   let match_stmt = @core.Stmt::Match(
-    @core.Expr::ValueVar(x2, @symbols.t_int()),
-    @symbols.t_int(),
+    @core.Expr::ValueVar(x2, @core.t_int()),
+    [@core.t_int()],
     [
       @core.Clause(
         ctor0,
@@ -989,7 +989,7 @@ test "js: golden output" {
       unit_block(
         @core.Stmt::Let(
           x2,
-          @core.Expr::Make(data, ctor0, [], [int_expr(1)]),
+          @core.Expr::Make(@core.ValueData(data, []), ctor0, [], [int_expr(1)]),
           match_stmt,
         ),
       ),
@@ -1073,17 +1073,17 @@ test "js: golden output" {
             @core.BlockLit::new(
               [],
               [],
-              [@core.ValueParam(y, @symbols.t_int())],
+              [@core.ValueParam(y, @core.t_int())],
               [],
               @core.Stmt::Val(
                 [tmp],
                 @core.Stmt::App(
                   block_var(g),
                   [],
-                  [@core.Expr::ValueVar(y, @symbols.t_int())],
+                  [@core.Expr::ValueVar(y, @core.t_int())],
                   [],
                 ),
-                @core.Stmt::Return([@core.Expr::ValueVar(tmp, @symbols.t_int())]),
+                @core.Stmt::Return([@core.Expr::ValueVar(tmp, @core.t_int())]),
               ),
             ),
           ),

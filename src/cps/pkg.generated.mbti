@@ -107,9 +107,9 @@ pub fn Def::size(Self) -> Int32
 
 pub(all) enum Expr {
   ValueVar(@symbols.Sym)
-  Literal(@source.LiteralValue, @symbols.ValueType)
+  Literal(@source.LiteralValue, @core.ValueType)
   PureApp(@symbols.Sym, Array[Expr])
-  Make(@symbols.Sym, @symbols.Sym, Array[Expr])
+  Make(@core.ValueType, @symbols.Sym, Array[Expr])
   Box(Block)
 }
 pub fn Expr::free(Self) -> Variables
@@ -131,10 +131,10 @@ pub fn[T] ExternBody::flag(Self[T]) -> @source.FeatureFlag
 pub fn[T] ExternBody::is_supported_by(Self[T], String) -> Bool
 
 pub(all) struct Implementation {
-  interface : @symbols.BlockType
+  interface : @core.BlockType
   operations : Array[Operation]
 }
-pub fn Implementation::Implementation(@symbols.BlockType, Array[Operation]) -> Self
+pub fn Implementation::Implementation(@core.BlockType, Array[Operation]) -> Self
 pub fn Implementation::free(Self) -> Variables
 pub fn Implementation::occurs(Self, @symbols.Sym) -> Bool
 pub fn Implementation::size(Self) -> Int32

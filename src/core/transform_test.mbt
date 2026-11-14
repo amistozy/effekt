@@ -482,14 +482,11 @@ test "match on a two-constructor data type produces tags 0 and 1" {
   let core = @core.transform(module_with([data_def, d]), "test", ctx)
   // the joinpoints of the match compiler are emitted as leading Defs
   match skip_defs(body_of(core, 0)) {
-    @core.Match(scrutinee, tpe, clauses, default) => {
+    @core.Match(scrutinee, tpes, clauses, default) => {
       assert_true(
         scrutinee is @core.ValueVar(id, _) && id.uid() == scrutinee_sym.uid(),
       )
-      assert_eq(
-        @core.show_core_value_type(tpe),
-        @core.show_core_value_type(@symbols.t_int()),
-      )
+      assert_eq(tpes.map(t => @core.show_core_value_type(t)).join(", "), "Int")
       assert_eq(clauses.length(), 2)
       assert_eq(clauses[0].tag.uid(), tt_sym.uid())
       assert_eq(clauses[1].tag.uid(), ff_sym.uid())

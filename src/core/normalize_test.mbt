@@ -13,7 +13,7 @@ fn identity_block(x : @symbols.Sym) -> @core.Block {
     @core.BlockLit::new(
       [],
       [],
-      [@core.ValueParam(x, @symbols.t_int())],
+      [@core.ValueParam(x, @core.t_int())],
       [],
       @core.Return([int_var(x)]),
     ),
@@ -158,7 +158,7 @@ test "normalize: if on a known condition is folded" {
         @core.BlockLit(
           inlined(
             @core.If(
-              @core.Literal(@source.LBool(true), @symbols.t_bool()),
+              @core.Literal(@source.LBool(true), @core.t_bool()),
               @core.Return([int_lit(1)]),
               @core.Return([int_lit(2)]),
             ),

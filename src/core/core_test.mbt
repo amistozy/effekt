@@ -27,9 +27,9 @@ fn def_identity(f : @symbols.Sym, x : @symbols.Sym) -> @core.Toplevel {
   let lit = @core.BlockLit::new(
     [],
     [],
-    [@core.ValueParam(x, @symbols.t_int())],
+    [@core.ValueParam(x, @core.t_int())],
     [],
-    @core.Return([@core.ValueVar(x, @symbols.t_int())]),
+    @core.Return([@core.ValueVar(x, @core.t_int())]),
   )
   @core.ToplevelDef(f, @core.BlockLit(lit))
 }
@@ -69,11 +69,21 @@ test "core pretty: expressions" {
   let x = xsym("x")
   let tag = bsym("Leaf")
   let data = bsym("Tree")
-  let e = @core.Make(data, tag, [@symbols.t_int()], [
-    @core.ValueVar(x, @symbols.t_int()),
+  // A constructor of a polymorphic data type: the universals are part of the
+  // data type, the existential arguments stay empty.
+  let e = @core.Make(@core.ValueData(data, [@core.t_int()]), tag, [], [
+    @core.ValueVar(x, @core.t_int()),
   ])
-  assert_eq(@core.show_core_expr(e), "make Leaf[Int](x)")
-  assert_eq(@core.show_core_stmt(@core.Return([e])), "return make Leaf[Int](x)")
+  assert_eq(@core.show_core_expr(e), "make Leaf(x)")
+  assert_eq(@core.show_core_stmt(@core.Return([e])), "return make Leaf(x)")
+  // Existential type arguments are printed as type arguments.
+  let existential = @core.Make(
+    @core.ValueData(data, []),
+    tag,
+    [@core.t_int()],
+    [@core.ValueVar(x, @core.t_int())],
+  )
+  assert_eq(@core.show_core_expr(existential), "make Leaf[Int](x)")
 }
 
 ///|
@@ -83,14 +93,14 @@ test "core: free variables" {
   let lit = @core.BlockLit::new(
     [],
     [],
-    [@core.ValueParam(x, @symbols.t_int())],
+    [@core.ValueParam(x, @core.t_int())],
     [],
-    @core.Return([@core.ValueVar(x, @symbols.t_int())]),
+    @core.Return([@core.ValueVar(x, @core.t_int())]),
   )
   let s = @core.Def(
     f,
     @core.BlockLit(lit),
-    @core.Return([@core.ValueVar(x, @symbols.t_int())]),
+    @core.Return([@core.ValueVar(x, @core.t_int())]),
   )
   let free = s.free()
   // x is bound inside the block, but free in the body of the definition
@@ -104,8 +114,8 @@ test "core: substitution" {
   let x = xsym("x")
   let y = xsym("y")
   let values : Map[Int32, @core.Expr] = Map([])
-  values.set(x.uid(), @core.ValueVar(y, @symbols.t_int()))
+  values.set(x.uid(), @core.ValueVar(y, @core.t_int()))
   let subst = @core.Substitution(Map([]), Map([]), values, Map([]))
-  let e = @core.substitute_expr(@core.ValueVar(x, @symbols.t_int()), subst)
+  let e = @core.substitute_expr(@core.ValueVar(x, @core.t_int()), subst)
   assert_eq(@core.show_core_expr(e), "y")
 }

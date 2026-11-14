@@ -168,6 +168,68 @@ pub fn t_io() -> BlockType {
 }
 
 ///|
+/// The type constructor behind `t_unit` (and friends). `@core` has its own type
+/// language (`core/Type.scala`), so it needs the symbols, not the source-level
+/// `ValueType`/`BlockType`.
+pub fn unit_type_sym() -> Sym {
+  unit_symbol
+}
+
+///|
+/// See `unit_type_sym`.
+pub fn bool_type_sym() -> Sym {
+  boolean_symbol
+}
+
+///|
+/// See `unit_type_sym`.
+pub fn int_type_sym() -> Sym {
+  int_symbol
+}
+
+///|
+/// See `unit_type_sym`.
+pub fn double_type_sym() -> Sym {
+  double_symbol
+}
+
+///|
+/// See `unit_type_sym`.
+pub fn string_type_sym() -> Sym {
+  string_symbol
+}
+
+///|
+/// See `unit_type_sym`.
+pub fn char_type_sym() -> Sym {
+  char_symbol
+}
+
+///|
+/// See `unit_type_sym`.
+pub fn byte_type_sym() -> Sym {
+  byte_symbol
+}
+
+///|
+/// See `unit_type_sym`.
+pub fn top_type_sym() -> Sym {
+  top_symbol
+}
+
+///|
+/// See `unit_type_sym`.
+pub fn bottom_type_sym() -> Sym {
+  bottom_symbol
+}
+
+///|
+/// See `unit_type_sym`.
+pub fn region_type_sym() -> Sym {
+  region_symbol
+}
+
+///|
 pub fn io_capability_sym() -> Sym {
   io_capability
 }

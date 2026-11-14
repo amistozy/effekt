@@ -2,110 +2,43 @@
 // `Type.inferCapt`.
 //
 // Upstream keeps the type of a core node implicit but recoverable: the
-// transformer annotates value variables, block variables, `Match` and `Hole`
-// with the types it looked up in the typing context, and `inferType` is a
+// transformer annotates value variables, block variables, `Match`, `Hole` and
+// `Make` with the types it looked up in the typing context, and `inferType` is a
 // syntactic recursion over those annotations. The rest of `Type.scala` is a
-// checker (`Typing`, `Constraints`, `Type.typecheck`) that upstream only runs
-// in debug mode; the optimizer reads types through `inferType`.
+// checker (`Typing`, `Constraints`, `Type.typecheck`) that upstream only runs in
+// debug mode; the optimizer reads types through `inferType`.
 //
-// The deviations are all consequences of core reusing the source type language
-// (see the README):
+// Two adaptations of the port are visible here:
 //
-// - `FunctionType` has a single result, so a block that returns zero or several
-//   values has no core type; `single` raises `Internal` for it, as upstream's
-//   `single` reports a type error.
-// - `Match` and `Hole` carry one annotated type, so the inferred list has one
-//   element.
-// - `BlockType.Resume` does not exist: the transformer types a shift
-//   continuation as the one-argument function type `(result) => answer` (see
-//   `Transformer::transform_op_clause`), so `Shift` reads the result off that
-//   function's value parameter and `Resume` off its result.
-// - `Make` records the data type constructor and the type arguments separately,
-//   so the inferred type is `ValueTypeApp(data, targs)`.
+// - The trees contain `unknown_value_type()` / `unknown_block_type()` where the
+//   transformer had no annotation (the pattern-match compiler types its join
+//   points that way, for instance). The inference propagates the sentinel
+//   instead of failing, where upstream always has a real type.
+// - `Captures` is `@symbols.Captures`, so a capture parameter is a singleton set
+//   rather than a bare id; the tree stores the ids and this module wraps them.
 
 ///|
-/// Upstream `Type.single`: expressions (and thus FFI calls) produce exactly one
-/// value.
-fn single(tpes : Array[ValueType]) -> ValueType raise EffektError {
-  if tpes.length() == 1 {
-    return tpes[0]
-  }
-  raise EffektError::Internal(
-    "Expected exactly one value, but got: \{tpes.map(t => "\{t}").join(", ")}",
-  )
-}
-
-///|
-/// Upstream `Type.instantiate`: substitutes the type and capture arguments of a
-/// function type and drops the parameters, which the arguments have bound.
-fn instantiate(
-  tpe : BlockType,
-  targs : Array[ValueType],
-  cargs : Array[Captures],
-) -> BlockType raise EffektError {
+/// The results of a function type (upstream `BlockType.Function.result`).
+fn result_of(tpe : BlockType) -> Array[ValueType] raise EffektError {
   match tpe {
-    FunctionType(tparams, cparams, vparams, bparams, result, _effects) => {
-      if targs.length() != tparams.length() {
-        raise EffektError::Internal(
-          "Wrong number of type arguments: expected \{tparams.length()}, got \{targs.length()}",
-        )
-      }
-      if cargs.length() != cparams.length() {
-        raise EffektError::Internal(
-          "Wrong number of capture arguments: expected \{cparams.length()}, got \{cargs.length()}",
-        )
-      }
-      let tsubst : Map[Int32, ValueType] = Map([])
-      for i = 0; i < tparams.length(); i = i + 1 {
-        tsubst.set(tparams[i].uid(), targs[i])
-      }
-      let csubst : Map[Int32, Captures] = Map([])
-      for i = 0; i < cparams.length(); i = i + 1 {
-        // A capture parameter is a (usually singleton) capture set here, while
-        // upstream stores the id directly.
-        for c in cparams[i].to_array() {
-          csubst.set(c.uid(), cargs[i])
-        }
-      }
-      FunctionType(
-        [],
-        [],
-        vparams.map(t => substitute_value_type_with(t, tsubst, Map([]))),
-        bparams.map(t => substitute_block_type_with(t, tsubst, Map([]))),
-        substitute_value_type_with(result, tsubst, csubst),
-        Effects::empty(),
-      )
-    }
+    FunctionType(_, _, _, _, result) => result
     _ =>
       raise EffektError::Internal("Expected a function type, but got: \{tpe}")
   }
 }
 
 ///|
-/// The result of a function type.
-fn function_result(tpe : BlockType) -> ValueType raise EffektError {
-  match tpe {
-    FunctionType(_, _, _, _, result, _) => result
-    _ =>
-      raise EffektError::Internal("Expected a function type, but got: \{tpe}")
-  }
-}
-
-///|
-/// The result of applying a block of type `tpe`. A callee whose type is the
-/// placeholder `unknown_block_type()` yields the unknown value type: the port's
-/// trees contain such callees where the transformer had no annotation (e.g. the
-/// join points of the pattern-match compiler), while upstream always has a
-/// function type at this point.
-fn instantiated_result(
+/// The results of applying a block of type `tpe`. A callee whose type is the
+/// placeholder `unknown_block_type()` yields the unknown value type.
+fn instantiated_results(
   tpe : BlockType,
   targs : Array[ValueType],
   cargs : Array[Captures],
-) -> ValueType raise EffektError {
+) -> Array[ValueType] raise EffektError {
   if is_unknown_block_type(tpe) {
-    return unknown_value_type()
+    return [unknown_value_type()]
   }
-  function_result(instantiate(tpe, targs, cargs))
+  result_of(instantiate(tpe, targs, cargs))
 }
 
 ///|
@@ -135,17 +68,15 @@ fn Stmt::infer_type(self : Stmt) -> Array[ValueType] raise EffektError {
     Return(exprs) => exprs.map(e => e.infer_type())
     Val(_, _, body) => body.infer_type()
     App(callee, targs, _, bargs) =>
-      [
-        instantiated_result(
-          callee.infer_type(),
-          targs,
-          bargs.map(b => b.infer_capt()),
-        ),
-      ]
+      instantiated_results(
+        callee.infer_type(),
+        targs,
+        bargs.map(b => b.infer_capt()),
+      )
     Invoke(_, _, method_tpe, targs, _, bargs) =>
-      [instantiated_result(method_tpe, targs, bargs.map(b => b.infer_capt()))]
+      instantiated_results(method_tpe, targs, bargs.map(b => b.infer_capt()))
     If(_, thn, _) => thn.infer_type()
-    Match(_, annotated, _, _) => [annotated]
+    Match(_, annotated, _, _) => annotated
     // A region (like `reset`) returns what its body returns.
     Region(body) => body.body.infer_type()
     Alloc(_, _, _, body) => body.infer_type()
@@ -154,26 +85,25 @@ fn Stmt::infer_type(self : Stmt) -> Array[ValueType] raise EffektError {
     Put(_, _, _, body) => body.infer_type()
     Reset(body) => body.body.infer_type()
     Shift(_, k, _) =>
-      // Upstream: `k.tpe` is a resumption `(from) ~> to` and the answer is
-      // `from`; the port types `k` as `(from) => to` (see the file header).
+      // `k.tpe` is a resumption `(from) ~> to`, and the shift answers with
+      // `from`.
       match k.tpe {
-        FunctionType(_, _, vparams, _, _, _) =>
-          match vparams {
-            [tpe] => [tpe]
-            _ =>
-              raise EffektError::Internal(
-                "A shift continuation should take exactly one value, but takes \{vparams.length()}.",
-              )
-          }
+        ResumeType(result, _) => result
         _ =>
           raise EffektError::Internal(
-            "A shift continuation should have a function type, but has: \{k.tpe}",
+            "A shift continuation should have a resumption type, but has: \{k.tpe}",
           )
       }
     Resume(k, _) =>
-      // Upstream: `k.annotatedTpe` is a resumption and the answer is its `to`.
-      [function_result(k.annotated_tpe)]
-    Hole(annotated, _) => [annotated]
+      // `k.annotated_tpe` is a resumption and the answer is its `to`.
+      match k.annotated_tpe {
+        ResumeType(_, answer) => answer
+        _ =>
+          raise EffektError::Internal(
+            "A resumed continuation should have a resumption type, but has: \{k.annotated_tpe}",
+          )
+      }
+    Hole(annotated, _) => annotated
   }
 }
 
@@ -184,9 +114,9 @@ fn Expr::infer_type(self : Expr) -> ValueType raise EffektError {
     ValueVar(_, annotated) => annotated
     Literal(_, annotated) => annotated
     PureApp(callee, targs, _) =>
-      instantiated_result(callee.annotated_tpe, targs, [])
-    Make(data, _, targs, _) => ValueTypeApp(data, targs)
-    Box(block, annotated_capt) => BoxedType(block.infer_type(), annotated_capt)
+      single(instantiated_results(callee.annotated_tpe, targs, []))
+    Make(data, _, _, _) => data
+    Box(block, annotated_capt) => ValueBoxed(block.infer_type(), annotated_capt)
   }
 }
 
@@ -198,8 +128,7 @@ fn BlockLit::infer_type(self : BlockLit) -> BlockType raise EffektError {
     self.cparams.map(c => CaptureSetOf([c])),
     self.vparams.map(p => p.tpe),
     self.bparams.map(p => p.tpe),
-    single(self.body.infer_type()),
-    Effects::empty(),
+    self.body.infer_type(),
   )
 }
 
@@ -211,7 +140,7 @@ fn Block::infer_type(self : Block) -> BlockType raise EffektError {
     BlockLit(lit) => lit.infer_type()
     Unbox(pure) =>
       match pure.infer_type() {
-        BoxedType(tpe, _) => tpe
+        ValueBoxed(tpe, _) => tpe
         other =>
           if is_unknown_value_type(other) {
             unknown_block_type()
@@ -248,7 +177,6 @@ fn Stmt::infer_capt(self : Stmt) -> Captures raise EffektError {
     If(_, thn, els) => thn.infer_capt().union(els.infer_capt())
     Match(_, _, clauses, default) => {
       let captures = union_captures(clauses, clause => clause.body.infer_capt())
-
       match default {
         Some(body) => captures.union(body.infer_capt())
         None => captures
@@ -283,7 +211,7 @@ fn Block::infer_capt(self : Block) -> Captures raise EffektError {
     BlockLit(lit) => lit.infer_capt()
     Unbox(pure) =>
       match pure.infer_type() {
-        BoxedType(_, captures) => captures
+        ValueBoxed(_, captures) => captures
         other =>
           if is_unknown_value_type(other) {
             Captures::empty()

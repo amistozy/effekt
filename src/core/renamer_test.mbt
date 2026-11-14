@@ -8,7 +8,7 @@ test "renamer: freshens a binder and its references" {
   let lit = @core.BlockLit::new(
     [],
     [],
-    [@core.ValueParam(x, @symbols.t_int())],
+    [@core.ValueParam(x, @core.t_int())],
     [],
     @core.Return([int_var(x)]),
   )
@@ -37,7 +37,7 @@ test "renamer: leaves free variables untouched" {
   let lit = @core.BlockLit::new(
     [],
     [],
-    [@core.ValueParam(x, @symbols.t_int())],
+    [@core.ValueParam(x, @core.t_int())],
     [],
     @core.Return([int_var(y)]),
   )
@@ -52,7 +52,7 @@ test "renamer: leaves free variables untouched" {
 ///|
 test "renamer: an inner binder shadows, the outer one is restored" {
   let x = xsym("x")
-  let outer = @core.ValueParam(x, @symbols.t_int())
+  let outer = @core.ValueParam(x, @core.t_int())
   // { (x) => let x = 42; return x }
   let inner_let = @core.Let(x, int_lit(42), @core.Return([int_var(x)]))
   let lit = @core.BlockLit::new([], [], [outer], [], inner_let)

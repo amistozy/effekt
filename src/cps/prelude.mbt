@@ -4,7 +4,12 @@
 using @util {type Span, type EffektError, type Template}
 
 ///|
-using @symbols {type Sym, type ValueType, type BlockType}
+using @symbols {type Sym}
+
+///|
+// Core's types, not the source language's: the CPS tree keeps the types the core
+// tree annotated (upstream cps.Tree imports core.ValueType/core.BlockType).
+using @core {type ValueType, type BlockType}
 
 ///|
 using @source {type FeatureFlag, type LiteralValue}

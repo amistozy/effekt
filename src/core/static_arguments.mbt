@@ -88,7 +88,7 @@ fn is_static(found : RecursiveFunction) -> IsStatic raise EffektError {
         )
       }
       match args[i] {
-        ValueTypeRef(other) => if !(param == other) { unchanged = false }
+        ValueVar(other) => if !(param == other) { unchanged = false }
         _ => unchanged = false
       }
     }
@@ -220,8 +220,7 @@ fn StaticArguments::wrap_definition(
     drop_static(static_b, lit.cparams).map(c => Captures::CaptureSetOf([c])),
     drop_static(static_v, lit.vparams).map(p => p.tpe),
     drop_static(static_b, lit.bparams).map(p => p.tpe),
-    single(lit.body.infer_type()),
-    Effects::empty(),
+    lit.body.infer_type(),
   ) // Fresh parameters for the wrapper and its call to the worker. Only the
   // non-static ones are freshened, so that the static ones keep their names and
   // the worker closes over exactly those.
@@ -285,7 +284,7 @@ fn StaticArguments::wrap_definition(
       ),
       App(
         Block::BlockVar(worker_var),
-        drop_static(static_t, lit.tparams.map(t => ValueTypeRef(t))),
+        drop_static(static_t, lit.tparams.map(t => ValueVar(t))),
         drop_static(static_v, fresh_vparams.map(p => ValueVar(p.id, p.tpe))),
         drop_static(
           static_b,

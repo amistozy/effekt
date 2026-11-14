@@ -23,8 +23,10 @@
 //   * `covers` and `selecting` need the scrutinee's data type, so a `match`
 //     keeps its default and its clauses are normalized without knowing which
 //     constructor the scrutinee has.
-//   * the `Shift` rule of `normalizeVal` needs `BlockType.Resume`, which the
-//     type language of this port does not have.
+//   * the `Shift` rule of `normalizeVal` retypes the continuation with the type
+//     of the enclosing statement (`ResumeType(body.tpe, answer)`). The core type
+//     language has `ResumeType` (`types.mbt`), but this pass does not infer the
+//     type of `body` (see the next point).
 //   * join point parameters get `unknown_value_type()`. Upstream takes the
 //     inferred types of the branches; the inference is ported (`type.mbt`) but
 //     this pass does not call it yet. A `Match` keeps the annotation it had.
@@ -902,7 +904,7 @@ fn Normalizer::normalize_let(
 fn Normalizer::joinpoint(
   self : Normalizer,
   ids : Array[Sym],
-  tpe : ValueType,
+  tpe : Array[ValueType],
   body : Stmt,
   f : (BlockVar, NormCtx) -> Stmt raise EffektError,
   ctx : NormCtx,
@@ -922,7 +924,7 @@ fn Normalizer::joinpoint(
 fn Normalizer::make_joinpoint(
   self : Normalizer,
   ids : Array[Sym],
-  tpe : ValueType,
+  tpe : Array[ValueType],
   body : Stmt,
   f : (BlockVar, NormCtx) -> Stmt raise EffektError,
   ctx : NormCtx,
@@ -931,10 +933,15 @@ fn Normalizer::make_joinpoint(
   // the join point is created here, so the reachability analysis does not know
   // it: without recording it, the `def` below would look unused and be dropped
   self.usage.set(k.uid(), Many)
+  // Each bound value gets its own type; the annotation may be shorter than the
+  // list of ids (or be `unknown`), hence the fallback.
   let definition = BlockLit::new(
     [],
     [],
-    ids.map(id => ValueParam::ValueParam(id, tpe)),
+    ids.mapi((i, id) => {
+      let t = if i < tpe.length() { tpe[i] } else { unknown_value_type() }
+      ValueParam::ValueParam(id, t)
+    }),
     [],
     body,
   )
@@ -965,8 +972,16 @@ fn fresh_ids(ids : Array[Sym]) -> Array[Sym] {
 
 ///|
 /// Applies the given block variable to the given values.
-fn jump(k : BlockVar, ids : Array[Sym], tpe : ValueType) -> Stmt {
-  App(BlockVar(k), [], ids.map(id => ValueVar(id, tpe)), [])
+fn jump(k : BlockVar, ids : Array[Sym], tpe : Array[ValueType]) -> Stmt {
+  App(
+    BlockVar(k),
+    [],
+    ids.mapi((i, id) => {
+      let t = if i < tpe.length() { tpe[i] } else { unknown_value_type() }
+      ValueVar(id, t)
+    }),
+    [],
+  )
 }
 
 ///|
@@ -1009,7 +1024,7 @@ fn Normalizer::normalize_val(
     //   def k(x) = [[ body ]]
     //   if (cond) { [[ val x1 = thn; k(x1) ]] } else { [[ val x2 = els; k(x2) ]] }
     If(cond, thn, els) => {
-      let tpe = stmt_type_hint(thn)
+      let tpe = [stmt_type_hint(thn)]
       self.joinpoint(
         ids,
         tpe,
@@ -1051,7 +1066,7 @@ fn Normalizer::normalize_val(
         (k, inner) => {
           Match(
             sc,
-            result_type,
+            [result_type],
             clauses.map(clause => {
               let x = fresh_ids(ids)
               let normalized = self.normalize_val(
@@ -1312,7 +1327,7 @@ fn Normalizer::forward(
 ) -> Operation {
   let body = App(
     BlockVar(method),
-    operation.tparams.map(t => ValueTypeRef(t)),
+    operation.tparams.map(t => ValueVar(t)),
     operation.vparams.map(p => ValueVar(p.id, p.tpe)),
     operation.bparams.map(p => BlockVar(BlockVar::new(p.id, p.tpe, p.capt))),
   )
@@ -1403,7 +1418,7 @@ fn returns_unit(s : Stmt) -> Bool {
 fn Normalizer::normalize_match(
   self : Normalizer,
   scrutinee : Expr,
-  tpe : ValueType,
+  tpe : Array[ValueType],
   clauses : Array[Clause],
   default : Stmt?,
   ctx : NormCtx,

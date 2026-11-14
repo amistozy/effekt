@@ -140,7 +140,7 @@ uses). Each package below names its upstream counterpart.
 | `src/source` | `effekt/source/*`, `Lexer`, `Parser` | Syntax tree, `Context`, lexer, parser, generic AST rewriting, `ResolveExternDefs`, `ExplicitCapabilities` |
 | `src/namer` | `effekt/Namer.scala` | Name resolution, symbol construction, scope handling |
 | `src/typer` | `effekt/Typer.scala`, `effekt/typer/*` | Type and effect inference, unification, capability annotations, exhaustivity, unboxing, the escape checks of `Wellformedness` |
-| `src/core` | `effekt/core/*` | The ANF core IR, the source→core translation, the pattern matching compiler, the structural `show` generator, dead code elimination, free variables, substitution, `DeclarationContext` |
+| `src/core` | `effekt/core/*` | The ANF core IR, its own type language, the source→core translation, the pattern matching compiler, the structural `show` generator, dead code elimination, free variables, substitution, `DeclarationContext` |
 | `src/cps` | `effekt/cps/*` | The CPS IR, the core→CPS translation, contification |
 | `src/js` | `effekt/generator/js/*` | The JavaScript IR, the CPS→JS translation, the JS pretty printer |
 | `src/backend` | `effekt/generator/js/JavaScript.scala` | Wires core → CPS → JS and aggregates the modules |
@@ -242,9 +242,10 @@ These are deliberate, and documented at the point of use in the sources:
   Four deviations remain in the normalizer, each documented at the point of use:
   the sharing of pure expressions (`Context.facts`, which is keyed by structural
   expression equality) is not ported, `covers`/`selecting` (which need the
-  scrutinee's data type) are skipped, the `Shift` rule of `normalizeVal` needs
-  `BlockType.Resume` and is skipped too, and types written into the tree are the
-  unknown type rather than inferred ones. Where upstream asserts that the type
+  scrutinee's data type) are skipped, the `Shift` rule of `normalizeVal` is
+  skipped too (it retypes the continuation with the type of the enclosing
+  statement, which the normalizer does not infer), and types written into the
+  tree are the unknown type rather than inferred ones. Where upstream asserts that the type
   arguments of a redex line up, this port adapts them, because the pattern
   matching compiler does not always bind the existential type parameters of a
   match clause.
@@ -252,6 +253,23 @@ These are deliberate, and documented at the point of use in the sources:
   the REPL or the documentation generator.
 
 ## Details worth knowing
+
+- Core has **its own type language** (`src/core/types.mbt`, upstream
+  `core/Type.scala`), separate from the source language of `src/symbols`:
+  `ValueType` is `Var | Data | Boxed` and `BlockType` is
+  `Function | Interface | Prompt | Resume`. Two things the source language cannot
+  express are needed by the prompt/shift encoding the transformer produces and
+  the optimizer removes — a function type has a *list* of results (a prompt
+  answers with several values) and a shift continuation has the resumption type
+  `(result) ~> (answer)`, which is what `DirectStyle` matches on. A core function
+  type also carries **no effect set**: by the time the tree is built the
+  capabilities are explicit block parameters. `core.transform` converts the
+  source types at the boundary (capabilities become extra block parameters), and
+  everything downstream — `src/cps` included, as upstream's `cps.Tree` — keeps the
+  core types. Types are *annotations*, not an inferred property of the tree:
+  `Type.inferType`/`inferCapt` (`src/core/type.mbt`) recover what the optimizer
+  reads, and a node the transformer could not annotate carries the sentinel
+  `unknown_value_type()`/`unknown_block_type()`.
 
 - The parser wraps *every* annotated result type in `Effectful(t, {})`, exactly
   like upstream's `Parser.effectful` ("if it's not a `${tpe} / ${effs}`, then

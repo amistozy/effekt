@@ -97,15 +97,15 @@ pub fn required_names(module : ModuleDecl) -> Array[Sym] {
 /// type constructors), so we render the type together with the uids of the
 /// symbols it mentions.
 ///
-/// NOTE: upstream compares capture sets and effect sets as *sets*; the rendered
-/// key is order sensitive, which can at worst generate a duplicate definition
-/// for types that are equal up to the order of their effects.
+/// NOTE: upstream compares capture sets as *sets*; the rendered key is order
+/// sensitive, which can at worst generate a duplicate definition for types that
+/// are equal up to the order of their captures.
 fn value_type_key(vt : ValueType) -> String {
   match vt {
-    ValueTypeRef(id) => "'\{id.uid()}"
-    ValueTypeApp(sym, targs) =>
+    ValueVar(sym) => "'\{sym.uid()}"
+    ValueData(sym, targs) =>
       "@\{sym.uid()}[\{targs.map(value_type_key).join(",")}]"
-    BoxedType(tpe, capt) =>
+    ValueBoxed(tpe, capt) =>
       "box(\{block_type_key(tpe)} at \{captures_key(capt)})"
   }
 }
@@ -121,13 +121,16 @@ fn captures_key(capt : Captures) -> String {
 ///|
 fn block_type_key(tpe : BlockType) -> String {
   match tpe {
-    FunctionType(tparams, cparams, vparams, bparams, result, effects) =>
+    FunctionType(tparams, cparams, vparams, bparams, result) =>
       "fn[\{tparams.map(s => s.uid().to_string()).join(",")}]" +
       "\{cparams.map(captures_key).join(",")}(\{vparams.map(value_type_key).join(",")})" +
-      "{\{bparams.map(block_type_key).join(",")}}:\{value_type_key(result)}/" +
-      effects.effects.map(block_type_key).join(",")
+      "{\{bparams.map(block_type_key).join(",")}}:" +
+      result.map(value_type_key).join(",")
     InterfaceType(ctor, targs) =>
       "iface@\{ctor.uid()}[\{targs.map(value_type_key).join(",")}]"
+    PromptType(answer) => "prompt[\{answer.map(value_type_key).join(",")}]"
+    ResumeType(result, answer) =>
+      "resume[\{result.map(value_type_key).join(",")}]->[\{answer.map(value_type_key).join(",")}]"
   }
 }
 
@@ -256,96 +259,22 @@ fn is_show_call(block_var : BlockVar) -> Bool {
 ///|
 /// The value type of an expression, as far as it is annotated.
 ///
-/// Upstream reads the type of everything from the typer; this port has no core
-/// type inference (`src/core/tree.mbt`), so a value that the transformer had to
-/// bind to a temporary carries the unknown (error) type.
-fn shown_type_of(dctx : DeclarationContext, e : Expr) -> ValueType {
+/// Upstream reads the type of everything from the typer; the port's core trees
+/// only carry the annotations the transformer recorded, so a value that it had
+/// to bind to a temporary carries the unknown (error) type.
+fn shown_type_of(e : Expr) -> ValueType {
   match e {
     ValueVar(_, tpe) => tpe
     Literal(_, tpe) => tpe
-    // The port's `Make` only stores the *existential* type arguments (upstream
-    // stores `ValueType.Data(tpe, universals)`), so the universals are
-    // recovered from the fields and the arguments.
-    Make(data, tag, existentials, vargs) =>
-      recover_make_type(dctx, data, tag, existentials, vargs)
+    // A constructor call annotates the data type it constructs (with the
+    // universals filled in), so its type is known.
+    Make(data, _, _, _) => data
     PureApp(block_var, _, _) =>
       match block_var.annotated_tpe {
-        FunctionType(_, _, _, _, result, _) => result
-        InterfaceType(_, _) => unknown_value_type()
+        FunctionType(_, _, _, _, [result]) => result
+        _ => unknown_value_type()
       }
     Box(_, _) => unknown_value_type()
-  }
-}
-
-///|
-/// The type of a constructor call, with the universals of the data type
-/// recovered from the types of the arguments.
-///
-/// If they cannot all be recovered the result is an under-applied type, which
-/// [[is_showable]] rejects.
-fn recover_make_type(
-  dctx : DeclarationContext,
-  data : Sym,
-  tag : Sym,
-  existentials : Array[ValueType],
-  vargs : Array[Expr],
-) -> ValueType {
-  let tparams = match dctx.find_data(data) {
-    Some(DeclarationData(_, tparams, _)) => tparams
-    _ => []
-  }
-  let bindings : Map[Int32, ValueType] = Map([])
-  match dctx.find_constructor(tag) {
-    Some(constr) =>
-      for i = 0; i < constr.fields.length() && i < vargs.length(); i = i + 1 {
-        unify_type_hint(
-          constr.fields[i].tpe,
-          shown_type_of(dctx, vargs[i]),
-          bindings,
-        )
-      }
-    None => ()
-  }
-  let universals : Array[ValueType] = []
-  let mut complete = true
-  for tparam in tparams {
-    match bindings.get(tparam.uid()) {
-      Some(t) => universals.push(t)
-      None => complete = false
-    }
-  }
-  if complete {
-    @symbols.ValueTypeApp(data, universals + existentials)
-  } else {
-    @symbols.ValueTypeApp(
-      // not a well-formed application of `data`: `is_showable` rejects it
-      data,
-      [],
-    )
-  }
-}
-
-///|
-/// Records `tpe := actual` for the type variables that `tpe` mentions, as far
-/// as both types are known. This is *not* a unification: the first binding of a
-/// variable wins and anything that does not line up is ignored.
-fn unify_type_hint(
-  tpe : ValueType,
-  actual : ValueType,
-  out : Map[Int32, ValueType],
-) -> Unit {
-  match (tpe, actual) {
-    (ValueTypeRef(tparam), _) =>
-      if !out.contains(tparam.uid()) {
-        out.set(tparam.uid(), actual)
-      }
-    (ValueTypeApp(ctor1, targs1), ValueTypeApp(ctor2, targs2)) =>
-      if ctor1.uid() == ctor2.uid() && targs1.length() == targs2.length() {
-        for i = 0; i < targs1.length(); i = i + 1 {
-          unify_type_hint(targs1[i], targs2[i], out)
-        }
-      }
-    _ => ()
   }
 }
 
@@ -376,7 +305,7 @@ fn show_type_argument(
     return showable_type(dctx, targs[0])
   }
   if targs.length() == 0 && vargs.length() == 1 {
-    return showable_type(dctx, shown_type_of(dctx, vargs[0]))
+    return showable_type(dctx, shown_type_of(vargs[0]))
   }
   raise EffektError::Fatal(
     "Expected targs for '\{show_function_name}' to have exactly one argument",
@@ -399,9 +328,9 @@ fn show_type_argument(
 ///     reachable after all.
 ///   - unknown types, i.e. the transformer could not annotate the shown
 ///     expression (see [[shown_type_of]]).
-///   - data types that are not fully applied (see [[recover_make_type]]), and
-///     types that are not data declarations at all, e.g. extern types. Upstream
-///     aborts for the latter ("Extern type '...', does not have a manual show
+///   - data types that are not fully applied (see [[is_showable]]), and types
+///     that are not data declarations at all, e.g. extern types. Upstream aborts
+///     for the latter ("Extern type '...', does not have a manual show
 ///     implementation"); skipping keeps programs that compiled before
 ///     compiling.
 fn showable_type(dctx : DeclarationContext, t : ValueType) -> ValueType? {
@@ -416,10 +345,10 @@ fn showable_type(dctx : DeclarationContext, t : ValueType) -> ValueType? {
 /// See [[showable_type]].
 fn is_showable(dctx : DeclarationContext, t : ValueType) -> Bool {
   match t {
-    ValueTypeRef(_) => false
+    ValueVar(_) => false
     // A boxed block is shown as `"BOXED"` without looking at the type.
-    BoxedType(_, _) => true
-    ValueTypeApp(sym, targs) =>
+    ValueBoxed(_, _) => true
+    ValueData(sym, targs) =>
       match builtin_type_name(t) {
         Some(name) => showable_builtins().contains(name)
         None =>
@@ -462,7 +391,7 @@ fn ShowContext::get_show_block_var(
   }
   BlockVar::new(
     show_id,
-    FunctionType([], [], [vt], [], t_string(), Effects::empty()),
+    FunctionType([], [], [vt], [], [t_string()]),
     Captures::empty(),
   )
 }
@@ -487,8 +416,7 @@ fn find_extern_def(
           cparams.map(c => CaptureSetOf([c])),
           vparams.map(p => p.tpe),
           bparams.map(b => b.tpe),
-          result,
-          Effects::empty(),
+          [result],
         ),
         capt,
       )
@@ -519,7 +447,7 @@ fn find_extern_show_def(
 /// `ValueType.Data` of the builtin symbols.
 fn builtin_type_name(vt : ValueType) -> String? {
   match vt {
-    ValueTypeApp(sym, targs) =>
+    ValueData(sym, targs) =>
       if targs.length() == 0 {
         core_builtin_to_string(sym)
       } else {
@@ -543,7 +471,7 @@ fn ShowContext::generate_show_instance(
   self.show_names.set(value_type_key(vt), show_id)
   let param_id = Sym::tmp_value("value")
   let vparam = ValueParam(param_id, vt)
-  let param_value_var = ValueVar(param_id, vt)
+  let param_value_var = Expr::ValueVar(param_id, vt)
 
   let generate_def = (stmt : Stmt) => {
     let block = BlockLit(BlockLit::new([], [], [vparam], [], stmt))
@@ -588,7 +516,7 @@ fn ShowContext::generate_show_instance(
       )
     _ =>
       match vt {
-        ValueTypeApp(name, targs) =>
+        ValueData(name, targs) =>
           match dctx.find_data(name) {
             Some(data) => self.generate_show_instance_data(dctx, data, targs)
             None =>
@@ -596,7 +524,7 @@ fn ShowContext::generate_show_instance(
                 "Extern type '\{name.name().name}', does not have a manual show implementation",
               )
           }
-        ValueTypeRef(name) => {
+        ValueVar(name) => {
           // A type parameter: look up what it stands for. Note that upstream
           // only *generates* the instance for the looked-up type and does not
           // register it under the variable itself, so `getShowBlockVar` aborts
@@ -620,7 +548,7 @@ fn ShowContext::generate_show_instance(
             }
           }
         }
-        BoxedType(_, _) =>
+        ValueBoxed(_, _) =>
           // TODO: Handle this better, but honestly your fault for using this.
           // (upstream warns here; the port has no warning sink)
           Some(generate_def(Return([Literal(LString("BOXED"), t_string())])))
@@ -644,7 +572,7 @@ fn ShowContext::generate_show_instance_data(
         None
       } else {
         let fresh_id = fresh_show_id()
-        let data_type = @symbols.ValueTypeApp(decl.id(), targs)
+        let data_type = ValueData(decl.id(), targs)
         self.show_names.set(value_type_key(data_type), fresh_id)
         let defn = self.generate_data_instance(dctx, decl, fresh_id, targs)
         self.show_defns.set(value_type_key(data_type), defn)
@@ -688,10 +616,7 @@ fn ShowContext::generate_data_instance(
     self.tparam_lookup.set(data_tparams[i].uid(), looked_up[i])
   }
 
-  let value_tpe = @symbols.ValueTypeApp(
-    data_id,
-    targs.map(t => self.lookup_type(t)),
-  )
+  let value_tpe = ValueData(data_id, targs.map(t => self.lookup_type(t)))
   let vparam = ValueParam(value_id, value_tpe)
 
   let constructor_vparams : Array[Array[ValueParam]] = []
@@ -705,8 +630,8 @@ fn ShowContext::generate_data_instance(
     )
   }
   let match_stmt = Match(
-    ValueVar(value_id, value_tpe),
-    t_string(),
+    Expr::ValueVar(value_id, value_tpe),
+    [t_string()],
     clauses,
     None,
   )
@@ -728,8 +653,8 @@ fn ShowContext::constructor_vparams(
   for field in constr.fields {
     let lookup = self.lookup_type(field.tpe)
     match lookup {
-      ValueTypeApp(_, _) => out.push(ValueParam(field.id, lookup))
-      ValueTypeRef(name) =>
+      ValueData(_, _) => out.push(ValueParam(field.id, lookup))
+      ValueVar(name) =>
         match self.tparam_lookup.get(name.uid()) {
           Some(t) => out.push(ValueParam(field.id, t))
           None =>
@@ -737,7 +662,7 @@ fn ShowContext::constructor_vparams(
               "Was not able to lookup var: \{name.name().name}",
             )
         }
-      BoxedType(_, _) => out.push(ValueParam(field.id, lookup))
+      ValueBoxed(_, _) => out.push(ValueParam(field.id, lookup))
     }
   }
   out
@@ -751,9 +676,9 @@ fn ShowContext::lookup_type(
   vt : ValueType,
 ) -> ValueType raise EffektError {
   match vt {
-    ValueTypeApp(name, targs) =>
-      ValueTypeApp(name, targs.map(t => self.lookup_type(t)))
-    ValueTypeRef(name) =>
+    ValueData(name, targs) =>
+      ValueData(name, targs.map(t => self.lookup_type(t)))
+    ValueVar(name) =>
       match self.tparam_lookup.get(name.uid()) {
         Some(t) => t
         None =>
@@ -761,7 +686,7 @@ fn ShowContext::lookup_type(
             "Was not able to lookup type parameter '\{name.name().name}'",
           )
       }
-    BoxedType(_, _) => vt
+    ValueBoxed(_, _) => vt
   }
 }
 

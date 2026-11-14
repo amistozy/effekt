@@ -235,7 +235,7 @@ fn transform_stmt(s : Stmt, env : Aliases) -> Stmt {
       Shift(transform_block_var(prompt, env), k, transform_stmt(body, env))
     Resume(k, body) =>
       Resume(transform_block_var(k, env), transform_stmt(body, env))
-    Hole(tpe, span) => Hole(transform_value_type(tpe, env), span)
+    Hole(tpe, span) => Hole(tpe.map(t => transform_value_type(t, env)), span)
   }
 }
 
@@ -359,28 +359,37 @@ fn transform_id(id : Sym, env : Aliases) -> Sym {
 ///|
 fn transform_value_type(tpe : ValueType, env : Aliases) -> ValueType {
   match tpe {
-    ValueTypeRef(name) => ValueTypeRef(transform_id(name, env))
-    ValueTypeApp(name, targs) =>
-      ValueTypeApp(name, targs.map(t => transform_value_type(t, env)))
-    BoxedType(block, capt) =>
-      BoxedType(transform_block_type(block, env), transform_captures(capt, env))
+    ValueVar(name) => ValueVar(transform_id(name, env))
+    ValueData(name, targs) =>
+      ValueData(name, targs.map(t => transform_value_type(t, env)))
+    ValueBoxed(block, capt) =>
+      ValueBoxed(
+        transform_block_type(block, env),
+        transform_captures(capt, env),
+      )
   }
 }
 
 ///|
 fn transform_block_type(tpe : BlockType, env : Aliases) -> BlockType {
   match tpe {
-    FunctionType(tparams, cparams, vparams, bparams, result, effects) =>
+    FunctionType(tparams, cparams, vparams, bparams, result) =>
       FunctionType(
         tparams,
         cparams,
         vparams.map(t => transform_value_type(t, env)),
         bparams.map(t => transform_block_type(t, env)),
-        transform_value_type(result, env),
-        effects,
+        result.map(t => transform_value_type(t, env)),
       )
     InterfaceType(name, targs) =>
       InterfaceType(name, targs.map(t => transform_value_type(t, env)))
+    PromptType(answer) =>
+      PromptType(answer.map(t => transform_value_type(t, env)))
+    ResumeType(result, answer) =>
+      ResumeType(
+        result.map(t => transform_value_type(t, env)),
+        answer.map(t => transform_value_type(t, env)),
+      )
   }
 }
 

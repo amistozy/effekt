@@ -341,14 +341,14 @@ fn Reachable::process_declaration(self : Reachable, d : Declaration) -> Unit {
 /// and the captures of a boxed type are not processed.
 fn Reachable::process_value_type(self : Reachable, t : ValueType) -> Unit {
   match t {
-    ValueTypeRef(_) => ()
-    ValueTypeApp(name, targs) => {
+    ValueVar(_) => ()
+    ValueData(name, targs) => {
       self.process_id(name)
       for targ in targs {
         self.process_value_type(targ)
       }
     }
-    BoxedType(tpe, _) => self.process_block_type(tpe)
+    ValueBoxed(tpe, _) => self.process_block_type(tpe)
   }
 }
 
@@ -357,19 +357,33 @@ fn Reachable::process_value_type(self : Reachable, t : ValueType) -> Unit {
 /// nor the capture parameters (the port's `effects`) are processed.
 fn Reachable::process_block_type(self : Reachable, t : BlockType) -> Unit {
   match t {
-    FunctionType(_, _, vparams, bparams, result, _) => {
+    FunctionType(_, _, vparams, bparams, result) => {
       for p in vparams {
         self.process_value_type(p)
       }
       for p in bparams {
         self.process_block_type(p)
       }
-      self.process_value_type(result)
+      for r in result {
+        self.process_value_type(r)
+      }
     }
     InterfaceType(name, targs) => {
       self.process_id(name)
       for targ in targs {
         self.process_value_type(targ)
+      }
+    }
+    PromptType(answer) =>
+      for a in answer {
+        self.process_value_type(a)
+      }
+    ResumeType(result, answer) => {
+      for r in result {
+        self.process_value_type(r)
+      }
+      for a in answer {
+        self.process_value_type(a)
       }
     }
   }
@@ -449,9 +463,11 @@ fn Reachable::process_stmt(self : Reachable, s : Stmt) -> Unit {
       self.process_stmt(thn)
       self.process_stmt(els)
     }
-    Match(scrutinee, tpe, clauses, default) => {
+    Match(scrutinee, annotated, clauses, default) => {
       self.process_expr(scrutinee)
-      self.process_value_type(tpe)
+      for t in annotated {
+        self.process_value_type(t)
+      }
       // the *tag* of a clause is not processed: only the clause body is
       for clause in clauses {
         self.process_block_lit(clause.body)
@@ -493,7 +509,10 @@ fn Reachable::process_stmt(self : Reachable, s : Stmt) -> Unit {
       self.process_stmt(body)
     }
     Region(body) => self.process_block_lit(body)
-    Hole(tpe, _) => self.process_value_type(tpe)
+    Hole(annotated, _) =>
+      for t in annotated {
+        self.process_value_type(t)
+      }
   }
 }
 
@@ -516,7 +535,7 @@ fn Reachable::process_expr(self : Reachable, e : Expr) -> Unit {
       }
     }
     Make(data, tag, targs, vargs) => {
-      self.process_id(data)
+      self.process_value_type(data)
       self.process_id(tag)
       for targ in targs {
         self.process_value_type(targ)
@@ -757,7 +776,7 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
         Reset(body2)
       }
     }
-    Match(scrutinee, tpe, clauses, default) => {
+    Match(scrutinee, annotated, clauses, default) => {
       let clauses2 : Array[Clause] = []
       for clause in clauses {
         if self.used(clause.tag) {
@@ -768,7 +787,7 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
         Some(body) => Some(self.rewrite_stmt(body))
         None => None
       }
-      Match(self.rewrite_expr(scrutinee), tpe, clauses2, default2)
+      Match(self.rewrite_expr(scrutinee), annotated, clauses2, default2)
     }
 
     // `case other => super.rewrite(other)`

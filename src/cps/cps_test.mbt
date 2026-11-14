@@ -11,7 +11,7 @@ fn bsym(hint : String) -> @symbols.Sym {
 }
 
 ///|
-fn some_value(a : @symbols.ValueType) -> @cps.Expr {
+fn some_value(a : @core.ValueType) -> @cps.Expr {
   @cps.Literal(@source.LInt(1), a)
 }
 
@@ -23,7 +23,7 @@ test "cps: free variables of a let expression" {
   // let x = 1; jump k(x)[ks]
   let s = @cps.LetExpr(
     x,
-    some_value(@symbols.t_int()),
+    some_value(@core.t_int()),
     @cps.Jump(k, [@cps.ValueVar(x)], @cps.MetaCont(ks)),
   )
   let free = s.free()

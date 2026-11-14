@@ -453,15 +453,11 @@ pub fn QualifiedSignature::from_extern_function(
       let tps = if c.tparams.length() == 0 {
         ""
       } else {
-        "[\{c.tparams.map(t => show_core_value_type(ValueTypeRef(t))).join(", ")}]"
+        "[\{c.tparams.map(t => show_core_value_type(ValueVar(t))).join(", ")}]"
       }
-      let value_params = c.vparams
-        .map(p => show_core_value_type(value_param_type(p)))
-        .join(", ")
+      let value_params = c.vparams.map(p => "\{value_param_type(p)}").join(", ")
       let vps = if value_params == "" { "" } else { "(\{value_params})" }
-      let bps = c.bparams
-        .map(b => "{\{show_core_block_type(block_param_type(b))}}")
-        .join("")
+      let bps = c.bparams.map(b => "{\{block_param_type(b)}}").join("")
       let ps = if vps == "" && bps == "" { "()" } else { vps + bps }
       QualifiedSignature("\{module_name}::\{f.name().name}\{tps}\{ps}")
     }
@@ -469,25 +465,27 @@ pub fn QualifiedSignature::from_extern_function(
 }
 
 ///|
-fn value_param_type(p : Sym) -> ValueType {
+/// The *source* type annotated on a value parameter, for the signature string
+/// (which is printed as written, not as a core type).
+fn value_param_type(p : Sym) -> @symbols.ValueType {
   match p {
     ValueParam(vp) =>
       match vp.tpe {
         Some(t) => t
-        None => unknown_value_type()
+        None => @symbols.t_top()
       }
-    _ => unknown_value_type()
+    _ => @symbols.t_top()
   }
 }
 
 ///|
-fn block_param_type(p : Sym) -> BlockType {
+fn block_param_type(p : Sym) -> @symbols.BlockType {
   match p {
     BlockParam(bp) =>
       match bp.tpe {
         Some(t) => t
-        None => unknown_block_type()
+        None => @symbols.t_io()
       }
-    _ => unknown_block_type()
+    _ => @symbols.t_io()
   }
 }

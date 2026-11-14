@@ -148,81 +148,6 @@ pub fn substitute_captures_with(
 }
 
 ///|
-pub fn substitute_value_type_with(
-  tpe : ValueType,
-  vsubst : Map[Int32, ValueType],
-  csubst : Map[Int32, Captures],
-) -> ValueType {
-  match tpe {
-    ValueTypeRef(id) =>
-      match vsubst.get(id.uid()) {
-        Some(replacement) => replacement
-        None => tpe
-      }
-    ValueTypeApp(sym, targs) =>
-      ValueTypeApp(
-        sym,
-        targs.map(t => substitute_value_type_with(t, vsubst, csubst)),
-      )
-    BoxedType(b, capt) =>
-      BoxedType(
-        substitute_block_type_with(b, vsubst, csubst),
-        substitute_captures_with(capt, csubst),
-      )
-  }
-}
-
-///|
-/// The ids occurring in a list of capture sets. In `@symbols` the capture
-/// parameters of a function type are stored as (singleton) capture sets, while
-/// upstream core stores the ids directly.
-fn capture_ids(cs : Array[Captures]) -> Array[Sym] {
-  let out : Array[Sym] = []
-  for c in cs {
-    for x in c.to_array() {
-      out.push(x)
-    }
-  }
-  out
-}
-
-///|
-pub fn substitute_block_type_with(
-  tpe : BlockType,
-  vsubst : Map[Int32, ValueType],
-  csubst : Map[Int32, Captures],
-) -> BlockType {
-  match tpe {
-    FunctionType(tparams, cparams, vparams, bparams, result, effects) => {
-      // Names are unique symbols, so shadowing should NOT take place; we still
-      // subtract to be safe.
-      let vsubst_local = shadowed(vsubst, tparams)
-      let csubst_local = shadowed(csubst, capture_ids(cparams))
-      FunctionType(
-        tparams,
-        cparams,
-        // technically, in the source, cparams are not bound in value arguments
-        vparams.map(t => substitute_value_type_with(t, vsubst_local, csubst)),
-        bparams.map(t => {
-          substitute_block_type_with(t, vsubst_local, csubst_local)
-        }),
-        substitute_value_type_with(result, vsubst_local, csubst_local),
-        Effects(
-          effects
-          .to_list()
-          .map(e => substitute_block_type_with(e, vsubst, csubst)),
-        ),
-      )
-    }
-    InterfaceType(sym, targs) =>
-      InterfaceType(
-        sym,
-        targs.map(t => substitute_value_type_with(t, vsubst, csubst)),
-      )
-  }
-}
-
-///|
 pub fn substitute_value_type(
   tpe : ValueType,
   subst : Substitution,
@@ -397,7 +322,7 @@ pub fn substitute_stmt(
     Match(scrutinee, tpe, clauses, default) =>
       Match(
         substitute_expr(scrutinee, subst),
-        substitute_value_type(tpe, subst),
+        tpe.map(t => substitute_value_type(t, subst)),
         clauses.map(c => Clause(c.tag, substitute_block_lit(c.body, subst))),
         match default {
           Some(body) => Some(substitute_stmt(body, subst))
@@ -448,7 +373,7 @@ pub fn substitute_stmt(
     Resume(k, body) =>
       Resume(substitute_block_var(k, subst), substitute_stmt(body, subst))
     Region(body) => Region(substitute_block_lit(body, subst))
-    Hole(tpe, span) => Hole(substitute_value_type(tpe, subst), span)
+    Hole(tpe, span) => Hole(tpe.map(t => substitute_value_type(t, subst)), span)
   }
 }
 
@@ -511,7 +436,7 @@ pub fn substitute_expr(
       Literal(value, substitute_value_type(annotated_tpe, subst))
     Make(data, tag, targs, vargs) =>
       Make(
-        data,
+        substitute_value_type(data, subst),
         tag,
         targs.map(t => substitute_value_type(t, subst)),
         vargs.map(x => substitute_expr(x, subst)),
