@@ -87,37 +87,3 @@ fn any_stmt_in_implementation(
 ) -> Bool {
   implementation.operations.any(op => stmt_any(op.body, p))
 }
-
-// ---------------------------------------------------------------------------
-// Combinators that allow the function to fail
-//
-// Array::map / ny / ll take a pure function, but the normalizer's
-// traversals fail with an internal error when a tree does not fit together (a
-// region that is not a variable, an argument list of the wrong length). These
-// variants thread the error through.
-// ---------------------------------------------------------------------------
-
-///|
-fn[T, U] map_raise(
-  xs : Array[T],
-  f : (T) -> U raise EffektError,
-) -> Array[U] raise EffektError {
-  let out : Array[U] = []
-  for x in xs {
-    out.push(f(x))
-  }
-  out
-}
-
-///|
-fn[T] any_raise(
-  xs : Array[T],
-  f : (T) -> Bool raise EffektError,
-) -> Bool raise EffektError {
-  for x in xs {
-    if f(x) {
-      return true
-    }
-  }
-  false
-}

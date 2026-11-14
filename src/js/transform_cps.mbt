@@ -496,10 +496,7 @@ fn to_js_template(
   t : Template[@cps.Expr],
   ctx : TransformerContext,
 ) -> Expr raise EffektError {
-  let args : Array[Expr] = []
-  for a in t.args {
-    args.push(to_js_cps_expr(a, ctx))
-  }
+  let args = t.map(a => to_js_cps_expr(a, ctx)).args
   RawExpr(t.strings, args)
 }
 
@@ -726,13 +723,8 @@ fn to_js_cps_expr(
     @cps.Expr::ValueVar(id) => name_ref(id)
     @cps.Expr::Literal(value, _tpe) => literal_to_js(value)
     @cps.Expr::PureApp(id, vargs) => inline_extern(id, vargs, ctx)
-    @cps.Expr::Make(_data, tag, vargs) => {
-      let args : Array[Expr] = []
-      for v in vargs {
-        args.push(to_js_cps_expr(v, ctx))
-      }
-      New(name_ref(tag), args)
-    }
+    @cps.Expr::Make(_data, tag, vargs) =>
+      New(name_ref(tag), vargs.map(v => to_js_cps_expr(v, ctx)))
     @cps.Expr::Box(b) => argument_to_js(b, ctx)
   }
 }

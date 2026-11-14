@@ -445,7 +445,7 @@ fn Normalizer::carries_an_operation_to_its_handler(
 ) -> Bool raise EffektError {
   site.bargs.length() > 0 &&
   site.callee.body.size() <= carrying_limit &&
-  any_raise(site.bargs, barg => {
+  site.bargs.any(barg => {
     match self.known_and_used_once(barg, ctx) {
       Some(New(implementation)) =>
         self.shifts_to_an_enclosing_prompt(implementation, ctx)
@@ -795,7 +795,7 @@ fn Normalizer::rewrite_stmt(
               let result = self.reduce(
                 clause,
                 targs,
-                map_raise(vargs, arg => self.rewrite_expr(arg, ctx)),
+                vargs.map(arg => self.rewrite_expr(arg, ctx)),
                 [],
                 ctx,
               )
@@ -1211,14 +1211,9 @@ fn Normalizer::rewrite_expr(
     // congruences (upstream also shares these through Context.facts, see the
     // note at the top of the file)
     PureApp(f, targs, vargs) =>
-      PureApp(f, targs, map_raise(vargs, arg => self.rewrite_expr(arg, ctx)))
+      PureApp(f, targs, vargs.map(arg => self.rewrite_expr(arg, ctx)))
     Make(data, tag, targs, vargs) =>
-      Make(
-        data,
-        tag,
-        targs,
-        map_raise(vargs, arg => self.rewrite_expr(arg, ctx)),
-      )
+      Make(data, tag, targs, vargs.map(arg => self.rewrite_expr(arg, ctx)))
     // [[ x ]] = y  if `x` was bound to `y`
     ValueVar(id, _) =>
       match ctx.exprs.get(id.uid()) {
@@ -1416,7 +1411,7 @@ fn Normalizer::normalize_match(
   Match(
     self.rewrite_expr(scrutinee, ctx),
     tpe,
-    map_raise(clauses, clause => {
+    clauses.map(clause => {
       Clause(clause.tag, self.rewrite_block_lit(clause.body, ctx))
     }),
     match default {

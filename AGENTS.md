@@ -114,6 +114,12 @@ You can browse and install extra skills here:
   pretty printer (`show_core_*`) is likewise not `Show`: it lays out a whole
   module at a fixed width.
 
+- **Standard combinators take raising closures.** `Array::map`, `any`, `all`,
+  `each`, `filter`, … declare their callback as `(T) -> U raise?`, so an arrow
+  that aborts compilation is a legal argument: write `xs.map(x => …)` /
+  `xs.any(x => …)` rather than hand-rolling a `map_raise` loop that pushes into
+  a fresh array. `Template::map` raises for the same reason.
+
 - **Restore saved state with `defer`, not `errdefer` plus a manual restore.**
   MoonBit's `defer` runs on both exits (return and raise, verified), so
   `let saved = …; …; defer { … = saved }; f()` is enough for the "run `f` with

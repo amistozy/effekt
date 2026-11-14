@@ -29,7 +29,11 @@ pub fn[T] Template::is_empty(self : Template[T]) -> Bool {
 }
 
 ///|
-pub fn[T, U] Template::map(self : Template[T], f : (T) -> U) -> Template[U] {
+/// Maps the arguments of the template. `f` may abort compilation.
+pub fn[T, U] Template::map(
+  self : Template[T],
+  f : (T) -> U raise EffektError,
+) -> Template[U] raise EffektError {
   { strings: self.strings, args: self.args.map(f), }
 }
 
@@ -44,17 +48,4 @@ pub fn[T] Template::render(self : Template[T], f : (T) -> String) -> String {
     }
   }
   buf.to_string()
-}
-
-///|
-/// Like `map`, but the mapping function may abort compilation.
-pub fn[T, U] Template::map_raise(
-  self : Template[T],
-  f : (T) -> U raise EffektError,
-) -> Template[U] raise EffektError {
-  let args : Array[U] = []
-  for a in self.args {
-    args.push(f(a))
-  }
-  { strings: self.strings, args, }
 }

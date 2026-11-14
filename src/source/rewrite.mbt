@@ -231,10 +231,7 @@ pub fn rewrite_extern_body(
 ) -> ExternBody raise EffektError {
   match b {
     StringExternBody(flag, template) =>
-      StringExternBody(
-        flag,
-        template.map_raise(t => rewrite_term(t, ctx, hooks)),
-      )
+      StringExternBody(flag, template.map(t => rewrite_term(t, ctx, hooks)))
     EffektExternBody(flag, body) =>
       EffektExternBody(flag, rewrite_stmt(body, ctx, hooks))
     Unsupported(msg) => Unsupported(msg)
@@ -269,7 +266,7 @@ pub fn rewrite_term(
     Assign(id, value) => Assign(id, rewrite_term(value, ctx, hooks))
     Literal(v, ty) => Literal(v, ty)
     Hole(id, template) =>
-      Hole(id, template.map_raise(s => rewrite_stmt(s, ctx, hooks)))
+      Hole(id, template.map(s => rewrite_stmt(s, ctx, hooks)))
     Box(captures, body) => Box(captures, rewrite_term(body, ctx, hooks))
     Unbox(body) => Unbox(rewrite_term(body, ctx, hooks))
     Select(receiver, id) => Select(rewrite_term(receiver, ctx, hooks), id)

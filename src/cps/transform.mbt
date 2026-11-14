@@ -262,7 +262,7 @@ fn transform_extern_body(
     @core.StringExternBody(feature_flag, template) =>
       StringExternBody(
         feature_flag,
-        template.map_raise(arg => transform_expr(arg, ctx)),
+        template.map(arg => transform_expr(arg, ctx)),
       )
     @core.Unsupported(err) => Unsupported(err)
   }

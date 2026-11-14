@@ -1065,7 +1065,7 @@ fn Transformer::transform_extern_bodies(
   }
   match bodies[0] {
     @source.StringExternBody(ff, body) =>
-      StringExternBody(ff, body.map_raise(a => self.transform_as_expr(a)))
+      StringExternBody(ff, body.map(a => self.transform_as_expr(a)))
     @source.Unsupported(msg) => Unsupported(EffektError::Fatal(msg))
     @source.EffektExternBody(_, _) =>
       raise EffektError::Internal(
