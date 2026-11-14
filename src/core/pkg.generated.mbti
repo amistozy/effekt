@@ -26,6 +26,10 @@ pub fn free_var_extern_body(ExternBody[Expr]) -> Free
 
 pub fn free_var_module(ModuleDecl) -> Free
 
+pub fn is_unknown_block_type(@symbols.BlockType) -> Bool
+
+pub fn is_unknown_value_type(@symbols.ValueType) -> Bool
+
 pub fn normalize(ModuleDecl, Array[@symbols.Sym], InliningPolicy) -> ModuleDecl raise @util.EffektError
 
 pub fn pm_compile(Array[PMClause], @symbols.ValueType) -> Stmt raise @util.EffektError
@@ -61,6 +65,8 @@ pub fn show_core_toplevels(Array[Toplevel]) -> String
 pub fn show_core_value_type(@symbols.ValueType) -> String
 
 pub fn show_phase(ModuleDecl) -> ModuleDecl raise @util.EffektError
+
+pub fn static_arguments(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
 pub fn substitute_as_var(@symbols.Sym, Substitution) -> @symbols.Sym raise @util.EffektError
 

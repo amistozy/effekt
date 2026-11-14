@@ -92,6 +92,23 @@ fn function_result(tpe : BlockType) -> ValueType raise EffektError {
 }
 
 ///|
+/// The result of applying a block of type `tpe`. A callee whose type is the
+/// placeholder `unknown_block_type()` yields the unknown value type: the port's
+/// trees contain such callees where the transformer had no annotation (e.g. the
+/// join points of the pattern-match compiler), while upstream always has a
+/// function type at this point.
+fn instantiated_result(
+  tpe : BlockType,
+  targs : Array[ValueType],
+  cargs : Array[Captures],
+) -> ValueType raise EffektError {
+  if is_unknown_block_type(tpe) {
+    return unknown_value_type()
+  }
+  function_result(instantiate(tpe, targs, cargs))
+}
+
+///|
 /// Unions the captures of the given items, as upstream's `allCapt`.
 fn[T] union_captures(
   xs : Array[T],
@@ -119,20 +136,14 @@ fn Stmt::infer_type(self : Stmt) -> Array[ValueType] raise EffektError {
     Val(_, _, body) => body.infer_type()
     App(callee, targs, _, bargs) =>
       [
-        function_result(
-          instantiate(
-            callee.infer_type(),
-            targs,
-            bargs.map(b => b.infer_capt()),
-          ),
+        instantiated_result(
+          callee.infer_type(),
+          targs,
+          bargs.map(b => b.infer_capt()),
         ),
       ]
     Invoke(_, _, method_tpe, targs, _, bargs) =>
-      [
-        function_result(
-          instantiate(method_tpe, targs, bargs.map(b => b.infer_capt())),
-        ),
-      ]
+      [instantiated_result(method_tpe, targs, bargs.map(b => b.infer_capt()))]
     If(_, thn, _) => thn.infer_type()
     Match(_, annotated, _, _) => [annotated]
     // A region (like `reset`) returns what its body returns.
@@ -173,7 +184,7 @@ fn Expr::infer_type(self : Expr) -> ValueType raise EffektError {
     ValueVar(_, annotated) => annotated
     Literal(_, annotated) => annotated
     PureApp(callee, targs, _) =>
-      function_result(instantiate(callee.annotated_tpe, targs, []))
+      instantiated_result(callee.annotated_tpe, targs, [])
     Make(data, _, targs, _) => ValueTypeApp(data, targs)
     Box(block, annotated_capt) => BoxedType(block.infer_type(), annotated_capt)
   }
@@ -202,9 +213,13 @@ fn Block::infer_type(self : Block) -> BlockType raise EffektError {
       match pure.infer_type() {
         BoxedType(tpe, _) => tpe
         other =>
-          raise EffektError::Internal(
-            "Expected a boxed type, but got: \{other}",
-          )
+          if is_unknown_value_type(other) {
+            unknown_block_type()
+          } else {
+            raise EffektError::Internal(
+              "Expected a boxed type, but got: \{other}",
+            )
+          }
       }
     New(implementation) => implementation.interface
   }
@@ -270,9 +285,13 @@ fn Block::infer_capt(self : Block) -> Captures raise EffektError {
       match pure.infer_type() {
         BoxedType(_, captures) => captures
         other =>
-          raise EffektError::Internal(
-            "Expected a boxed type, but got: \{other}",
-          )
+          if is_unknown_value_type(other) {
+            Captures::empty()
+          } else {
+            raise EffektError::Internal(
+              "Expected a boxed type, but got: \{other}",
+            )
+          }
       }
     New(implementation) => implementation.infer_capt()
   }

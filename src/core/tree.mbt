@@ -428,3 +428,29 @@ pub fn unknown_value_type() -> ValueType {
 pub fn unknown_block_type() -> BlockType {
   InterfaceType(Sym::error_block_type(Span::missing()), [])
 }
+
+///|
+/// Whether this is the placeholder written by `unknown_value_type()`.
+pub fn is_unknown_value_type(tpe : ValueType) -> Bool {
+  match tpe {
+    ValueTypeApp(sym, _) =>
+      match sym {
+        Sym::ErrorValueType(_) => true
+        _ => false
+      }
+    _ => false
+  }
+}
+
+///|
+/// Whether this is the placeholder written by `unknown_block_type()`.
+pub fn is_unknown_block_type(tpe : BlockType) -> Bool {
+  match tpe {
+    InterfaceType(sym, _) =>
+      match sym {
+        Sym::ErrorBlockType(_) => true
+        _ => false
+      }
+    _ => false
+  }
+}

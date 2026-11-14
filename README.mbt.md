@@ -215,19 +215,21 @@ These are deliberate, and documented at the point of use in the sources:
   sets; with the approximate capture sets of this port such a call can look pure
   while capturing a region (a `while` loop is exactly this shape), so the rule
   would drop live calls. The rest of `core/optimizer/*` (`DropBindings`,
-  `StaticArguments`, `StaticResumptions`, `DirectStyle`,
-  `ReferencesToParameters`) is still skipped; those passes are
-  semantics-preserving, so omitting them only affects the quality of the
-  generated code, and the JS backend already implements its own direct-style and
-  loop optimizations (`src/js/transform_cps.mbt`).
+  `StaticResumptions`, `DirectStyle`, `ReferencesToParameters`) is still
+  skipped; those passes are semantics-preserving, so omitting them only affects
+  the quality of the generated code, and the JS backend already implements its
+  own direct-style and loop optimizations (`src/js/transform_cps.mbt`).
 - **The first optimizer passes are ported but not run.** `BindSubexpressions`
   (the normal form in which every subexpression is named and `val x = y` is
-  inlined away, `src/core/bind_subexpressions.mbt`) and `Normalizer` with its
+  inlined away, `src/core/bind_subexpressions.mbt`), `StaticArguments` (the
+  worker/wrapper split of a recursive definition whose recursive calls leave
+  some arguments alone, `src/core/static_arguments.mbt`, with the call analysis
+  of `core/Recursive.scala`, `src/core/recursive.mbt`) and `Normalizer` with its
   `InliningPolicy` (inlining, join points, folding `if`/`match`, commuting
   `val`s, `src/core/normalize.mbt`, together with the `Renamer`,
   `src/core/renamer.mbt`, and the node counts of `core/Tree.scala`'s `sizes`,
   `src/core/size.mbt`) are ported, but `--show-core` and the generated
-  JavaScript still go through the unnormalized pipeline. Upstream runs both from
+  JavaScript still go through the unnormalized pipeline. Upstream runs them from
   its optimizer, and without the remaining passes (`StaticResumptions`,
   `DirectStyle`, …) that consume their output they would only make the core
   dumps noisier; they are checked by unit tests and were smoke tested by

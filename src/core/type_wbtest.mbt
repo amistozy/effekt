@@ -187,6 +187,16 @@ test "infer_type: unbox reads the boxed type and its captures" {
 }
 
 ///|
+test "infer_type: an unannotated callee yields the unknown type" {
+  // The pattern-match compiler's join points are block variables without an
+  // annotated type (`unknown_block_type()`), so their calls have no type.
+  let f = wb_block("f", unknown_block_type(), @symbols.Captures::empty())
+  let tpes = App(Block::BlockVar(f), [], [], []).infer_type()
+  assert_eq(tpes.length(), 1)
+  assert_true(is_unknown_value_type(tpes[0]))
+}
+
+///|
 test "infer_capt: shift drops the continuation and adds the prompt" {
   let prompt_id = @symbols.Sym::tmp_block("p")
   let prompt = BlockVar::new(
