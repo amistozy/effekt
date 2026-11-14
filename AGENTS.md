@@ -102,11 +102,15 @@ You can browse and install extra skills here:
   `Eq`/`Show` in `src/symbols`, so write `a == b`, `xs.contains(x)` and
   `"\{t}"` instead of a `*_eq`/`show_*` function. Such an `impl` is only
   visible to other packages when it is `pub` — a missing `pub` is what once
-  forced `namer` to reimplement `Name` equality as `name_eq`.
-  The one relation that deliberately stays a function is the effect-set
-  membership check: `interface_type_equal`/`value_type_equal` compare effect
-  types up to capture sets and are not reflexive on function types, so they
-  cannot be `Eq`; their doc comments say so. `@core`'s `Doc`-based
+  forced `namer` to reimplement `Name` equality as `name_eq` (a `#derive(Eq)`
+  on a `pub` type is exported the same way, so it is the preferred form).
+  Write `Eq` by hand only where the relation is *not* structural: `Sym`
+  compares `uid`s, and `Captures`/`Effects` compare as sets — `Effects` through
+  the coarser `interface_type_equal`, which is why that one stays a function.
+  The effect-set membership check is the same relation:
+  `interface_type_equal`/`value_type_equal` compare effect types up to capture
+  sets and are not reflexive on function types, so they cannot be `Eq`; their
+  doc comments say so. `@core`'s `Doc`-based
   pretty printer (`show_core_*`) is likewise not `Show`: it lays out a whole
   module at a fixed width.
 

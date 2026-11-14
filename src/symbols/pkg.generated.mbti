@@ -111,6 +111,7 @@ pub(all) struct BlockParamSym {
   is_implicit : Bool
 }
 
+#derive(Eq)
 pub(all) enum BlockType {
   FunctionType(Array[Sym], Array[Captures], Array[ValueType], Array[BlockType], ValueType, Effects)
   InterfaceType(Sym, Array[ValueType])
@@ -118,7 +119,6 @@ pub(all) enum BlockType {
 pub fn BlockType::interface_ctor(Self) -> Sym?
 pub fn BlockType::interface_name(Self) -> Name?
 pub fn BlockType::is_interface(Self) -> Bool
-pub impl Eq for BlockType
 pub impl Show for BlockType
 
 pub(all) struct CallTargetSym {
@@ -301,6 +301,7 @@ pub fn Module::find_dependency(Self, Name) -> Self?
 pub fn Module::is_prelude(Self) -> Bool
 pub impl Show for Module
 
+#derive(Eq)
 pub(all) struct Name {
   path : Array[String]
   name : String
@@ -311,7 +312,6 @@ pub fn Name::local(String) -> Self
 pub fn Name::qualified(Array[String], String) -> Self
 pub fn Name::qualified_name(Self) -> String
 pub fn Name::rename(Self, (String) -> String) -> Self
-pub impl Eq for Name
 pub impl Show for Name
 
 pub(all) struct OperationSym {
@@ -511,12 +511,12 @@ pub(all) struct ValueParamSym {
   is_implicit : Bool
 }
 
+#derive(Eq)
 pub(all) enum ValueType {
   BoxedType(BlockType, Captures)
   ValueTypeRef(Sym)
   ValueTypeApp(Sym, Array[ValueType])
 }
-pub impl Eq for ValueType
 pub impl Show for ValueType
 
 pub(all) struct VarBinderSym {

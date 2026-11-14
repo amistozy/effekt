@@ -117,7 +117,7 @@ fn NormCtx::enter_prompt(self : NormCtx, prompt : Sym) -> NormCtx {
 ///|
 /// Whether `id` is one of the enclosing prompts.
 fn NormCtx::has_prompt(self : NormCtx, id : Sym) -> Bool {
-  self.prompts.any(p => p.uid() == id.uid())
+  self.prompts.contains(id)
 }
 
 ///|
@@ -475,7 +475,7 @@ fn Normalizer::discount(
   site : CallSite,
   ctx : NormCtx,
 ) -> Int32 raise EffektError {
-  let known : Array[(Sym, Expr)] = []
+  let known : Map[Int32, Expr] = Map([])
   let count = if site.callee.vparams.length() < site.vargs.length() {
     site.callee.vparams.length()
   } else {
@@ -485,7 +485,7 @@ fn Normalizer::discount(
     let arg = self.active_expr(site.vargs[i], ctx)
     match arg {
       Literal(_, _) | Make(_, _, _, _) =>
-        known.push((site.callee.vparams[i].id, arg))
+        known.set(site.callee.vparams[i].id.uid(), arg)
       _ => ()
     }
   }
@@ -498,7 +498,7 @@ fn Normalizer::discount(
 
 ///|
 /// The size of the branches that knowing the given values would delete.
-fn dead_branches(known : Array[(Sym, Expr)], body : Stmt) -> Int32 {
+fn dead_branches(known : Map[Int32, Expr], body : Stmt) -> Int32 {
   let mut acc = 0
   let mut current = body
   while true {
@@ -515,7 +515,7 @@ fn dead_branches(known : Array[(Sym, Expr)], body : Stmt) -> Int32 {
       If(cond, thn, els) =>
         match cond {
           ValueVar(id, _) =>
-            match known_value(known, id) {
+            match known.get(id.uid()) {
               Some(Literal(LBool(true), _)) => {
                 acc = acc + els.size()
                 current = thn
@@ -531,12 +531,12 @@ fn dead_branches(known : Array[(Sym, Expr)], body : Stmt) -> Int32 {
       Match(scrutinee, _, clauses, default) =>
         match scrutinee {
           ValueVar(id, _) =>
-            match known_value(known, id) {
+            match known.get(id.uid()) {
               Some(Make(_, tag, _, _)) => {
                 let mut dead = 0
                 let mut selected : Clause? = None
                 for clause in clauses {
-                  if clause.tag.uid() == tag.uid() {
+                  if clause.tag == tag {
                     selected = Some(clause)
                   } else {
                     dead = dead + clause.body.size()
@@ -570,17 +570,6 @@ fn dead_branches(known : Array[(Sym, Expr)], body : Stmt) -> Int32 {
     }
   }
   acc
-}
-
-///|
-fn known_value(known : Array[(Sym, Expr)], id : Sym) -> Expr? {
-  for entry in known {
-    let (sym, value) = entry
-    if sym.uid() == id.uid() {
-      return Some(value)
-    }
-  }
-  None
 }
 
 ///|
@@ -797,7 +786,7 @@ fn Normalizer::rewrite_stmt(
         Make(_, tag, targs, vargs) => {
           let mut selected : BlockLit? = None
           for clause in clauses {
-            if clause.tag.uid() == tag.uid() {
+            if clause.tag == tag {
               selected = Some(clause.body)
             }
           }
@@ -961,7 +950,7 @@ fn variables_are(exprs : Array[Expr], ids : Array[Sym]) -> Bool {
   }
   for i, expr in exprs {
     match expr {
-      ValueVar(id, _) => if id.uid() != ids[i].uid() { return false }
+      ValueVar(id, _) => if id != ids[i] { return false }
       _ => return false
     }
   }
@@ -1355,7 +1344,7 @@ fn Normalizer::select_operation(
 ) -> BlockLit? {
   let _ = self
   for op in implementation.operations {
-    if op.name.uid() == method.uid() {
+    if op.name == method {
       return Some(
         BlockLit::new(op.tparams, op.cparams, op.vparams, op.bparams, op.body),
       )

@@ -6,6 +6,11 @@
 
 ///|
 /// Value types.
+///
+/// Equality is derived, and therefore structural: the same constructor with
+/// equal arguments, symbols by identity and capture sets as sets (see
+/// `Eq for Captures`).
+#derive(Eq)
 pub(all) enum ValueType {
   /// The type of a first-class (boxed) block.
   BoxedType(BlockType, Captures)
@@ -17,6 +22,10 @@ pub(all) enum ValueType {
 
 ///|
 /// Block types: functions and interfaces (effects).
+///
+/// Equality is derived, see `ValueType`; effect sets are the one field whose
+/// `Eq` is not structural (see `Eq for Effects`).
+#derive(Eq)
 pub(all) enum BlockType {
   /// A (second-class) function type.
   ///
@@ -240,40 +249,6 @@ pub fn canonical_compare_value(a : ValueType, b : ValueType) -> Int32 {
 // ignore capture sets and are not reflexive on function types, so they cannot
 // be `Eq` without breaking its laws.
 // ---------------------------------------------------------------------------
-
-///|
-/// Structural equality: same constructor, symbols by identity, capture sets
-/// compared as sets (see `Eq for Captures`).
-pub impl Eq for ValueType with fn equal(self, other) {
-  match (self, other) {
-    (ValueTypeRef(x), ValueTypeRef(y)) => x == y
-    (ValueTypeApp(c1, args1), ValueTypeApp(c2, args2)) =>
-      c1 == c2 && args1 == args2
-    (BoxedType(b1, c1), BoxedType(b2, c2)) => b1 == b2 && c1 == c2
-    _ => false
-  }
-}
-
-///|
-/// Structural equality, including function types (which the effect-set
-/// relation refuses to compare at all).
-pub impl Eq for BlockType with fn equal(self, other) {
-  match (self, other) {
-    (InterfaceType(c1, args1), InterfaceType(c2, args2)) =>
-      c1 == c2 && args1 == args2
-    (
-      FunctionType(cps1, capts1, vps1, bps1, ret1, effs1),
-      FunctionType(cps2, capts2, vps2, bps2, ret2, effs2),
-    ) =>
-      cps1 == cps2 &&
-      capts1 == capts2 &&
-      vps1 == vps2 &&
-      bps1 == bps2 &&
-      ret1 == ret2 &&
-      effs1 == effs2
-    _ => false
-  }
-}
 
 ///|
 /// Effect sets are unordered and keep duplicates, so equality is set equality

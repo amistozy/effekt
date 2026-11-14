@@ -3,6 +3,7 @@
 // Mirrors `effekt/symbols/Name.scala`.
 
 ///|
+#derive(Eq)
 pub(all) struct Name {
   path : Array[String]
   name : String
@@ -40,11 +41,6 @@ pub fn Name::qualified_name(self : Name) -> String {
   } else {
     "\{self.path.join("::")}::\{self.name}"
   }
-}
-
-///|
-pub impl Eq for Name with fn equal(self, other) {
-  self.name == other.name && self.path == other.path
 }
 
 ///|

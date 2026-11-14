@@ -47,6 +47,7 @@
 
 ///|
 /// How often a definition is used, the result of the reachability analysis.
+#derive(Eq)
 priv enum Usage {
   Never
   Once
@@ -84,17 +85,6 @@ fn Usage::times(self : Usage, other : Usage) -> Usage {
     (Recursive, _) => Recursive
     (_, Recursive) => Recursive
     _ => Many
-  }
-}
-
-///|
-impl Eq for Usage with fn equal(self, other) {
-  match (self, other) {
-    (Never, Never) => true
-    (Once, Once) => true
-    (Many, Many) => true
-    (Recursive, Recursive) => true
-    _ => false
   }
 }
 
