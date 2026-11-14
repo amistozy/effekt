@@ -13,21 +13,21 @@
 // exceed the size budget of the policy; a definition that is used exactly once
 // is inlined regardless of the budget (see `InliningPolicy`).
 //
-// Differences from upstream, all of them because this port has no core type
-// inference (`core/Type.scala`) and therefore no `tpe` on expressions and
-// statements:
+// Differences from upstream:
 //
 //   * `facts` (upstream's CSE: pure expressions that are known to equal a
-//     simpler expression, keyed by *structural expression equality*) is not
-//     ported. Knowledge about variables (`NormCtx.exprs`) is kept, which is
-//     what folds `if`/`match` on a known scrutinee.
+//     simpler expression) keys expressions by *structural equality*, which this
+//     port cannot express (`Expr` has no `Eq`), so it is not ported. Knowledge
+//     about variables (`NormCtx.exprs`) is kept, which is what folds
+//     `if`/`match` on a known scrutinee.
 //   * `covers` and `selecting` need the scrutinee's data type, so a `match`
 //     keeps its default and its clauses are normalized without knowing which
 //     constructor the scrutinee has.
 //   * the `Shift` rule of `normalizeVal` needs `BlockType.Resume`, which the
 //     type language of this port does not have.
-//   * join point parameters get `unknown_value_type()` (upstream uses the
-//     inferred types of the branches) and a `Match` keeps the annotation it had.
+//   * join point parameters get `unknown_value_type()`. Upstream takes the
+//     inferred types of the branches; the inference is ported (`type.mbt`) but
+//     this pass does not call it yet. A `Match` keeps the annotation it had.
 //   * the "return the unit value" rule of `normalizeVal` checks that the bound
 //     statement returns `()` syntactically instead of comparing result types.
 

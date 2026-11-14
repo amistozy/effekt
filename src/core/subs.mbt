@@ -262,8 +262,8 @@ fn check_arity(
 
 ///|
 /// The captures of a block, as far as they are annotated. Upstream infers them
-/// with `Type.inferCapt`; this port only has annotations, and treats every
-/// non-variable block as pure.
+/// with `Type.inferCapt` (`type.mbt`); the tree rewrites use this cheaper
+/// annotation-only version, which treats every non-variable block as pure.
 pub fn block_captures(b : Block) -> Captures {
   match b {
     BlockVar(bv) => bv.annotated_capt

@@ -9,9 +9,9 @@
 //     of its hint for the reified continuation parameter (`Id(hint)` compares
 //     equal to `hint`), whereas here every `reify` mints a fresh symbol with
 //     that name;
-//   * `reifyAt(tpe)` ignores the value type. This port does not include core
-//     type inference (`core/Type.scala` is not ported), so the type of an
-//     `App` / `Invoke` / `Shift` / `Resume` statement is not available.
+//   * `reifyAt(tpe)` ignores the value type. The core type inference that would
+//     give the type of an `App` / `Invoke` / `Shift` / `Resume` statement is
+//     ported (`@core`'s `type.mbt`), but it is not exposed to this package.
 //     Upstream only inspects it to answer "is this `Nothing`?", in which case
 //     it passes `undefined` as the continuation; since such a call never
 //     returns, reifying instead is semantics-preserving (just bigger output).

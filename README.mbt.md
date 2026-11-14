@@ -234,14 +234,15 @@ These are deliberate, and documented at the point of use in the sources:
   temporarily running them between `Deadcode` and `core.Show` over the whole
   test corpus (all 618 programs, and `-Strict` stayed at 415/415 positive and
   203/203 recorded negative diagnostics).
-  Because this port has no core type inference (`core/Type.scala`), so
-  expressions and statements carry no `.tpe`, the normalizer deviates from
-  upstream in four places, each documented at the point of use: the sharing of
-  pure expressions (`Context.facts`, which is keyed by structural expression
-  equality) is not ported, `covers`/`selecting` (which need the scrutinee's data
-  type) are skipped, the `Shift` rule of `normalizeVal` needs
+  The type inference these passes read types from — `Type.inferType` and
+  `Type.inferCapt`, which upstream keeps separate from its debug-only checker —
+  is ported in `src/core/type.mbt`.
+  Four deviations remain in the normalizer, each documented at the point of use:
+  the sharing of pure expressions (`Context.facts`, which is keyed by structural
+  expression equality) is not ported, `covers`/`selecting` (which need the
+  scrutinee's data type) are skipped, the `Shift` rule of `normalizeVal` needs
   `BlockType.Resume` and is skipped too, and types written into the tree are the
-  unknown type instead of inferred ones. Where upstream asserts that the type
+  unknown type rather than inferred ones. Where upstream asserts that the type
   arguments of a redex line up, this port adapts them, because the pattern
   matching compiler does not always bind the existential type parameters of a
   match clause.

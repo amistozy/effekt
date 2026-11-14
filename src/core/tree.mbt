@@ -416,9 +416,9 @@ pub fn Operation::Operation(
 // ---------------------------------------------------------------------------
 
 ///|
-/// The value type used where upstream would infer one: this port does not
-/// include `core/Type.scala`'s type inference, so the few places that need an
-/// inferred type record an "error" type instead.
+/// The value type used where a node needs a type that the typer did not record.
+/// Upstream infers those with `Type.inferType`, which `type.mbt` ports for the
+/// optimizer; this sentinel marks the places that still do without.
 pub fn unknown_value_type() -> ValueType {
   ValueTypeApp(Sym::error_value_type(Span::missing()), [])
 }

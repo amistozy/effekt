@@ -271,9 +271,10 @@ fn Reachable::process_block_lit(self : Reachable, lit : BlockLit) -> Unit {
 ///|
 /// `process(callee.tpe)` of `Stmt.Invoke` (Reachable.scala:138).
 ///
-/// Upstream reads the inferred type of the block; in this port only a block
-/// *variable* records one, so the other cases approximate it by the types that
-/// are available (the parameter types of a literal and the interface of a
+/// Upstream reads the inferred type of the block; this pass only takes the one
+/// a block *variable* records (`type.mbt` could infer the rest, but Reachable
+/// does not call it), so the other cases approximate it by the types that are
+/// available (the parameter types of a literal and the interface of a
 /// `New`). Processing a type can only ever mark more definitions as used, so
 /// the approximation keeps code rather than dropping it.
 fn Reachable::process_block_tpe(self : Reachable, b : Block) -> Unit {
