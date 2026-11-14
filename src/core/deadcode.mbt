@@ -72,6 +72,43 @@ impl Add for Usage with fn add(self, other) {
   }
 }
 
+///|
+/// Upstream's `Usage.*` (Reachable.scala:229): the usage of a definition that
+/// is used once per use of the enclosing one.
+fn Usage::times(self : Usage, other : Usage) -> Usage {
+  match (self, other) {
+    (Never, _) => Never
+    (_, Never) => Never
+    (Once, other) => other
+    (other, Once) => other
+    (Recursive, _) => Recursive
+    (_, Recursive) => Recursive
+    _ => Many
+  }
+}
+
+///|
+impl Eq for Usage with fn equal(self, other) {
+  match (self, other) {
+    (Never, Never) => true
+    (Once, Once) => true
+    (Many, Many) => true
+    (Recursive, Recursive) => true
+    _ => false
+  }
+}
+
+///|
+/// Upstream's `Usage.decrement` (Reachable.scala:241): one use fewer.
+fn Usage::decrement(self : Usage) -> Usage {
+  match self {
+    Never => Never
+    Once => Never
+    Many => Many
+    Recursive => Recursive
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Definitions (Reachable.scala:15)
 // ---------------------------------------------------------------------------
@@ -799,6 +836,21 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
 // ---------------------------------------------------------------------------
 // The pass (Deadcode.scala:83)
 // ---------------------------------------------------------------------------
+
+///|
+/// The usage information of the reachability analysis, which is what the
+/// normalizer consults to decide whether an inlining is affordable (upstream:
+/// `Reachable(entrypoints, m)`).
+fn reachable_usage(
+  module : ModuleDecl,
+  entrypoints : Array[Sym],
+) -> Map[Int32, Usage] {
+  let analysis = reachable_new(entrypoints, module)
+  for id in entrypoints {
+    analysis.process_id(id)
+  }
+  analysis.reachable
+}
 
 ///|
 /// Removes the definitions and externs that are not reachable from the given

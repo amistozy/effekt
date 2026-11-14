@@ -262,6 +262,10 @@ pub(all) struct HoleSym {
   mut arg_types : Array[ValueType?]
 }
 
+pub(all) struct IdSym {
+  base : SymBase
+}
+
 pub(all) struct InterfaceSym {
   base : SymBase
   tparams : Array[Sym]
@@ -389,6 +393,7 @@ pub(all) enum Sym {
   Hole(HoleSym)
   Wildcard(WildcardSym)
   TmpValue(TmpValueSym)
+  Id(IdSym)
   BlockParam(BlockParamSym)
   ExternResource(ExternResourceSym)
   ResumeParam(ResumeParamSym)
@@ -428,6 +433,7 @@ pub fn Sym::capture_param(Name) -> Self
 pub fn Sym::decl(Self) -> @util.Span
 pub fn Sym::error_block_type(@util.Span) -> Self
 pub fn Sym::error_value_type(@util.Span) -> Self
+pub fn Sym::id(Name) -> Self
 pub fn Sym::implicit_param(Name, ValueType?, @util.Span) -> Self
 pub fn Sym::is_block_symbol(Self) -> Bool
 pub fn Sym::is_block_type_constructor(Self) -> Bool

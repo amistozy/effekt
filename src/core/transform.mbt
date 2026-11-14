@@ -2603,6 +2603,7 @@ fn sym_kind(s : Sym) -> String {
     ValBinder(_) => "ValBinder"
     Hole(_) => "Hole"
     Wildcard(_) => "Wildcard"
+    Id(_) => "Id"
     TmpValue(_) => "TmpValue"
     BlockParam(_) => "BlockParam"
     ExternResource(_) => "ExternResource"

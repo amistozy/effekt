@@ -26,9 +26,15 @@ pub fn free_var_extern_body(ExternBody[Expr]) -> Free
 
 pub fn free_var_module(ModuleDecl) -> Free
 
+pub fn normalize(ModuleDecl, Array[@symbols.Sym], InliningPolicy) -> ModuleDecl raise @util.EffektError
+
 pub fn pm_compile(Array[PMClause], @symbols.ValueType) -> Stmt raise @util.EffektError
 
 pub fn pm_normalize(PMClause) -> PMClause raise @util.EffektError
+
+pub fn rename_block(Block) -> (Block, Map[Int32, @symbols.Sym])
+
+pub fn rename_block_lit(BlockLit) -> (BlockLit, Map[Int32, @symbols.Sym])
 
 pub fn required_names(ModuleDecl) -> Array[@symbols.Sym]
 
@@ -309,6 +315,12 @@ pub(all) struct Implementation {
 }
 pub fn Implementation::Implementation(@symbols.BlockType, Array[Operation]) -> Self
 pub fn Implementation::free(Self) -> Free
+
+pub(all) enum InliningPolicy {
+  Unique(Int32)
+  Default(Int32, Int32?, Int32)
+}
+pub fn InliningPolicy::default() -> Self
 
 pub(all) struct ModuleDecl {
   path : String

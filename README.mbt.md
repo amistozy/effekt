@@ -215,17 +215,36 @@ These are deliberate, and documented at the point of use in the sources:
   sets; with the approximate capture sets of this port such a call can look pure
   while capturing a region (a `while` loop is exactly this shape), so the rule
   would drop live calls. The rest of `core/optimizer/*` (`DropBindings`,
-  `Normalizer`, `DirectStyle`, `StaticArguments`, …) is still skipped; those
-  passes are semantics-preserving, so omitting them only affects the quality of
-  the generated code, and the JS backend already implements its own direct-style
-  and loop optimizations (`src/js/transform_cps.mbt`). One of them,
-  `BindSubexpressions` (the normal form in which every subexpression is named
-  and `val x = y` is inlined away), *is* ported
-  (`src/core/bind_subexpressions.mbt`) but not run: upstream only runs it from
-  the optimizer, and without the inliner that consumes its output it would only
-  make the core dumps and the generated JavaScript noisier. It is checked by
-  unit tests and was smoke tested by temporarily running it after `Deadcode`
-  over the whole test corpus.
+  `StaticArguments`, `StaticResumptions`, `DirectStyle`,
+  `ReferencesToParameters`) is still skipped; those passes are
+  semantics-preserving, so omitting them only affects the quality of the
+  generated code, and the JS backend already implements its own direct-style and
+  loop optimizations (`src/js/transform_cps.mbt`).
+- **The first optimizer passes are ported but not run.** `BindSubexpressions`
+  (the normal form in which every subexpression is named and `val x = y` is
+  inlined away, `src/core/bind_subexpressions.mbt`) and `Normalizer` with its
+  `InliningPolicy` (inlining, join points, folding `if`/`match`, commuting
+  `val`s, `src/core/normalize.mbt`, together with the `Renamer`,
+  `src/core/renamer.mbt`, and the node counts of `core/Tree.scala`'s `sizes`,
+  `src/core/size.mbt`) are ported, but `--show-core` and the generated
+  JavaScript still go through the unnormalized pipeline. Upstream runs both from
+  its optimizer, and without the remaining passes (`StaticResumptions`,
+  `DirectStyle`, …) that consume their output they would only make the core
+  dumps noisier; they are checked by unit tests and were smoke tested by
+  temporarily running them between `Deadcode` and `core.Show` over the whole
+  test corpus (all 618 programs, and `-Strict` stayed at 415/415 positive and
+  203/203 recorded negative diagnostics).
+  Because this port has no core type inference (`core/Type.scala`), so
+  expressions and statements carry no `.tpe`, the normalizer deviates from
+  upstream in four places, each documented at the point of use: the sharing of
+  pure expressions (`Context.facts`, which is keyed by structural expression
+  equality) is not ported, `covers`/`selecting` (which need the scrutinee's data
+  type) are skipped, the `Shift` rule of `normalizeVal` needs
+  `BlockType.Resume` and is skipped too, and types written into the tree are the
+  unknown type instead of inferred ones. Where upstream asserts that the type
+  arguments of a redex line up, this port adapts them, because the pattern
+  matching compiler does not always bind the existential type parameters of a
+  match clause.
 - **The Chez Scheme, LLVM and VM backends are not ported**, nor the LSP server,
   the REPL or the documentation generator.
 

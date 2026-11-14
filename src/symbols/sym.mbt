@@ -42,6 +42,16 @@ pub(all) struct ValBinderSym {
 }
 
 ///|
+/// A symbol that is "just a name", like core's `Id(name)`: it is neither a value
+/// nor a block symbol and carries no annotation, only an identity. Core
+/// transformations use it for the fresh copies of binders they generate (the
+/// renamer, and the join points the normalizer introduces); its printed form is
+/// the name it was created with.
+pub(all) struct IdSym {
+  base : SymBase
+}
+
+///|
 pub(all) struct HoleSym {
   base : SymBase
   mut expected_type : ValueType?
@@ -299,6 +309,8 @@ pub(all) enum Sym {
   Hole(HoleSym)
   Wildcard(WildcardSym)
   TmpValue(TmpValueSym)
+  /// An opaque name, as core uses for every symbol (see `Sym::id`).
+  Id(IdSym)
   // blocks
   BlockParam(BlockParamSym)
   ExternResource(ExternResourceSym)
@@ -338,6 +350,7 @@ pub fn Sym::base(self : Sym) -> SymBase {
   match self {
     ValueParam(s) => s.base
     ValBinder(s) => s.base
+    Id(s) => s.base
     Hole(s) => s.base
     Wildcard(s) => s.base
     TmpValue(s) => s.base
@@ -573,6 +586,12 @@ pub fn Sym::tmp_value(hint : String) -> Sym {
 ///|
 pub fn Sym::tmp_block(hint : String) -> Sym {
   TmpBlock({ base: anon_base("b_\{hint}"), })
+}
+
+///|
+/// A fresh symbol that only carries the given name, i.e. core's `Id(name)`.
+pub fn Sym::id(name : Name) -> Sym {
+  Id({ base: base(name, Span::missing()), })
 }
 
 ///|
