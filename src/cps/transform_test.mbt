@@ -96,14 +96,14 @@ test "cps.transform: an application passes metacont and continuation" {
   let main = tb("main")
   // def f = { () => return 1 }; f()
   let definition = @core.Block::BlockLit(
-    @core.BlockLit::new([], [], [], [], @core.Stmt::Return([int_expr(1)])),
+    @core.BlockLit::BlockLit([], [], [], [], @core.Stmt::Return([int_expr(1)])),
   )
   let stmt = @core.Stmt::Def(
     f,
     definition,
     @core.Stmt::App(
       @core.Block::BlockVar(
-        @core.BlockVar::new(
+        @core.BlockVar::BlockVar(
           f,
           @core.unknown_block_type(),
           @symbols.Captures::empty(),
@@ -162,7 +162,7 @@ test "cps.contify: a block that always returns to the same continuation becomes 
   let main = tb("main")
   // let f (ks) (k) = jump k(1)[ks]
   // f() returning to k2
-  let lit = @cps.BlockLit::new(
+  let lit = @cps.BlockLit::BlockLit(
     [],
     [],
     ks,
@@ -234,7 +234,7 @@ test "cps.contify: a block used as a value is not contified" {
   let k = tb("k")
   let k2 = tb("k2")
   let main = tb("main")
-  let lit = @cps.BlockLit::new(
+  let lit = @cps.BlockLit::BlockLit(
     [],
     [],
     ks,

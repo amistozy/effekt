@@ -710,7 +710,7 @@ fn Deadcode::rewrite_block(self : Deadcode, b : Block) -> Block {
 ///|
 /// `rewrite(b: BlockLit)` of `TrampolinedRewrite` (Tree.scala:844).
 fn Deadcode::rewrite_block_lit(self : Deadcode, lit : BlockLit) -> BlockLit {
-  BlockLit::new(
+  BlockLit::BlockLit(
     lit.tparams,
     lit.cparams,
     lit.vparams,

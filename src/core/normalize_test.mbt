@@ -4,13 +4,13 @@
 
 ///|
 fn inlined(body : @core.Stmt) -> @core.BlockLit {
-  @core.BlockLit::new([], [], [], [], body)
+  @core.BlockLit::BlockLit([], [], [], [], body)
 }
 
 ///|
 fn identity_block(x : @symbols.Sym) -> @core.Block {
   @core.BlockLit(
-    @core.BlockLit::new(
+    @core.BlockLit::BlockLit(
       [],
       [],
       [@core.ValueParam(x, @core.t_int())],

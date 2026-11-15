@@ -119,7 +119,7 @@ pub(all) struct BlockLit {
 }
 
 ///|
-pub fn BlockLit::new(
+pub fn BlockLit::BlockLit(
   vparams : Array[Sym],
   bparams : Array[Sym],
   ks : Sym,
@@ -1009,7 +1009,7 @@ pub fn substitute_block_lit(
   b : BlockLit,
   subst : Substitution,
 ) -> BlockLit raise EffektError {
-  BlockLit::new(
+  BlockLit::BlockLit(
     b.vparams,
     b.bparams,
     b.ks,

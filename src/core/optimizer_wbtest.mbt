@@ -29,7 +29,7 @@ fn owb_block(
   tpe : BlockType,
   capt : @symbols.Captures,
 ) -> BlockVar {
-  BlockVar::new(@symbols.Sym::tmp_block(name), tpe, capt)
+  BlockVar::BlockVar(@symbols.Sym::tmp_block(name), tpe, capt)
 }
 
 ///|
@@ -42,7 +42,7 @@ fn owb_main(body : Stmt) -> ModuleDecl {
     [
       ToplevelDef(
         @symbols.Sym::tmp_block("main"),
-        BlockLit(BlockLit::new([], [], [], [], body)),
+        BlockLit(BlockLit::BlockLit([], [], [], [], body)),
       ),
     ],
     [],
@@ -110,7 +110,7 @@ fn owb_reset(
   prompt_capt : @symbols.Sym,
   prompt : BlockParam,
 ) -> Stmt {
-  Reset(BlockLit::new([], [prompt_capt], [], [prompt], body))
+  Reset(BlockLit::BlockLit([], [prompt_capt], [], [prompt], body))
 }
 
 ///|
@@ -134,7 +134,7 @@ test "static resumptions: an aborting shift at its prompt becomes what it aborts
     Expr::ValueVar(b, t_bool()),
     Return([Literal(@source.LInt(1), t_int())]),
     Shift(
-      BlockVar::new(
+      BlockVar::BlockVar(
         prompt_id,
         PromptType([t_int()]),
         @symbols.Captures::CaptureSetOf([prompt_capt]),

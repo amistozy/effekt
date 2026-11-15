@@ -4,7 +4,7 @@
 
 ///|
 fn fn_bvar(f : @symbols.Sym, tpe : @core.BlockType) -> @core.BlockVar {
-  @core.BlockVar::new(f, tpe, @symbols.Captures::empty())
+  @core.BlockVar::BlockVar(f, tpe, @symbols.Captures::empty())
 }
 
 ///|
@@ -27,7 +27,7 @@ test "static arguments: an unchanged argument becomes a worker parameter" {
   let definition = @core.ToplevelDef(
     f,
     @core.BlockLit(
-      @core.BlockLit::new(
+      @core.BlockLit::BlockLit(
         [],
         [],
         [@core.ValueParam(x, @core.t_int())],
@@ -54,7 +54,7 @@ test "static arguments: an unread parameter is vacuously static" {
   let definition = @core.ToplevelDef(
     f,
     @core.BlockLit(
-      @core.BlockLit::new(
+      @core.BlockLit::BlockLit(
         [],
         [],
         [@core.ValueParam(x, @core.t_int())],
@@ -88,7 +88,7 @@ test "static arguments: a type argument that is passed through is dropped" {
   let definition = @core.ToplevelDef(
     f,
     @core.BlockLit(
-      @core.BlockLit::new(
+      @core.BlockLit::BlockLit(
         [t],
         [],
         [@core.ValueParam(x, @core.t_int())],
@@ -121,7 +121,7 @@ test "static arguments: a changing argument keeps the definition" {
   let definition = @core.ToplevelDef(
     f,
     @core.BlockLit(
-      @core.BlockLit::new(
+      @core.BlockLit::BlockLit(
         [],
         [],
         [@core.ValueParam(x, @core.t_int())],
@@ -152,7 +152,7 @@ test "static arguments: mutual recursion is not detected" {
     @core.ToplevelDef(
       id,
       @core.BlockLit(
-        @core.BlockLit::new(
+        @core.BlockLit::BlockLit(
           [],
           [],
           [@core.ValueParam(x, @core.t_int())],

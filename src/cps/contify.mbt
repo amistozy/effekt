@@ -279,7 +279,7 @@ fn contify_in_block(id : Sym, b : Block) -> Block {
     BlockVar(_) => b
     BlockLit(lit) =>
       BlockLit(
-        BlockLit::new(
+        BlockLit::BlockLit(
           lit.vparams,
           lit.bparams,
           lit.ks,
@@ -294,7 +294,13 @@ fn contify_in_block(id : Sym, b : Block) -> Block {
 
 ///|
 fn contify_in_block_lit(id : Sym, b : BlockLit) -> BlockLit {
-  BlockLit::new(b.vparams, b.bparams, b.ks, b.k, contify_in_stmt(id, b.body))
+  BlockLit::BlockLit(
+    b.vparams,
+    b.bparams,
+    b.ks,
+    b.k,
+    contify_in_stmt(id, b.body),
+  )
 }
 
 ///|
@@ -396,7 +402,7 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
                 LetDef(
                   id,
                   BlockLit(
-                    BlockLit::new(
+                    BlockLit::BlockLit(
                       lit.vparams,
                       lit.bparams,
                       lit.ks,
@@ -411,7 +417,7 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
               LetDef(
                 id,
                 BlockLit(
-                  BlockLit::new(
+                  BlockLit::BlockLit(
                     lit.vparams,
                     lit.bparams,
                     lit.ks,
@@ -512,7 +518,7 @@ fn rewrite_block(b : Block) -> Block raise EffektError {
     BlockVar(_) => b
     BlockLit(lit) =>
       BlockLit(
-        BlockLit::new(
+        BlockLit::BlockLit(
           lit.vparams,
           lit.bparams,
           lit.ks,
@@ -527,7 +533,7 @@ fn rewrite_block(b : Block) -> Block raise EffektError {
 
 ///|
 fn rewrite_block_lit(b : BlockLit) -> BlockLit raise EffektError {
-  BlockLit::new(b.vparams, b.bparams, b.ks, b.k, rewrite_stmt(b.body))
+  BlockLit::BlockLit(b.vparams, b.bparams, b.ks, b.k, rewrite_stmt(b.body))
 }
 
 ///|

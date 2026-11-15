@@ -24,7 +24,7 @@ fn bsym(name : String) -> @symbols.Sym {
 ///|
 /// `def f(x: Int) = { return x }`
 fn def_identity(f : @symbols.Sym, x : @symbols.Sym) -> @core.Toplevel {
-  let lit = @core.BlockLit::new(
+  let lit = @core.BlockLit::BlockLit(
     [],
     [],
     [@core.ValueParam(x, @core.t_int())],
@@ -90,7 +90,7 @@ test "core pretty: expressions" {
 test "core: free variables" {
   let f = bsym("f")
   let x = xsym("x")
-  let lit = @core.BlockLit::new(
+  let lit = @core.BlockLit::BlockLit(
     [],
     [],
     [@core.ValueParam(x, @core.t_int())],

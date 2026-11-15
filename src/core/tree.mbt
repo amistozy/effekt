@@ -255,7 +255,7 @@ pub(all) struct BlockVar {
 }
 
 ///|
-pub fn BlockVar::new(
+pub fn BlockVar::BlockVar(
   id : Sym,
   annotated_tpe : BlockType,
   annotated_capt : Captures,
@@ -274,7 +274,7 @@ pub(all) struct BlockLit {
 }
 
 ///|
-pub fn BlockLit::new(
+pub fn BlockLit::BlockLit(
   tparams : Array[Sym],
   cparams : Array[Sym],
   vparams : Array[ValueParam],

@@ -389,7 +389,7 @@ fn ShowContext::get_show_block_var(
           }
       }
   }
-  BlockVar::new(
+  BlockVar::BlockVar(
     show_id,
     FunctionType([], [], [vt], [], [t_string()]),
     Captures::empty(),
@@ -409,7 +409,7 @@ fn find_extern_def(
   let rendered = vts.map(show_core_value_type).join(", ")
   match dctx.find_extern_def_by_name(name, vts) {
     Some(ExternDef(id, _, tparams, cparams, vparams, bparams, result, capt, _)) =>
-      BlockVar::new(
+      BlockVar::BlockVar(
         id,
         FunctionType(
           tparams,
@@ -474,7 +474,7 @@ fn ShowContext::generate_show_instance(
   let param_value_var = Expr::ValueVar(param_id, vt)
 
   let generate_def = (stmt : Stmt) => {
-    let block = BlockLit(BlockLit::new([], [], [vparam], [], stmt))
+    let block = Block::BlockLit(BlockLit::BlockLit([], [], [vparam], [], stmt))
     let defn = ToplevelDef(show_id, block)
     self.show_defns.set(value_type_key(vt), defn)
     defn
@@ -635,7 +635,10 @@ fn ShowContext::generate_data_instance(
     clauses,
     None,
   )
-  ToplevelDef(id, BlockLit(BlockLit::new([], [], [vparam], [], match_stmt)))
+  ToplevelDef(
+    id,
+    BlockLit(BlockLit::BlockLit([], [], [vparam], [], match_stmt)),
+  )
 }
 
 ///|
@@ -701,7 +704,7 @@ fn ShowContext::constructor_clauses(
 ) -> Clause raise EffektError {
   Clause(
     constr.id,
-    BlockLit::new([], [], vparams, [], self.constructor_stmt(dctx, constr)),
+    BlockLit::BlockLit([], [], vparams, [], self.constructor_stmt(dctx, constr)),
   )
 }
 
@@ -890,7 +893,7 @@ fn ShowContext::transform_block_lit(
   lit : BlockLit,
 ) -> BlockLit raise EffektError {
   let body = self.without_bindings(() => self.transform_stmt(dctx, lit.body))
-  BlockLit::new(lit.tparams, lit.cparams, lit.vparams, lit.bparams, body)
+  BlockLit::BlockLit(lit.tparams, lit.cparams, lit.vparams, lit.bparams, body)
 }
 
 ///|

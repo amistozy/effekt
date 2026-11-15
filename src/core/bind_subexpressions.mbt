@@ -295,7 +295,7 @@ fn transform_blocks(blocks : Array[Block], env : Aliases) -> Bind[Array[Block]] 
 
 ///|
 fn transform_block_lit(lit : BlockLit, env : Aliases) -> BlockLit {
-  BlockLit::new(
+  BlockLit::BlockLit(
     lit.tparams,
     lit.cparams,
     lit.vparams.map(p => transform_value_param(p, env)),
@@ -306,7 +306,7 @@ fn transform_block_lit(lit : BlockLit, env : Aliases) -> BlockLit {
 
 ///|
 fn transform_block_var(bv : BlockVar, env : Aliases) -> BlockVar {
-  BlockVar::new(
+  BlockVar::BlockVar(
     transform_id(bv.id, env),
     transform_block_type(bv.annotated_tpe, env),
     transform_captures(bv.annotated_capt, env),

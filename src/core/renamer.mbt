@@ -221,7 +221,7 @@ fn Renamer::rewrite_block_lit(self : Renamer, b : BlockLit) -> BlockLit {
   let ids = ids + b.vparams.map(p => p.id)
   let ids = ids + b.bparams.map(p => p.id)
   self.with_bindings(ids, () => {
-    BlockLit::new(
+    BlockLit::BlockLit(
       b.tparams.map(id => self.rewrite_id(id)),
       b.cparams.map(id => self.rewrite_id(id)),
       b.vparams.map(p => self.rewrite_value_param(p)),
@@ -233,7 +233,7 @@ fn Renamer::rewrite_block_lit(self : Renamer, b : BlockLit) -> BlockLit {
 
 ///|
 fn Renamer::rewrite_block_var(self : Renamer, bv : BlockVar) -> BlockVar {
-  BlockVar::new(
+  BlockVar::BlockVar(
     self.rewrite_id(bv.id),
     self.rewrite_block_type(bv.annotated_tpe),
     self.rewrite_captures(bv.annotated_capt),

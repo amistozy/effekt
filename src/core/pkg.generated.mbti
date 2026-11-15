@@ -194,8 +194,8 @@ pub(all) struct BlockLit {
   bparams : Array[BlockParam]
   body : Stmt
 }
+pub fn BlockLit::BlockLit(Array[@symbols.Sym], Array[@symbols.Sym], Array[ValueParam], Array[BlockParam], Stmt) -> Self
 pub fn BlockLit::free(Self) -> Free
-pub fn BlockLit::new(Array[@symbols.Sym], Array[@symbols.Sym], Array[ValueParam], Array[BlockParam], Stmt) -> Self
 
 pub(all) struct BlockParam {
   id : @symbols.Sym
@@ -218,7 +218,7 @@ pub(all) struct BlockVar {
   annotated_tpe : BlockType
   annotated_capt : @symbols.Captures
 }
-pub fn BlockVar::new(@symbols.Sym, BlockType, @symbols.Captures) -> Self
+pub fn BlockVar::BlockVar(@symbols.Sym, BlockType, @symbols.Captures) -> Self
 
 pub(all) enum CallingConvention {
   ConvPure

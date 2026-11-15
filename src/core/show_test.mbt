@@ -226,7 +226,7 @@ fn show_test_fixture(
     @util.Span::missing(),
   )
   let call = @core.PureApp(
-    @core.BlockVar::new(
+    @core.BlockVar::BlockVar(
       show,
       @core.FunctionType([], [], [@core.ValueVar(r)], [], [@core.t_string()]),
       @symbols.CaptureSetOf([]),
@@ -248,7 +248,7 @@ fn show_test_fixture(
   let entry_def = @core.ToplevelDef(
     entry,
     @core.BlockLit(
-      @core.BlockLit::new(
+      @core.BlockLit::BlockLit(
         [],
         [],
         [@core.ValueParam(value, show_test_core_type(tree_type))],
@@ -476,7 +476,7 @@ test "show phase: a type variable is not rewritten" {
       @core.ToplevelDef(
         f.entry,
         @core.BlockLit(
-          @core.BlockLit::new(
+          @core.BlockLit::BlockLit(
             [],
             [],
             [@core.ValueParam(polymorphic, @core.ValueVar(a))],
@@ -526,7 +526,7 @@ test "show phase: a call to a user function named show is not rewritten" {
     @util.Span::missing(),
   )
   let call = @core.PureApp(
-    @core.BlockVar::new(
+    @core.BlockVar::BlockVar(
       user_show,
       @core.FunctionType([], [], [@core.t_int()], [], [@core.t_string()]),
       @symbols.CaptureSetOf([]),
@@ -543,7 +543,7 @@ test "show phase: a call to a user function named show is not rewritten" {
       @core.ToplevelDef(
         f.entry,
         @core.BlockLit(
-          @core.BlockLit::new(
+          @core.BlockLit::BlockLit(
             [],
             [],
             [@core.ValueParam(x, @core.t_int())],
@@ -600,7 +600,7 @@ test "show phase: builtins are shown by showBuiltin" {
       @core.ToplevelDef(
         f.entry,
         @core.BlockLit(
-          @core.BlockLit::new(
+          @core.BlockLit::BlockLit(
             [],
             [],
             [@core.ValueParam(x, @core.t_int())],

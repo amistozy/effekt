@@ -419,7 +419,7 @@ fn transform_stmt(
           // continuation the reset returns to (`RETURN_n`) has to accept
           let arity = reset_arity(block_lit.body, prompt)
           Reset(
-            BlockLit::new(
+            BlockLit::BlockLit(
               [],
               [prompt.id],
               ks2,
@@ -438,7 +438,7 @@ fn transform_stmt(
     @core.Shift(prompt, resume, body) => {
       let ks2 = fresh_sym("ks")
       let k2 = fresh_sym("k")
-      let translated_body = BlockLit::new(
+      let translated_body = BlockLit::BlockLit(
         [],
         [resume.id],
         ks2,
@@ -452,7 +452,7 @@ fn transform_stmt(
       let k2 = fresh_sym("k")
       Resume(
         cont.id,
-        BlockLit::new(
+        BlockLit::BlockLit(
           [],
           [],
           ks2,
@@ -606,7 +606,7 @@ fn transform_block_lit(
   for p in block.bparams {
     bparams.push(p.id)
   }
-  BlockLit::new(
+  BlockLit::BlockLit(
     vparams,
     bparams,
     ks,

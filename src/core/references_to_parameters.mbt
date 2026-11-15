@@ -335,7 +335,7 @@ fn escaping_ref_stmt(
 ///|
 /// Removes `capture` from every capture set in `s`.
 fn remove_capture(capture : Sym, s : Stmt) -> Stmt raise EffektError {
-  Rewrite::new(
+  Rewrite::Rewrite(
     None,
     None,
     Some(capt => capt.diff(CaptureSetOf([capture]))),
@@ -420,7 +420,7 @@ fn thread_state(
           lit.body,
           Expr::ValueVar(param.id, state_type),
         )
-        let lit = BlockLit::new(
+        let lit = BlockLit::BlockLit(
           lit.tparams,
           lit.cparams,
           lit.vparams + [param],
@@ -559,7 +559,7 @@ fn thread_state(
             let retyped = { ..param, tpe: PromptType(answer + [state_type]), }
             let body = thread_state(ref, state_type, uses, lit.body, current)
             Reset(
-              BlockLit::new(
+              BlockLit::BlockLit(
                 lit.tparams,
                 lit.cparams,
                 lit.vparams,
@@ -599,7 +599,7 @@ fn thread_state(
               retyped,
               captured.replace_resumptions(resumed => {
                 Resume(
-                  BlockVar::new(retyped.id, retyped.tpe, retyped.capt),
+                  BlockVar::BlockVar(retyped.id, retyped.tpe, retyped.capt),
                   thread_state(ref, state_type, uses, resumed, current),
                 )
               }),
@@ -670,7 +670,7 @@ fn eliminate(
 pub fn references_to_parameters(
   module : ModuleDecl,
 ) -> ModuleDecl raise EffektError {
-  let rewrite = Rewrite::new(
+  let rewrite = Rewrite::Rewrite(
     Some((rewrite, s) => {
       match s {
         Var(ref, init, capture, body) => {

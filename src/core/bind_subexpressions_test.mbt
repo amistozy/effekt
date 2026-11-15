@@ -4,7 +4,7 @@
 
 ///|
 fn bvar(id : @symbols.Sym) -> @core.BlockVar {
-  @core.BlockVar::new(
+  @core.BlockVar::BlockVar(
     id,
     @core.unknown_block_type(),
     @symbols.Captures::empty(),
@@ -30,7 +30,7 @@ fn pure_app(f : @symbols.Sym, args : Array[@core.Expr]) -> @core.Expr {
 /// The top level definition `def main = { () => stmt }`, transformed by
 /// `bind_subexpressions`.
 fn transform_body(stmt : @core.Stmt) -> String raise @util.EffektError {
-  let body = @core.BlockLit::new([], [], [], [], stmt)
+  let body = @core.BlockLit::BlockLit([], [], [], [], stmt)
   let module = @core.ModuleDecl(
     "test",
     [],

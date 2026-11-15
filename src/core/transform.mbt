@@ -292,7 +292,7 @@ fn Transformer::bind_block(
   // upstream `bind(name, b)`: the annotation is the *inferred* type of the block,
   // which is exactly what `type.mbt` computes (a `BlockLit` becomes a function
   // type, an `Unbox` the boxed type, `New` its interface).
-  BlockVar::new(name, b.infer_type(), b.infer_capt())
+  BlockVar::BlockVar(name, b.infer_type(), b.infer_capt())
 }
 
 ///|
@@ -764,7 +764,7 @@ fn Transformer::value_var(self : Transformer, sym : Sym) -> Expr {
 ///|
 /// A typed block variable.
 fn Transformer::block_var(self : Transformer, sym : Sym) -> BlockVar {
-  BlockVar::new(
+  BlockVar::BlockVar(
     sym,
     self.block_type_of_sym(sym),
     self.transform_captures(self.capture_of_sym(sym)),
@@ -805,7 +805,9 @@ fn Transformer::transform_toplevel(
         CoreToplevelDef(
           ToplevelDef(
             sym,
-            BlockLit(BlockLit::new(tparams, cparams, vparams, bparams, body)),
+            BlockLit(
+              BlockLit::BlockLit(tparams, cparams, vparams, bparams, body),
+            ),
           ),
         ),
       )
@@ -1171,7 +1173,9 @@ fn Transformer::transform_stmt(
           self.emit(
             BindingDef(
               self.sym_of_def(d),
-              BlockLit(BlockLit::new(tparams, cparams, vparams, bparams, body)),
+              BlockLit(
+                BlockLit::BlockLit(tparams, cparams, vparams, bparams, body),
+              ),
             ),
           )
           self.transform_stmt(rest)
@@ -1367,8 +1371,8 @@ fn Transformer::transform_as_control_block(
 
           // [[ f ]] = { (x) => f(x) }
           let eta_expand_pure = (f : Sym) => {
-            BlockLit(
-              BlockLit::new(
+            Block::BlockLit(
+              BlockLit::BlockLit(
                 tparams,
                 [],
                 vparams,
@@ -1380,8 +1384,8 @@ fn Transformer::transform_as_control_block(
 
           // [[ f ]] = { [A](x) => make f[A](x) }
           let eta_expand_constructor = (f : Sym, data : Sym) => {
-            BlockLit(
-              BlockLit::new(
+            Block::BlockLit(
+              BlockLit::BlockLit(
                 tparams,
                 [],
                 vparams,
@@ -1399,7 +1403,7 @@ fn Transformer::transform_as_control_block(
               bparams.push(BlockParam(id, t, CaptureSetOf([id])))
             }
             let bargs = bparams.map(b => {
-              BlockVar(BlockVar::new(b.id, b.tpe, b.capt))
+              Block::BlockVar(BlockVar::BlockVar(b.id, b.tpe, b.capt))
             })
             let result_id = Sym::tmp_value("etaBinding")
             let callee = self.block_var(f)
@@ -1411,8 +1415,8 @@ fn Transformer::transform_as_control_block(
               bargs,
               Return([ValueVar(result_id, single(restpe))]),
             )
-            BlockLit(
-              BlockLit::new(
+            Block::BlockLit(
+              BlockLit::BlockLit(
                 tparams,
                 bparams.map(b => b.id),
                 vparams,
@@ -1459,7 +1463,7 @@ fn Transformer::transform_as_control_block(
         bparams.push(self.transform_block_param(p))
       }
       let body = self.insert_bindings(() => self.transform_stmt(body))
-      BlockLit(BlockLit::new(tparams, cparams, vparams, bparams, body))
+      BlockLit(BlockLit::BlockLit(tparams, cparams, vparams, bparams, body))
     }
     @source.New(_) =>
       raise EffektError::Internal(
@@ -1598,7 +1602,7 @@ fn Transformer::transform_as_stmt(
       let loop_type : BlockType = FunctionType([], [], [], [], [t_unit()])
       let loop_capt = self.transform_captures(self.capture_of_uid(body.uid))
       let loop_call = App(
-        BlockVar(BlockVar::new(loop_name, loop_type, loop_capt)),
+        BlockVar(BlockVar::BlockVar(loop_name, loop_type, loop_capt)),
         [],
         [],
         [],
@@ -1641,7 +1645,7 @@ fn Transformer::transform_as_stmt(
 
       let _ = self.bind_block(
         loop_name,
-        BlockLit(BlockLit::new([], [], [], [], loop_body)),
+        BlockLit(BlockLit::BlockLit([], [], [], [], loop_body)),
       )
       loop_call
     }
@@ -1697,7 +1701,13 @@ fn Transformer::transform_as_stmt(
       }
       let clause = Clause(
         constructor,
-        BlockLit::new([], [], params, [], Return([ValueVar(selected, tpe)])),
+        BlockLit::BlockLit(
+          [],
+          [],
+          params,
+          [],
+          Return([ValueVar(selected, tpe)]),
+        ),
       )
       Match(self.transform_as_expr(receiver), [tpe], [clause], None)
     }
@@ -1720,7 +1730,7 @@ fn Transformer::transform_as_stmt(
       let prompt_id = Sym::tmp_block("p")
       let prompt_capt = Sym::capture_param(Name::local("pCapt"))
       let prompt_tpe = prompt_type(answer_type)
-      let prompt_var = BlockVar::new(
+      let prompt_var = BlockVar::BlockVar(
         prompt_id,
         prompt_tpe,
         CaptureSetOf([prompt_capt]),
@@ -1753,7 +1763,7 @@ fn Transformer::transform_as_stmt(
         }
         self.transform_stmt(prog)
       })
-      Reset(BlockLit::new([], [prompt_capt], [], [prompt_param], body))
+      Reset(BlockLit::BlockLit([], [prompt_capt], [], [prompt_param], body))
     }
     @source.Region(name, body) => {
       let region = self.sym_of_id_def(name)
@@ -1761,7 +1771,7 @@ fn Transformer::transform_as_stmt(
       let tpe = self.block_type_of_sym(region)
       let param = BlockParam(region, tpe, CaptureSetOf([cap]))
       let body = self.insert_bindings(() => self.transform_stmt(body))
-      Region(BlockLit::new([], [cap], [], [param], body))
+      Region(BlockLit::BlockLit([], [cap], [], [param], body))
     }
 
     // methods are dynamically dispatched, so we have to assume they are
@@ -2051,11 +2061,13 @@ fn Transformer::transform_op_clause(
           let resume_id = Sym::tmp_block("k")
           let resume_type : BlockType = ResumeType([result_tpe], [answer_tpe])
           let resume_param = BlockParam(resume_id, resume_type, resume_capture)
-          let resume_var = BlockVar::new(resume_id, resume_type, resume_capture)
+          let resume_var = BlockVar::BlockVar(
+            resume_id, resume_type, resume_capture,
+          )
           // (2) eta-expand and bind continuation as a function
           let resume_arg_id = Sym::tmp_value("a")
           let resume_arg_param = ValueParam(resume_arg_id, result_tpe)
-          let resume_fun = BlockLit::new(
+          let resume_fun = BlockLit::BlockLit(
             [],
             [],
             [resume_arg_param],
@@ -2117,7 +2129,7 @@ fn Transformer::transform_op_clause(
             )
           }
           let bvars = bparams.map(b => {
-            BlockVar(BlockVar::new(b.id, b.tpe, b.capt))
+            Block::BlockVar(BlockVar::BlockVar(b.id, b.tpe, b.capt))
           })
 
           // (1) bind the continuation (k) itself
@@ -2127,7 +2139,9 @@ fn Transformer::transform_op_clause(
           let resume_id = Sym::tmp_block("k")
           let resume_type : BlockType = ResumeType([result_tpe], [answer_tpe])
           let resume_param = BlockParam(resume_id, resume_type, resume_capture)
-          let resume_var = BlockVar::new(resume_id, resume_type, resume_capture)
+          let resume_var = BlockVar::BlockVar(
+            resume_id, resume_type, resume_capture,
+          )
 
           // (2) eta-expand and bind continuation as a function
           let resume_arg_id = Sym::tmp_block("h")
@@ -2137,12 +2151,12 @@ fn Transformer::transform_op_clause(
             arg_tpe_core,
             CaptureSetOf([resume_arg_capture]),
           )
-          let resume_arg_var = BlockVar::new(
+          let resume_arg_var = BlockVar::BlockVar(
             resume_arg_id,
             arg_tpe_core,
             CaptureSetOf([resume_arg_capture]),
           )
-          let resume_fun = BlockLit::new(
+          let resume_fun = BlockLit::BlockLit(
             [],
             [resume_arg_capture],
             [],
@@ -2382,7 +2396,7 @@ fn Transformer::preprocess_patterns(
   }
   let joinpoint = self.bind_block(
     Sym::tmp_block(label),
-    BlockLit(BlockLit::new(tparams, [], params, [], body)),
+    BlockLit(BlockLit::BlockLit(tparams, [], params, [], body)),
   )
 
   let transformed_patterns : Map[Int32, PMVarPattern] = Map([])

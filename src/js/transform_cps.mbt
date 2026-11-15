@@ -336,11 +336,12 @@ pub fn compile_cps(
     }
     params.push("ks")
     forwarded.push("rest")
-    let body = "function RETURN_\{arity}(\{params.join(", ")}) {\n" +
-      "  let rest = ks.rest\n" +
-      "  while (rest.stack === RETURN_\{arity}) rest = rest.rest\n" +
-      "  return rest.stack(\{forwarded.join(", ")})\n" +
-      "}"
+    let body =
+      $|function RETURN_\{arity}(\{params.join(", ")}) {
+      $|  let rest = ks.rest
+      $|  while (rest.stack === RETURN_\{arity}) rest = rest.rest
+      $|  return rest.stack(\{forwarded.join(", ")})
+      $|}
     let no_values : Array[Expr] = []
     preamble.push(RawStmt([body], no_values))
   }

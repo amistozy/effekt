@@ -29,7 +29,7 @@ priv struct Rewrite {
 }
 
 ///|
-fn Rewrite::new(
+fn Rewrite::Rewrite(
   on_stmt : ((Rewrite, Stmt) -> Stmt? raise EffektError)?,
   on_id : ((Sym) -> Sym)?,
   on_captures : ((Captures) -> Captures)?,
@@ -133,7 +133,7 @@ fn Rewrite::rewrite_expr(self : Rewrite, e : Expr) -> Expr raise EffektError {
 
 ///|
 fn Rewrite::rewrite_block_var(self : Rewrite, b : BlockVar) -> BlockVar {
-  BlockVar::new(
+  BlockVar::BlockVar(
     self.rewrite_id(b.id),
     self.rewrite_block_type(b.annotated_tpe),
     self.rewrite_captures(b.annotated_capt),
@@ -171,7 +171,7 @@ fn Rewrite::rewrite_block_lit(
   self : Rewrite,
   lit : BlockLit,
 ) -> BlockLit raise EffektError {
-  BlockLit::new(
+  BlockLit::BlockLit(
     lit.tparams.map(t => self.rewrite_id(t)),
     lit.cparams.map(c => self.rewrite_id(c)),
     lit.vparams.map(p => self.rewrite_value_param(p)),

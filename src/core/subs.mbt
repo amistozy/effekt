@@ -255,7 +255,7 @@ pub fn substitute_block_var(
         "Should never substitute a concrete block for an FFI function.",
       )
     None =>
-      BlockVar::new(
+      BlockVar::BlockVar(
         bv.id,
         substitute_block_type(bv.annotated_tpe, subst),
         substitute_captures(bv.annotated_capt, subst),
@@ -385,7 +385,7 @@ pub fn substitute_block_lit(
   let shadowed_typelevel = subst
     .shadow_types(b.tparams)
     .shadow_captures(b.cparams)
-  BlockLit::new(
+  BlockLit::BlockLit(
     b.tparams,
     b.cparams,
     b.vparams.map(p => substitute_value_param(p, shadowed_typelevel)),
@@ -408,7 +408,7 @@ pub fn substitute_block(
         Some(replacement) => replacement
         None =>
           BlockVar(
-            BlockVar::new(
+            BlockVar::BlockVar(
               bv.id,
               substitute_block_type(bv.annotated_tpe, subst),
               substitute_captures(bv.annotated_capt, subst),

@@ -39,7 +39,7 @@ test "cps: free variables of a block literal exclude its parameters" {
   let y = vsym("y")
   let ks = bsym("ks")
   let k = bsym("k")
-  let lit = @cps.BlockLit::new(
+  let lit = @cps.BlockLit::BlockLit(
     [x],
     [],
     ks,

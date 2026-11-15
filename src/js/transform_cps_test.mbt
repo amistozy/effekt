@@ -37,7 +37,7 @@ fn bparam(name : String) -> @core.BlockParam {
 ///|
 fn block_var(id : @symbols.Sym) -> @core.Block {
   @core.Block::BlockVar(
-    @core.BlockVar::new(
+    @core.BlockVar::BlockVar(
       id,
       @core.unknown_block_type(),
       @symbols.Captures::empty(),
@@ -82,7 +82,7 @@ fn compile(
 ///|
 /// An anonymous block with no parameters and the given body.
 fn unit_block(body : @core.Stmt) -> @core.Block {
-  @core.Block::BlockLit(@core.BlockLit::new([], [], [], [], body))
+  @core.Block::BlockLit(@core.BlockLit::BlockLit([], [], [], [], body))
 }
 
 ///|
@@ -185,7 +185,13 @@ test "js: a reset compiles to a RESET call" {
   let main = sym("main")
   let prompt = bparam("prompt")
   let reset = @core.Stmt::Reset(
-    @core.BlockLit::new([], [], [], [prompt], @core.Stmt::Return([int_expr(1)])),
+    @core.BlockLit::BlockLit(
+      [],
+      [],
+      [],
+      [prompt],
+      @core.Stmt::Return([int_expr(1)]),
+    ),
   )
   let js = compile(main, unit_block(reset), empty_core_module())
   assert_true(js.contains("RESET("), msg="expected a RESET call:\n\{js}")
@@ -202,7 +208,7 @@ test "js: a shift compiles to a SHIFT call" {
   let prompt = sym("p")
   let resume = bparam("resume")
   let shift = @core.Stmt::Shift(
-    @core.BlockVar::new(
+    @core.BlockVar::BlockVar(
       prompt,
       @core.unknown_block_type(),
       @symbols.Captures::empty(),
@@ -269,7 +275,7 @@ test "js: a match compiles to a switch with numeric case labels" {
   let scrutinee = @core.Expr::ValueVar(x, @core.t_int())
   let clause0 = @core.Clause(
     ctor0,
-    @core.BlockLit::new(
+    @core.BlockLit::BlockLit(
       [],
       [],
       [vparam("f")],
@@ -279,7 +285,7 @@ test "js: a match compiles to a switch with numeric case labels" {
   )
   let clause1 = @core.Clause(
     ctor1,
-    @core.BlockLit::new(
+    @core.BlockLit::BlockLit(
       [],
       [],
       [vparam("g")],
@@ -358,7 +364,7 @@ test "js: a tail-recursive definition becomes a labelled while loop" {
   let f = sym("f")
   // def f = { () => f() }  -- a self call in tail position
   let definition = @core.Block::BlockLit(
-    @core.BlockLit::new(
+    @core.BlockLit::BlockLit(
       [],
       [],
       [],
@@ -385,7 +391,7 @@ test "js: a non-recursive definition does not become a loop" {
   let main = sym("main")
   let f = sym("f")
   let definition = @core.Block::BlockLit(
-    @core.BlockLit::new([], [], [], [], @core.Stmt::Return([int_expr(0)])),
+    @core.BlockLit::BlockLit([], [], [], [], @core.Stmt::Return([int_expr(0)])),
   )
   let body = @core.Stmt::Def(f, definition, @core.Stmt::Return([int_expr(0)]))
   let js = compile(main, unit_block(body), empty_core_module())
@@ -405,7 +411,7 @@ test "js: a non-tail recursive call rebuilds the continuation" {
   // the recursive call is not in tail position: it is the right hand side of a
   // `val`, so its continuation is a continuation *literal*.
   let definition = @core.Block::BlockLit(
-    @core.BlockLit::new(
+    @core.BlockLit::BlockLit(
       [],
       [],
       [@core.ValueParam(x, @core.t_int())],
@@ -453,7 +459,7 @@ test "js: a continuation only jumped to is compiled in direct style" {
   let x = sym("x")
   // let k1 x ks1 = jump k(x, ks1); jump k1(1, ks)
   let block = @cps.Block::BlockLit(
-    @cps.BlockLit::new(
+    @cps.BlockLit::BlockLit(
       [],
       [],
       ks,
@@ -511,7 +517,7 @@ test "js: an extern with value parameters only is inlined" {
       @cps.ToplevelDef(
         main,
         @cps.Block::BlockLit(
-          @cps.BlockLit::new(
+          @cps.BlockLit::BlockLit(
             [],
             [],
             sym("ks"),
@@ -562,7 +568,7 @@ test "js: an async extern is not inlined" {
       @cps.ToplevelDef(
         main,
         @cps.Block::BlockLit(
-          @cps.BlockLit::new(
+          @cps.BlockLit::BlockLit(
             [],
             [],
             sym("ks"),
@@ -615,13 +621,13 @@ fn handled_body_module() -> @cps.ModuleDecl {
   let ks_r = sym("ks_r")
   // reset { (p, ks, k) => jump k(0, ks) } with (r, ks) => jump k(r, ks)
   let block = @cps.Block::BlockLit(
-    @cps.BlockLit::new(
+    @cps.BlockLit::BlockLit(
       [],
       [],
       ks,
       k,
       @cps.Reset(
-        @cps.BlockLit::new(
+        @cps.BlockLit::BlockLit(
           [],
           [prompt],
           ks_p,
@@ -701,7 +707,7 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
     k_o,
     @cps.Shift(
       prompt,
-      @cps.BlockLit::new(
+      @cps.BlockLit::BlockLit(
         [],
         [b_k],
         ks_s,
@@ -719,7 +725,7 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
     ),
   )
   // reset { (p, ks, k) => def Exception = new Exception[Int] { ... }; Exception.raise(1, "boom") }
-  let prog = @cps.BlockLit::new(
+  let prog = @cps.BlockLit::BlockLit(
     [],
     [prompt],
     ks_p,
@@ -741,7 +747,7 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
     ),
   )
   let block = @cps.Block::BlockLit(
-    @cps.BlockLit::new(
+    @cps.BlockLit::BlockLit(
       [],
       [],
       ks,
@@ -844,7 +850,13 @@ test "js: a main with capability parameters is rejected" {
     @symbols.Captures::empty(),
   )
   let block = @core.Block::BlockLit(
-    @core.BlockLit::new([], [], [], [exc], @core.Stmt::Return([int_expr(0)])),
+    @core.BlockLit::BlockLit(
+      [],
+      [],
+      [],
+      [exc],
+      @core.Stmt::Return([int_expr(0)]),
+    ),
   )
   let core_module = @core.ModuleDecl(
     "test",
@@ -919,7 +931,7 @@ test "js: golden output" {
     compile_cps_block(
       main,
       @cps.Block::BlockLit(
-        @cps.BlockLit::new(
+        @cps.BlockLit::BlockLit(
           [],
           [],
           ks,
@@ -964,7 +976,7 @@ test "js: golden output" {
     [
       @core.Clause(
         ctor0,
-        @core.BlockLit::new(
+        @core.BlockLit::BlockLit(
           [],
           [],
           [vparam("f")],
@@ -974,7 +986,7 @@ test "js: golden output" {
       ),
       @core.Clause(
         ctor1,
-        @core.BlockLit::new(
+        @core.BlockLit::BlockLit(
           [],
           [],
           [vparam("g")],
@@ -1009,7 +1021,7 @@ test "js: golden output" {
         @core.Stmt::Def(
           f,
           @core.Block::BlockLit(
-            @core.BlockLit::new(
+            @core.BlockLit::BlockLit(
               [],
               [],
               [],
@@ -1029,7 +1041,7 @@ test "js: golden output" {
   let prompt = bparam("prompt")
   let resume = bparam("resume")
   let effects = @core.Stmt::Region(
-    @core.BlockLit::new(
+    @core.BlockLit::BlockLit(
       [],
       [],
       [],
@@ -1039,13 +1051,13 @@ test "js: golden output" {
         int_expr(0),
         sym("state_cap"),
         @core.Stmt::Reset(
-          @core.BlockLit::new(
+          @core.BlockLit::BlockLit(
             [],
             [],
             [],
             [prompt],
             @core.Stmt::Shift(
-              @core.BlockVar::new(
+              @core.BlockVar::BlockVar(
                 sym("p"),
                 @core.unknown_block_type(),
                 @symbols.Captures::empty(),
@@ -1072,7 +1084,7 @@ test "js: golden output" {
         @core.Stmt::Def(
           g,
           @core.Block::BlockLit(
-            @core.BlockLit::new(
+            @core.BlockLit::BlockLit(
               [],
               [],
               [@core.ValueParam(y, @core.t_int())],

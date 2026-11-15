@@ -63,8 +63,8 @@ pub(all) struct BlockLit {
   k : @symbols.Sym
   body : Stmt
 }
+pub fn BlockLit::BlockLit(Array[@symbols.Sym], Array[@symbols.Sym], @symbols.Sym, @symbols.Sym, Stmt) -> Self
 pub fn BlockLit::free(Self) -> Variables
-pub fn BlockLit::new(Array[@symbols.Sym], Array[@symbols.Sym], @symbols.Sym, @symbols.Sym, Stmt) -> Self
 pub fn BlockLit::occurs(Self, @symbols.Sym) -> Bool
 pub fn BlockLit::size(Self) -> Int32
 

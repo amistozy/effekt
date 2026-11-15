@@ -77,7 +77,7 @@ pub fn PMEquals::PMEquals(symbol : Sym, targs : Array[ValueType]) -> PMEquals {
 ///|
 pub fn PMEquals::pm_apply(self : PMEquals, lhs : Expr, rhs : Expr) -> Expr {
   PureApp(
-    BlockVar::new(self.symbol, unknown_block_type(), Captures::empty()),
+    BlockVar::BlockVar(self.symbol, unknown_block_type(), Captures::empty()),
     self.targs,
     [lhs, rhs],
   )
@@ -593,7 +593,7 @@ fn pm_split_on_tag(
       Some(p) => p.map(x => x.to_param())
       None => ([] : Array[ValueParam])
     }
-    branches.push(Clause(v, BlockLit::new(tparams, [], params, [], body)))
+    branches.push(Clause(v, BlockLit::BlockLit(tparams, [], params, [], body)))
   }
 
   let default = if defaults.length() == 0 {

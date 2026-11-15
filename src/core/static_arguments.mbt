@@ -263,10 +263,10 @@ fn StaticArguments::wrap_definition(
     new_captures = new_captures.union(CaptureSetOf([c]))
   }
   let worker_id = Sym::id(id.name().rename(original => "\{original}_worker"))
-  let worker_var = BlockVar::new(worker_id, worker_type, new_captures)
+  let worker_var = BlockVar::BlockVar(worker_id, worker_type, new_captures)
   self.workers.set(id.uid(), Block::BlockVar(worker_var))
   let worker_body = self.enter_function(id, () => self.rewrite_stmt(lit.body))
-  BlockLit::new(
+  BlockLit::BlockLit(
     lit.tparams,
     fresh_cparams,
     fresh_vparams,
@@ -274,7 +274,7 @@ fn StaticArguments::wrap_definition(
     Def(
       worker_id,
       Block::BlockLit(
-        BlockLit::new(
+        BlockLit::BlockLit(
           drop_static(static_t, lit.tparams),
           drop_static(static_b, lit.cparams),
           drop_static(static_v, lit.vparams),
@@ -289,7 +289,7 @@ fn StaticArguments::wrap_definition(
         drop_static(
           static_b,
           fresh_bparams.map(b => {
-            Block::BlockVar(BlockVar::new(b.id, b.tpe, b.capt))
+            Block::BlockVar(BlockVar::BlockVar(b.id, b.tpe, b.capt))
           }),
         ),
       ),
@@ -411,7 +411,7 @@ fn StaticArguments::rewrite_block_lit(
   self : StaticArguments,
   lit : BlockLit,
 ) -> BlockLit raise EffektError {
-  BlockLit::new(
+  BlockLit::BlockLit(
     lit.tparams,
     lit.cparams,
     lit.vparams,

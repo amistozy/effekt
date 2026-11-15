@@ -82,10 +82,16 @@ You can browse and install extra skills here:
 
 - **Constructors are named `T::T`**, so a call site reads `T(...)`:
   `pub fn Span::Span(...)` is called as `Span(...)` (also qualified:
-  `@util.Span(...)`). Rename a `T::new` whenever a new one is written. The two
-  exceptions are types whose name is already a constructor of an enclosing
-  enum — `BlockVar` and `BlockLit` in `src/core`, where `T(...)` would be
-  ambiguous with `Block::BlockVar` / `Block::BlockLit`; those keep `::new`.
+  `@util.Span(...)`). There is no `T::new` left in the project — rename one
+  whenever it appears (`Rewrite::Rewrite`, `Namer::Namer`, `BlockVar::BlockVar`,
+  `BlockLit::BlockLit`). The structs `BlockVar` and `BlockLit` share their name
+  with a constructor of the `Block` enum, so an *enum* use of the bare name is
+  ambiguous wherever the expected type does not settle it — a `let` binding, an
+  argument to an unannotated arrow closure, the return of an untyped match arm.
+  Write `Block::BlockVar(...)` / `Block::BlockLit(...)` at those spots (six of
+  them: `show.mbt`'s `generate_def`, `transform.mbt`'s eta expansions and the two
+  `bparams.map` closures); a `match` pattern and a position with a known `Block`
+  type need no qualification, since the pattern arity / expected type decides.
 
 - **Update a record with `{ ..self, field: value }`, not a `with_*` helper.**
   MoonBit keeps the other fields, so a pass that rebuilds a node with one field
@@ -148,7 +154,7 @@ You can browse and install extra skills here:
 
 - **Rewrite core trees through `Rewrite`, not with a new traversal.** A core
   pass that rebuilds a tree uses the congruence in `src/core/rewrite.mbt`
-  (upstream `core/Tree.scala`'s `Tree.Rewrite`): `Rewrite::new(on_stmt, on_id,
+  (upstream `core/Tree.scala`'s `Tree.Rewrite`): `Rewrite::Rewrite(on_stmt, on_id,
   on_captures, on_block)` takes hooks that return `Some(replacement)` for the
   nodes they handle and `None` to fall back to the congruence. The default
   rebuilds *everything* — ids, capture sets, types, declarations, externs — so an

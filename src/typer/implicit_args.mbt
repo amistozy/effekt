@@ -51,16 +51,21 @@ fn implicit_explanation(name : String, tpe : ValueType) -> String? {
       Some(
         "Implicit callId will generate a unique Int for each call to this function in the source code.",
       )
-    "sourcePosition" =>
-      Some(
-        "Implicit sourcePosition will call\nSourcePosition(file, start_line, start_col, end_line, end_col)\nwith the respective values for the source position of the call.",
-      )
+    "sourcePosition" => {
+      let text =
+        #|Implicit sourcePosition will call
+        #|SourcePosition(file, start_line, start_col, end_line, end_col)
+        #|with the respective values for the source position of the call.
+      Some(text)
+    }
     _ =>
       match tpe {
-        @symbols.ValueType::BoxedType(_, _) =>
-          Some(
-            "An implicit argument of a boxed type will be instantiated by boxing the block\n  that an implicit block argument of the same name would be instantiated to.",
-          )
+        @symbols.ValueType::BoxedType(_, _) => {
+          let text =
+            #|An implicit argument of a boxed type will be instantiated by boxing the block
+            #|  that an implicit block argument of the same name would be instantiated to.
+          Some(text)
+        }
         _ => None
       }
   }

@@ -180,7 +180,7 @@ fn ShiftInfo::replace_resumptions_in(
   s : Stmt,
   by : (Stmt) -> Stmt raise EffektError,
 ) -> Stmt raise EffektError {
-  let rewrite = Rewrite::new(
+  let rewrite = Rewrite::Rewrite(
     Some((rewrite, stmt) => {
       match self.resume_of(stmt) {
         Some(resumed) => Some(by(rewrite.rewrite_stmt(resumed)))
@@ -363,7 +363,9 @@ fn Continuation::fill(self : Continuation, filling : Stmt) -> Stmt {
     Some((ys, rest)) => Val(ys, filling, rest)
     None => filling
   }
-  Reset(BlockLit::new([], [self.prompt.capture], [], [self.prompt.param], body))
+  Reset(
+    BlockLit::BlockLit([], [self.prompt.capture], [], [self.prompt.param], body),
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -813,7 +815,7 @@ fn blocked_prompts(module : ModuleDecl) -> Map[Int32, Sym] raise EffektError {
       _ => ()
     }
   }
-  let rewrite = Rewrite::new(
+  let rewrite = Rewrite::Rewrite(
     Some((_rewrite, s) => {
       on_stmt(s)
       None
@@ -1007,7 +1009,7 @@ fn joinpoint(
   for _, id in continuation.prompt.names() {
     fresh.set(id.uid(), Sym::id(id.name()))
   }
-  let renaming = Rewrite::new(
+  let renaming = Rewrite::Rewrite(
     None,
     Some(id => {
       match fresh.get(id.uid()) {
@@ -1061,9 +1063,9 @@ fn joinpoint(
     match frames(results) {
       None => None
       Some(body) => {
-        let j_def = BlockLit::new([], [], ys, [], body)
+        let j_def = BlockLit::BlockLit([], [], ys, [], body)
         let j_var = Block::BlockVar(
-          BlockVar::new(j, j_def.infer_type(), j_def.infer_capt()),
+          BlockVar::BlockVar(j, j_def.infer_type(), j_def.infer_capt()),
         )
         let scoped = scope((s : Stmt) => {
           match s {
@@ -1098,21 +1100,21 @@ fn joinpoint(
       CaptureSetOf([s_capt]),
     )
     let callee = Block::BlockVar(
-      BlockVar::new(s, s_param.tpe, CaptureSetOf([s_capt])),
+      BlockVar::BlockVar(s, s_param.tpe, CaptureSetOf([s_capt])),
     )
     match frames(App(callee, [], [], [])) {
       None => None
       Some(body) => {
-        let j_def = BlockLit::new([], [s_capt], [], [s_param], body)
+        let j_def = BlockLit::BlockLit([], [s_capt], [], [s_param], body)
         let j_var = Block::BlockVar(
-          BlockVar::new(j, j_def.infer_type(), j_def.infer_capt()),
+          BlockVar::BlockVar(j, j_def.infer_type(), j_def.infer_capt()),
         )
         let scoped = scope((stmt : Stmt) => {
           if !entering(stmt) {
             bail.abort()
           }
           App(j_var, [], [], [
-            Block::BlockLit(BlockLit::new([], [], [], [], stmt)),
+            Block::BlockLit(BlockLit::BlockLit([], [], [], [], stmt)),
           ])
         })
         if bail.aborted {
@@ -1224,7 +1226,7 @@ fn jumps_to_join_leaf(
 /// The statements `k` is resumed with in `s`.
 fn resumed_statements(k : Sym, s : Stmt) -> Array[Stmt] raise EffektError {
   let out : Array[Stmt] = []
-  let rewrite = Rewrite::new(
+  let rewrite = Rewrite::Rewrite(
     Some((rewrite, stmt) => {
       match stmt {
         Resume(k_var, resumed) =>
@@ -1460,7 +1462,7 @@ fn retype_answer(s : Stmt, tpe : Array[ValueType]) -> Stmt {
 /// The rewrite of the pass: a shift whose context is unknown, and the statements
 /// around a `reset` whose prompt is not blocked.
 fn reduce_rewriter(blocked : Map[Int32, Sym]) -> Rewrite {
-  Rewrite::new(
+  Rewrite::Rewrite(
     Some((rewrite, s) => {
       match s {
         // 0) a shift whose context is unknown (inside a call or a closure),

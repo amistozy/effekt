@@ -99,7 +99,7 @@ fn to_direct_style(s : Stmt, label : BlockVar) -> Stmt raise EffektError {
 ///|
 /// `DirectStyle` (upstream `core/optimizer/DirectStyle.scala`).
 pub fn direct_style(module : ModuleDecl) -> ModuleDecl raise EffektError {
-  let rewrite = Rewrite::new(
+  let rewrite = Rewrite::Rewrite(
     Some((rewrite, s) => {
       match s {
         Val(ids, binding, body) => {
@@ -113,8 +113,14 @@ pub fn direct_style(module : ModuleDecl) -> ModuleDecl raise EffektError {
             for i = 0; i < ids.length() && i < result_types.length(); i = i + 1 {
               vparams.push(ValueParam(ids[i], result_types[i]))
             }
-            let joinpoint = BlockLit::new([], [], vparams, [], rewritten_body)
-            let label = BlockVar::new(
+            let joinpoint = BlockLit::BlockLit(
+              [],
+              [],
+              vparams,
+              [],
+              rewritten_body,
+            )
+            let label = BlockVar::BlockVar(
               l,
               joinpoint.infer_type(),
               joinpoint.infer_capt(),

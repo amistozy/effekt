@@ -5,7 +5,7 @@
 ///|
 test "renamer: freshens a binder and its references" {
   let x = xsym("x")
-  let lit = @core.BlockLit::new(
+  let lit = @core.BlockLit::BlockLit(
     [],
     [],
     [@core.ValueParam(x, @core.t_int())],
@@ -34,7 +34,7 @@ test "renamer: freshens a binder and its references" {
 test "renamer: leaves free variables untouched" {
   let x = xsym("x")
   let y = xsym("y")
-  let lit = @core.BlockLit::new(
+  let lit = @core.BlockLit::BlockLit(
     [],
     [],
     [@core.ValueParam(x, @core.t_int())],
@@ -55,7 +55,7 @@ test "renamer: an inner binder shadows, the outer one is restored" {
   let outer = @core.ValueParam(x, @core.t_int())
   // { (x) => let x = 42; return x }
   let inner_let = @core.Let(x, int_lit(42), @core.Return([int_var(x)]))
-  let lit = @core.BlockLit::new([], [], [outer], [], inner_let)
+  let lit = @core.BlockLit::BlockLit([], [], [outer], [], inner_let)
   let (renamed, _) = @core.rename_block_lit(lit)
   let x_param = renamed.vparams[0].id
   match renamed.body {
@@ -80,9 +80,21 @@ test "renamer: two siblings do not see each other's binders" {
   let f = bsym("f")
   let g = bsym("g")
   // def f = { () => return 1 }; def g = { () => return 2 }; return x
-  let f_lit = @core.BlockLit::new([], [], [], [], @core.Return([int_lit(1)]))
-  let g_lit = @core.BlockLit::new([], [], [], [], @core.Return([int_lit(2)]))
-  let lit = @core.BlockLit::new(
+  let f_lit = @core.BlockLit::BlockLit(
+    [],
+    [],
+    [],
+    [],
+    @core.Return([int_lit(1)]),
+  )
+  let g_lit = @core.BlockLit::BlockLit(
+    [],
+    [],
+    [],
+    [],
+    @core.Return([int_lit(2)]),
+  )
+  let lit = @core.BlockLit::BlockLit(
     [],
     [],
     [],
@@ -109,8 +121,14 @@ test "renamer: two siblings do not see each other's binders" {
 test "renamer: the binder of a definition is visible in its own body" {
   let f = bsym("f")
   // def f = { () => return f() }  (recursive)
-  let lit = @core.BlockLit::new([], [], [], [], @core.Return([pure_app(f, [])]))
-  let recursing = @core.BlockLit::new(
+  let lit = @core.BlockLit::BlockLit(
+    [],
+    [],
+    [],
+    [],
+    @core.Return([pure_app(f, [])]),
+  )
+  let recursing = @core.BlockLit::BlockLit(
     [],
     [],
     [],

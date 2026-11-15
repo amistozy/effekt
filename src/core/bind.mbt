@@ -160,7 +160,7 @@ pub fn Bind::bind_impure_app(
 /// Binds a block to a fresh temporary.
 pub fn Bind::bind_block(block : Block) -> Bind[Block] {
   let id = Sym::tmp_block("tmp")
-  let bv = BlockVar::new(
+  let bv = BlockVar::BlockVar(
     id,
     block.infer_type_or_unknown(),
     block.infer_capt_or_empty(),

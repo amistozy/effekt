@@ -21,7 +21,7 @@ fn wb_block(
   tpe : BlockType,
   capt : @symbols.Captures,
 ) -> BlockVar {
-  BlockVar::new(@symbols.Sym::tmp_block(name), tpe, capt)
+  BlockVar::BlockVar(@symbols.Sym::tmp_block(name), tpe, capt)
 }
 
 ///|
@@ -63,7 +63,7 @@ test "infer_type: a return takes the annotated type" {
 test "infer_type: a block literal records its parameters and its body's type" {
   let x = wb_value("x")
   let cap = @symbols.Sym::capture_param(@symbols.Name::local("cap"))
-  let lit = BlockLit::new(
+  let lit = BlockLit::BlockLit(
     [],
     [cap],
     [ValueParam(x, t_int())],
@@ -82,7 +82,7 @@ test "infer_type: a block literal records its parameters and its body's type" {
 test "infer_type: a block literal records all of its results" {
   // Unlike the source language, a core function type has a *list* of results:
   // the prompt/shift encoding turns a multi-value `return` into one.
-  let lit = BlockLit::new(
+  let lit = BlockLit::BlockLit(
     [],
     [],
     [],
@@ -189,7 +189,7 @@ test "infer_type: an unannotated callee yields the unknown type" {
 ///|
 test "infer_capt: shift drops the continuation and adds the prompt" {
   let prompt_id = @symbols.Sym::tmp_block("p")
-  let prompt = BlockVar::new(
+  let prompt = BlockVar::BlockVar(
     prompt_id,
     PromptType([t_int()]),
     @symbols.Captures::empty(),
@@ -200,7 +200,7 @@ test "infer_capt: shift drops the continuation and adds the prompt" {
     wb_continuation(),
     wb_captures(k_cap),
   )
-  let k_var = BlockVar::new(
+  let k_var = BlockVar::BlockVar(
     @symbols.Sym::tmp_block("k"),
     wb_continuation(),
     wb_captures(k_cap),

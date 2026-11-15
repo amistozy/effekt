@@ -37,7 +37,7 @@ pub fn resolve_module(
 ) -> ResolvedModule raise EffektError {
   context.set_phase("namer")
   let mod = Module(module.path, module.span)
-  let namer = new_namer(context, mod, deps)
+  let namer = Namer(context, mod, deps)
   namer.resolve_toplevel(module)
   mod.exports = namer.scoping.exports()
   { module: mod, tree: module, holes: namer.holes, }
@@ -91,7 +91,7 @@ priv struct Namer {
 }
 
 ///|
-fn new_namer(
+fn Namer::Namer(
   context : @source.Context,
   module : Module,
   deps : Map[String, ResolvedModule],

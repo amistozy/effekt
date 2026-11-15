@@ -935,7 +935,7 @@ fn Normalizer::make_joinpoint(
   self.usage.set(k.uid(), Many)
   // Each bound value gets its own type; the annotation may be shorter than the
   // list of ids (or be `unknown`), hence the fallback.
-  let definition = BlockLit::new(
+  let definition = BlockLit::BlockLit(
     [],
     [],
     ids.mapi((i, id) => {
@@ -945,7 +945,11 @@ fn Normalizer::make_joinpoint(
     [],
     body,
   )
-  let kv = BlockVar::new(k, definition.infer_type(), definition.infer_capt())
+  let kv = BlockVar::BlockVar(
+    k,
+    definition.infer_type(),
+    definition.infer_capt(),
+  )
   Def(k, BlockLit(definition), f(kv, ctx.with_block(k, BlockLit(definition))))
 }
 
@@ -1007,7 +1011,7 @@ fn Normalizer::normalize_val(
         [
           Clause(
             clause.tag,
-            BlockLit::new(
+            BlockLit::BlockLit(
               clause.body.tparams,
               clause.body.cparams,
               clause.body.vparams,
@@ -1077,7 +1081,7 @@ fn Normalizer::normalize_val(
               )
               Clause(
                 clause.tag,
-                BlockLit::new(
+                BlockLit::BlockLit(
                   clause.body.tparams,
                   clause.body.cparams,
                   clause.body.vparams,
@@ -1180,7 +1184,7 @@ fn Normalizer::rewrite_block_lit(
   lit : BlockLit,
   ctx : NormCtx,
 ) -> BlockLit raise EffektError {
-  BlockLit::new(
+  BlockLit::BlockLit(
     lit.tparams,
     lit.cparams,
     lit.vparams,
@@ -1273,7 +1277,7 @@ fn Normalizer::reduce(
           bindings.push(BindingDef(id, block))
           bvars.push(
             BlockVar(
-              BlockVar::new(id, block.infer_type(), block_captures(block)),
+              BlockVar::BlockVar(id, block.infer_type(), block_captures(block)),
             ),
           )
           self.copy_usage_one(id, bparam.id)
@@ -1301,14 +1305,14 @@ fn Normalizer::lift(
   operation : Operation,
   interface_id : Sym,
 ) -> (BlockVar, BlockLit, Operation) raise EffektError {
-  let literal = BlockLit::new(
+  let literal = BlockLit::BlockLit(
     operation.tparams,
     operation.cparams,
     operation.vparams,
     operation.bparams,
     operation.body,
   )
-  let method = BlockVar::new(
+  let method = BlockVar::BlockVar(
     Sym::id(operation.name.name()),
     literal.infer_type(),
     literal.infer_capt(),
@@ -1329,7 +1333,7 @@ fn Normalizer::forward(
     BlockVar(method),
     operation.tparams.map(t => ValueVar(t)),
     operation.vparams.map(p => ValueVar(p.id, p.tpe)),
-    operation.bparams.map(p => BlockVar(BlockVar::new(p.id, p.tpe, p.capt))),
+    operation.bparams.map(p => BlockVar(BlockVar::BlockVar(p.id, p.tpe, p.capt))),
   )
   let forwarding = Operation(
     operation.name,
@@ -1356,7 +1360,13 @@ fn Normalizer::select_operation(
   for op in implementation.operations {
     if op.name == method {
       return Some(
-        BlockLit::new(op.tparams, op.cparams, op.vparams, op.bparams, op.body),
+        BlockLit::BlockLit(
+          op.tparams,
+          op.cparams,
+          op.vparams,
+          op.bparams,
+          op.body,
+        ),
       )
     }
   }
