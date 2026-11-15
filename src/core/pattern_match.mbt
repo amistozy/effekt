@@ -223,16 +223,6 @@ fn pm_finite_literals(tpe : ValueType) -> Array[LiteralValue]? {
   }
 }
 
-///|
-fn pm_literal_index(variants : Array[LiteralValue], v : LiteralValue) -> Int32 {
-  for i in 0..<variants.length() {
-    if pm_literal_equal(variants[i], v) {
-      return i
-    }
-  }
-  -1
-}
-
 // ---------------------------------------------------------------------------
 // The compiler
 // ---------------------------------------------------------------------------
@@ -368,7 +358,7 @@ fn pm_split_on_literal(
   for c in normalized {
     match pm_split_clause(c, scrutinee) {
       Some((PMLiteral(v, _, _), _, _)) =>
-        if pm_literal_index(variants, v) < 0 {
+        if !variants.any(w => pm_literal_equal(w, v)) {
           variants.push(v)
         }
       _ => ()
@@ -384,36 +374,31 @@ fn pm_split_on_literal(
 
   for c in normalized {
     match pm_split_clause(c, scrutinee) {
-      Some((PMLiteral(v, _, _), rest_patterns, rest_conds)) => {
-        let idx = pm_literal_index(variants, v)
-        if idx >= 0 {
-          clauses_for[idx].push(
-            PMClause(
-              pm_prepend(PMPatterns(rest_patterns), rest_conds),
-              c.label,
-              c.targs,
-              c.args,
-            ),
-          )
+      Some((PMLiteral(v, _, _), rest_patterns, rest_conds)) =>
+        match variants.search_by(w => pm_literal_equal(w, v)) {
+          Some(idx) =>
+            clauses_for[idx].push(
+              PMClause(
+                pm_prepend(PMPatterns(rest_patterns), rest_conds),
+                c.label,
+                c.targs,
+                c.args,
+              ),
+            )
+          None => ()
         }
-      }
-      _ =>
+      _ => {
         match pm_finite_literals(lit_tpe) {
-          Some(values) => {
-            if values.any(b => pm_literal_index(variants, b) < 0) {
+          Some(values) =>
+            if values.any(b => !variants.any(w => pm_literal_equal(w, b))) {
               defaults.push(c)
             }
-            for i in 0..<variants.length() {
-              clauses_for[i].push(c)
-            }
-          }
-          None => {
-            defaults.push(c)
-            for i in 0..<variants.length() {
-              clauses_for[i].push(c)
-            }
-          }
+          None => defaults.push(c)
         }
+        for clauses in clauses_for {
+          clauses.push(c)
+        }
+      }
     }
   }
 

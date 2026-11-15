@@ -151,11 +151,6 @@ pub struct PrecedenceTable {
 }
 
 ///|
-fn[T : Eq] array_index_of(xs : Array[T], x : T) -> Int32? {
-  xs.search_by(y => y == x)
-}
-
-///|
 /// The precedence table used by the parser. Mirrors `Parser.precedenceTable`.
 pub fn build_precedence_table() -> PrecedenceTable {
   let relations : Array[(TokenKind, TokenKind)] = []
@@ -219,7 +214,7 @@ pub fn build_precedence_table() -> PrecedenceTable {
     matrix.push(Array::make(n, false))
   }
   for (l, t) in relations {
-    match (array_index_of(ops, l), array_index_of(ops, t)) {
+    match (ops.search(l), ops.search(t)) {
       (Some(i), Some(j)) => matrix[i][j] = true
       _ => ()
     }
@@ -261,7 +256,7 @@ fn PrecedenceTable::reaches(
   a : TokenKind,
   b : TokenKind,
 ) -> Bool {
-  match (array_index_of(self.ops, a), array_index_of(self.ops, b)) {
+  match (self.ops.search(a), self.ops.search(b)) {
     (Some(i), Some(j)) => self.matrix[i][j]
     _ => false
   }

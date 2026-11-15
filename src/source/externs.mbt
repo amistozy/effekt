@@ -21,7 +21,7 @@ pub fn find_preferred(bodies : Array[ExternBody], ctx : Context) -> ExternBody? 
   for b in bodies {
     match b.flag() {
       NamedFeatureFlag(name) =>
-        match index_of(supported, name) {
+        match supported.search(name) {
           Some(i) =>
             if i < best_rank {
               best = Some(b)
@@ -37,16 +37,6 @@ pub fn find_preferred(bodies : Array[ExternBody], ctx : Context) -> ExternBody? 
     }
   }
   best
-}
-
-///|
-pub fn index_of(xs : Array[String], x : String) -> Int32? {
-  for i in 0..<xs.length() {
-    if xs[i] == x {
-      return Some(i)
-    }
-  }
-  None
 }
 
 ///|

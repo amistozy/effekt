@@ -19,8 +19,6 @@ pub fn find_preferred(Array[ExternBody], Context) -> ExternBody?
 
 pub fn in_kind() -> TokenKind
 
-pub fn index_of(Array[String], String) -> Int32?
-
 pub fn keyword_kind(String) -> TokenKind?
 
 pub fn literal_type(LiteralValue) -> @symbols.ValueType

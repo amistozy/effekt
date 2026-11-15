@@ -114,13 +114,13 @@ You can browse and install extra skills here:
 
 - **Ask the standard library before writing a helper.** `xs.is_empty()` (not
   `xs.length() == 0` — the core library has 399 of the former and 28 of the
-  latter), `a.min(b)`/`a.max(b)`, `xs.last()`, `xs.rev()`, `xs.search_by(p)`,
-  `xs.sort_by(cmp)`, `xs.contains(x)`, `xs.any/all/fold`, `xs[m..n]` views with
-  `.to_array()`. A helper that only renames one of those is deleted (`min2`, the
-  `length() == 0`/`length() > 0` comparisons); what remains as a thin wrapper is
-  `array_index_of` in `src/source/parser.mbt`, whose `Int32?` result its call
-  sites match on. Loop over tuples by destructuring in the header
-  (`for (a, b) in pairs`), not by binding the pair and unpacking it inside.
+  latter), `a.min(b)`/`a.max(b)`, `xs.last()`, `xs.rev()`, `xs.contains(x)`,
+  `xs.search(x)` (returns `Int32?`; `search_by(p)` for a predicate),
+  `xs.sort_by(cmp)`, `xs.any/all/fold`, `xs[m..n]` views with `.to_array()`.
+  A helper that only renames one of those is deleted (`min2`, `array_index_of`,
+  the `length() == 0`/`length() > 0` comparisons are all gone that way). Loop
+  over tuples by destructuring in the header (`for (a, b) in pairs`), not by
+  binding the pair and unpacking it inside.
 
 - **Update a record with `{ ..self, field: value }`, not a `with_*` helper.**
   MoonBit keeps the other fields, so a pass that rebuilds a node with one field

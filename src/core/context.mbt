@@ -226,14 +226,8 @@ pub fn DeclarationContext::find_constructor_tag(
   match self.constructors.get(id.uid()) {
     Some(ref) =>
       match ref.data {
-        DeclarationData(_, _, ctors) => {
-          for i in 0..<ctors.length() {
-            if ctors[i].id.uid() == ref.constructor.id.uid() {
-              return Some(i)
-            }
-          }
-          None
-        }
+        DeclarationData(_, _, ctors) =>
+          ctors.search_by(c => c.id.uid() == ref.constructor.id.uid())
         _ => None
       }
     None => None
@@ -270,14 +264,8 @@ pub fn DeclarationContext::find_property_tag(
   match self.properties.get(id.uid()) {
     Some(ref) =>
       match ref.interface {
-        DeclarationInterface(_, _, props) => {
-          for i in 0..<props.length() {
-            if props[i].id.uid() == ref.property.id.uid() {
-              return Some(i)
-            }
-          }
-          None
-        }
+        DeclarationInterface(_, _, props) =>
+          props.search_by(p => p.id.uid() == ref.property.id.uid())
         _ => None
       }
     None => None
