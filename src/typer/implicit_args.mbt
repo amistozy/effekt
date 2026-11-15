@@ -122,20 +122,16 @@ fn[T] Typer::check_implicit(
       $|Cannot instantiate implicit argument.
       $|Cannot instantiate \{ordinal(stencil.index)} \{stencil.kind} \{stencil.name} of type \{tpe}.
     text = text + "\n"
-    match stencil.explanation {
-      Some(explanation) => text = text + indent_message(explanation) + "\n"
-      None => ()
+    if stencil.explanation is Some(explanation) {
+      text = text + indent_message(explanation) + "\n"
     }
     if !errors.is_empty() {
       text = text +
         indent_message(
           errors.map(entry => entry.content_with_notes()).join("\n"),
         )
-    } else {
-      match failure {
-        Some(msg) => text = text + indent_message(msg)
-        None => ()
-      }
+    } else if failure is Some(msg) {
+      text = text + indent_message(msg)
     }
     self.abort(call.span, text + "\n")
   }

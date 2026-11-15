@@ -375,17 +375,15 @@ fn pm_split_on_literal(
   for c in normalized {
     match pm_split_clause(c, scrutinee) {
       Some((PMLiteral(v, _, _), rest_patterns, rest_conds)) =>
-        match variants.search_by(w => pm_literal_equal(w, v)) {
-          Some(idx) =>
-            clauses_for[idx].push(
-              PMClause(
-                pm_prepend(PMPatterns(rest_patterns), rest_conds),
-                c.label,
-                c.targs,
-                c.args,
-              ),
-            )
-          None => ()
+        if variants.search_by(w => pm_literal_equal(w, v)) is Some(idx) {
+          clauses_for[idx].push(
+            PMClause(
+              pm_prepend(PMPatterns(rest_patterns), rest_conds),
+              c.label,
+              c.targs,
+              c.args,
+            ),
+          )
         }
       _ => {
         match pm_finite_literals(lit_tpe) {

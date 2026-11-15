@@ -136,13 +136,11 @@ pub fn parse_args(args : Array[String]) -> (Options, Array[String]) {
   opts.run = flag(matches, "run")
   opts.output = option(matches, "output")
   opts.include_paths = option_values(matches, "include")
-  match option(matches, "lib") {
-    Some(path) => opts.lib_path = path
-    None => ()
+  if option(matches, "lib") is Some(path) {
+    opts.lib_path = path
   }
-  match option(matches, "input") {
-    Some(input) => opts.input = input
-    None => ()
+  if option(matches, "input") is Some(input) {
+    opts.input = input
   }
   (opts, [])
 }

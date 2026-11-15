@@ -147,9 +147,8 @@ fn dependencies_in(
       for clause in clauses {
         dependencies_in(clause.body.body, handler, out)
       }
-      match default {
-        Some(body) => dependencies_in(body, handler, out)
-        None => ()
+      if default is Some(body) {
+        dependencies_in(body, handler, out)
       }
     }
     Region(lit) => dependencies_in(lit.body, handler, out)

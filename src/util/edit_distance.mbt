@@ -7,11 +7,7 @@
 /// The code units of a string. Names are compared character-wise, so the
 /// conversions up front keep the dynamic program simple.
 fn chars_of(s : String) -> Array[Char] {
-  let out : Array[Char] = []
-  for c in s {
-    out.push(c)
-  }
-  out
+  s.to_array()
 }
 
 ///|
@@ -147,13 +143,11 @@ pub fn did_you_mean(
       let threshold = (name.length() + 2).max(3) / 3
       let mut best : (Int32, String)? = None
       for candidate in candidates {
-        match edit_distance(name, candidate, threshold) {
-          Some(d) =>
-            match best {
-              Some((best_d, _)) if best_d <= d => ()
-              _ => best = Some((d, candidate))
-            }
-          None => ()
+        if edit_distance(name, candidate, threshold) is Some(d) {
+          match best {
+            Some((best_d, _)) if best_d <= d => ()
+            _ => best = Some((d, candidate))
+          }
         }
       }
       match best {

@@ -209,12 +209,10 @@ fn Namer::resolve_toplevel(
   // Process all includes, updating the terms and types in scope.
   let includes : Array[Module] = []
   for inc in decl.includes {
-    match self.import_dependency(inc.path, inc.span) {
-      Some(dep) =>
-        if !includes.any(m => m.uid == dep.uid) {
-          includes.push(dep)
-        }
-      None => ()
+    if self.import_dependency(inc.path, inc.span) is Some(dep) {
+      if !includes.any(m => m.uid == dep.uid) {
+        includes.push(dep)
+      }
     }
   }
   self.module.includes = includes
@@ -373,26 +371,24 @@ fn Namer::lookup_term(
   name : String,
 ) -> Sym? raise EffektError {
   for p in self.lookup_paths(path) {
-    match self.scoping.lookup_first_term_option(p, name) {
-      Some(sym) => return Some(sym)
-      None =>
-        match
-          in_bindings(self.imports, p, bindings => {
-            match bindings.terms.get(name) {
-              None => None
-              Some(syms) =>
-                if syms.length() > 1 {
-                  raise EffektError::Fatal("Ambiguous reference to \{name}")
-                } else if syms.is_empty() {
-                  None
-                } else {
-                  Some(syms[0])
-                }
-            }
-          }) {
-          Some(sym) => return Some(sym)
-          None => ()
-        }
+    if self.scoping.lookup_first_term_option(p, name) is Some(sym) {
+      return Some(sym)
+    }
+    let imported = in_bindings(self.imports, p, bindings => {
+      match bindings.terms.get(name) {
+        None => None
+        Some(syms) =>
+          if syms.length() > 1 {
+            raise EffektError::Fatal("Ambiguous reference to \{name}")
+          } else if syms.is_empty() {
+            None
+          } else {
+            Some(syms[0])
+          }
+      }
+    })
+    if imported is Some(sym) {
+      return Some(sym)
     }
   }
   None
@@ -405,14 +401,14 @@ fn Namer::lookup_type(
   name : String,
 ) -> Sym? raise EffektError {
   for p in self.lookup_paths(path) {
-    match self.scoping.lookup_type_option(p, name) {
-      Some(sym) => return Some(sym)
-      None =>
-        match
-          in_bindings(self.imports, p, bindings => bindings.types.get(name)) {
-          Some(sym) => return Some(sym)
-          None => ()
-        }
+    if self.scoping.lookup_type_option(p, name) is Some(sym) {
+      return Some(sym)
+    }
+    let imported = in_bindings(self.imports, p, bindings => {
+      bindings.types.get(name)
+    })
+    if imported is Some(sym) {
+      return Some(sym)
     }
   }
   None
@@ -425,14 +421,14 @@ fn Namer::lookup_capture(
   name : String,
 ) -> Sym? raise EffektError {
   for p in self.lookup_paths(path) {
-    match self.scoping.lookup_capture(p, name) {
-      Some(sym) => return Some(sym)
-      None =>
-        match
-          in_bindings(self.imports, p, bindings => bindings.captures.get(name)) {
-          Some(sym) => return Some(sym)
-          None => ()
-        }
+    if self.scoping.lookup_capture(p, name) is Some(sym) {
+      return Some(sym)
+    }
+    let imported = in_bindings(self.imports, p, bindings => {
+      bindings.captures.get(name)
+    })
+    if imported is Some(sym) {
+      return Some(sym)
     }
   }
   None
@@ -530,9 +526,10 @@ fn Namer::lookup_first_block_param(
         None => None
       }
     })
-    match imported {
-      Some(params) => if !params.is_empty() { return params }
-      None => ()
+    if imported is Some(params) {
+      if !params.is_empty() {
+        return params
+      }
     }
   }
   []
@@ -581,13 +578,11 @@ fn Namer::require_not_toplevel(
   kind : String,
   span : Span,
 ) -> Unit {
-  match self.path() {
-    Some(_) =>
-      self.context.error(
-        span,
-        "\{kind} declarations are not allowed on the toplevel of a module or in a namespace.",
-      )
-    None => ()
+  if self.path() is Some(_) {
+    self.context.error(
+      span,
+      "\{kind} declarations are not allowed on the toplevel of a module or in a namespace.",
+    )
   }
 }
 
@@ -616,15 +611,13 @@ fn Namer::define_id(
           )
         }
         if sym is @symbols.Sym::TypeParam(_) {
-          match self.scoping.lookup_type_option([], id.name) {
-            Some(shadowed) =>
-              if !shadowed.is_type_var() {
-                self.context.warning(
-                  id.span,
-                  "Type parameter \{id.name} shadows outer definition of \{shadowed.name().name}.",
-                )
-              }
-            None => ()
+          if self.scoping.lookup_type_option([], id.name) is Some(shadowed) {
+            if !shadowed.is_type_var() {
+              self.context.warning(
+                id.span,
+                "Type parameter \{id.name} shadows outer definition of \{shadowed.name().name}.",
+              )
+            }
           }
         }
         self.scoping.define_type(id.name, sym)
@@ -1219,9 +1212,8 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
         self.resolve_clause(clause)
       }
       self.in_local_scope(() => {
-        match default {
-          Some(stmt) => self.resolve_stmt(stmt)
-          None => ()
+        if default is Some(stmt) {
+          self.resolve_stmt(stmt)
         }
       })
     }
@@ -1242,9 +1234,8 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
         self.resolve_stmt(block)
       })
       self.in_local_scope(() => {
-        match default {
-          Some(stmt) => self.resolve_stmt(stmt)
-          None => ()
+        if default is Some(stmt) {
+          self.resolve_stmt(stmt)
         }
       })
     }
@@ -1255,9 +1246,8 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       self.in_local_scope(() => {
         // Bind all annotated capabilities.
         for handler in handlers {
-          match handler.capability {
-            Some(param) => self.bind_block(self.resolve_block_param(param))
-            None => ()
+          if handler.capability is Some(param) {
+            self.bind_block(self.resolve_block_param(param))
           }
         }
         self.resolve_stmt(body)
@@ -1292,9 +1282,8 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       })
     }
     @source.Box(capt, block) => {
-      match capt {
-        Some(cs) => ignore(self.resolve_capture_set(cs))
-        None => ()
+      if capt is Some(cs) {
+        ignore(self.resolve_capture_set(cs))
       }
       self.resolve_term(block)
     }
@@ -1363,9 +1352,8 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       for arg in bargs {
         self.resolve_term(arg)
       }
-      match self.context.symbol_of(target.uid) {
-        Some(sym) => self.context.assign_symbol(t.uid, sym)
-        None => ()
+      if self.context.symbol_of(target.uid) is Some(sym) {
+        self.context.assign_symbol(t.uid, sym)
       }
     }
     @source.Do(target, targs, vargs, bargs) => {
@@ -1543,9 +1531,8 @@ fn Namer::resolve_handler(
   handler : Handler,
 ) -> Unit raise EffektError {
   self.resolve_implementation(handler.implementation)
-  match handler.capability {
-    Some(param) => self.bind_term(self.resolve_block_param(param))
-    None => ()
+  if handler.capability is Some(param) {
+    self.bind_term(self.resolve_block_param(param))
   }
 }
 

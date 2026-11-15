@@ -139,9 +139,8 @@ pub fn compile_file(
       let t = loader.tree_of(path).unwrap()
       let deps : Map[String, @namer.ResolvedModule] = Map([])
       for inc in t.includes {
-        match resolved.get(inc.path) {
-          Some(dep) => deps.set(inc.path, dep)
-          None => ()
+        if resolved.get(inc.path) is Some(dep) {
+          deps.set(inc.path, dep)
         }
       }
       let r = (pipeline.resolve)(t, ctx, deps)
@@ -150,9 +149,8 @@ pub fn compile_file(
     }
     let trees : Array[@namer.ResolvedModule] = []
     for path in order {
-      match resolved.get(path) {
-        Some(r) => trees.push(r)
-        None => ()
+      if resolved.get(path) is Some(r) {
+        trees.push(r)
       }
     }
 

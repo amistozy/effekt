@@ -282,9 +282,8 @@ fn[V] copy_entry(
   to : Int32,
 ) -> Unit {
   if to_map.get(to) is None {
-    match from_map.get(from) {
-      Some(v) => to_map.set(to, v)
-      None => ()
+    if from_map.get(from) is Some(v) {
+      to_map.set(to, v)
     }
   }
 }

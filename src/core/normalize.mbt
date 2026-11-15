@@ -249,9 +249,8 @@ fn Normalizer::is_unused(self : Normalizer, id : Sym) -> Bool {
 
 ///|
 fn Normalizer::copy_usage_one(self : Normalizer, to : Sym, from : Sym) -> Unit {
-  match self.usage.get(from.uid()) {
-    Some(usage) => self.usage.set(to.uid(), usage)
-    None => ()
+  if self.usage.get(from.uid()) is Some(usage) {
+    self.usage.set(to.uid(), usage)
   }
 }
 
@@ -261,9 +260,8 @@ fn Normalizer::copy_usage(
   renamings : Map[Int32, Sym],
 ) -> Unit {
   for fresh, original in renamings {
-    match self.usage.get(original.uid()) {
-      Some(usage) => self.usage.set(fresh, usage)
-      None => ()
+    if self.usage.get(original.uid()) is Some(usage) {
+      self.usage.set(fresh, usage)
     }
   }
 }
@@ -547,9 +545,8 @@ fn dead_branches(known : Map[Int32, Expr], body : Stmt) -> Int32 {
                 match selected {
                   Some(clause) => {
                     acc = acc + dead
-                    match default {
-                      Some(d) => acc = acc + d.size()
-                      None => ()
+                    if default is Some(d) {
+                      acc = acc + d.size()
                     }
                     current = clause.body.body
                   }

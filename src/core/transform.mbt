@@ -817,11 +817,7 @@ fn Transformer::transform_toplevel(
       let ctor_syms = if !ctors_of_symbol.is_empty() {
         ctors_of_symbol
       } else {
-        let out : Array[Sym] = []
-        for c in ctors {
-          out.push(self.sym_of_constructor(c))
-        }
-        out
+        ctors.map(c => self.sym_of_constructor(c))
       }
       let core_ctors : Array[Constructor] = []
       for c in ctor_syms {
@@ -882,11 +878,7 @@ fn Transformer::transform_toplevel(
       let op_syms = if !ops_of_symbol.is_empty() {
         ops_of_symbol
       } else {
-        let out : Array[Sym] = []
-        for op in ops {
-          out.push(self.sym_of_id_def(op.id))
-        }
-        out
+        ops.map(op => self.sym_of_id_def(op.id))
       }
       let properties : Array[Property] = []
       for op in op_syms {
@@ -1066,9 +1058,8 @@ fn Transformer::type_constructor_tparams_of(
   }
   let out : Array[Sym] = []
   for t in from_source {
-    match self.ctx.symbol_of(t.uid) {
-      Some(s) => out.push(s)
-      None => ()
+    if self.ctx.symbol_of(t.uid) is Some(s) {
+      out.push(s)
     }
   }
   out
@@ -1741,22 +1732,19 @@ fn Transformer::transform_as_stmt(
 
       let body = self.insert_bindings(() => {
         for h in handlers {
-          match h.capability {
-            Some(cap) => {
-              let id = self.sym_of_id_def(cap.id)
-              self.emit(
-                BindingDef(
-                  id,
-                  New(
-                    self.transform_implementation(
-                      h.implementation,
-                      Some(prompt_var),
-                    ),
+          if h.capability is Some(cap) {
+            let id = self.sym_of_id_def(cap.id)
+            self.emit(
+              BindingDef(
+                id,
+                New(
+                  self.transform_implementation(
+                    h.implementation,
+                    Some(prompt_var),
                   ),
                 ),
-              )
-            }
-            None => ()
+              ),
+            )
           }
         }
         self.transform_stmt(prog)
@@ -1866,17 +1854,15 @@ fn Transformer::transform_match(
   for i in 0..<cs.length() {
     clauses.push(self.preprocess("k\{i}", scrutinees, cs[i]))
   }
-  match default {
-    Some(stmt) =>
-      clauses.push(
-        self.preprocess_patterns(
-          "k_els",
-          [],
-          [],
-          self.insert_bindings(() => self.transform_stmt(stmt)),
-        ),
-      )
-    None => ()
+  if default is Some(stmt) {
+    clauses.push(
+      self.preprocess_patterns(
+        "k_els",
+        [],
+        [],
+        self.insert_bindings(() => self.transform_stmt(stmt)),
+      ),
+    )
   }
   let tpe = self.inferred_type_of(tree)
   pm_compile(clauses, tpe)

@@ -110,9 +110,8 @@ pub fn capture_param_of(c : Captures) -> Sym? {
 pub fn capture_params_of(capts : Array[Captures]) -> Array[Sym] {
   let out : Array[Sym] = []
   for c in capts {
-    match capture_param_of(c) {
-      Some(x) => out.push(x)
-      None => ()
+    if capture_param_of(c) is Some(x) {
+      out.push(x)
     }
   }
   out

@@ -271,29 +271,26 @@ pub fn Unification::propagate(self : Unification) -> String? {
         }
       }
       // upper(b) + filter flows into upper(a)
-      match self.upper.get(b) {
-        None => ()
-        Some(ub) => {
-          let target : Array[Sym] = []
-          for c in ub {
+      if self.upper.get(b) is Some(ub) {
+        let target : Array[Sym] = []
+        for c in ub {
+          target.push(c)
+        }
+        for c in filter {
+          if !target.contains(c) {
             target.push(c)
           }
-          for c in filter {
-            if !target.contains(c) {
-              target.push(c)
-            }
+        }
+        match self.upper.get(a) {
+          None => {
+            self.upper.set(a, target)
+            changed = true
           }
-          match self.upper.get(a) {
-            None => {
-              self.upper.set(a, target)
+          Some(ua) => {
+            let intersection = ua.filter(c => target.contains(c))
+            if intersection.length() != ua.length() {
+              self.upper.set(a, intersection)
               changed = true
-            }
-            Some(ua) => {
-              let intersection = ua.filter(c => target.contains(c))
-              if intersection.length() != ua.length() {
-                self.upper.set(a, intersection)
-                changed = true
-              }
             }
           }
         }
@@ -302,15 +299,12 @@ pub fn Unification::propagate(self : Unification) -> String? {
   }
   // consistency of all nodes
   for uid, lo in self.lower {
-    match self.upper.get(uid) {
-      Some(up) => {
-        let diff = lo.filter(c => !up.contains(c))
-        if !diff.is_empty() {
-          // Upstream's `Constraints.checkConsistency`.
-          return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
-        }
+    if self.upper.get(uid) is Some(up) {
+      let diff = lo.filter(c => !up.contains(c))
+      if !diff.is_empty() {
+        // Upstream's `Constraints.checkConsistency`.
+        return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
       }
-      None => ()
     }
   }
   None
@@ -333,14 +327,11 @@ pub fn Unification::require_lower(
       None
     }
     None => {
-      match self.upper.get(x.uid()) {
-        Some(up) => {
-          let diff = bounds.filter(c => !up.contains(c))
-          if !diff.is_empty() {
-            return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
-          }
+      if self.upper.get(x.uid()) is Some(up) {
+        let diff = bounds.filter(c => !up.contains(c))
+        if !diff.is_empty() {
+          return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
         }
-        None => ()
       }
       let current = self.lower_of(x.uid())
       let next = current.copy()
@@ -372,14 +363,11 @@ pub fn Unification::require_upper(
       None
     }
     None => {
-      match self.lower.get(x.uid()) {
-        Some(lo) => {
-          let diff = lo.filter(c => !bounds.contains(c))
-          if !diff.is_empty() {
-            return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
-          }
+      if self.lower.get(x.uid()) is Some(lo) {
+        let diff = lo.filter(c => !bounds.contains(c))
+        if !diff.is_empty() {
+          return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
         }
-        None => ()
       }
       match self.upper.get(x.uid()) {
         Some(up) => {
@@ -400,14 +388,11 @@ pub fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
     return None
   }
   let bounds = self.lower_of(x.uid())
-  match self.upper.get(x.uid()) {
-    Some(up) => {
-      let diff = bounds.filter(c => !up.contains(c))
-      if !diff.is_empty() {
-        return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
-      }
+  if self.upper.get(x.uid()) is Some(up) {
+    let diff = bounds.filter(c => !up.contains(c))
+    if !diff.is_empty() {
+      return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
     }
-    None => ()
   }
   self.capts.set(x.uid(), @symbols.Captures::CaptureSetOf(bounds))
   None
@@ -421,9 +406,8 @@ pub fn Unification::solve_all(
 ) -> Array[String] {
   let errors : Array[String] = []
   for x in xs {
-    match self.solve_capt_var(x) {
-      Some(msg) => errors.push(msg)
-      None => ()
+    if self.solve_capt_var(x) is Some(msg) {
+      errors.push(msg)
     }
   }
   errors

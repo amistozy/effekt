@@ -89,9 +89,10 @@ pub fn CapScope::capability_for_matching(
 ) -> Sym? {
   let target = subst(tpe)
   for cap in self.all_capabilities() {
-    match capability_type(cap) {
-      Some(t) => if interface_type_equal(subst(t), target) { return Some(cap) }
-      None => ()
+    if capability_type(cap) is Some(t) {
+      if interface_type_equal(subst(t), target) {
+        return Some(cap)
+      }
     }
   }
   None
@@ -169,28 +170,25 @@ pub fn CapScope::relevant_in_scope_for(
     @symbols.BlockType::FunctionType(_, _, _, _, _, _) => None
   }
   let out : Array[BlockType] = []
-  match ctor {
-    None => ()
-    Some(c) => {
-      let mut scope = self
-      while !scope.is_global() {
-        match scope {
-          BindDeclared(caps, parent)
-          | BindSome(caps, parent)
-          | BindAll(caps, parent) => {
-            for _, cap in caps {
-              match cap_type(cap) {
-                Some(@symbols.BlockType::InterfaceType(other, _)) =>
-                  if other == c {
-                    out.push(cap_type(cap).unwrap())
-                  }
-                _ => ()
-              }
+  if ctor is Some(c) {
+    let mut scope = self
+    while !scope.is_global() {
+      match scope {
+        BindDeclared(caps, parent)
+        | BindSome(caps, parent)
+        | BindAll(caps, parent) => {
+          for _, cap in caps {
+            match cap_type(cap) {
+              Some(@symbols.BlockType::InterfaceType(other, _)) =>
+                if other == c {
+                  out.push(cap_type(cap).unwrap())
+                }
+              _ => ()
             }
-            scope = parent
           }
-          GlobalCap => scope = GlobalCap
+          scope = parent
         }
+        GlobalCap => scope = GlobalCap
       }
     }
   }

@@ -166,9 +166,8 @@ pub fn Typer::check_call_to(
   }
 
   // (2) check the return type against the expected type
-  match expected {
-    Some(exp) => self.match_expected(inst.ret, exp, Some(span))
-    None => ()
+  if expected is Some(exp) {
+    self.match_expected(inst.ret, exp, Some(span))
   }
 
   // (3) named arguments must still be in the correct position
@@ -178,30 +177,28 @@ pub fn Typer::check_call_to(
   // (`examples/neg/named_args_wrong`).
   let vpnames : Array[String] = known_vps.map(p => p.name().name)
   for i in 0..<vargs.length() {
-    match vargs[i].name {
-      Some(got) =>
-        if i < known_vps.length() {
-          let expected_name = known_vps[i].name().name
-          if expected_name != got {
-            if vpnames.contains(got) {
-              self.error(
-                span,
-                "Unexpected name in named argument: got \{got}, but expected \{expected_name} in this position. Named arguments must still be in the correct position.",
-              )
-            } else {
-              self.error(
-                span,
-                "Unexpected name in named argument: got \{got}, but expected \{expected_name}.",
-              )
-            }
+    if vargs[i].name is Some(got) {
+      if i < known_vps.length() {
+        let expected_name = known_vps[i].name().name
+        if expected_name != got {
+          if vpnames.contains(got) {
+            self.error(
+              span,
+              "Unexpected name in named argument: got \{got}, but expected \{expected_name} in this position. Named arguments must still be in the correct position.",
+            )
+          } else {
+            self.error(
+              span,
+              "Unexpected name in named argument: got \{got}, but expected \{expected_name}.",
+            )
           }
-        } else {
-          self.error(
-            span,
-            "Unexpected named argument: got \{got}, but function call is not to a known function.",
-          )
         }
-      None => ()
+      } else {
+        self.error(
+          span,
+          "Unexpected named argument: got \{got}, but function call is not to a known function.",
+        )
+      }
     }
   }
 
@@ -794,15 +791,13 @@ pub fn Typer::check_overloaded_method_call(
 ) -> TyRes[ValueType] raise EffektError {
   match receiver.kind {
     @source.TermKind::Var(recv_id) =>
-      match self.symbol_of_id_opt(recv_id) {
-        Some(s) =>
-          if s.is_value_symbol() || s.is_ref_binder() {
-            self.abort(
-              receiver.span,
-              "`\{recv_id.name}.\{id.name}` is uniform function call syntax on a value, which has to be desugared by `unbox_inference` before type checking (did the pipeline type check the tree returned by `unbox_inference`?).",
-            )
-          }
-        None => ()
+      if self.symbol_of_id_opt(recv_id) is Some(s) {
+        if s.is_value_symbol() || s.is_ref_binder() {
+          self.abort(
+            receiver.span,
+            "`\{recv_id.name}.\{id.name}` is uniform function call syntax on a value, which has to be desugared by `unbox_inference` before type checking (did the pipeline type check the tree returned by `unbox_inference`?).",
+          )
+        }
       }
     _ => ()
   }

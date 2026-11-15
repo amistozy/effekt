@@ -118,9 +118,19 @@ You can browse and install extra skills here:
   `xs.search(x)` (returns `Int32?`; `search_by(p)` for a predicate),
   `xs.sort_by(cmp)`, `xs.any/all/fold`, `xs[m..n]` views with `.to_array()`.
   A helper that only renames one of those is deleted (`min2`, `array_index_of`,
-  the `length() == 0`/`length() > 0` comparisons are all gone that way). Loop
-  over tuples by destructuring in the header (`for (a, b) in pairs`), not by
-  binding the pair and unpacking it inside.
+  the `length() == 0`/`length() > 0` comparisons are all gone that way). An
+  accumulator loop that only maps is `xs.map(f)` (`xs.mapi((i, x) => …)` when the
+  index is needed, `xs.filter(p)` when the push is guarded, `xs.to_array()` when
+  the element is taken as it is). Loop over tuples by destructuring in the header
+  (`for (a, b) in pairs`), not by binding the pair and unpacking it inside.
+
+- **Test an enum with a pattern condition, not a two-arm `match`.** `if e is
+  Some(x) { … }` binds `x` in the condition and replaces
+  `match e { Some(x) => …, None => () }` (a shape the core library writes 1489
+  times); the same works for any constructor pattern
+  (`if phase is Failed(kind, message) { … }`). A `match` stays when both arms do
+  something, when the result is a value, or when the arms are themselves
+  patterns of a larger match.
 
 - **Update a record with `{ ..self, field: value }`, not a `with_*` helper.**
   MoonBit keeps the other fields, so a pass that rebuilds a node with one field

@@ -540,9 +540,8 @@ fn ShowContext::generate_show_instance(
             Some(_) => None
             None => {
               let instance = self.generate_show_instance(dctx, lookup)
-              match instance {
-                Some(defn) => self.show_defns.set(value_type_key(vt), defn)
-                None => ()
+              if instance is Some(defn) {
+                self.show_defns.set(value_type_key(vt), defn)
               }
               instance
             }

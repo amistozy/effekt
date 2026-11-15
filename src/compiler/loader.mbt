@@ -44,9 +44,8 @@ pub fn Loader::implicit_includes(
 pub fn Loader::prelude_includes(self : Loader) -> Array[Include] {
   let out : Array[Include] = []
   for p in prelude_paths() {
-    match locate_in(self.prelude_roots, p) {
-      Some(_) => out.push({ path: p, span: Span::missing(), })
-      None => ()
+    if locate_in(self.prelude_roots, p) is Some(_) {
+      out.push({ path: p, span: Span::missing(), })
     }
   }
   out

@@ -512,13 +512,8 @@ fn to_js_template(
 ///|
 fn to_js_declaration(d : @core.Declaration) -> Array[Stmt] {
   match d {
-    @core.DeclarationData(_, _, ctors) => {
-      let out : Array[Stmt] = []
-      for i in 0..<ctors.length() {
-        out.push(generate_constructor(ctors[i], i))
-      }
-      out
-    }
+    @core.DeclarationData(_, _, ctors) =>
+      ctors.mapi((i, c) => generate_constructor(c, i))
     // interfaces are structurally typed at the moment, no need to generate
     // anything
     @core.DeclarationInterface(_, _, _) => []
@@ -1237,14 +1232,12 @@ fn to_js_stmt(
 
               // Prepare the substitution
               let conts : Map[Int32, @cps.Cont] = Map([])
-              match tmp_k {
-                Some(t) => conts.set(info.k.uid(), @cps.Cont::ContVar(t))
-                None => ()
+              if tmp_k is Some(t) {
+                conts.set(info.k.uid(), @cps.Cont::ContVar(t))
               }
               let metaconts : Map[Int32, @cps.MetaCont] = Map([])
-              match tmp_ks {
-                Some(t) => metaconts.set(info.ks.uid(), @cps.MetaCont(t))
-                None => ()
+              if tmp_ks is Some(t) {
+                metaconts.set(info.ks.uid(), @cps.MetaCont(t))
               }
               let blocks : Map[Int32, @cps.Block] = Map([])
               let subst = @cps.Substitution(values, blocks, conts, metaconts)
@@ -1288,9 +1281,8 @@ fn to_js_stmt(
 
               // Restore the metacontinuation if needed
               if needs_ks_tmp {
-                match tmp_ks {
-                  Some(t) => stmts.push(Assign(name_ref(info.ks), name_ref(t)))
-                  None => ()
+                if tmp_ks is Some(t) {
+                  stmts.push(Assign(name_ref(info.ks), name_ref(t)))
                 }
               }
 

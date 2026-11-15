@@ -207,9 +207,8 @@ pub fn Message::render(self : Message) -> String {
   let primary = excerpt_of(self.span)
   // One gutter for the whole diagnostic, as wide as its largest line number.
   let mut width = 0
-  match primary {
-    Some(e) => width = e.line.to_string().length()
-    None => ()
+  if primary is Some(e) {
+    width = e.line.to_string().length()
   }
   let items : Array[(String, String, Excerpt?)] = []
   for note in self.notes {
@@ -219,14 +218,11 @@ pub fn Message::render(self : Message) -> String {
           Some(span) => excerpt_of(span)
           None => None
         }
-        match excerpt {
-          Some(e) => {
-            let len = e.line.to_string().length()
-            if len > width {
-              width = len
-            }
+        if excerpt is Some(e) {
+          let len = e.line.to_string().length()
+          if len > width {
+            width = len
           }
-          None => ()
         }
         items.push(("note", text, excerpt))
       }

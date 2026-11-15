@@ -328,10 +328,8 @@ fn d_stmt(s : Stmt) -> Doc {
           ),
         )
       }
-      match default {
-        Some(stmts) =>
-          docs.push(doc_cat(text("default:"), nested(vcat(stmts.map(d_stmt)))))
-        None => ()
+      if default is Some(stmts) {
+        docs.push(doc_cat(text("default:"), nested(vcat(stmts.map(d_stmt)))))
       }
       doc_spacecat(
         doc_spacecat(text("switch"), parens_inner(d_expr(scrutinee))),

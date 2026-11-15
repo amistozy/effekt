@@ -21,13 +21,11 @@ pub fn find_preferred(bodies : Array[ExternBody], ctx : Context) -> ExternBody? 
   for b in bodies {
     match b.flag() {
       NamedFeatureFlag(name) =>
-        match supported.search(name) {
-          Some(i) =>
-            if i < best_rank {
-              best = Some(b)
-              best_rank = i
-            }
-          None => ()
+        if supported.search(name) is Some(i) {
+          if i < best_rank {
+            best = Some(b)
+            best_rank = i
+          }
         }
       Default =>
         if best_rank > supported.length() {
@@ -97,9 +95,8 @@ fn resolve_extern_def(d : Def, ctx : Context) -> Array[Def] raise EffektError {
           // The definition is now a function, but its symbol is still an
           // `ExternFunction`. Remember that, so call sites use the control
           // calling convention (upstream `callingConvention`).
-          match ctx.symbol_of(id.uid) {
-            Some(sym) => ctx.assign_effekt_extern(sym.uid())
-            None => ()
+          if ctx.symbol_of(id.uid) is Some(sym) {
+            ctx.assign_effekt_extern(sym.uid())
           }
           [d2]
         }

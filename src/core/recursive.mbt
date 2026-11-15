@@ -197,9 +197,8 @@ fn RecursiveAnalysis::process_stmt(
       for clause in clauses {
         self.process_stmt(clause.body.body)
       }
-      match default {
-        Some(body) => self.process_stmt(body)
-        None => ()
+      if default is Some(body) {
+        self.process_stmt(body)
       }
     }
     Alloc(_, init, _, body) => {

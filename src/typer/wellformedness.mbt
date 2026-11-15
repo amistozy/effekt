@@ -259,14 +259,12 @@ fn Typer::wf_param_captures(
 ) -> Array[Sym] {
   let out : Array[Sym] = []
   for bp in bparams {
-    match self.ctx.symbol_of(bp.id.uid) {
-      Some(sym) =>
-        for c in self.lookup_capture(sym).to_array() {
-          if !out.contains(c) {
-            out.push(c)
-          }
+    if self.ctx.symbol_of(bp.id.uid) is Some(sym) {
+      for c in self.lookup_capture(sym).to_array() {
+        if !out.contains(c) {
+          out.push(c)
         }
-      None => ()
+      }
     }
   }
   out
@@ -368,9 +366,8 @@ fn Typer::wf_type_param_symbols(
 ) -> Array[Sym] {
   let out : Array[Sym] = []
   for tp in tparams {
-    match self.ctx.symbol_of(tp.uid) {
-      Some(sym) => out.push(sym)
-      None => ()
+    if self.ctx.symbol_of(tp.uid) is Some(sym) {
+      out.push(sym)
     }
   }
   out
@@ -397,18 +394,15 @@ fn Typer::wf_pattern_existentials(
             push_new(out, [sym])
           }
         None =>
-          match self.ctx.symbol_of(id.uid) {
-            Some(sym) => {
-              let all = constructor_tparams(sym)
-              let universals = match datatype_tparams(sym) {
-                Some(ts) => ts.length()
-                None => 0
-              }
-              for i = universals; i < all.length(); i = i + 1 {
-                push_new(out, [all[i]])
-              }
+          if self.ctx.symbol_of(id.uid) is Some(sym) {
+            let all = constructor_tparams(sym)
+            let universals = match datatype_tparams(sym) {
+              Some(ts) => ts.length()
+              None => 0
             }
-            None => ()
+            for i = universals; i < all.length(); i = i + 1 {
+              push_new(out, [all[i]])
+            }
           }
       }
       for p in patterns {
@@ -487,22 +481,19 @@ fn Typer::wf_def(self : Typer, d : Def, scope : WFScope) -> Unit {
       let type_params = self.wf_type_param_symbols(tparams) + from_symbol
       let inner = scope.bind(captures).bind_types(type_params)
       self.wf_stmt(body, inner)
-      match self.ctx.value_type_of(body.uid) {
-        Some(tpe) => {
-          self.wf_check(
-            tpe,
-            body.span,
-            inner,
-            " inferred as return type of \{id.name}",
-          )
-          self.wf_check_types(
-            tpe,
-            body.span,
-            inner,
-            " inferred as return type of \{id.name}",
-          )
-        }
-        None => ()
+      if self.ctx.value_type_of(body.uid) is Some(tpe) {
+        self.wf_check(
+          tpe,
+          body.span,
+          inner,
+          " inferred as return type of \{id.name}",
+        )
+        self.wf_check_types(
+          tpe,
+          body.span,
+          inner,
+          " inferred as return type of \{id.name}",
+        )
       }
     }
     @source.DefKind::RegDef(id, _, _, init) => {
@@ -511,26 +502,24 @@ fn Typer::wf_def(self : Typer, d : Def, scope : WFScope) -> Unit {
       // to `k` inside `try … with tick` adds the capability to the capture set
       // of `k`'s type). The region's capture has to cover everything the
       // variable's type mentions; upstream reports this at the definition.
-      match self.ctx.symbol_of(id.uid) {
-        Some(sym) =>
-          match self.ctx.value_type_of(sym.uid()) {
-            Some(tpe) => {
-              self.wf_check(
-                tpe,
-                d.span,
-                scope,
-                " inferred as type of region-allocated variable",
-              )
-              self.wf_check_types(
-                tpe,
-                d.span,
-                scope,
-                " inferred as type of region-allocated variable",
-              )
-            }
-            None => ()
+      if self.ctx.symbol_of(id.uid) is Some(sym) {
+        match self.ctx.value_type_of(sym.uid()) {
+          Some(tpe) => {
+            self.wf_check(
+              tpe,
+              d.span,
+              scope,
+              " inferred as type of region-allocated variable",
+            )
+            self.wf_check_types(
+              tpe,
+              d.span,
+              scope,
+              " inferred as type of region-allocated variable",
+            )
           }
-        None => ()
+          None => ()
+        }
       }
       self.wf_stmt(init, scope)
     }
@@ -565,50 +554,44 @@ fn Typer::wf_stmt(self : Typer, s : Stmt, scope : WFScope) -> Unit {
           let inner = scope.bind(var_captures)
           self.wf_stmt(rhs, inner)
           self.wf_stmt(rest, inner)
-          match self.ctx.value_type_of(rest.uid) {
-            Some(tpe) => {
-              let escaping = self
-                .free_captures_of(tpe)
-                .filter(c => !inner.captures.contains(c))
-              if escaping.length() == 1 && var_captures.contains(escaping[0]) {
-                // The variable itself escapes: upstream's `specificCaptures`
-                // for a `VarDef`.
-                self.error(
-                  s.span,
-                  "Local variable \{id.name} escapes through the returned value of type \{tpe}.",
-                )
-                self.wf_aborted = true
-              } else if !escaping.is_empty() {
-                let message = if escaping.length() == 1 {
-                  "Capture \{escaping[0].name().name} escapes through type \{tpe} inferred as return type."
-                } else {
-                  "Captures \{@symbols.Captures::CaptureSetOf(escaping)} escape through type \{tpe} inferred as return type."
-                }
-                self.error(s.span, message)
-                self.wf_aborted = true
+          if self.ctx.value_type_of(rest.uid) is Some(tpe) {
+            let escaping = self
+              .free_captures_of(tpe)
+              .filter(c => !inner.captures.contains(c))
+            if escaping.length() == 1 && var_captures.contains(escaping[0]) {
+              // The variable itself escapes: upstream's `specificCaptures`
+              // for a `VarDef`.
+              self.error(
+                s.span,
+                "Local variable \{id.name} escapes through the returned value of type \{tpe}.",
+              )
+              self.wf_aborted = true
+            } else if !escaping.is_empty() {
+              let message = if escaping.length() == 1 {
+                "Capture \{escaping[0].name().name} escapes through type \{tpe} inferred as return type."
+              } else {
+                "Captures \{@symbols.Captures::CaptureSetOf(escaping)} escape through type \{tpe} inferred as return type."
               }
+              self.error(s.span, message)
+              self.wf_aborted = true
             }
-            None => ()
           }
           // The type inferred *for the variable*: an assignment inside the
           // scope may have added captures of a capability that is bound there
           // and gone afterwards.
-          match self.ctx.value_type_of(d.uid) {
-            Some(tpe) => {
-              self.wf_check(
-                tpe,
-                s.span,
-                inner,
-                " inferred for mutable variable \{id.name}",
-              )
-              self.wf_check_types(
-                tpe,
-                s.span,
-                inner,
-                " inferred for mutable variable \{id.name}",
-              )
-            }
-            None => ()
+          if self.ctx.value_type_of(d.uid) is Some(tpe) {
+            self.wf_check(
+              tpe,
+              s.span,
+              inner,
+              " inferred for mutable variable \{id.name}",
+            )
+            self.wf_check_types(
+              tpe,
+              s.span,
+              inner,
+              " inferred for mutable variable \{id.name}",
+            )
           }
         }
         _ => {
@@ -661,33 +644,28 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
       self.wf_guards(guards, scope)
       self.wf_stmt(thn, scope)
       self.wf_stmt(els, scope)
-      match self.ctx.value_type_of(t.uid) {
-        Some(tpe) =>
-          self.wf_check(
-            tpe,
-            t.span,
-            scope,
-            " inferred for the result of the if statement",
-          )
-        None => ()
+      if self.ctx.value_type_of(t.uid) is Some(tpe) {
+        self.wf_check(
+          tpe,
+          t.span,
+          scope,
+          " inferred for the result of the if statement",
+        )
       }
     }
     @source.TermKind::While(guards, body, default) => {
       self.wf_guards(guards, scope)
       self.wf_stmt(body, scope)
-      match default {
-        Some(d) => self.wf_stmt(d, scope)
-        None => ()
+      if default is Some(d) {
+        self.wf_stmt(d, scope)
       }
-      match self.ctx.value_type_of(t.uid) {
-        Some(tpe) =>
-          self.wf_check(
-            tpe,
-            t.span,
-            scope,
-            " inferred for the result of the while statement",
-          )
-        None => ()
+      if self.ctx.value_type_of(t.uid) is Some(tpe) {
+        self.wf_check(
+          tpe,
+          t.span,
+          scope,
+          " inferred for the result of the while statement",
+        )
       }
     }
     @source.TermKind::Match(scrutinees, clauses, default) => {
@@ -702,26 +680,22 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
         self.wf_guards(c.guards, inner)
         self.wf_stmt(c.body, inner)
       }
-      match default {
-        Some(d) => self.wf_stmt(d, scope)
-        None => ()
+      if default is Some(d) {
+        self.wf_stmt(d, scope)
       }
-      match self.ctx.value_type_of(t.uid) {
-        Some(tpe) => {
-          self.wf_check(
-            tpe,
-            t.span,
-            scope,
-            " inferred as return type of the match",
-          )
-          self.wf_check_types(
-            tpe,
-            t.span,
-            scope,
-            " inferred as return type of the match",
-          )
-        }
-        None => ()
+      if self.ctx.value_type_of(t.uid) is Some(tpe) {
+        self.wf_check(
+          tpe,
+          t.span,
+          scope,
+          " inferred as return type of the match",
+        )
+        self.wf_check_types(
+          tpe,
+          t.span,
+          scope,
+          " inferred as return type of the match",
+        )
       }
     }
     @source.TermKind::TryHandle(prog, handlers) => {
@@ -736,9 +710,8 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
       if self.wf_aborted {
         return
       }
-      match self.ctx.value_type_of(prog.uid) {
-        Some(tpe) => self.wf_check_handled(tpe, prog.span, scope, bound)
-        None => ()
+      if self.ctx.value_type_of(prog.uid) is Some(tpe) {
+        self.wf_check_handled(tpe, prog.span, scope, bound)
       }
     }
     @source.TermKind::Region(id, body) => {
@@ -748,25 +721,22 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
       }
       let inner = scope.bind(capture)
       self.wf_stmt(body, inner)
-      match self.ctx.value_type_of(body.uid) {
-        Some(tpe) => {
-          let escaping = self
-            .free_captures_of(tpe)
-            .filter(c => capture.contains(c))
-          if !escaping.is_empty() {
-            self.error(
-              body.span,
-              "The return type \{tpe} of the region body is not allowed to refer to region \{id.name}.",
-            )
-          }
-          self.wf_check(
-            tpe,
+      if self.ctx.value_type_of(body.uid) is Some(tpe) {
+        let escaping = self
+          .free_captures_of(tpe)
+          .filter(c => capture.contains(c))
+        if !escaping.is_empty() {
+          self.error(
             body.span,
-            inner,
-            " inferred as return type of the region body",
+            "The return type \{tpe} of the region body is not allowed to refer to region \{id.name}.",
           )
         }
-        None => ()
+        self.wf_check(
+          tpe,
+          body.span,
+          inner,
+          " inferred as return type of the region body",
+        )
       }
     }
     @source.TermKind::BlockLiteral(tparams, _, bparams, body) => {
@@ -776,12 +746,9 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
         .bind(captures)
         .bind_types(self.wf_type_param_symbols(tparams))
       self.wf_stmt(body, inner)
-      match self.ctx.value_type_of(body.uid) {
-        Some(tpe) => {
-          self.wf_check(tpe, t.span, inner, " inferred as return type")
-          self.wf_check_types(tpe, t.span, inner, " inferred as return type")
-        }
-        None => ()
+      if self.ctx.value_type_of(body.uid) is Some(tpe) {
+        self.wf_check(tpe, t.span, inner, " inferred as return type")
+        self.wf_check_types(tpe, t.span, inner, " inferred as return type")
       }
     }
     @source.TermKind::New(implementation) =>
@@ -851,22 +818,19 @@ fn Typer::wf_implementation(
       .bind(captures)
       .bind_types(self.wf_type_param_symbols(clause.tparams))
     self.wf_stmt(clause.body, inner)
-    match self.ctx.value_type_of(clause.body.uid) {
-      Some(tpe) => {
-        self.wf_check(
-          tpe,
-          clause.body.span,
-          inner,
-          " inferred as return type of operation \{clause.id.name}",
-        )
-        self.wf_check_types(
-          tpe,
-          clause.body.span,
-          inner,
-          " inferred as return type of operation \{clause.id.name}",
-        )
-      }
-      None => ()
+    if self.ctx.value_type_of(clause.body.uid) is Some(tpe) {
+      self.wf_check(
+        tpe,
+        clause.body.span,
+        inner,
+        " inferred as return type of operation \{clause.id.name}",
+      )
+      self.wf_check_types(
+        tpe,
+        clause.body.span,
+        inner,
+        " inferred as return type of operation \{clause.id.name}",
+      )
     }
   }
 }

@@ -657,24 +657,22 @@ fn Typer::lexical_capability(
   }
   let compatible : Array[Sym] = []
   for cap in self.st.cap_scope.all_capabilities() {
-    match capability_type(cap) {
-      Some(cap_tpe) =>
-        match self.st.u.prune_block(cap_tpe) {
-          @symbols.BlockType::InterfaceType(c2, args2) =>
-            if ctor == c2 && args.length() == args2.length() {
-              let mut ok = true
-              for i = 0; i < args.length() && ok; i = i + 1 {
-                if !self.types_compatible(args[i], args2[i]) {
-                  ok = false
-                }
-              }
-              if ok {
-                compatible.push(cap)
+    if capability_type(cap) is Some(cap_tpe) {
+      match self.st.u.prune_block(cap_tpe) {
+        @symbols.BlockType::InterfaceType(c2, args2) =>
+          if ctor == c2 && args.length() == args2.length() {
+            let mut ok = true
+            for i = 0; i < args.length() && ok; i = i + 1 {
+              if !self.types_compatible(args[i], args2[i]) {
+                ok = false
               }
             }
-          _ => ()
-        }
-      None => ()
+            if ok {
+              compatible.push(cap)
+            }
+          }
+        _ => ()
+      }
     }
   }
   if compatible.is_empty() {
@@ -711,22 +709,20 @@ fn Typer::unify_capability_interface(
     @symbols.BlockType::InterfaceType(c, a) => (c, a)
     _ => return
   }
-  match capability_type(cap) {
-    Some(cap_tpe) =>
-      match self.st.u.prune_block(cap_tpe) {
-        @symbols.BlockType::InterfaceType(c2, args2) =>
-          if ctor == c2 && args.length() == args2.length() {
-            for i in 0..<args.length() {
-              self.unify_value_types(
-                args[i],
-                args2[i],
-                MergeTypes(self.st.u.prune_value(args[i]), args2[i], NoArms),
-              )
-            }
+  if capability_type(cap) is Some(cap_tpe) {
+    match self.st.u.prune_block(cap_tpe) {
+      @symbols.BlockType::InterfaceType(c2, args2) =>
+        if ctor == c2 && args.length() == args2.length() {
+          for i in 0..<args.length() {
+            self.unify_value_types(
+              args[i],
+              args2[i],
+              MergeTypes(self.st.u.prune_value(args[i]), args2[i], NoArms),
+            )
           }
-        _ => ()
-      }
-    None => ()
+        }
+      _ => ()
+    }
   }
 }
 
@@ -745,15 +741,12 @@ fn Typer::capability_for(
   // fresh capability for the still-open effect, which can never be made
   // concrete.
   if !self.unknowns_block(target).is_empty() {
-    match self.lexical_capability(target) {
-      Some(cap) => {
-        // Upstream `Context.capabilityFor` checks concreteness at the request
-        // site and hints at the concrete interfaces of the same effect that
-        // are in scope (`relevantInScopeFor`).
-        self.assert_concrete_effect(self.st.u.prune_block(target), span)
-        return cap
-      }
-      None => ()
+    if self.lexical_capability(target) is Some(cap) {
+      // Upstream `Context.capabilityFor` checks concreteness at the request
+      // site and hints at the concrete interfaces of the same effect that
+      // are in scope (`relevantInScopeFor`).
+      self.assert_concrete_effect(self.st.u.prune_block(target), span)
+      return cap
     }
   }
   let cap = match self.st.cap_scope.capability_for(target) {
@@ -815,9 +808,8 @@ fn[T] Typer::binding_capability_frame(
     // The capability's own type may still mention a unification variable that
     // has been solved since it was created; lookups prune, so the key has to
     // be computed on the pruned type as well.
-    match capability_type(cap) {
-      Some(t) => map.set(interface_key(self.st.u.prune_block(t)), cap)
-      None => ()
+    if capability_type(cap) is Some(t) {
+      map.set(interface_key(self.st.u.prune_block(t)), cap)
     }
   }
   let parent = self.st.cap_scope
@@ -989,20 +981,17 @@ pub fn Typer::require_subregion_ctx(
       }
     }
     (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptureSetOf(us)) =>
-      match self.st.u.require_upper(us, x) {
-        Some(msg) => self.abort_issue_plain(msg)
-        None => ()
+      if self.st.u.require_upper(us, x) is Some(msg) {
+        self.abort_issue_plain(msg)
       }
     (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptVar(y)) =>
-      match self.st.u.require_lower(ls, y) {
-        Some(msg) => self.abort_issue_plain(msg)
-        None => ()
+      if self.st.u.require_lower(ls, y) is Some(msg) {
+        self.abort_issue_plain(msg)
       }
     (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptVar(y)) => {
       self.st.u.link(x.uid(), y.uid(), [])
-      match self.st.u.propagate() {
-        Some(msg) => self.abort_issue_plain(msg)
-        None => ()
+      if self.st.u.propagate() is Some(msg) {
+        self.abort_issue_plain(msg)
       }
     }
   }
@@ -1033,20 +1022,17 @@ pub fn Typer::require_subregion(
       }
     }
     (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptureSetOf(us)) =>
-      match self.st.u.require_upper(us, x) {
-        Some(msg) => self.error(span, msg)
-        None => ()
+      if self.st.u.require_upper(us, x) is Some(msg) {
+        self.error(span, msg)
       }
     (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptVar(y)) =>
-      match self.st.u.require_lower(ls, y) {
-        Some(msg) => self.error(span, msg)
-        None => ()
+      if self.st.u.require_lower(ls, y) is Some(msg) {
+        self.error(span, msg)
       }
     (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptVar(y)) => {
       self.st.u.link(x.uid(), y.uid(), [])
-      match self.st.u.propagate() {
-        Some(msg) => self.error(span, msg)
-        None => ()
+      if self.st.u.propagate() is Some(msg) {
+        self.error(span, msg)
       }
     }
   }
@@ -1347,9 +1333,8 @@ fn collect_mains(ctx : Context, defs : Array[Def], out : Array[Sym]) -> Unit {
     match d.kind {
       @source.DefKind::FunDef(id, _, _, _, _, _, _) =>
         if id.name == "main" {
-          match ctx.symbol_of(id.uid) {
-            Some(sym) => out.push(sym)
-            None => ()
+          if ctx.symbol_of(id.uid) is Some(sym) {
+            out.push(sym)
           }
         }
       _ => ()
@@ -1435,9 +1420,8 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
       }
       self.bind_capture(fun, cap)
       // (2) store the annotated type
-      match fun.annotated_type() {
-        Some(tpe) => self.bind_block(fun, tpe)
-        None => ()
+      if fun.annotated_type() is Some(tpe) {
+        self.bind_block(fun, tpe)
       }
     }
     @source.DefKind::DefDef(id, captures, _, body) => {
@@ -1529,21 +1513,18 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
       match rec {
         @symbols.Sym::Record(r) => {
           let ctor = r.constructor
-          match ctor.annotated_type() {
-            Some(tpe) => self.bind_block(ctor, tpe)
-            None => ()
+          if ctor.annotated_type() is Some(tpe) {
+            self.bind_block(ctor, tpe)
           }
           self.bind_capture(ctor, Captures::empty())
-          match ctor.as_callable() {
-            Some(c) =>
-              for v in c.vparams {
-                match v {
-                  @symbols.Sym::ValueParam(_p) =>
-                    self.bind_capture(v, Captures::empty())
-                  _ => ()
-                }
+          if ctor.as_callable() is Some(c) {
+            for v in c.vparams {
+              match v {
+                @symbols.Sym::ValueParam(_p) =>
+                  self.bind_capture(v, Captures::empty())
+                _ => ()
               }
-            None => ()
+            }
           }
         }
         _ => ()
@@ -1578,15 +1559,13 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
           None => self.abort(d.span, "Expected a function symbol.")
           Some(v) => {
             for vp in v.vparams {
-              match self.lookup_first_value(vp) {
-                Some(t) => self.bind_value(vp, t)
-                None => ()
+              if self.lookup_first_value(vp) is Some(t) {
+                self.bind_value(vp, t)
               }
             }
             for bp in v.bparams {
-              match symbol_block_type(bp) {
-                Some(t) => self.bind_block(bp, t)
-                None => ()
+              if symbol_block_type(bp) is Some(t) {
+                self.bind_block(bp, t)
               }
             }
             let inferred = @symbols.Captures::CaptVar(
@@ -1783,20 +1762,15 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
       let sym = self.symbol_of_def(id)
       let view = sym.as_callable()
       self.with_unification_scope([], () => {
-        match view {
-          None => ()
-          Some(v) => {
-            for vp in v.vparams {
-              match self.lookup_first_value(vp) {
-                Some(t) => self.bind_value(vp, t)
-                None => ()
-              }
+        if view is Some(v) {
+          for vp in v.vparams {
+            if self.lookup_first_value(vp) is Some(t) {
+              self.bind_value(vp, t)
             }
-            for bp in v.bparams {
-              match symbol_block_type(bp) {
-                Some(t) => self.bind_block(bp, t)
-                None => ()
-              }
+          }
+          for bp in v.bparams {
+            if symbol_block_type(bp) is Some(t) {
+              self.bind_block(bp, t)
             }
           }
         }
@@ -1874,21 +1848,17 @@ fn Typer::user_function_type(
       let capts : Array[Captures] = []
       let bps : Array[BlockType] = []
       for b in v.bparams {
-        match symbol_block_type(b) {
-          Some(t) => {
-            bps.push(t)
-            capts.push(
-              @symbols.Captures::CaptureSetOf([capture_of_capability(b)]),
-            )
-          }
-          None => ()
+        if symbol_block_type(b) is Some(t) {
+          bps.push(t)
+          capts.push(
+            @symbols.Captures::CaptureSetOf([capture_of_capability(b)]),
+          )
         }
       }
       let vps : Array[ValueType] = []
       for p in v.vparams {
-        match self.lookup_first_value(p) {
-          Some(t) => vps.push(t)
-          None => ()
+        if self.lookup_first_value(p) is Some(t) {
+          vps.push(t)
         }
       }
       for c in capabilities {
@@ -1920,9 +1890,8 @@ pub fn Typer::check_stmt(
   let res = self.check_stmt_kind(s, expected)
   self.annotate_value(s.uid, res.tpe)
   self.annotate_effects(s.uid, res.effs)
-  match expected {
-    Some(exp) => self.match_expected(res.tpe, exp, Some(s.span))
-    None => ()
+  if expected is Some(exp) {
+    self.match_expected(res.tpe, exp, Some(s.span))
   }
   res
 }
@@ -1998,9 +1967,8 @@ pub fn Typer::check_expr(
     let res = self.check_expr_kind(e, expected)
     self.annotate_value(e.uid, res.tpe)
     self.annotate_effects(e.uid, res.effs)
-    match expected {
-      Some(exp) => self.match_expected(res.tpe, exp, Some(e.span))
-      None => ()
+    if expected is Some(exp) {
+      self.match_expected(res.tpe, exp, Some(e.span))
     }
     res
   })
@@ -2105,13 +2073,12 @@ fn Typer::check_expr_kind(
         self.check_expr_as_block(block, expected_tpe, None)
       })
       let tpe = @symbols.ValueType::BoxedType(res.tpe, inferred_cap)
-      match expected {
-        // The capture set the box inferred from its body is compared with the
-        // one the expected type demands; a conflict ("Not allowed {io}") is a
-        // property of the box, so it is reported there (upstream's `focus` is
-        // still the box when the comparison happens).
-        Some(exp) => self.match_expected(tpe, exp, Some(e.span))
-        None => ()
+      // The capture set the box inferred from its body is compared with the
+      // one the expected type demands; a conflict ("Not allowed {io}") is a
+      // property of the box, so it is reported there (upstream's `focus` is
+      // still the box when the comparison happens).
+      if expected is Some(exp) {
+        self.match_expected(tpe, exp, Some(e.span))
       }
       TyRes(tpe, res.effs)
     }
@@ -2269,13 +2236,10 @@ fn Typer::check_expr_kind(
         res_eff = eff_union_of([res_eff, guard_effs, body_res.effs])
         tpes_and_terms.push((body_res.tpe, Some(cls.body.span)))
       }
-      match default {
-        Some(d) => {
-          let default_res = self.check_stmt(d, expected)
-          res_eff = eff_union(res_eff, default_res.effs)
-          tpes_and_terms.push((default_res.tpe, Some(d.span)))
-        }
-        None => ()
+      if default is Some(d) {
+        let default_res = self.check_stmt(d, expected)
+        res_eff = eff_union(res_eff, default_res.effs)
+        tpes_and_terms.push((default_res.tpe, Some(d.span)))
       }
       // reporting at the match term (upstream's `C.at(tree)`) rather than at
       // whichever clause body happened to be checked last
@@ -2852,9 +2816,8 @@ fn Typer::match_expected(
   span : Span?,
 ) -> Unit raise EffektError {
   let saved = self.focus
-  match span {
-    Some(s) => self.focus = s
-    None => ()
+  if span is Some(s) {
+    self.focus = s
   }
   defer {
     self.focus = saved
@@ -2881,9 +2844,8 @@ fn Typer::match_expected_block(
   span : Span?,
 ) -> Unit raise EffektError {
   let saved = self.focus
-  match span {
-    Some(s) => self.focus = s
-    None => ()
+  if span is Some(s) {
+    self.focus = s
   }
   defer {
     self.focus = saved
@@ -3916,9 +3878,10 @@ pub fn Typer::resolve_block_ref(
 pub fn Typer::resolve_captures(self : Typer, c : CaptureSetTree) -> Captures {
   let out : Array[Sym] = []
   for id in c.captures {
-    match self.ctx.symbol_of(id.uid) {
-      Some(s) => if !out.contains(s) { out.push(s) }
-      None => ()
+    if self.ctx.symbol_of(id.uid) is Some(s) {
+      if !out.contains(s) {
+        out.push(s)
+      }
     }
   }
   @symbols.Captures::CaptureSetOf(out)

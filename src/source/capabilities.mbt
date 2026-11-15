@@ -242,11 +242,7 @@ pub fn reference_to_capability(cap : Sym, ctx : Context) -> Term {
   ctx.assign_symbol(id.uid, cap)
   let t = mk_term(Span::missing(), Var(id))
   match cap {
-    BlockParam(bp) =>
-      match bp.tpe {
-        Some(bt) => ctx.assign_block_type(t.uid, bt)
-        None => ()
-      }
+    BlockParam(bp) => if bp.tpe is Some(bt) { ctx.assign_block_type(t.uid, bt) }
     _ => ()
   }
   t

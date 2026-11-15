@@ -198,9 +198,8 @@ fn Reachable::process_id(self : Reachable, id : Sym) -> Unit {
   self.update(id, self.usage(id) + Once)
   if !self.seen.contains(uid) {
     self.seen.set(uid, true)
-    match self.defs.get(uid) {
-      Some(d) => self.process_definition(id, d)
-      None => ()
+    if self.defs.get(uid) is Some(d) {
+      self.process_definition(id, d)
     }
   }
 }
@@ -472,9 +471,8 @@ fn Reachable::process_stmt(self : Reachable, s : Stmt) -> Unit {
       for clause in clauses {
         self.process_block_lit(clause.body)
       }
-      match default {
-        Some(body) => self.process_stmt(body)
-        None => ()
+      if default is Some(body) {
+        self.process_stmt(body)
       }
     }
     Alloc(_, init, region, body) => {

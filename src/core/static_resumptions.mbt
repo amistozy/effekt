@@ -613,9 +613,8 @@ fn collect_definitions(
       for clause in clauses {
         collect_definitions(clause.body.body, out)
       }
-      match default {
-        Some(body) => collect_definitions(body, out)
-        None => ()
+      if default is Some(body) {
+        collect_definitions(body, out)
       }
     }
     Region(lit) => collect_definitions(lit.body, out)
@@ -805,12 +804,10 @@ fn blocked_prompts(module : ModuleDecl) -> Map[Int32, Sym] raise EffektError {
   let on_stmt = (s : Stmt) => {
     match s {
       Shift(prompt, _, _) =>
-        match shift_info_of(s) {
-          Some(shift) =>
-            if !(shift.resumes_only() && !escapes(shift.k, shift.body())) {
-              out.set(prompt.id.uid(), prompt.id)
-            }
-          None => ()
+        if shift_info_of(s) is Some(shift) {
+          if !(shift.resumes_only() && !escapes(shift.k, shift.body())) {
+            out.set(prompt.id.uid(), prompt.id)
+          }
         }
       _ => ()
     }
@@ -1164,12 +1161,10 @@ fn jumps_to_join(
       )
     }
     None => {
-      match prompt.shift_of(s) {
-        Some(shift) =>
-          if shift.resumes_only() {
-            return shift.replace_resumptions(jump)
-          }
-        None => ()
+      if prompt.shift_of(s) is Some(shift) {
+        if shift.resumes_only() {
+          return shift.replace_resumptions(jump)
+        }
       }
       match s {
         // [[ f(…) ]] = f(…), a tail call to a block only ever tail-called
@@ -1289,11 +1284,8 @@ fn resumed_statements(k : Sym, s : Stmt) -> Array[Stmt] raise EffektError {
           for clause in clauses {
             let _ = rewrite.rewrite_block_lit(clause.body)
           }
-          match default {
-            Some(body) => {
-              let _ = rewrite.rewrite_stmt(body)
-            }
-            None => ()
+          if default is Some(body) {
+            let _ = rewrite.rewrite_stmt(body)
           }
         }
         Region(lit) => {
@@ -1344,54 +1336,47 @@ fn reduce_shifts(
   blocked : Map[Int32, Sym],
 ) -> Stmt raise EffektError {
   // 1) a shift to `prompt`, with nothing left between it and the prompt
-  match prompt.shift_of(s) {
-    Some(shift) =>
-      // 1a) in place, since any exit is the answer already
-      return match reuse(shift, true) {
-        Some(result) => result
-        None =>
-          // 1b) copied into a join point, if no `var` or a region lies above
-          if joinable {
-            match copy(Continuation(prompt, None), shift, blocked) {
-              Some(result) => result
-              // 1c) else left alone
-              None => s
-            }
-          } else {
-            s
+  if prompt.shift_of(s) is Some(shift) {
+    // 1a) in place, since any exit is the answer already
+    return match reuse(shift, true) {
+      Some(result) => result
+      None =>
+        // 1b) copied into a join point, if no `var` or a region lies above
+        if joinable {
+          match copy(Continuation(prompt, None), shift, blocked) {
+            Some(result) => result
+            // 1c) else left alone
+            None => s
           }
-      }
-    None => ()
+        } else {
+          s
+        }
+    }
   }
   // 2) a `val` frame over a shift to `prompt`, with no `var` or a region above
-  match val_with_shifts(prompt, s) {
-    Some((ys, binding, rest, shifts)) =>
-      if joinable {
-        let continuation = Continuation(prompt, Some((ys, rest)))
-        return match
-          joinpoint(continuation, binding.infer_type(), shifts, blocked, jump => {
-            reduce_shifts(
-              prompt,
-              jumps_to_join(prompt, binding, jump, Map([])),
-              true,
-              blocked,
-            )
-          }) {
-          Some(result) => result
-          None =>
-            Val(ys, binding, reduce_shifts(prompt, rest, joinable, blocked))
-        }
+  if val_with_shifts(prompt, s) is Some((ys, binding, rest, shifts)) {
+    if joinable {
+      let continuation = Continuation(prompt, Some((ys, rest)))
+      return match
+        joinpoint(continuation, binding.infer_type(), shifts, blocked, jump => {
+          reduce_shifts(
+            prompt,
+            jumps_to_join(prompt, binding, jump, Map([])),
+            true,
+            blocked,
+          )
+        }) {
+        Some(result) => result
+        None => Val(ys, binding, reduce_shifts(prompt, rest, joinable, blocked))
       }
-    None => ()
+    }
   }
   // 3) a `var` or a region is popped by the answer, so the shifts below it still
   // stand at the prompt; but it cannot be copied, so from here only 1a) applies
-  match frame_of(s) {
-    Some(frame) =>
-      if !frame.is_delimiter {
-        return frame.rebuild(reduce_shifts(prompt, frame.body, false, blocked))
-      }
-    None => ()
+  if frame_of(s) is Some(frame) {
+    if !frame.is_delimiter {
+      return frame.rebuild(reduce_shifts(prompt, frame.body, false, blocked))
+    }
   }
   // 4) anything else pushes nothing, so continue into its tail positions
   match tail_positions(s) {

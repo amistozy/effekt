@@ -785,11 +785,7 @@ pub fn Sym::annotated_type(self : Sym) -> BlockType? {
           let vps : Array[ValueType] = []
           for v in c.vparams {
             match v {
-              ValueParam(p) =>
-                match p.tpe {
-                  Some(t) => vps.push(t)
-                  None => ()
-                }
+              ValueParam(p) => if p.tpe is Some(t) { vps.push(t) }
               _ => ()
             }
           }
@@ -799,9 +795,8 @@ pub fn Sym::annotated_type(self : Sym) -> BlockType? {
             match b {
               BlockParam(bp) => {
                 bcapt.push(CaptureSetOf([bp.capture]))
-                match bp.tpe {
-                  Some(t) => bps.push(t)
-                  None => ()
+                if bp.tpe is Some(t) {
+                  bps.push(t)
                 }
               }
               _ => ()

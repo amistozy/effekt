@@ -235,9 +235,10 @@ fn collect_mains(
     match d.kind {
       @source.DefKind::FunDef(id, _, _, _, _, _, _) =>
         if id.name == main_name() {
-          match ctx.symbol_of(id.uid) {
-            Some(sym) => if !out.contains(sym) { out.push(sym) }
-            None => ()
+          if ctx.symbol_of(id.uid) is Some(sym) {
+            if !out.contains(sym) {
+              out.push(sym)
+            }
           }
         }
       _ => ()
@@ -255,9 +256,10 @@ fn collect_mains(
 /// The prelude's `infixEq` overloads, used to compile literal patterns.
 pub fn find_infix_eqs(modules : Array[@namer.ResolvedModule]) -> Array[Sym] {
   for m in modules {
-    match m.module.exports.terms.get("infixEq") {
-      Some(syms) => if !syms.is_empty() { return syms }
-      None => ()
+    if m.module.exports.terms.get("infixEq") is Some(syms) {
+      if !syms.is_empty() {
+        return syms
+      }
     }
   }
   []

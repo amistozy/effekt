@@ -117,9 +117,8 @@ fn Typer::check_expr_as_block_kind(
       let sym = self.symbol_of_id(id)
       if sym.is_block_symbol() && !sym.is_ref_binder() {
         let tpe = self.lookup_block(sym)
-        match expected {
-          Some(exp) => self.match_expected_block(tpe, exp, Some(id.span))
-          None => ()
+        if expected is Some(exp) {
+          self.match_expected_block(tpe, exp, Some(id.span))
         }
         self.using_capture(self.lookup_capture(sym))
         TyRes(tpe, Effects::empty())
@@ -132,9 +131,8 @@ fn Typer::check_expr_as_block_kind(
     }
     @source.TermKind::New(implementation) => {
       let res = self.check_implementation(implementation, None)
-      match expected {
-        Some(exp) => self.match_expected_block(res.tpe, exp, Some(e.span))
-        None => ()
+      if expected is Some(exp) {
+        self.match_expected_block(res.tpe, exp, Some(e.span))
       }
       res
     }
@@ -573,17 +571,15 @@ fn Typer::check_op_clause(
     None => self.abort(clause.span, "Expected an operation symbol.")
   }
 
-  match clause.ret {
-    Some(t) =>
-      match t.kind {
-        @source.TypeKind::Effectful(_, _) =>
-          self.abort(
-            clause.span,
-            "Unexpected type annotation on operation \{clause.id.name}.",
-          )
-        _ => ()
-      }
-    None => ()
+  if clause.ret is Some(t) {
+    match t.kind {
+      @source.TypeKind::Effectful(_, _) =>
+        self.abort(
+          clause.span,
+          "Unexpected type annotation on operation \{clause.id.name}.",
+        )
+      _ => ()
+    }
   }
 
   // arity checks
@@ -658,10 +654,8 @@ fn Typer::check_op_clause(
         let p = clause.vparams[i]
         let sym = self.symbol_of_def(p.id)
         let annotated = symbol_value_type(sym)
-        match annotated {
-          Some(got) =>
-            self.match_declared_value(got, vps[i], value_param_span(p))
-          None => ()
+        if annotated is Some(got) {
+          self.match_declared_value(got, vps[i], value_param_span(p))
         }
         self.bind_value(sym, annotated.unwrap_or(vps[i]))
       }
@@ -673,9 +667,8 @@ fn Typer::check_op_clause(
           _ => Sym::capture_param(Name::local("anon"))
         }
         let annotated = symbol_block_type(sym)
-        match annotated {
-          Some(got) => self.match_declared(got, bps[i], block_param_span(p))
-          None => ()
+        if annotated is Some(got) {
+          self.match_declared(got, bps[i], block_param_span(p))
         }
         self.bind_block(sym, annotated.unwrap_or(bps[i]))
         self.bind_capture(sym, @symbols.Captures::CaptureSetOf([capture]))
@@ -740,10 +733,8 @@ fn Typer::check_op_clause(
         let p = clause.vparams[i]
         let sym = self.symbol_of_def(p.id)
         let annotated = symbol_value_type(sym)
-        match annotated {
-          Some(got) =>
-            self.match_declared_value(got, vps[i], value_param_span(p))
-          None => ()
+        if annotated is Some(got) {
+          self.match_declared_value(got, vps[i], value_param_span(p))
         }
         self.bind_value(sym, annotated.unwrap_or(vps[i]))
       }
@@ -872,9 +863,8 @@ pub fn Typer::check_try_handle(
   // have been created while a type argument was still an unsolved variable
   let handled_effects : Array[BlockType] = []
   for cap in provided_capabilities {
-    match self.st.bt.get(cap.uid()) {
-      Some(t) => handled_effects.push(self.st.u.prune_block(t))
-      None => ()
+    if self.st.bt.get(cap.uid()) is Some(t) {
+      handled_effects.push(self.st.u.prune_block(t))
     }
   }
   self.warn_about_handlers(
@@ -917,13 +907,10 @@ fn Typer::warn_about_handlers(
 ) -> Unit {
   let explicit : Array[Sym] = []
   for h in handlers {
-    match h.capability {
-      Some(bp) =>
-        match self.ctx.symbol_of(bp.id.uid) {
-          Some(s) => explicit.push(s)
-          None => ()
-        }
-      None => ()
+    if h.capability is Some(bp) {
+      if self.ctx.symbol_of(bp.id.uid) is Some(s) {
+        explicit.push(s)
+      }
     }
   }
   for i in 0..<effects.length() {
