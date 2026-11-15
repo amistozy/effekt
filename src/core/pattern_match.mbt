@@ -171,10 +171,8 @@ pub fn PMClause::PMClause(
 ///|
 fn[T] pm_drop_first(xs : Array[T]) -> Array[T] {
   let out : Array[T] = []
-  let mut i = 1
-  while i < xs.length() {
+  for i in 1..<xs.length() {
     out.push(xs[i])
-    i = i + 1
   }
   out
 }
@@ -227,7 +225,7 @@ fn pm_finite_literals(tpe : ValueType) -> Array[LiteralValue]? {
 
 ///|
 fn pm_literal_index(variants : Array[LiteralValue], v : LiteralValue) -> Int32 {
-  for i = 0; i < variants.length(); i = i + 1 {
+  for i in 0..<variants.length() {
     if pm_literal_equal(variants[i], v) {
       return i
     }
@@ -248,7 +246,7 @@ pub fn pm_compile(
 ) -> Stmt raise EffektError {
   // This shouldn't be reachable anymore since we specialize matching on void
   // before calling compile.
-  if clauses.length() == 0 {
+  if clauses.is_empty() {
     return Hole([motif], Span::missing())
   }
 
@@ -263,7 +261,7 @@ pub fn pm_compile(
 
   // (1) Check the first clause to be matched (we can immediately handle
   //     non-pattern cases)
-  if head.conditions.length() == 0 {
+  if head.conditions.is_empty() {
     // - The top-most clause already matches successfully
     return App(
       BlockVar(head.label),
@@ -337,7 +335,7 @@ fn pm_split_clause(
   c : PMClause,
   scrutinee : PMVar,
 ) -> (PMPattern, Map[Int32, PMVarPattern], Array[PMCondition])? {
-  if c.conditions.length() == 0 {
+  if c.conditions.is_empty() {
     return None
   }
   match c.conditions[0] {
@@ -405,13 +403,13 @@ fn pm_split_on_literal(
             if values.any(b => pm_literal_index(variants, b) < 0) {
               defaults.push(c)
             }
-            for i = 0; i < variants.length(); i = i + 1 {
+            for i in 0..<variants.length() {
               clauses_for[i].push(c)
             }
           }
           None => {
             defaults.push(c)
-            for i = 0; i < variants.length(); i = i + 1 {
+            for i in 0..<variants.length() {
               clauses_for[i].push(c)
             }
           }
@@ -514,7 +512,7 @@ fn pm_split_on_tag(
             patterns_and_types.length(),
           )
           let vars : Array[PMVar] = []
-          for i = 0; i < patterns_and_types.length(); i = i + 1 {
+          for i in 0..<patterns_and_types.length() {
             let tpe = patterns_and_types[i].tpe
             let name = match patterns_and_types[i].pattern {
               // if it's a pattern named by the user in the program, use that name
@@ -537,7 +535,7 @@ fn pm_split_on_tag(
           None => ([] : Array[PMVar])
         }
         let nested : Map[Int32, PMVarPattern] = Map([])
-        for i = 0; i < field_vars.length(); i = i + 1 {
+        for i in 0..<field_vars.length() {
           nested.set(
             field_vars[i].id.uid(),
             PMVarPattern(field_vars[i], patterns_and_types[i].pattern),
@@ -596,7 +594,7 @@ fn pm_split_on_tag(
     branches.push(Clause(v, BlockLit::BlockLit(tparams, [], params, [], body)))
   }
 
-  let default = if defaults.length() == 0 {
+  let default = if defaults.is_empty() {
     None
   } else {
     Some(pm_compile(defaults, motif))
@@ -681,7 +679,7 @@ fn pm_normalize_conditions(
   conditions : Array[PMCondition],
   substitution : Map[Int32, PMVar],
 ) -> (Array[PMCondition], Map[Int32, PMVar]) raise EffektError {
-  if conditions.length() == 0 {
+  if conditions.is_empty() {
     return (pm_prefix(patterns, []), substitution)
   }
   let rest = pm_drop_first(conditions)
@@ -764,7 +762,7 @@ fn pm_prefix(
   patterns : Map[Int32, PMVarPattern],
   cs : Array[PMCondition],
 ) -> Array[PMCondition] {
-  if patterns.length() == 0 {
+  if patterns.is_empty() {
     cs
   } else {
     pm_prepend(PMPatterns(patterns), cs)

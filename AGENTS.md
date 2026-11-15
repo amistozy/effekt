@@ -98,6 +98,30 @@ You can browse and install extra skills here:
   `bparams.map` closures); a `match` pattern and a position with a known `Block`
   type can use the bare name.
 
+- **Write loops the way `moonbitlang/core` does.** `.reference/core` is the
+  installed standard library (a symlink to `moonbitlang/core`), kept in the repo
+  as the style reference for exactly this kind of question. A counted loop is
+  `for i in 0..<n`, not `for i = 0; i < n; i = i + 1`; the start may be any
+  expression (`for i in 1..<xs.length()`), an ignored counter is
+  `for _ in 0..<n`, and two arrays walked in lockstep are
+  `for i in 0..<a.length().min(b.length())` (not `i < a.length() && i < b.length()`).
+  Walking a collection is `for x in xs`, `for i, x in xs` with the index,
+  `for (a, b) in pairs` over tuples, `for c in s` over the characters of a
+  `String` (no `s[i].to_char()`); a state machine is
+  `for pat = init { … continue next }`. `while` stays for scans whose bound is a
+  predicate (`while i < s.length() && s[i].is_digit()`, worklists,
+  `while changed`), and for loops whose index does not advance by one.
+
+- **Ask the standard library before writing a helper.** `xs.is_empty()` (not
+  `xs.length() == 0` — the core library has 399 of the former and 28 of the
+  latter), `a.min(b)`/`a.max(b)`, `xs.last()`, `xs.rev()`, `xs.search_by(p)`,
+  `xs.sort_by(cmp)`, `xs.contains(x)`, `xs.any/all/fold`, `xs[m..n]` views with
+  `.to_array()`. A helper that only renames one of those is deleted (`min2`, the
+  `length() == 0`/`length() > 0` comparisons); what remains as a thin wrapper is
+  `array_index_of` in `src/source/parser.mbt`, whose `Int32?` result its call
+  sites match on. Loop over tuples by destructuring in the header
+  (`for (a, b) in pairs`), not by binding the pair and unpacking it inside.
+
 - **Update a record with `{ ..self, field: value }`, not a `with_*` helper.**
   MoonBit keeps the other fields, so a pass that rebuilds a node with one field
   changed (`BlockLit`, `Clause`, `BlockVar`, `BlockParam`, `ShiftInfo`, …) writes

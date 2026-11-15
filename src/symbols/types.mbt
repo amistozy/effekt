@@ -86,12 +86,12 @@ pub fn Effects::empty() -> Effects {
 
 ///|
 pub fn Effects::is_empty(self : Effects) -> Bool {
-  self.effects.length() == 0
+  self.effects.is_empty()
 }
 
 ///|
 pub fn Effects::non_empty(self : Effects) -> Bool {
-  self.effects.length() != 0
+  !self.effects.is_empty()
 }
 
 ///|
@@ -160,7 +160,7 @@ pub fn value_types_equal(a : Array[ValueType], b : Array[ValueType]) -> Bool {
   if a.length() != b.length() {
     return false
   }
-  for i = 0; i < a.length(); i = i + 1 {
+  for i in 0..<a.length() {
     if !value_type_equal(a[i], b[i]) {
       return false
     }
@@ -213,7 +213,7 @@ fn canonical_compare_value_lists(
   b : Array[ValueType],
 ) -> Int32 {
   let n = if a.length() < b.length() { a.length() } else { b.length() }
-  for i = 0; i < n; i = i + 1 {
+  for i in 0..<n {
     let c = canonical_compare_value(a[i], b[i])
     if c != 0 {
       return c
@@ -267,7 +267,7 @@ pub impl Eq for Effects with fn equal(self, other) {
 /// where a bare `Name` is interpolated (e.g. "Possible overload:
 /// effekt::infixPlus …"), not inside a type.
 fn show_type_application(name : Name, args : Array[ValueType]) -> String {
-  if args.length() == 0 {
+  if args.is_empty() {
     name.name
   } else {
     let rendered = args.map(a => "\{a}")
@@ -298,20 +298,18 @@ pub impl Show for BlockType with fn output(self, logger) {
       // prints without parentheses unless the function binds type parameters, a
       // boxed parameter is always parenthesized, and the effect set is only
       // shown when it is not empty.
-      let params = if vps.length() == 0 && bps.length() == 0 {
+      let params = if vps.is_empty() && bps.is_empty() {
         "()"
-      } else if bps.length() == 0 &&
-        vps.length() == 1 &&
-        vps[0] is BoxedType(_, _) {
+      } else if bps.is_empty() && vps.length() == 1 && vps[0] is BoxedType(_, _) {
         "(\{vps[0]})"
-      } else if bps.length() == 0 && vps.length() == 1 {
-        if tparams.length() == 0 {
+      } else if bps.is_empty() && vps.length() == 1 {
+        if tparams.is_empty() {
           "\{vps[0]}"
         } else {
           "(\{vps[0]})"
         }
       } else {
-        let value_params = if vps.length() == 0 {
+        let value_params = if vps.is_empty() {
           ""
         } else {
           "(\{vps.map(v => "\{v}").join(", ")})"
@@ -323,7 +321,7 @@ pub impl Show for BlockType with fn output(self, logger) {
         BoxedType(_, _) => "(\{ret})"
         _ => "\{ret}"
       }
-      let type_params = if tparams.length() == 0 {
+      let type_params = if tparams.is_empty() {
         ""
       } else {
         "[\{tparams.map(t => t.name().name).join(", ")}]"
@@ -339,7 +337,7 @@ pub impl Show for Effects with fn output(self, logger) {
   // Upstream: `braces(space <> hsep(effects, comma) <> space)`, i.e. `{ io }`.
   // An empty set has nothing to separate, so it prints `{}` (not `{  }`).
   let names = self.distinct().effects.map(e => "\{e}")
-  if names.length() == 0 {
+  if names.is_empty() {
     logger.write_string("{}")
   } else {
     logger.write_string("{ \{names.join(", ")} }")

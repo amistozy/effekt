@@ -122,7 +122,7 @@ test "cps.transform: an application passes metacont and continuation" {
           assert_true(id.uid() == f.uid(), msg="expected the definition of `f`")
           match body {
             @cps.App(callee, vargs, bargs, meta, cont) => {
-              assert_true(vargs.length() == 0 && bargs.length() == 0)
+              assert_true(vargs.is_empty() && bargs.is_empty())
               assert_true(
                 callee is @cps.BlockVar(_),
                 msg="expected a block variable",
@@ -216,7 +216,7 @@ test "cps.contify: a block that always returns to the same continuation becomes 
                 callee.uid() == f.uid(),
                 msg="the call becomes a jump to the continuation",
               )
-              assert_true(vargs.length() == 0)
+              assert_true(vargs.is_empty())
             }
             _ => assert_true(false, msg="expected a jump")
           }

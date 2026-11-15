@@ -32,7 +32,7 @@ pub(all) struct Source {
 ///|
 pub fn Source::Source(name : String, content : String) -> Source {
   let starts : Array[Int32] = [0]
-  for i = 0; i < content.length(); i = i + 1 {
+  for i in 0..<content.length() {
     if content[i] == '\n' {
       starts.push(i + 1)
     }

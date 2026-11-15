@@ -841,7 +841,7 @@ pub fn Captures::empty() -> Captures {
 ///|
 pub fn Captures::is_pure(self : Captures) -> Bool {
   match self {
-    CaptureSetOf(cs) => cs.length() == 0
+    CaptureSetOf(cs) => cs.is_empty()
     CaptVar(_) => false
   }
 }

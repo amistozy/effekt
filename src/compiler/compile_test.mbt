@@ -172,7 +172,7 @@ test "frontend accepts a well-typed program" {
     #|
   let messages = check_program("ok.effekt", text)
   let errors = messages.filter(m => m.severity == @util.Error)
-  assert_true(errors.length() == 0)
+  assert_true(errors.is_empty())
 }
 
 ///|
@@ -184,7 +184,7 @@ test "frontend rejects ill-typed programs" {
     #|
   let messages = check_program("bad.effekt", text)
   let errors = messages.filter(m => m.severity == @util.Error)
-  assert_true(errors.length() > 0)
+  assert_true(!errors.is_empty())
 }
 
 ///|
@@ -227,10 +227,10 @@ fn frontend_with_includes(
 test "loads and checks the standard library prelude" {
   let result = frontend_only("examples/hello.effekt")
   let errors = result.messages.filter(m => m.severity == @util.Error)
-  if errors.length() > 0 {
+  if !errors.is_empty() {
     println(@compiler.render_messages(errors))
   }
-  assert_true(errors.length() == 0)
+  assert_true(errors.is_empty())
 }
 
 ///|
@@ -259,10 +259,10 @@ test "parses a match expression" {
 test "the prelude compiles without warnings" {
   let result = frontend_only("examples/hello.effekt")
   let warnings = result.messages.filter(m => m.severity == @util.Warning)
-  if warnings.length() > 0 {
+  if !warnings.is_empty() {
     println(@compiler.render_messages(warnings))
   }
-  assert_true(warnings.length() == 0)
+  assert_true(warnings.is_empty())
 }
 
 ///|
@@ -306,10 +306,10 @@ test "an instantiated handler is recognised as used" {
     #|
   let messages = check_program("instantiated.effekt", text)
   let warnings = messages.filter(m => m.severity == @util.Warning)
-  if warnings.length() > 0 {
+  if !warnings.is_empty() {
     println(@compiler.render_messages(warnings))
   }
-  assert_true(warnings.length() == 0)
+  assert_true(warnings.is_empty())
 }
 
 ///|
@@ -333,10 +333,10 @@ test "a handler function handles a polymorphic operation" {
     #|
   let messages = check_program("handler_function.effekt", text)
   let errors = messages.filter(m => m.severity == @util.Error)
-  if errors.length() > 0 {
+  if !errors.is_empty() {
     println(@compiler.render_messages(errors))
   }
-  assert_true(errors.length() == 0)
+  assert_true(errors.is_empty())
 }
 
 ///|
@@ -356,10 +356,10 @@ test "a variable in an explicit region is a reference" {
     #|
   let messages = check_program("region_var.effekt", text)
   let errors = messages.filter(m => m.severity == @util.Error)
-  if errors.length() > 0 {
+  if !errors.is_empty() {
     println(@compiler.render_messages(errors))
   }
-  assert_true(errors.length() == 0)
+  assert_true(errors.is_empty())
 }
 
 ///|
@@ -375,10 +375,10 @@ test "a block parameter is visible inside a nested block literal" {
     #|
   let messages = check_program("ufcs_block_param.effekt", text)
   let errors = messages.filter(m => m.severity == @util.Error)
-  if errors.length() > 0 {
+  if !errors.is_empty() {
     println(@compiler.render_messages(errors))
   }
-  assert_true(errors.length() == 0)
+  assert_true(errors.is_empty())
 }
 
 ///|
@@ -399,10 +399,10 @@ test "an unsolved effect argument is solved from the declaration" {
     #|
   let messages = check_program("effect_arg.effekt", text)
   let errors = messages.filter(m => m.severity == @util.Error)
-  if errors.length() > 0 {
+  if !errors.is_empty() {
     println(@compiler.render_messages(errors))
   }
-  assert_true(errors.length() == 0)
+  assert_true(errors.is_empty())
 }
 
 ///|

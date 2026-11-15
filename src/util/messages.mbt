@@ -144,10 +144,10 @@ fn excerpt_of(span : Span) -> Excerpt? {
     1
   }
   let marker = StringBuilder()
-  for i = 0; i < pos.column - 1; i = i + 1 {
+  for _ in 0..<(pos.column - 1) {
     marker.write_string(" ")
   }
-  for i = 0; i < width; i = i + 1 {
+  for _ in 0..<width {
     marker.write_string("^")
   }
   Some({ line: pos.line, code, marker: marker.to_string(), })
@@ -156,7 +156,7 @@ fn excerpt_of(span : Span) -> Excerpt? {
 ///|
 fn spaces(count : Int32) -> String {
   let buf = StringBuilder()
-  for i = 0; i < count; i = i + 1 {
+  for _ in 0..<count {
     buf.write_string(" ")
   }
   buf.to_string()
@@ -251,7 +251,7 @@ pub fn Message::render(self : Message) -> String {
     }
     None => false
   }
-  for i = 0; i < items.length(); i = i + 1 {
+  for i in 0..<items.length() {
     let (kind, text, excerpt) = items[i]
     if i == 0 || excerpt is Some(_) || previous_excerpt {
       lines.push("")

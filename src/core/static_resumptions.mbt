@@ -1214,7 +1214,7 @@ fn jumps_to_join_leaf(
     _ => {
       let ys : Array[Sym] = result_types.map(_ => Sym::tmp_value("y"))
       let results : Array[Expr] = []
-      for i = 0; i < ys.length(); i = i + 1 {
+      for i in 0..<ys.length() {
         results.push(Expr::ValueVar(ys[i], result_types[i]))
       }
       Val(ys, leaf, jump(Return(results)))
@@ -1410,7 +1410,7 @@ fn val_with_shifts(
   match s {
     Val(ys, binding, rest) => {
       let shifts = shifts_to(prompt, binding)
-      if shifts.length() > 0 {
+      if !shifts.is_empty() {
         Some((ys, binding, rest, shifts))
       } else {
         None
@@ -1489,7 +1489,7 @@ fn reduce_rewriter(blocked : Map[Int32, Sym]) -> Rewrite {
                   if blocked.contains(param.id.uid()) {
                     None
                   } else {
-                    let capture = if lit.cparams.length() > 0 {
+                    let capture = if !lit.cparams.is_empty() {
                       lit.cparams[0]
                     } else {
                       Sym::tmp_block("promptCapt")

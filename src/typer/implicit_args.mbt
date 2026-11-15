@@ -126,7 +126,7 @@ fn[T] Typer::check_implicit(
       Some(explanation) => text = text + indent_message(explanation) + "\n"
       None => ()
     }
-    if errors.length() > 0 {
+    if !errors.is_empty() {
       text = text +
         indent_message(
           errors.map(entry => entry.content_with_notes()).join("\n"),
@@ -222,7 +222,7 @@ fn Typer::source_position_term(
     scope.imports,
     "SourcePosition",
   )
-  if candidates.length() == 0 {
+  if candidates.is_empty() {
     return None
   }
   let span = call.span.synthesized()
@@ -309,7 +309,7 @@ fn Typer::implicit_block_term(
         scope.imports,
         name,
       )
-      if candidates.length() == 0 {
+      if candidates.is_empty() {
         self.abort(call.span.synthesized(), "Could not resolve term \{name}")
       }
       let target = @source.IdRef(name, span)

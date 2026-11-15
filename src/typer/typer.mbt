@@ -652,7 +652,7 @@ fn Typer::lexical_capability(
     @symbols.BlockType::InterfaceType(c, a) => (c, a)
     _ => return None
   }
-  if self.unknowns_block(target).length() == 0 {
+  if self.unknowns_block(target).is_empty() {
     return None
   }
   let compatible : Array[Sym] = []
@@ -677,7 +677,7 @@ fn Typer::lexical_capability(
       None => ()
     }
   }
-  if compatible.length() == 0 {
+  if compatible.is_empty() {
     return None
   }
   // Several capabilities of the same effect may be in scope at once (a handler
@@ -716,7 +716,7 @@ fn Typer::unify_capability_interface(
       match self.st.u.prune_block(cap_tpe) {
         @symbols.BlockType::InterfaceType(c2, args2) =>
           if ctor == c2 && args.length() == args2.length() {
-            for i = 0; i < args.length(); i = i + 1 {
+            for i in 0..<args.length() {
               self.unify_value_types(
                 args[i],
                 args2[i],
@@ -744,7 +744,7 @@ fn Typer::capability_for(
   // lookup, because a `BindAll` frame further out would otherwise hand out a
   // fresh capability for the still-open effect, which can never be made
   // concrete.
-  if self.unknowns_block(target).length() > 0 {
+  if !self.unknowns_block(target).is_empty() {
     match self.lexical_capability(target) {
       Some(cap) => {
         // Upstream `Context.capabilityFor` checks concreteness at the request
@@ -942,7 +942,7 @@ fn Typer::without(
   caps : Captures,
   others : Array[Sym],
 ) -> Captures {
-  if others.length() == 0 {
+  if others.is_empty() {
     return caps
   }
   match caps {
@@ -978,10 +978,10 @@ pub fn Typer::require_subregion_ctx(
     return
   }
   match (from, to) {
-    (@symbols.Captures::CaptureSetOf(ls), _) if ls.length() == 0 => return
+    (@symbols.Captures::CaptureSetOf(ls), _) if ls.is_empty() => return
     (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptureSetOf(us)) => {
       let not_allowed = ls.filter(c => !us.contains(c))
-      if not_allowed.length() > 0 {
+      if !not_allowed.is_empty() {
         self.error_issue(
           "Used captures \{@symbols.Captures::CaptureSetOf(not_allowed)} are not in the allowed set \{to}",
           ctx,
@@ -1022,10 +1022,10 @@ pub fn Typer::require_subregion(
     return
   }
   match (from, to) {
-    (@symbols.Captures::CaptureSetOf(ls), _) if ls.length() == 0 => return
+    (@symbols.Captures::CaptureSetOf(ls), _) if ls.is_empty() => return
     (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptureSetOf(us)) => {
       let not_allowed = ls.filter(c => !us.contains(c))
-      if not_allowed.length() > 0 {
+      if !not_allowed.is_empty() {
         self.error(
           span,
           "Used captures \{@symbols.Captures::CaptureSetOf(not_allowed)} are not in the allowed set \{to}",
@@ -1065,7 +1065,7 @@ pub fn Typer::assert_concrete_effect(
 ) -> Unit raise EffektError {
   let eff = self.st.u.prune_block(eff)
   match self.unknowns_block(eff) {
-    us if us.length() > 0 => {
+    us if !us.is_empty() => {
       let mut msg = Message::error(
         span,
         "Effects need to be fully known, but effect \{eff}'s type parameter(s) \{us.join(", ")} could not be inferred.",
@@ -1076,7 +1076,7 @@ pub fn Typer::assert_concrete_effect(
       // `examples/neg/lexical_capability_selection_*`); an interface that still
       // has unsolved type arguments is not a hint.
       for hint in self.st.cap_scope.relevant_in_scope_for(eff) {
-        if self.unknowns_block(hint).length() == 0 {
+        if self.unknowns_block(hint).is_empty() {
           msg = msg.help(
             "Did you mean to use an operation of the concrete interface \{hint}?",
           )
@@ -1106,7 +1106,7 @@ fn Typer::assert_concrete_function(
   tpe : BlockType,
 ) -> Unit raise EffektError {
   match self.unknowns_block(tpe) {
-    us if us.length() > 0 =>
+    us if !us.is_empty() =>
       self.abort(id.span, "Cannot fully infer type for \{id.name}: \{tpe}")
     _ => ()
   }
@@ -1230,7 +1230,7 @@ pub fn typecheck(
   let rewritten = unbox_inference(module, context)
   context.set_phase("typer")
   if rewritten.defs.length() == module.defs.length() {
-    for i = 0; i < rewritten.defs.length(); i = i + 1 {
+    for i in 0..<rewritten.defs.length() {
       module.defs[i] = rewritten.defs[i]
     }
   }
@@ -1393,7 +1393,7 @@ pub fn Typer::check_main(
           effects
         )
       ) => {
-        if vparams.length() > 0 || bparams.length() > 0 {
+        if !vparams.is_empty() || !bparams.is_empty() {
           self.abort(main.decl(), "Main does not take arguments")
         }
         if effects.non_empty() {
@@ -2172,7 +2172,7 @@ fn Typer::check_expr_kind(
         @source.CallTarget::ExprTarget(callee) => {
           let hint : (Int32, ValueType)? = match expected {
             Some(t) =>
-              if bargs.length() == 0 {
+              if bargs.is_empty() {
                 Some((vargs.length(), t))
               } else {
                 None
@@ -2254,12 +2254,12 @@ fn Typer::check_expr_kind(
       for cls in clauses {
         match cls.pattern.kind {
           @source.PatternKind::MultiPattern(patterns) =>
-            for i = 0; i < patterns.length() && i < results.length(); i = i + 1 {
+            for i in 0..<patterns.length().min(results.length()) {
               let bindings = self.check_pattern(results[i].tpe, patterns[i])
               self.bind_all(bindings)
             }
           _ =>
-            if results.length() > 0 {
+            if !results.is_empty() {
               let bindings = self.check_pattern(results[0].tpe, cls.pattern)
               self.bind_all(bindings)
             }
@@ -2382,8 +2382,7 @@ fn Typer::check_guard(
 
 ///|
 fn Typer::bind_all(self : Typer, bindings : Array[(Sym, ValueType)]) -> Unit {
-  for b in bindings {
-    let (sym, tpe) = b
+  for (sym, tpe) in bindings {
     self.bind_value(sym, tpe)
   }
 }
@@ -2444,7 +2443,7 @@ fn Typer::check_pattern_kind(
         fresh_existentials.push(fresh)
         targs.push(@symbols.ValueType::ValueTypeRef(fresh))
       }
-      if fresh_existentials.length() > 0 {
+      if !fresh_existentials.is_empty() {
         // The wellformedness pass scopes exactly these parameters over the
         // clause body, so it has to know the fresh symbols.
         self.ctx.assign_pattern_existentials(pattern.uid, fresh_existentials)
@@ -2462,7 +2461,7 @@ fn Typer::check_pattern_kind(
           "Wrong number of pattern arguments, given \{patterns.length()}, expected \{vps.length()}.",
         )
       }
-      for i = 0; i < patterns.length(); i = i + 1 {
+      for i in 0..<patterns.length() {
         bindings = bindings + self.check_pattern(vps[i], patterns[i])
       }
       bindings
@@ -2968,7 +2967,7 @@ pub fn Typer::unify_value_types(
           "Argument count does not match \{tpe1} vs. \{tpe2}",
         )
       } else {
-        for i = 0; i < args1.length(); i = i + 1 {
+        for i in 0..<args1.length() {
           self.unify_value_types(
             args1[i],
             args2[i],
@@ -3092,14 +3091,14 @@ pub fn Typer::unify_block_types(
         tparams2,
         tparams1.map(t => @symbols.ValueType::ValueTypeRef(t)),
       ).compose(Substitutions::captures(params2, capts1))
-      for i = 0; i < vps1.length(); i = i + 1 {
+      for i in 0..<vps1.length() {
         self.unify_value_types(
           vps1[i],
           subst.substitute_value(vps2[i]),
           FunctionArgument(tpe1, tpe2, ctx),
         )
       }
-      for i = 0; i < bps1.length(); i = i + 1 {
+      for i in 0..<bps1.length() {
         self.unify_block_types(
           bps1[i],
           subst.substitute_block(bps2[i]),
@@ -3124,7 +3123,7 @@ pub fn Typer::unify_block_types(
       if !(c1 == c2) {
         self.error_blocks(tpe1, tpe2, TypeConstructor(ctx))
       } else {
-        for i = 0; i < args1.length() && i < args2.length(); i = i + 1 {
+        for i in 0..<args1.length().min(args2.length()) {
           self.unify_value_types(
             args1[i],
             args2[i],
@@ -3154,7 +3153,7 @@ fn same_effects(a : Array[BlockType], b : Array[BlockType]) -> Bool {
   if a.length() != b.length() {
     return false
   }
-  for i = 0; i < a.length(); i = i + 1 {
+  for i in 0..<a.length() {
     if !same_interface_type(a[i], b[i]) {
       return false
     }
@@ -3190,8 +3189,8 @@ pub fn Typer::unify_effects(
         c1 == c2 &&
         (
           same_interface_type(e1, e2) ||
-          self.unknowns_block(e1).length() > 0 ||
-          self.unknowns_block(e2).length() > 0
+          !self.unknowns_block(e1).is_empty() ||
+          !self.unknowns_block(e2).is_empty()
         )
       _ => false
     }
@@ -3218,7 +3217,7 @@ pub fn Typer::unify_effects(
   }
   let mut no_partner = false
   for entry in candidates {
-    if entry.1.length() == 0 {
+    if entry.1.is_empty() {
       no_partner = true
     }
   }
@@ -3246,14 +3245,12 @@ pub fn Typer::unify_effects(
       }
     }
   }
-  for pair in forced {
-    let (e1, e2) = pair
+  for (e1, e2) in forced {
     self.unify_block_types(e1, e2, ctx)
   }
   // If there is anything left, try progressing or defer to an existing error.
   let undecided : Array[BlockType] = []
-  for entry in candidates {
-    let (eff, pairs) = entry
+  for (eff, pairs) in candidates {
     if pairs.length() > 1 {
       let mut seen = false
       for e in undecided {
@@ -3266,7 +3263,7 @@ pub fn Typer::unify_effects(
       }
     }
   }
-  if undecided.length() > 0 {
+  if !undecided.is_empty() {
     let progress = !same_effects(
         self.st.u.prune_effects(effs1).distinct().to_list(),
         l1,
@@ -3344,8 +3341,7 @@ pub fn Typer::join(
   let mut result : ValueType? = None
   let mut first_span : Span? = None
   let mut failed = false
-  for entry in tpes_and_terms {
-    let (tpe, span) = entry
+  for (tpe, span) in tpes_and_terms {
     match result {
       None => {
         result = Some(tpe)
@@ -3405,8 +3401,7 @@ pub fn Typer::join(
   if failed {
     return joined
   }
-  for entry in tpes_and_terms {
-    let (tpe, arm_span) = entry
+  for (tpe, arm_span) in tpes_and_terms {
     ignore(arm_span)
     self.require_subtype_value(tpe, joined, Expected(tpe, joined))
   }
@@ -3475,7 +3470,7 @@ pub fn Typer::merge_value_types(
         // which is the only context `join` passes in.
         self.abort_types(old, new, ctx)
       }
-      for i = 0; i < args1.length() && i < args2.length(); i = i + 1 {
+      for i in 0..<args1.length().min(args2.length()) {
         self.unify_value_types(args1[i], args2[i], TypeConstructorArgument(ctx))
       }
       old_raw
@@ -3525,7 +3520,7 @@ fn Instantiation::without(
 ) -> Instantiation {
   let ts : Array[Sym] = []
   let ta : Array[ValueType] = []
-  for i = 0; i < self.tparams.length(); i = i + 1 {
+  for i in 0..<self.tparams.length() {
     if !tparams.contains(self.tparams[i]) {
       ts.push(self.tparams[i])
       ta.push(self.targs[i])
@@ -3533,7 +3528,7 @@ fn Instantiation::without(
   }
   let cs : Array[Sym] = []
   let ca : Array[Captures] = []
-  for i = 0; i < self.cparams.length(); i = i + 1 {
+  for i in 0..<self.cparams.length() {
     if !cparams.contains(self.cparams[i]) {
       cs.push(self.cparams[i])
       ca.push(self.cargs[i])
@@ -3574,7 +3569,7 @@ fn Typer::merge_captures(
         }
     }
   }
-  if variables.length() == 0 {
+  if variables.is_empty() {
     return @symbols.Captures::CaptureSetOf(concrete)
   }
   let v = self.fresh_capt_var("substitution")
@@ -3601,7 +3596,7 @@ fn Typer::instantiate_captures(
       let remaining : Array[Sym] = []
       for s in cs {
         let mut found = false
-        for i = 0; i < inst.cparams.length(); i = i + 1 {
+        for i in 0..<inst.cparams.length() {
           if !found && inst.cparams[i].uid() == s.uid() {
             contained.push(inst.cargs[i])
             found = true
@@ -3611,7 +3606,7 @@ fn Typer::instantiate_captures(
           remaining.push(s)
         }
       }
-      if contained.length() == 0 {
+      if contained.is_empty() {
         @symbols.Captures::CaptureSetOf(remaining)
       } else {
         self.merge_captures(contained, remaining)
@@ -3629,7 +3624,7 @@ fn Typer::instantiate_value_type(
 ) -> ValueType {
   match t {
     @symbols.ValueType::ValueTypeRef(x) => {
-      for i = 0; i < inst.tparams.length(); i = i + 1 {
+      for i in 0..<inst.tparams.length() {
         if inst.tparams[i].uid() == x.uid() {
           return inst.targs[i]
         }
@@ -3707,8 +3702,8 @@ pub fn Typer::instantiate(
         self.abort(self.focus, message)
       }
       let cparams : Array[Sym] = []
-      for i = 0; i < capts.length(); i = i + 1 {
-        match capture_param_of(capts[i]) {
+      for capt in capts {
+        match capture_param_of(capt) {
           Some(x) => cparams.push(x)
           None => cparams.push(Sym::wildcard())
         }
@@ -3950,7 +3945,7 @@ fn Typer::type_symbol_application(
 ) -> ValueType raise EffektError {
   match sym {
     @symbols.Sym::TypeParam(_) | @symbols.Sym::UnificationVar(_) =>
-      if args.length() > 0 {
+      if !args.is_empty() {
         self.abort(span, "Type parameter cannot be applied to arguments.")
       } else {
         @symbols.ValueType::ValueTypeRef(sym)
@@ -3963,7 +3958,7 @@ fn Typer::type_symbol_application(
     @symbols.Sym::Interface(_)
     | @symbols.Sym::ExternInterface(_)
     | @symbols.Sym::ErrorBlockType(_) =>
-      if args.length() == 0 {
+      if args.is_empty() {
         @symbols.ValueType::ValueTypeRef(sym)
       } else {
         // An interface used in a value position only makes sense through

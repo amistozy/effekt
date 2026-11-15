@@ -115,7 +115,7 @@ fn equal_ignoring_case(a : String, b : String) -> Bool {
   if left.length() != right.length() {
     return false
   }
-  for i = 0; i < left.length(); i = i + 1 {
+  for i in 0..<left.length() {
     if lower_code(left[i]) != lower_code(right[i]) {
       return false
     }

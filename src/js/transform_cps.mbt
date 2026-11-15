@@ -53,15 +53,6 @@ fn region_fn() -> Expr {
   Variable(JSName("REGION"))
 }
 
-///|
-fn min2(a : Int32, b : Int32) -> Int32 {
-  if a < b {
-    a
-  } else {
-    b
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Transformer context
 // ---------------------------------------------------------------------------
@@ -242,12 +233,12 @@ fn check_main_signature(
     match d {
       @core.ToplevelDef(id, @core.Block::BlockLit(lit)) =>
         if id.uid() == main.uid() {
-          if lit.vparams.length() > 0 {
+          if !lit.vparams.is_empty() {
             raise EffektError::Fatal(
               "Main does not take arguments, but takes \{lit.vparams.length()}.",
             )
           }
-          if lit.bparams.length() > 0 {
+          if !lit.bparams.is_empty() {
             let effects : Array[String] = []
             for p in lit.bparams {
               effects.push(@core.show_core_block_type(p.tpe))
@@ -330,7 +321,7 @@ pub fn compile_cps(
   for arity in arities {
     let params : Array[String] = []
     let forwarded : Array[String] = []
-    for i = 0; i < arity; i = i + 1 {
+    for i in 0..<arity {
       params.push("x\{i}")
       forwarded.push("x\{i}")
     }
@@ -491,7 +482,7 @@ fn to_js_extern(
 
 ///|
 fn show_tparams(tps : Array[Sym]) -> String {
-  if tps.length() == 0 {
+  if tps.is_empty() {
     ""
   } else {
     tps.map(t => t.name().qualified_name()).join(", ")
@@ -523,7 +514,7 @@ fn to_js_declaration(d : @core.Declaration) -> Array[Stmt] {
   match d {
     @core.DeclarationData(_, _, ctors) => {
       let out : Array[Stmt] = []
-      for i = 0; i < ctors.length(); i = i + 1 {
+      for i in 0..<ctors.length() {
         out.push(generate_constructor(ctors[i], i))
       }
       out
@@ -755,7 +746,7 @@ fn extern_inline_template(
 ) -> (Array[Sym], Template[@cps.Expr])? {
   match extern_def {
     @cps.ExternDef(_id, params, bparams, is_async, body) =>
-      if !is_async && bparams.length() == 0 {
+      if !is_async && bparams.is_empty() {
         match body {
           @cps.StringExternBody(_, template) => Some((params, template))
           @cps.Unsupported(_) => None
@@ -785,7 +776,7 @@ fn inline_extern(
   match extern_inline_template(extern_def) {
     Some((params, template)) => {
       let values : Map[Int32, @cps.Expr] = Map([])
-      for i = 0; i < min2(params.length(), args.length()); i = i + 1 {
+      for i in 0..<params.length().min(args.length()) {
         values.set(params[i].uid(), args[i])
       }
       let blocks : Map[Int32, @cps.Block] = Map([])
@@ -906,7 +897,7 @@ fn to_js_clause(
 
   let free_vars = clause.body.free()
   let extracted : Array[Stmt] = []
-  for i = 0; i < min2(clause.vparams.length(), fields.length()); i = i + 1 {
+  for i in 0..<clause.vparams.length().min(fields.length()) {
     let p = clause.vparams[i]
     if free_vars.contains(p) {
       extracted.push(
@@ -959,8 +950,7 @@ fn to_js_stmt(
           let scope_values : Array[Sym] = []
           let scope_blocks : Array[Sym] = []
           let scope_conts : Array[Sym] = []
-          for entry in ctx.scope {
-            let (_id, scoped_block) = entry
+          for (_id, scoped_block) in ctx.scope {
             match scoped_block {
               @cps.Block::BlockLit(lit) => {
                 scope_values.append(lit.vparams)
@@ -1077,7 +1067,7 @@ fn to_js_stmt(
       }
     }
     @cps.Stmt::ImpureApp(id, callee, vargs, bargs, body) =>
-      if bargs.length() == 0 {
+      if bargs.is_empty() {
         {
           run: k => {
             [js_const(name_def(id), inline_extern(callee, vargs, ctx))] +
@@ -1106,7 +1096,7 @@ fn to_js_stmt(
         None => true
         Some(_) => false
       }
-      if clauses.length() == 0 && no_default {
+      if clauses.is_empty() && no_default {
         pure([Return(effekt_call("unreachable", []))])
       } else if clauses.length() == 1 && no_default {
         let scrutinee_js = to_js_cps_expr(scrutinee, ctx)
@@ -1119,7 +1109,7 @@ fn to_js_stmt(
         for clause in clauses {
           let (tag, binding) = to_js_clause(scrutinee_js, clause, ctx)
           let stmts = binding.stmts()
-          let terminated = if stmts.length() == 0 {
+          let terminated = if stmts.is_empty() {
             false
           } else {
             match stmts[stmts.length() - 1] {
@@ -1144,7 +1134,7 @@ fn to_js_stmt(
       match ctx.direct_style {
         Some(info) if info.k.uid() == k.uid() => {
           let assigns : Array[Stmt] = []
-          for i = 0; i < min2(info.vparams.length(), vargs.length()); i = i + 1 {
+          for i in 0..<info.vparams.length().min(vargs.length()) {
             assigns.push(
               Assign(name_ref(info.vparams[i]), to_js_cps_expr(vargs[i], ctx)),
             )
@@ -1276,7 +1266,7 @@ fn to_js_stmt(
 
               // Assign the substituted arguments
               for i = 0
-                  i < min2(info.vparams.length(), vargs.length())
+                  i < info.vparams.length().min(vargs.length())
                   i = i + 1 {
                 stmts.push(
                   Assign(
@@ -1286,7 +1276,7 @@ fn to_js_stmt(
                 )
               }
               for i = 0
-                  i < min2(info.bparams.length(), bargs.length())
+                  i < info.bparams.length().min(bargs.length())
                   i = i + 1 {
                 stmts.push(
                   Assign(

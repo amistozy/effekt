@@ -28,7 +28,7 @@ pub fn middle_end(
   modules : Array[@namer.ResolvedModule],
   ctx : Context,
 ) -> (@core.ModuleDecl, Sym) raise EffektError {
-  if modules.length() == 0 {
+  if modules.is_empty() {
     ctx.abort(Span::missing(), "No module to compile.")
   }
   // 0. Bind the `infixEq` overloads used to compile literal patterns. This has
@@ -166,8 +166,7 @@ pub fn emit(
   // has already dropped the unreachable ones, so only externs that the program
   // can actually call are reported (once per distinct message).
   let reported : Array[String] = []
-  for entry in @js.take_unsupported_messages() {
-    let (span, message) = entry
+  for (span, message) in @js.take_unsupported_messages() {
     if !reported.any(m => m == message) {
       reported.push(message)
       ctx.warning(span, message)
@@ -194,7 +193,7 @@ pub fn exports_of(module : @symbols.Module) -> Array[Sym] {
 /// Finds a term by name among the exported terms of a module.
 pub fn find_exported(module : @symbols.Module, name : String) -> Sym? {
   match module.exports.terms.get(name) {
-    Some(syms) => if syms.length() == 0 { None } else { Some(syms[0]) }
+    Some(syms) => if syms.is_empty() { None } else { Some(syms[0]) }
     None => None
   }
 }
@@ -209,7 +208,7 @@ pub fn find_exported(module : @symbols.Module, name : String) -> Sym? {
 /// exported bindings (the namer opens a scope for a namespace), so the tree is
 /// walked, exactly like `Typer.check_main` does.
 pub fn find_main(modules : Array[@namer.ResolvedModule], ctx : Context) -> Sym? {
-  if modules.length() == 0 {
+  if modules.is_empty() {
     return None
   }
   let module = modules[modules.length() - 1]
@@ -257,7 +256,7 @@ fn collect_mains(
 pub fn find_infix_eqs(modules : Array[@namer.ResolvedModule]) -> Array[Sym] {
   for m in modules {
     match m.module.exports.terms.get("infixEq") {
-      Some(syms) => if syms.length() > 0 { return syms }
+      Some(syms) => if !syms.is_empty() { return syms }
       None => ()
     }
   }

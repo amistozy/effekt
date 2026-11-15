@@ -147,7 +147,7 @@ fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
         )
       }
       let new_handlers : Array[Handler] = []
-      for i = 0; i < handlers.length(); i = i + 1 {
+      for i in 0..<handlers.length() {
         let h = handlers[i]
         let cap = capabilities[i]
         new_handlers.push({
@@ -201,7 +201,7 @@ fn is_field_call(
   vargs : Array[ValueArg],
   bargs : Array[Term],
 ) -> Bool {
-  if vargs.length() != 1 || bargs.length() != 0 {
+  if vargs.length() != 1 || !bargs.is_empty() {
     return false
   }
   match ctx.symbol_of(fun.uid) {

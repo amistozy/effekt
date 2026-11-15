@@ -304,7 +304,7 @@ fn show_type_argument(
   if targs.length() == 1 {
     return showable_type(dctx, targs[0])
   }
-  if targs.length() == 0 && vargs.length() == 1 {
+  if targs.is_empty() && vargs.length() == 1 {
     return showable_type(dctx, shown_type_of(vargs[0]))
   }
   raise EffektError::Fatal(
@@ -357,7 +357,7 @@ fn is_showable(dctx : DeclarationContext, t : ValueType) -> Bool {
           } else {
             match dctx.find_data(sym) {
               Some(DeclarationData(_, tparams, constructors)) =>
-                tparams.length() == targs.length() && constructors.length() > 0
+                tparams.length() == targs.length() && !constructors.is_empty()
               _ => false
             }
           }
@@ -448,7 +448,7 @@ fn find_extern_show_def(
 fn builtin_type_name(vt : ValueType) -> String? {
   match vt {
     ValueData(sym, targs) =>
-      if targs.length() == 0 {
+      if targs.is_empty() {
         core_builtin_to_string(sym)
       } else {
         None
@@ -568,7 +568,7 @@ fn ShowContext::generate_show_instance_data(
 ) -> Toplevel? raise EffektError {
   match decl {
     DeclarationData(_, _, constructors) =>
-      if constructors.length() == 0 {
+      if constructors.is_empty() {
         None
       } else {
         let fresh_id = fresh_show_id()
@@ -612,7 +612,7 @@ fn ShowContext::generate_data_instance(
   } else {
     looked_up.length()
   }
-  for i = 0; i < n; i = i + 1 {
+  for i in 0..<n {
     self.tparam_lookup.set(data_tparams[i].uid(), looked_up[i])
   }
 
@@ -624,7 +624,7 @@ fn ShowContext::generate_data_instance(
     constructor_vparams.push(self.constructor_vparams(constr))
   }
   let clauses : Array[Clause] = []
-  for i = 0; i < constructors.length(); i = i + 1 {
+  for i in 0..<constructors.length() {
     clauses.push(
       self.constructor_clauses(dctx, constructors[i], constructor_vparams[i]),
     )
@@ -746,7 +746,7 @@ fn concat_pure(
     t_string(),
     t_string(),
   ])
-  if pures.length() == 0 {
+  if pures.is_empty() {
     Literal(LString(")"), t_string())
   } else if pures.length() == 1 {
     PureApp(infix_concat, [], [
@@ -770,7 +770,7 @@ fn field_val_stmts(
   pure_fields : Array[(Sym, Stmt)],
   concatenated : Expr,
 ) -> Stmt {
-  if pure_fields.length() == 0 {
+  if pure_fields.is_empty() {
     Return([concatenated])
   } else {
     let (id, app) = pure_fields[0]

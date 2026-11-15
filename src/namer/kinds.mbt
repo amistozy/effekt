@@ -40,7 +40,7 @@ fn wellformed_value_type(
     @symbols.ValueTypeRef(_) => ()
     @symbols.ValueTypeApp(ctor, args) => {
       let arity = value_type_constructor_arity(ctor)
-      if arity == 0 && args.length() > 0 {
+      if arity == 0 && !args.is_empty() {
         context.abort(
           span,
           "Cannot apply type \{ctor.name().name}. Type \{ctor.name().name} does not expect any arguments, but is applied to \{args.length()}.",

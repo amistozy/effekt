@@ -41,7 +41,7 @@ pub fn find_preferred(bodies : Array[ExternBody], ctx : Context) -> ExternBody? 
 
 ///|
 pub fn index_of(xs : Array[String], x : String) -> Int32? {
-  for i = 0; i < xs.length(); i = i + 1 {
+  for i in 0..<xs.length() {
     if xs[i] == x {
       return Some(i)
     }

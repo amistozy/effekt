@@ -260,8 +260,7 @@ pub fn Unification::propagate(self : Unification) -> String? {
   while changed && rounds < 200 {
     changed = false
     rounds = rounds + 1
-    for link in self.links {
-      let (a, b, filter) = link
+    for (a, b, filter) in self.links {
       // lower(a) - filter flows into lower(b)
       for c in self.lower_of(a) {
         if !filter.contains(c) && !self.lower_of(b).contains(c) {
@@ -306,7 +305,7 @@ pub fn Unification::propagate(self : Unification) -> String? {
     match self.upper.get(uid) {
       Some(up) => {
         let diff = lo.filter(c => !up.contains(c))
-        if diff.length() > 0 {
+        if !diff.is_empty() {
           // Upstream's `Constraints.checkConsistency`.
           return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
         }
@@ -328,7 +327,7 @@ pub fn Unification::require_lower(
     Some(sol) => {
       let solved = sol.to_array()
       let diff = bounds.filter(c => !solved.contains(c))
-      if diff.length() > 0 {
+      if !diff.is_empty() {
         return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
       }
       None
@@ -337,7 +336,7 @@ pub fn Unification::require_lower(
       match self.upper.get(x.uid()) {
         Some(up) => {
           let diff = bounds.filter(c => !up.contains(c))
-          if diff.length() > 0 {
+          if !diff.is_empty() {
             return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
           }
         }
@@ -367,7 +366,7 @@ pub fn Unification::require_upper(
     Some(sol) => {
       let solved = sol.to_array()
       let diff = solved.filter(c => !bounds.contains(c))
-      if diff.length() > 0 {
+      if !diff.is_empty() {
         return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
       }
       None
@@ -376,7 +375,7 @@ pub fn Unification::require_upper(
       match self.lower.get(x.uid()) {
         Some(lo) => {
           let diff = lo.filter(c => !bounds.contains(c))
-          if diff.length() > 0 {
+          if !diff.is_empty() {
             return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
           }
         }
@@ -404,7 +403,7 @@ pub fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
   match self.upper.get(x.uid()) {
     Some(up) => {
       let diff = bounds.filter(c => !up.contains(c))
-      if diff.length() > 0 {
+      if !diff.is_empty() {
         return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
       }
     }

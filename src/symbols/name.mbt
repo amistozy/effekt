@@ -26,7 +26,7 @@ pub fn Name::anon() -> Name {
 
 ///|
 pub fn Name::is_anon(self : Name) -> Bool {
-  self.path.length() == 0 && self.name == "__anon"
+  self.path.is_empty() && self.name == "__anon"
 }
 
 ///|
@@ -36,7 +36,7 @@ pub fn Name::rename(self : Name, f : (String) -> String) -> Name {
 
 ///|
 pub fn Name::qualified_name(self : Name) -> String {
-  if self.path.length() == 0 {
+  if self.path.is_empty() {
     self.name
   } else {
     "\{self.path.join("::")}::\{self.name}"
@@ -45,7 +45,7 @@ pub fn Name::qualified_name(self : Name) -> String {
 
 ///|
 pub impl Show for Name with fn output(self, logger) {
-  if self.path.length() == 0 {
+  if self.path.is_empty() {
     logger.write_string(self.name)
   } else {
     for segment in self.path {

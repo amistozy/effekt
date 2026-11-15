@@ -151,13 +151,8 @@ pub struct PrecedenceTable {
 }
 
 ///|
-fn array_index_of(xs : Array[TokenKind], x : TokenKind) -> Int32 {
-  for i = 0; i < xs.length(); i = i + 1 {
-    if xs[i] == x {
-      return i
-    }
-  }
-  -1
+fn[T : Eq] array_index_of(xs : Array[T], x : T) -> Int32? {
+  xs.search_by(y => y == x)
 }
 
 ///|
@@ -210,8 +205,7 @@ pub fn build_precedence_table() -> PrecedenceTable {
   ])
   // The operators, in the order in which they first appear.
   let ops : Array[TokenKind] = []
-  for pair in relations {
-    let (l, t) = pair
+  for (l, t) in relations {
     if !ops.contains(l) {
       ops.push(l)
     }
@@ -221,21 +215,19 @@ pub fn build_precedence_table() -> PrecedenceTable {
   }
   let n = ops.length()
   let matrix : Array[Array[Bool]] = []
-  for i = 0; i < n; i = i + 1 {
+  for _ in 0..<n {
     matrix.push(Array::make(n, false))
   }
-  for pair in relations {
-    let (l, t) = pair
-    let i = array_index_of(ops, l)
-    let j = array_index_of(ops, t)
-    if i >= 0 && j >= 0 {
-      matrix[i][j] = true
+  for (l, t) in relations {
+    match (array_index_of(ops, l), array_index_of(ops, t)) {
+      (Some(i), Some(j)) => matrix[i][j] = true
+      _ => ()
     }
   }
   // Transitive closure (Floyd-Warshall; the table is tiny).
-  for k = 0; k < n; k = k + 1 {
-    for i = 0; i < n; i = i + 1 {
-      for j = 0; j < n; j = j + 1 {
+  for k in 0..<n {
+    for i in 0..<n {
+      for j in 0..<n {
         if matrix[i][k] && matrix[k][j] {
           matrix[i][j] = true
         }
@@ -247,7 +239,7 @@ pub fn build_precedence_table() -> PrecedenceTable {
 
 ///|
 fn PrecedenceTable::is_operator(self : PrecedenceTable, op : TokenKind) -> Bool {
-  array_index_of(self.ops, op) >= 0
+  self.ops.contains(op)
 }
 
 ///|
@@ -255,8 +247,7 @@ fn PrecedenceTable::associativity(
   self : PrecedenceTable,
   op : TokenKind,
 ) -> Associativity {
-  for entry in self.assoc {
-    let (o, a) = entry
+  for (o, a) in self.assoc {
     if o == op {
       return a
     }
@@ -270,12 +261,10 @@ fn PrecedenceTable::reaches(
   a : TokenKind,
   b : TokenKind,
 ) -> Bool {
-  let i = array_index_of(self.ops, a)
-  let j = array_index_of(self.ops, b)
-  if i < 0 || j < 0 {
-    return false
+  match (array_index_of(self.ops, a), array_index_of(self.ops, b)) {
+    (Some(i), Some(j)) => self.matrix[i][j]
+    _ => false
   }
-  self.matrix[i][j]
 }
 
 ///|
@@ -370,7 +359,7 @@ fn Parser::raw_token_at(self : Parser, i : Int32) -> Token {
   if i < 0 {
     Token(0, 0, TEOF)
   } else if i >= self.tokens.length() {
-    if self.tokens.length() > 0 {
+    if !self.tokens.is_empty() {
       self.tokens[self.tokens.length() - 1]
     } else {
       Token(0, 0, TEOF)
@@ -1009,7 +998,7 @@ fn[A] interleave(xs : Array[A], ys : Array[A]) -> Array[A] {
 ///|
 fn join_strings(xs : Array[String], sep : String) -> String {
   let buf = StringBuilder()
-  for i = 0; i < xs.length(); i = i + 1 {
+  for i in 0..<xs.length() {
     if i > 0 {
       buf.write_string(sep)
     }
@@ -1021,7 +1010,7 @@ fn join_strings(xs : Array[String], sep : String) -> String {
 ///|
 fn[T] array_init(xs : Array[T]) -> Array[T] {
   let result : Array[T] = []
-  for i = 0; i < xs.length() - 1; i = i + 1 {
+  for i in 0..<(xs.length() - 1) {
     result.push(xs[i])
   }
   result
@@ -1128,7 +1117,7 @@ fn Parser::default_capture(_self : Parser, span : Span) -> CaptureSetTree {
 fn Parser::default_module_path(self : Parser) -> String {
   let name = self.source.name
   let mut start = 0
-  for i = 0; i < name.length(); i = i + 1 {
+  for i in 0..<name.length() {
     if name[i] == '/' || name[i] == '\\' {
       start = i + 1
     }
@@ -1136,7 +1125,7 @@ fn Parser::default_module_path(self : Parser) -> String {
   let base = name[start:name.length()].to_owned()
   let mut end = base.length()
   let mut found = false
-  for i = 0; i < base.length(); i = i + 1 {
+  for i in 0..<base.length() {
     if !found && base[i] == '.' {
       end = i
       found = true
@@ -1390,7 +1379,7 @@ fn Parser::val_stmt(self : Parser, in_braces : Bool) -> Stmt raise EffektError {
         )
         self.consume(TAssign)
         match pattern.kind {
-          AnyPattern(id) if guards.length() == 0 => {
+          AnyPattern(id) if guards.is_empty() => {
             let binding = self.stmt()
             let end_pos = self.pos()
             let def = mk_def(
@@ -1719,7 +1708,7 @@ fn Parser::extern_string(self : Parser, info : Info) -> Def raise EffektError {
   let ff = self.maybe_feature_flag()
   let template = self.template(() => self.expr())
   let contents = join_strings(template.strings.map(s => s.unspan), "")
-  if template.args.length() > 0 {
+  if !template.args.is_empty() {
     self.warn(
       "Splices in an extern string are not supported; use `extern def` with feature-flagged bodies instead",
       self.position,
@@ -2090,7 +2079,7 @@ fn Parser::desugar_with_patterns(
 ) -> Stmt {
   // Check if all patterns are simple variable bindings or ignored, with no
   // guards and no fallback.
-  let all_simple_vars = guards.length() == 0 &&
+  let all_simple_vars = guards.is_empty() &&
     (match fallback {
       Some(_) => false
       None => true
@@ -2122,11 +2111,11 @@ fn Parser::desugar_with_patterns(
     // Complex case: desugar to: call { case pat1, pat2, ... and guard => body; ... }
     let pattern_list = patterns.items
     let names : Array[String] = []
-    for i = 0; i < pattern_list.length(); i = i + 1 {
+    for i in 0..<pattern_list.length() {
       names.push("__withArg\{i}")
     }
     let vparams : Array[ValueParam] = []
-    for i = 0; i < pattern_list.length(); i = i + 1 {
+    for i in 0..<pattern_list.length() {
       let sp = pattern_list[i].span
       vparams.push({
         id: IdDef(names[i], sp.synthesized()),
@@ -2135,7 +2124,7 @@ fn Parser::desugar_with_patterns(
       })
     }
     let scrutinees : Array[Term] = []
-    for i = 0; i < pattern_list.length(); i = i + 1 {
+    for i in 0..<pattern_list.length() {
       let sp = pattern_list[i].span
       scrutinees.push(
         mk_term(
@@ -2572,7 +2561,7 @@ fn Parser::match_pattern(self : Parser) -> MatchPattern raise EffektError {
           TRParen,
         )
         mk_pattern(self.span(), PatternKind::TagPattern(id, args.items))
-      } else if id.path.length() == 0 {
+      } else if id.path.is_empty() {
         mk_pattern(id.span, PatternKind::AnyPattern(IdDef(id.name, id.span)))
       } else {
         self.fail("Cannot use qualified names to bind a pattern variable")
@@ -3420,11 +3409,11 @@ fn Parser::function_arg(self : Parser) -> Term raise EffektError {
           }
           // TODO fresh names should be generated for the scrutinee
           let names : Array[String] = []
-          for i = 0; i < arg_spans.length(); i = i + 1 {
+          for i in 0..<arg_spans.length() {
             names.push("__arg\{i}")
           }
           let vparams : Array[ValueParam] = []
-          for i = 0; i < arg_spans.length(); i = i + 1 {
+          for i in 0..<arg_spans.length() {
             vparams.push({
               id: IdDef(names[i], arg_spans[i].synthesized()),
               tpe: None,
@@ -3432,7 +3421,7 @@ fn Parser::function_arg(self : Parser) -> Term raise EffektError {
             })
           }
           let scrutinees : Array[Term] = []
-          for i = 0; i < arg_spans.length(); i = i + 1 {
+          for i in 0..<arg_spans.length() {
             scrutinees.push(
               mk_term(
                 arg_spans[i].synthesized(),

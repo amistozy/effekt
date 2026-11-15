@@ -77,7 +77,7 @@ fn Typer::check_expr_as_block_kind(
               Some(h) => {
                 let (arity, ret_tpe) = h
                 let vps : Array[ValueType] = []
-                for k = 0; k < arity; k = k + 1 {
+                for _ in 0..<arity {
                   vps.push(
                     @symbols.ValueType::ValueTypeRef(
                       self.fresh_type_var(
@@ -295,7 +295,7 @@ pub fn Typer::check_function_argument(
 
       // (2) check the type annotations of the parameters and bind them
       let value_types : Array[ValueType] = []
-      for i = 0; i < vparams.length(); i = i + 1 {
+      for i in 0..<vparams.length() {
         let p = vparams[i]
         let sym = self.symbol_of_def(p.id)
         let adjusted = type_subst.substitute_value(vps[i])
@@ -310,7 +310,7 @@ pub fn Typer::check_function_argument(
         value_types.push(tpe)
       }
       let block_types : Array[BlockType] = []
-      for i = 0; i < bparams.length(); i = i + 1 {
+      for i in 0..<bparams.length() {
         let p = bparams[i]
         let sym = self.symbol_of_def(p.id)
         let capture = match sym {
@@ -351,9 +351,9 @@ pub fn Typer::check_function_argument(
       ignore(capt_params)
 
       let capt_param_syms : Array[Sym] = []
-      for i = 0; i < bparams.length(); i = i + 1 {
-        match self.symbol_of_def(bparams[i].id) {
-          @symbols.Sym::BlockParam(bp) => capt_param_syms.push(bp.capture)
+      for param in bparams {
+        match self.symbol_of_def(param.id) {
+          @symbols.Sym::BlockParam(sym) => capt_param_syms.push(sym.capture)
           _ => capt_param_syms.push(Sym::capture_param(Name::local("anon")))
         }
       }
@@ -513,7 +513,7 @@ pub fn Typer::check_implementation(
     self.symbol_of_id(c.id)
   })
   let not_covered = operations.filter(o => !covered.any(c => c == o))
-  if not_covered.length() > 0 {
+  if !not_covered.is_empty() {
     let names : Array[String] = not_covered.map(o => o.name().name)
     self.error(
       implementation.span,
@@ -590,7 +590,7 @@ fn Typer::check_op_clause(
   let declared_tparams = view.tparams
   let declared_vparams = view.vparams
   let declared_bparams = view.bparams
-  if clause.tparams.length() > 0 {
+  if !clause.tparams.is_empty() {
     self.assert_arity(
       clause.span,
       "type parameters",
@@ -654,7 +654,7 @@ fn Typer::check_op_clause(
         targs + existentials,
         cparams.map(c => @symbols.Captures::CaptureSetOf([c])),
       )
-      for i = 0; i < clause.vparams.length() && i < vps.length(); i = i + 1 {
+      for i in 0..<clause.vparams.length().min(vps.length()) {
         let p = clause.vparams[i]
         let sym = self.symbol_of_def(p.id)
         let annotated = symbol_value_type(sym)
@@ -665,7 +665,7 @@ fn Typer::check_op_clause(
         }
         self.bind_value(sym, annotated.unwrap_or(vps[i]))
       }
-      for i = 0; i < clause.bparams.length() && i < bps.length(); i = i + 1 {
+      for i in 0..<clause.bparams.length().min(bps.length()) {
         let p = clause.bparams[i]
         let sym = self.symbol_of_def(p.id)
         let capture = match sym {
@@ -715,14 +715,14 @@ fn Typer::check_op_clause(
 
     // a handler implementation: we have a continuation
     Some((ret, continuation_capt)) => {
-      if clause.bparams.length() > 0 {
+      if !clause.bparams.is_empty() {
         self.error(
           clause.span,
           "Block parameters are bound by resume and not the effect operation itself",
         )
       }
-      let is_bidirectional = canonical.length() > 0 ||
-        declared_bparams.length() > 0
+      let is_bidirectional = !canonical.is_empty() ||
+        !declared_bparams.is_empty()
       let cparams_for_blocks : Array[Sym] = declared_bparams.map(p => {
         Sym::capture_param(p.name())
       })
@@ -736,7 +736,7 @@ fn Typer::check_op_clause(
         targs + existentials,
         cparams.map(c => @symbols.Captures::CaptureSetOf([c])),
       )
-      for i = 0; i < clause.vparams.length() && i < vps.length(); i = i + 1 {
+      for i in 0..<clause.vparams.length().min(vps.length()) {
         let p = clause.vparams[i]
         let sym = self.symbol_of_def(p.id)
         let annotated = symbol_value_type(sym)
@@ -926,10 +926,10 @@ fn Typer::warn_about_handlers(
       None => ()
     }
   }
-  for i = 0; i < effects.length(); i = i + 1 {
+  for i in 0..<effects.length() {
     // the same effect can be provided by several handlers; warn only once
     let mut reported = false
-    for j = 0; j < i; j = j + 1 {
+    for j in 0..<i {
       if interface_type_equal(effects[i], effects[j]) {
         reported = true
       }
@@ -940,7 +940,7 @@ fn Typer::warn_about_handlers(
     let mut count = 0
     let mut all_explicit = true
     let mut all_implicit = true
-    for j = 0; j < effects.length(); j = j + 1 {
+    for j in 0..<effects.length() {
       if interface_type_equal(effects[i], effects[j]) {
         count = count + 1
         if explicit.contains(capabilities[j]) {

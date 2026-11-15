@@ -21,7 +21,7 @@ pub fn Substitutions::types(
   values : Array[ValueType],
 ) -> Substitutions {
   let m : Map[Int32, ValueType] = Map([])
-  for i = 0; i < keys.length() && i < values.length(); i = i + 1 {
+  for i in 0..<keys.length().min(values.length()) {
     m.set(keys[i].uid(), values[i])
   }
   { values: m, captures: Map([]), }
@@ -33,7 +33,7 @@ pub fn Substitutions::captures(
   values : Array[Captures],
 ) -> Substitutions {
   let m : Map[Int32, Captures] = Map([])
-  for i = 0; i < keys.length() && i < values.length(); i = i + 1 {
+  for i in 0..<keys.length().min(values.length()) {
     m.set(keys[i].uid(), values[i])
   }
   { values: Map([]), captures: m, }
@@ -41,7 +41,7 @@ pub fn Substitutions::captures(
 
 ///|
 pub fn Substitutions::is_empty(self : Substitutions) -> Bool {
-  self.values.length() == 0 && self.captures.length() == 0
+  self.values.is_empty() && self.captures.is_empty()
 }
 
 ///|

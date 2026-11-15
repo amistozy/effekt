@@ -135,7 +135,7 @@ pub fn t_state_extract(tpe : BlockType) -> ValueType? {
 ///|
 /// The surface rendering of a type application: `Name` or `Name[A, B]`.
 fn show_type_application(name : Name, args : Array[ValueType]) -> String {
-  if args.length() == 0 {
+  if args.is_empty() {
     name.name
   } else {
     "\{name.name}[\{args.map(a => "\{a}").join(", ")}]"
@@ -175,16 +175,16 @@ pub impl Show for BlockType with fn output(self, logger) {
       // Same layout as `@symbols`' `Show` for function types: a single value
       // parameter prints without parentheses unless the function binds type
       // parameters, and block parameters follow in braces.
-      let params = if vps.length() == 0 && bps.length() == 0 {
+      let params = if vps.is_empty() && bps.is_empty() {
         "()"
-      } else if bps.length() == 0 && vps.length() == 1 {
-        if tparams.length() == 0 {
+      } else if bps.is_empty() && vps.length() == 1 {
+        if tparams.is_empty() {
           "\{vps[0]}"
         } else {
           "(\{vps[0]})"
         }
       } else {
-        let value_params = if vps.length() == 0 {
+        let value_params = if vps.is_empty() {
           ""
         } else {
           "(\{vps.map(v => "\{v}").join(", ")})"
@@ -197,7 +197,7 @@ pub impl Show for BlockType with fn output(self, logger) {
       } else {
         "(\{show_type_list(result)})"
       }
-      let type_params = if tparams.length() == 0 {
+      let type_params = if tparams.is_empty() {
         ""
       } else {
         "[\{tparams.map(t => t.name().name).join(", ")}]"
@@ -244,11 +244,11 @@ pub fn instantiate(
         )
       }
       let tsubst : Map[Int32, ValueType] = Map([])
-      for i = 0; i < tparams.length(); i = i + 1 {
+      for i in 0..<tparams.length() {
         tsubst.set(tparams[i].uid(), targs[i])
       }
       let csubst : Map[Int32, Captures] = Map([])
-      for i = 0; i < cparams.length(); i = i + 1 {
+      for i in 0..<cparams.length() {
         // A capture parameter is a (usually singleton) capture set here, while
         // upstream stores the id directly.
         for c in cparams[i].to_array() {

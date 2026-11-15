@@ -107,7 +107,7 @@ fn normalize_conds(conds : Array[Cond], index : Int32) -> Clause {
     match c {
       CPatterns(ps) => {
         let norm = normalize_patterns(ps)
-        if norm.length() > 0 {
+        if !norm.is_empty() {
           out.push(CPatterns(norm))
         }
       }
@@ -119,7 +119,7 @@ fn normalize_conds(conds : Array[Cond], index : Int32) -> Clause {
 
 ///|
 fn Clause::matches_on(self : Clause, t : Trace) -> Pat? {
-  if self.conds.length() == 0 {
+  if self.conds.is_empty() {
     return None
   }
   match self.conds[0] {
@@ -132,7 +132,7 @@ fn Clause::matches_on(self : Clause, t : Trace) -> Pat? {
 /// The clause with `t` removed from its pattern conditions: it no longer
 /// matches on that scrutinee.
 fn Clause::minus(self : Clause, t : Trace) -> Clause {
-  if self.conds.length() == 0 {
+  if self.conds.is_empty() {
     return self
   }
   match self.conds[0] {
@@ -152,7 +152,7 @@ fn Clause::minus(self : Clause, t : Trace) -> Clause {
 fn Clause::plus(self : Clause, others : Array[(Trace, Pat)]) -> Clause {
   let conds : Array[Cond] = []
   let mut start = 0
-  if self.conds.length() > 0 {
+  if !self.conds.is_empty() {
     match self.conds[0] {
       CPatterns(ps) => {
         conds.push(CPatterns(ps + others))
@@ -349,7 +349,7 @@ fn Exhaustivity::preprocess(
       if ps.length() != arity {
         return None
       }
-      for i = 0; i < ps.length(); i = i + 1 {
+      for i in 0..<ps.length() {
         patterns.push(
           (TRoot(self.scrutinees[i].uid), self.preprocess_pattern(ps[i])),
         )
@@ -382,7 +382,7 @@ fn Exhaustivity::check_scrutinees(
     self.check_scrutinee(traces[0], tpes[0], clauses)
     return
   }
-  if clauses.length() == 0 {
+  if clauses.is_empty() {
     self.missing_default(tpes[0], traces[0])
     return
   }
@@ -434,7 +434,7 @@ fn Exhaustivity::check_other(
   tpe : ValueType,
   clauses : Array[Clause],
 ) -> Unit {
-  if clauses.length() == 0 {
+  if clauses.is_empty() {
     self.missing_default(tpe, trace)
   } else {
     self.match_clauses(clauses[0], clauses[1:].to_owned())
@@ -461,7 +461,7 @@ fn Exhaustivity::check_datatype(
             } else {
               patterns.length()
             }
-            for i = 0; i < count; i = i + 1 {
+            for i in 0..<count {
               nested.push((TChild(ctor, i, trace), patterns[i]))
             }
             covered.push(cl.minus(trace).plus(nested))
@@ -470,7 +470,7 @@ fn Exhaustivity::check_datatype(
         _ => covered.push(cl)
       }
     }
-    if covered.length() == 0 {
+    if covered.is_empty() {
       self.missing_tag(ctor, trace)
     } else {
       self.match_clauses(covered[0], covered[1:].to_owned())
@@ -543,11 +543,11 @@ fn Exhaustivity::check_literal(
       for value in values {
         match covered_by(table, value) {
           Some(cs) =>
-            if cs.length() > 0 {
+            if !cs.is_empty() {
               self.match_clauses(cs[0], cs[1:].to_owned())
             }
           None =>
-            if defaults.length() == 0 {
+            if defaults.is_empty() {
               self.missing_literal(value, trace)
             } else {
               self.match_clauses(defaults[0], defaults[1:].to_owned())
@@ -556,11 +556,11 @@ fn Exhaustivity::check_literal(
       }
     None => {
       for entry in table {
-        if entry.1.length() > 0 {
+        if !entry.1.is_empty() {
           self.match_clauses(entry.1[0], entry.1[1:].to_owned())
         }
       }
-      if defaults.length() == 0 {
+      if defaults.is_empty() {
         self.missing_default(tpe, trace)
       } else {
         self.match_clauses(defaults[0], defaults[1:].to_owned())
@@ -575,7 +575,7 @@ fn Exhaustivity::match_clauses(
   head : Clause,
   alternatives : Array[Clause],
 ) -> Unit {
-  if head.conds.length() == 0 {
+  if head.conds.is_empty() {
     self.use(head.index)
     return
   }
@@ -584,14 +584,14 @@ fn Exhaustivity::match_clauses(
       // the guard is true: the rest of this clause has to match
       self.match_clauses(normalize_conds(head.rest(), head.index), alternatives)
       // the guard is false: the remaining clauses have to match
-      if alternatives.length() == 0 {
+      if alternatives.is_empty() {
         self.missing_guard(span)
       } else {
         self.match_clauses(alternatives[0], alternatives[1:].to_owned())
       }
     }
     CPatterns(patterns) =>
-      if patterns.length() == 0 {
+      if patterns.is_empty() {
         self.match_clauses(
           normalize_conds(head.rest(), head.index),
           alternatives,
@@ -630,7 +630,7 @@ fn Exhaustivity::match_clauses(
 fn constructor_pattern(ctor : Sym) -> String {
   let fields = constructor_fields(ctor)
   let name = ctor.name().name
-  if fields.length() == 0 {
+  if fields.is_empty() {
     return "\{name}()"
   }
   let parts : Array[String] = []
@@ -662,7 +662,7 @@ fn Exhaustivity::trace_to_case(
     TChild(ctor, field, outer) => {
       let fields = constructor_fields(ctor)
       let parts : Array[String] = []
-      for i = 0; i < fields.length(); i = i + 1 {
+      for i in 0..<fields.length() {
         parts.push(if i == field { acc } else { "_" })
       }
       let text = "\{ctor.name().name}(\{parts.join(", ")})"
@@ -702,7 +702,7 @@ fn Exhaustivity::report(self : Exhaustivity) -> Unit {
       }
     }
   }
-  for i = 0; i < self.clauses.length(); i = i + 1 {
+  for i in 0..<self.clauses.length() {
     if !self.used[i] {
       let clause = self.clauses[i]
       let target = match clause.pattern.kind {
@@ -745,7 +745,7 @@ fn Typer::defer_exhaustivity(
   has_default : Bool,
   span : Span,
 ) -> Unit {
-  if scrutinees.length() == 0 {
+  if scrutinees.is_empty() {
     return
   }
   for p in self.pending_matches {
@@ -772,7 +772,7 @@ fn Typer::check_pending_matches(self : Typer) -> Unit {
   for pending in self.pending_matches {
     // the committed annotations hold the final types
     let types : Array[ValueType] = []
-    for i = 0; i < pending.scrutinees.length(); i = i + 1 {
+    for i in 0..<pending.scrutinees.length() {
       let from_annotation = match
         self.ctx.value_type_of(pending.scrutinees[i].uid) {
         Some(t) => Some(t)
@@ -804,7 +804,7 @@ fn Typer::check_pending_matches(self : Typer) -> Unit {
     }
     let initial : Array[Clause] = []
     let mut arity_ok = true
-    for i = 0; i < clauses.length(); i = i + 1 {
+    for i in 0..<clauses.length() {
       match checker.preprocess(clauses[i], i) {
         Some(c) => initial.push(c)
         // the arity mismatch has already been reported while type checking

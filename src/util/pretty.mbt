@@ -129,7 +129,7 @@ pub fn punctuate(docs : Array[Doc], sep : Doc) -> Doc {
 ///|
 pub fn intercalate(seps : Array[String], docs : Array[Doc]) -> Array[Doc] {
   let out : Array[Doc] = []
-  for i = 0; i < docs.length(); i = i + 1 {
+  for i in 0..<docs.length() {
     if i > 0 && i - 1 < seps.length() {
       out.push(Text(seps[i - 1]))
     }
@@ -199,7 +199,7 @@ pub fn render_width(doc : Doc, width : Int32) -> String {
   let buf = StringBuilder()
   let mut col = 0
   let stack : Array[RenderItem] = [{ indent: 0, mode: Break, doc, }]
-  while stack.length() > 0 {
+  while !stack.is_empty() {
     let item = stack.pop().unwrap()
     match item.doc {
       Empty => ()
@@ -219,7 +219,7 @@ pub fn render_width(doc : Doc, width : Int32) -> String {
           col = col + 1
         } else {
           buf.write_string("\n")
-          for i = 0; i < item.indent; i = i + 1 {
+          for _ in 0..<item.indent {
             buf.write_string(" ")
           }
           col = item.indent
@@ -229,14 +229,14 @@ pub fn render_width(doc : Doc, width : Int32) -> String {
           ()
         } else {
           buf.write_string("\n")
-          for i = 0; i < item.indent; i = i + 1 {
+          for _ in 0..<item.indent {
             buf.write_string(" ")
           }
           col = item.indent
         }
       HardLine => {
         buf.write_string("\n")
-        for i = 0; i < item.indent; i = i + 1 {
+        for _ in 0..<item.indent {
           buf.write_string(" ")
         }
         col = item.indent
@@ -258,7 +258,7 @@ fn fits(space : Int32, doc : Doc) -> Bool {
   }
   let mut remaining = space
   let stack : Array[Doc] = [doc]
-  while stack.length() > 0 {
+  while !stack.is_empty() {
     let d = stack.pop().unwrap()
     match d {
       Empty => ()

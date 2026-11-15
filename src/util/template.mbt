@@ -25,7 +25,7 @@ pub fn[T] Template::empty() -> Template[T] {
 
 ///|
 pub fn[T] Template::is_empty(self : Template[T]) -> Bool {
-  self.args.length() == 0 && self.strings.length() <= 1
+  self.args.is_empty() && self.strings.length() <= 1
 }
 
 ///|
@@ -42,7 +42,7 @@ pub fn[T, U] Template::map(
 /// Renders a template where each argument is rendered by `f`.
 pub fn[T] Template::render(self : Template[T], f : (T) -> String) -> String {
   let buf = StringBuilder()
-  for i = 0; i < self.strings.length(); i = i + 1 {
+  for i in 0..<self.strings.length() {
     buf.write_string(self.strings[i])
     if i < self.args.length() {
       buf.write_string(f(self.args[i]))

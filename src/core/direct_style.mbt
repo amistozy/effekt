@@ -110,7 +110,7 @@ pub fn direct_style(module : ModuleDecl) -> ModuleDecl raise EffektError {
             let result_types = rewritten_binding.infer_type()
             let vparams : Array[ValueParam] = []
             // upstream zips the ids with the results, which truncates
-            for i = 0; i < ids.length() && i < result_types.length(); i = i + 1 {
+            for i in 0..<ids.length().min(result_types.length()) {
               vparams.push(ValueParam(ids[i], result_types[i]))
             }
             let joinpoint = BlockLit::BlockLit(

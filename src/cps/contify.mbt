@@ -356,14 +356,14 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
   match s {
     LetDef(id, binding, rest) =>
       match binding {
-        BlockLit(lit) if lit.bparams.length() == 0 => {
+        BlockLit(lit) if lit.bparams.is_empty() => {
           let rewritten_body = rewrite_stmt(lit.body)
           let rewritten_rest = rewrite_stmt(rest)
           let in_body = occurrences_stmt(id, rewritten_body)
           let in_rest = occurrences_stmt(id, rewritten_rest)
 
           let returns_unique = in_rest.returns_to.length() == 1
-          let is_recursive = in_body.returns_to.length() > 0
+          let is_recursive = !in_body.returns_to.is_empty()
           // a block that is also used as a value cannot become a continuation
           let escapes = in_rest.used_as_value || in_body.used_as_value
           let contifiable = returns_unique && !is_recursive && !escapes
@@ -378,7 +378,7 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
           // is free in `rest`.
           let rest_free = rewritten_rest.free()
 
-          let head = if in_rest.returns_to.length() > 0 {
+          let head = if !in_rest.returns_to.is_empty() {
             Some(in_rest.returns_to[0])
           } else {
             None

@@ -22,7 +22,7 @@ fn TypeSubst::TypeSubst(
 
 ///|
 fn TypeSubst::lookup(self : TypeSubst, key : Sym) -> ValueType? {
-  for i = 0; i < self.keys.length(); i = i + 1 {
+  for i in 0..<self.keys.length() {
     if self.keys[i].uid() == key.uid() {
       return Some(self.values[i])
     }
@@ -35,7 +35,7 @@ fn TypeSubst::lookup(self : TypeSubst, key : Sym) -> ValueType? {
 fn TypeSubst::without(self : TypeSubst, shadowed : Array[Sym]) -> TypeSubst {
   let keys : Array[Sym] = []
   let values : Array[ValueType] = []
-  for i = 0; i < self.keys.length(); i = i + 1 {
+  for i in 0..<self.keys.length() {
     if !shadowed.contains(self.keys[i]) {
       keys.push(self.keys[i])
       values.push(self.values[i])

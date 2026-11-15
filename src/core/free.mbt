@@ -52,7 +52,7 @@ pub fn Free::block(id : Sym, tpe : BlockType, capt : Captures) -> Free {
 
 ///|
 pub fn Free::is_empty(self : Free) -> Bool {
-  self.values.length() == 0 && self.blocks.length() == 0
+  self.values.is_empty() && self.blocks.is_empty()
 }
 
 ///|

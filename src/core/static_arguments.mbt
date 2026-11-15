@@ -46,7 +46,7 @@ fn[T] drop_static(static : Array[Bool], args : Array[T]) -> Array[T] {
   } else {
     args.length()
   }
-  for i = 0; i < n; i = i + 1 {
+  for i in 0..<n {
     if !static[i] {
       out.push(args[i])
     }
@@ -63,7 +63,7 @@ fn[T] select_static(static : Array[Bool], args : Array[T]) -> Array[T] {
   } else {
     args.length()
   }
-  for i = 0; i < n; i = i + 1 {
+  for i in 0..<n {
     if static[i] {
       out.push(args[i])
     }
@@ -78,9 +78,9 @@ fn is_static(found : RecursiveFunction) -> IsStatic raise EffektError {
   let lit = found.definition
   let free = lit.body.free()
   let types : Array[Bool] = []
-  for i = 0; i < lit.tparams.length(); i = i + 1 {
+  for i in 0..<lit.tparams.length() {
     let param = lit.tparams[i]
-    let mut unchanged = found.targs.length() > 0
+    let mut unchanged = !found.targs.is_empty()
     for args in found.targs {
       if i >= args.length() {
         raise EffektError::Internal(
@@ -95,9 +95,9 @@ fn is_static(found : RecursiveFunction) -> IsStatic raise EffektError {
     types.push(unchanged)
   }
   let values : Array[Bool] = []
-  for i = 0; i < lit.vparams.length(); i = i + 1 {
+  for i in 0..<lit.vparams.length() {
     let param = lit.vparams[i]
-    let mut unchanged = found.vargs.length() > 0
+    let mut unchanged = !found.vargs.is_empty()
     for args in found.vargs {
       if i >= args.length() {
         raise EffektError::Internal(
@@ -112,9 +112,9 @@ fn is_static(found : RecursiveFunction) -> IsStatic raise EffektError {
     values.push(unchanged || !free.contains(param.id))
   }
   let blocks : Array[Bool] = []
-  for i = 0; i < lit.bparams.length(); i = i + 1 {
+  for i in 0..<lit.bparams.length() {
     let param = lit.bparams[i]
-    let mut unchanged = found.bargs.length() > 0
+    let mut unchanged = !found.bargs.is_empty()
     for args in found.bargs {
       if i >= args.length() {
         raise EffektError::Internal(
@@ -225,7 +225,7 @@ fn StaticArguments::wrap_definition(
   // non-static ones are freshened, so that the static ones keep their names and
   // the worker closes over exactly those.
   let fresh_cparams : Array[Sym] = []
-  for i = 0; i < lit.cparams.length(); i = i + 1 {
+  for i in 0..<lit.cparams.length() {
     let param = lit.cparams[i]
     if static_b[i] {
       fresh_cparams.push(param)
@@ -234,7 +234,7 @@ fn StaticArguments::wrap_definition(
     }
   }
   let fresh_vparams : Array[ValueParam] = []
-  for i = 0; i < lit.vparams.length(); i = i + 1 {
+  for i in 0..<lit.vparams.length() {
     let param = lit.vparams[i]
     if static_v[i] {
       fresh_vparams.push(param)
@@ -243,7 +243,7 @@ fn StaticArguments::wrap_definition(
     }
   }
   let fresh_bparams : Array[BlockParam] = []
-  for i = 0; i < lit.bparams.length(); i = i + 1 {
+  for i in 0..<lit.bparams.length() {
     let param = lit.bparams[i]
     if static_b[i] {
       fresh_bparams.push(param)

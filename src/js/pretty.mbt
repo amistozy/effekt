@@ -58,7 +58,7 @@ fn js_block(content : Doc) -> Doc {
 ///|
 /// `jsBlock(docs)`. An empty block is printed as `{}`.
 fn js_block_docs(docs : Array[Doc]) -> Doc {
-  if docs.length() == 0 {
+  if docs.is_empty() {
     text("{}")
   } else {
     js_block(vcat(docs))
@@ -68,7 +68,7 @@ fn js_block_docs(docs : Array[Doc]) -> Doc {
 ///|
 /// `jsBlock(vsep(docs, sep))`: the documents are interleaved with `sep`.
 fn js_block_sep(docs : Array[Doc]) -> Doc {
-  if docs.length() == 0 {
+  if docs.is_empty() {
     text("{}")
   } else {
     js_block(punctuate(docs, comma()))
@@ -81,7 +81,7 @@ fn js_block_sep(docs : Array[Doc]) -> Doc {
 /// printer uses this local version.)
 fn interleave(strings : Array[String], docs : Array[Doc]) -> Array[Doc] {
   let out : Array[Doc] = []
-  for i = 0; i < strings.length(); i = i + 1 {
+  for i in 0..<strings.length() {
     out.push(text(strings[i]))
     if i < docs.length() {
       out.push(docs[i])

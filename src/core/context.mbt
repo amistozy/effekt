@@ -65,7 +65,7 @@ pub fn DeclarationContext::DeclarationContext(
   let constructors : Map[Int32, ConstructorRef] = Map([])
   let fields : Map[Int32, FieldRef] = Map([])
   let properties : Map[Int32, PropertyRef] = Map([])
-  for i = 0; i < declarations.length(); i = i + 1 {
+  for i in 0..<declarations.length() {
     match declarations[i] {
       DeclarationData(id, _, ctors) => {
         datas.set(id.uid(), i)
@@ -91,7 +91,7 @@ pub fn DeclarationContext::DeclarationContext(
   let extern_defs : Map[Int32, Int32] = Map([])
   let extern_datas : Map[Int32, Int32] = Map([])
   let extern_defs_by_name : Map[String, Int32] = Map([])
-  for i = 0; i < externs.length(); i = i + 1 {
+  for i in 0..<externs.length() {
     match externs[i] {
       ExternDef(id, _, _, _, vparams, _, _, _, _) => {
         extern_defs.set(id.uid(), i)
@@ -227,7 +227,7 @@ pub fn DeclarationContext::find_constructor_tag(
     Some(ref) =>
       match ref.data {
         DeclarationData(_, _, ctors) => {
-          for i = 0; i < ctors.length(); i = i + 1 {
+          for i in 0..<ctors.length() {
             if ctors[i].id.uid() == ref.constructor.id.uid() {
               return Some(i)
             }
@@ -271,7 +271,7 @@ pub fn DeclarationContext::find_property_tag(
     Some(ref) =>
       match ref.interface {
         DeclarationInterface(_, _, props) => {
-          for i = 0; i < props.length(); i = i + 1 {
+          for i in 0..<props.length() {
             if props[i].id.uid() == ref.property.id.uid() {
               return Some(i)
             }
@@ -450,7 +450,7 @@ pub fn QualifiedSignature::from_extern_function(
   match callable {
     None => QualifiedSignature("\{module_name}::\{f.name().name}")
     Some(c) => {
-      let tps = if c.tparams.length() == 0 {
+      let tps = if c.tparams.is_empty() {
         ""
       } else {
         "[\{c.tparams.map(t => show_core_value_type(ValueVar(t))).join(", ")}]"

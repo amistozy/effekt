@@ -154,7 +154,7 @@ fn hex_value(c : Char) -> Int32 {
 /// outside the 64 bit range are rejected, exactly like upstream's
 /// `toLongOption`.
 fn parse_int_lit(s : String) -> Int64? {
-  if s.length() == 0 {
+  if s.is_empty() {
     return None
   }
   let mut i = 0
@@ -203,7 +203,7 @@ fn parse_int_lit(s : String) -> Int64? {
 ///|
 /// Parses a decimal floating point literal `[-] digits ['.' digits]`.
 fn parse_double_lit(s : String) -> Double? {
-  if s.length() == 0 {
+  if s.is_empty() {
     return None
   }
   let mut i = 0
@@ -245,7 +245,7 @@ fn parse_byte_lit(s : String) -> Int32? {
     return None
   }
   let mut acc = 0
-  for i = 0; i < 2; i = i + 1 {
+  for i in 0..<2 {
     let u = s[i]
     if !is_hex_digit(u.to_char().unwrap_or('\u{0}')) {
       return None
@@ -263,7 +263,7 @@ fn parse_hex_int_lit(s : String) -> Int64? {
     return None
   }
   let mut acc : Int64 = 0
-  for i = 0; i < 8; i = i + 1 {
+  for i in 0..<8 {
     let u = s[i]
     if !is_hex_digit(u.to_char().unwrap_or('\u{0}')) {
       return None
@@ -365,7 +365,7 @@ fn Lexer::advance(self : Lexer) -> Char {
 
 ///|
 fn Lexer::advance_k(self : Lexer, k : Int32) -> Unit {
-  for i = 0; i < k; i = i + 1 {
+  for _ in 0..<k {
     let _ = self.advance()
   }
 }
@@ -592,12 +592,12 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
     (',', _) => self.advance_with(1, TComma)
     ('\u{0}', _) =>
       // EOF reached - provide context about unclosed constructs
-      if self.interpolation_depths.length() > 0 && self.delimiters.length() > 0 {
+      if !self.interpolation_depths.is_empty() && !self.delimiters.is_empty() {
         let depth = self.interpolation_depths.length()
         self.interpolation_depths.clear()
         self.delimiters.clear()
         TError(UnterminatedInterpolation(depth))
-      } else if self.delimiters.length() > 0 {
+      } else if !self.delimiters.is_empty() {
         let n = self.delimiters.length()
         let latest = self.delimiters[n - 1]
         self.delimiters.clear()
@@ -788,7 +788,7 @@ fn Lexer::close_string(
 /// is popped (upstream `delimiters.popWhile(_ == RawString)`): the next line is
 /// lexed as usual, and a splice that is still open is closed by its `}`.
 fn Lexer::pop_raw_strings(self : Lexer) -> Unit {
-  while self.delimiters.length() > 0 {
+  while !self.delimiters.is_empty() {
     match self.delimiters[self.delimiters.length() - 1] {
       RawString => {
         let _ = self.delimiters.pop()
@@ -824,16 +824,15 @@ fn Lexer::lex_unicode_escape(self : Lexer) -> Int32 {
 
 ///|
 fn parse_hex_int(s : String) -> Int32 {
-  if s.length() == 0 {
+  if s.is_empty() {
     return -1
   }
   let mut acc = 0
-  for i = 0; i < s.length(); i = i + 1 {
-    let u = s[i]
-    if !is_hex_digit(u.to_char().unwrap_or('\u{0}')) {
+  for u in s {
+    if !is_hex_digit(u) {
       return -1
     }
-    acc = acc * 16 + hex_value(u.to_char().unwrap_or('0'))
+    acc = acc * 16 + hex_value(u)
   }
   acc
 }

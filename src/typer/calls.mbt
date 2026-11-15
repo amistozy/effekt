@@ -93,7 +93,7 @@ pub fn Typer::check_call_to(
     @symbols.BlockType::FunctionType(tps, _, vps, bps, _, _) => (tps, vps, bps)
     _ => self.abort(span, "Expected a function type in call to \{call.name}.")
   }
-  if targs.length() > 0 && targs.length() != fun_tparams.length() {
+  if !targs.is_empty() && targs.length() != fun_tparams.length() {
     self.abort(
       span,
       "Wrong number of type arguments, given \{targs.length()} but expected \{fun_tparams.length()}",
@@ -159,8 +159,8 @@ pub fn Typer::check_call_to(
   )
 
   // provided type arguments flow into the fresh unification variables
-  if targs.length() > 0 {
-    for i = 0; i < targs.length() && i < type_args.length(); i = i + 1 {
+  if !targs.is_empty() {
+    for i in 0..<targs.length().min(type_args.length()) {
       self.match_expected(type_args[i], targs[i], None)
     }
   }
@@ -177,7 +177,7 @@ pub fn Typer::check_call_to(
   // swap, and upstream adds a sentence saying that position still matters
   // (`examples/neg/named_args_wrong`).
   let vpnames : Array[String] = known_vps.map(p => p.name().name)
-  for i = 0; i < vargs.length(); i = i + 1 {
+  for i in 0..<vargs.length() {
     match vargs[i].name {
       Some(got) =>
         if i < known_vps.length() {
@@ -208,7 +208,7 @@ pub fn Typer::check_call_to(
   let mut effs = Effects::empty()
 
   // (4) check value arguments
-  for i = 0; i < vargs.length(); i = i + 1 {
+  for i in 0..<vargs.length() {
     let res = self.check_expr(vargs[i].value, Some(inst.vparams[i]))
     effs = eff_union(effs, res.effs)
   }
@@ -304,10 +304,10 @@ pub fn Typer::check_call_to(
     effs = eff_union(effs, res.effs)
     implicit_bargs.push(term)
   }
-  if implicit_vargs.length() > 0 {
+  if !implicit_vargs.is_empty() {
     self.st.ann.impl_vargs.set(call.uid, implicit_vargs)
   }
-  if implicit_bargs.length() > 0 {
+  if !implicit_bargs.is_empty() {
     self.st.ann.impl_bargs.set(call.uid, implicit_bargs)
   }
 
@@ -324,7 +324,7 @@ pub fn Typer::check_call_to(
   self.st.ann.cap_args.set(call.uid, capabilities)
 
   let capt_params = capt_args[bargs.length() + implicit_bargs.length():].to_owned()
-  for i = 0; i < capt_params.length() && i < capabilities.length(); i = i + 1 {
+  for i in 0..<capt_params.length().min(capabilities.length()) {
     self.flows_into(
       @symbols.Captures::CaptureSetOf([capture_of_capability(capabilities[i])]),
       capt_params[i],
@@ -348,12 +348,12 @@ pub fn Typer::check_call_to(
 fn block_argument_order(bps : Array[BlockType]) -> (Array[Int32], Array[Int32]) {
   let without : Array[Int32] = []
   let with_effects : Array[Int32] = []
-  for i = 0; i < bps.length(); i = i + 1 {
+  for i in 0..<bps.length() {
     let needs_concrete_effect = match bps[i] {
       @symbols.BlockType::FunctionType(_, _, _, _, _, effs) =>
         effs.effects.any(e => {
           match e {
-            @symbols.BlockType::InterfaceType(_, args) => args.length() > 0
+            @symbols.BlockType::InterfaceType(_, args) => !args.is_empty()
             _ => false
           }
         })
@@ -383,7 +383,7 @@ fn pluralized(n : Int32, singular : String) -> String {
 /// argument" (upstream `assertArgsParamsAlign`'s `formatArgs`). The parts are
 /// already pluralized; the caller passes one per misaligned kind.
 fn format_args(parts : Array[String]) -> String {
-  if parts.length() == 0 {
+  if parts.is_empty() {
     "no arguments"
   } else if parts.length() == 1 {
     parts[0]
@@ -408,7 +408,7 @@ fn describe_args(types : Int32, values : Int32, blocks : Int32) -> String {
       "\{blocks} block argument" + (if blocks == 1 { "" } else { "s" }),
     )
   }
-  if parts.length() == 0 {
+  if parts.is_empty() {
     "no arguments"
   } else {
     parts.join(" and ")
@@ -509,8 +509,7 @@ fn Typer::try_candidates(
 ///|
 /// Reports the hints of the overload candidate that was chosen.
 fn Typer::replay_infos(self : Typer, infos : Array[(Span, String)]) -> Unit {
-  for entry in infos {
-    let (span, msg) = entry
+  for (span, msg) in infos {
     self.ctx.info_at(span, msg)
   }
 }
@@ -583,7 +582,7 @@ fn string_less(a : String, b : String) -> Bool {
   let ca = a.to_array()
   let cb = b.to_array()
   let n = if ca.length() < cb.length() { ca.length() } else { cb.length() }
-  for i = 0; i < n; i = i + 1 {
+  for i in 0..<n {
     let x = ca[i].to_int()
     let y = cb[i].to_int()
     if x != y {
@@ -678,7 +677,7 @@ pub fn Typer::check_overloaded_function_call(
       // diagnostics, each at the span it belongs to, instead of one message at
       // the call. The first one is reported last so that the abort that stops the
       // phase carries exactly the message the boundary would otherwise repeat.
-      if muted.length() == 0 {
+      if muted.is_empty() {
         self.abort(call.span, msg)
       } else {
         for i = 1; i < muted.length(); i = i + 1 {
@@ -703,7 +702,7 @@ pub fn Typer::check_overloaded_function_call(
       // `contentWithSubdiagnostics` puts them on their own indented lines.
       let explanations : Array[String] = all_failures.map(f => {
         let (sym, msg, muted) = f
-        let content = if muted.length() > 0 {
+        let content = if !muted.is_empty() {
           muted.map(m => m.content_with_notes()).join("\n")
         } else {
           msg
@@ -742,7 +741,7 @@ fn Typer::ambiguous_overload_message(
     }
   }
   let explanations : Array[String] = []
-  for i = 0; i < successes.length(); i = i + 1 {
+  for i in 0..<successes.length() {
     let sym = successes[i].0
     let name = names[i]
     let padding = " ".repeat(longest - name.length())
@@ -842,7 +841,7 @@ pub fn Typer::check_overloaded_method_call(
       None => false
     }
   })
-  if candidates.length() == 0 {
+  if candidates.is_empty() {
     self.abort(
       id.span,
       "Method \{id.name} not found for receiver of type \{recv.tpe}.",
@@ -861,19 +860,19 @@ pub fn Typer::check_overloaded_method_call(
         // provided type arguments is checked first and aborts the candidate, so
         // their consistency with the receiver is never reported on top of it
         // (`examples/neg/issue373/wrong_type_argument_arity`).
-        if targs.length() > 0 && targs.length() != tparams.length() {
+        if !targs.is_empty() && targs.length() != tparams.length() {
           self.abort(
             call.span,
             "Wrong number of type arguments, given \{targs.length()} but expected \{tparams.length()}",
           )
         }
         // manual type arguments have to be consistent with the receiver
-        if targs.length() > 0 {
-          for i = 0; i < targs.length() && i < iface_args.length(); i = i + 1 {
+        if !targs.is_empty() {
+          for i in 0..<targs.length().min(iface_args.length()) {
             self.match_expected(iface_args[i], targs[i], None)
           }
         }
-        let synth = if targs.length() > 0 {
+        let synth = if !targs.is_empty() {
           targs
         } else {
           self.fill_in_type_arguments(tparams, iface_args)
@@ -908,7 +907,7 @@ pub fn Typer::check_overloaded_method_call(
       // that was tried reports its own diagnostics, each at its span, instead of
       // one message at the call.
       [(_, msg, muted)] =>
-        if muted.length() == 0 {
+        if muted.is_empty() {
           self.abort(call.span, msg)
         } else {
           for i = 1; i < muted.length(); i = i + 1 {
@@ -930,7 +929,7 @@ fn Typer::fill_in_type_arguments(
   interface_args : Array[ValueType],
 ) -> Array[ValueType] {
   let out : Array[ValueType] = []
-  for i = 0; i < tparams.length(); i = i + 1 {
+  for i in 0..<tparams.length() {
     if i < interface_args.length() {
       out.push(interface_args[i])
     } else {

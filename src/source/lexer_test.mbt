@@ -72,7 +72,7 @@ fn kinds_with_ws(src : String) -> String {
 ///|
 fn join(parts : Array[String]) -> String {
   let buf = StringBuilder()
-  for i = 0; i < parts.length(); i = i + 1 {
+  for i in 0..<parts.length() {
     if i > 0 {
       buf.write_string(" ")
     }

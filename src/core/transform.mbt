@@ -98,7 +98,7 @@ pub fn transform_with_exports(
 /// the driver, or an `infixEq` extern declared in the module itself.
 fn find_equality_functions(module : @source.ModuleDecl) -> Array[Sym] {
   let out : Array[Sym] = pattern_equality_functions.val.copy()
-  if out.length() > 0 {
+  if !out.is_empty() {
     return out
   }
   for d in module.defs {
@@ -167,12 +167,10 @@ fn Transformer::calling_convention(
 ///|
 fn[T] array_drop(xs : Array[T], n : Int32) -> Array[T] {
   let out : Array[T] = []
-  let mut i = n
-  while i < xs.length() {
+  for i in n..<xs.length() {
     if i >= 0 {
       out.push(xs[i])
     }
-    i = i + 1
   }
   out
 }
@@ -333,7 +331,7 @@ fn Transformer::insert_bindings(
 fn Transformer::assert_no_bindings(
   self : Transformer,
 ) -> Unit raise EffektError {
-  if self.bindings.length() != 0 {
+  if !self.bindings.is_empty() {
     raise EffektError::Internal(
       "There should not be any bindings left on the toplevel! Got: \{self.bindings.length()}",
     )
@@ -646,7 +644,7 @@ fn Transformer::transform_value_type(
       ValueBoxed(self.transform_block_type(t), self.transform_captures(capt))
     @symbols.ValueType::ValueTypeRef(tvar) => ValueVar(tvar)
     @symbols.ValueType::ValueTypeApp(tc, args) =>
-      if args.length() == 0 && core_builtin_to_string(tc) == Some("Any") {
+      if args.is_empty() && core_builtin_to_string(tc) == Some("Any") {
         // We translate to Unit in core, to be consistent with coercions
         // introducing unit values.
         t_unit()
@@ -816,7 +814,7 @@ fn Transformer::transform_toplevel(
       let datatype = self.sym_of_def(d)
       let dt_tparams = self.type_constructor_tparams_of(datatype, tparams)
       let ctors_of_symbol = type_constructor_constructors(datatype)
-      let ctor_syms = if ctors_of_symbol.length() > 0 {
+      let ctor_syms = if !ctors_of_symbol.is_empty() {
         ctors_of_symbol
       } else {
         let out : Array[Sym] = []
@@ -881,7 +879,7 @@ fn Transformer::transform_toplevel(
       let interface = self.sym_of_def(d)
       let tparams = interface_tparams(interface)
       let ops_of_symbol = interface_operations(interface)
-      let op_syms = if ops_of_symbol.length() > 0 {
+      let op_syms = if !ops_of_symbol.is_empty() {
         ops_of_symbol
       } else {
         let out : Array[Sym] = []
@@ -1063,7 +1061,7 @@ fn Transformer::type_constructor_tparams_of(
   from_source : Array[@source.IdDef],
 ) -> Array[Sym] {
   let tparams = type_constructor_tparams(sym)
-  if tparams.length() > 0 {
+  if !tparams.is_empty() {
     return tparams
   }
   let out : Array[Sym] = []
@@ -1671,7 +1669,7 @@ fn Transformer::transform_as_stmt(
           )
       }
       let vsubst : Map[Int32, ValueType] = Map([])
-      for i = 0; i < universals.length(); i = i + 1 {
+      for i in 0..<universals.length() {
         if i < scrutinee_type_args.length() {
           vsubst.set(
             universals[i].uid(),
@@ -1714,7 +1712,7 @@ fn Transformer::transform_as_stmt(
 
     // Empty match (matching on Nothing)
     @source.Match(scs, cs, None) =>
-      if scs.length() == 1 && cs.length() == 0 {
+      if scs.length() == 1 && cs.is_empty() {
         let scrutinee = self.bind_expr(self.transform_as_expr(scs[0]))
         let tpe = self.inferred_type_of(tree)
         Match(scrutinee, [tpe], [], None)
@@ -1865,7 +1863,7 @@ fn Transformer::transform_match(
     scrutinees.push(self.bind_expr(self.transform_as_expr(sc)))
   }
   let clauses : Array[PMClause] = []
-  for i = 0; i < cs.length(); i = i + 1 {
+  for i in 0..<cs.length() {
     clauses.push(self.preprocess("k\{i}", scrutinees, cs[i]))
   }
   match default {
@@ -1938,7 +1936,7 @@ fn Transformer::make_function_call(
           App(BlockVar(self.block_var(sym)), targs, value_args, block_args)
       }
     Constructor(c) => {
-      if bargs.length() > 0 {
+      if !bargs.is_empty() {
         self.ctx.abort(call.span, "Constructors cannot take block arguments.")
       }
       let universals = type_constructor_tparams(c.tpe).length()
@@ -2114,7 +2112,7 @@ fn Transformer::transform_op_clause(
           }
           // (0) compute the block parameters from the type of the continuation
           let bparams : Array[BlockParam] = []
-          for i = 0; i < cps.length(); i = i + 1 {
+          for i in 0..<cps.length() {
             let tpe = if i < bps.length() {
               bps[i]
             } else {
@@ -2235,7 +2233,7 @@ fn Transformer::operation_at_callsite(
       match member {
         Operation(o) => {
           let vsubst : Map[Int32, ValueType] = Map([])
-          for idx = 0; idx < o.tparams.length(); idx = idx + 1 {
+          for idx in 0..<o.tparams.length() {
             if idx < targs.length() {
               vsubst.set(o.tparams[idx].uid(), targs[idx])
             }
@@ -2324,7 +2322,7 @@ fn capture_param_of_type(t : @symbols.BlockType) -> Sym {
 fn capture_of_captures(c : Captures) -> Sym {
   match c {
     CaptureSetOf(cs) =>
-      if cs.length() > 0 {
+      if !cs.is_empty() {
         cs[0]
       } else {
         Sym::capture_param(Name::anon())
@@ -2355,7 +2353,7 @@ fn Transformer::preprocess(
   let patterns : Array[ScrutineePattern] = []
   match clause.pattern.kind {
     @source.MultiPattern(ps) =>
-      for i = 0; i < scs.length() && i < ps.length(); i = i + 1 {
+      for i in 0..<scs.length().min(ps.length()) {
         patterns.push({ scrutinee: scs[i], pattern: ps[i], })
       }
     _ =>
@@ -2409,7 +2407,7 @@ fn Transformer::preprocess_patterns(
   }
 
   let conditions : Array[PMCondition] = []
-  if transformed_patterns.length() > 0 {
+  if !transformed_patterns.is_empty() {
     conditions.push(PMPatterns(transformed_patterns))
   }
   for g in guards {
@@ -2538,7 +2536,7 @@ fn Transformer::equals_for(
   for sym in self.eq_functions {
     match sym.annotated_type() {
       Some(@symbols.BlockType::FunctionType(tparams, _, vps, bps, ret, _)) =>
-        if bps.length() == 0 &&
+        if bps.is_empty() &&
           vps.length() == 2 &&
           @symbols.value_type_equal(ret, @symbols.t_bool()) {
           // specialized version: (T, T) => Bool

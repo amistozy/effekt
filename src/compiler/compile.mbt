@@ -236,7 +236,7 @@ fn collect_order(
     return true
   }
   let mut on_stack = -1
-  for i = 0; i < stack.length(); i = i + 1 {
+  for i in 0..<stack.length() {
     if stack[i].source == source {
       on_stack = i
     }
@@ -399,7 +399,7 @@ pub fn normalize_separators(p : String) -> String {
 pub fn module_path_of(file : String) -> String {
   let normalized = normalize_separators(file)
   let segments = normalized.split("/").map(s => s.to_owned()).collect()
-  let last = if segments.length() == 0 {
+  let last = if segments.is_empty() {
     normalized
   } else {
     segments[segments.length() - 1]

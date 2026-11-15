@@ -159,7 +159,7 @@ pub fn Typer::check_no_capture_escape(
   msg : String,
 ) -> Unit {
   let escaping = free.filter(c => bound.contains(c))
-  if escaping.length() > 0 {
+  if !escaping.is_empty() {
     self.error(
       span,
       "\{msg} Escaping: \{@symbols.Captures::CaptureSetOf(escaping)}",
@@ -318,7 +318,7 @@ fn Typer::wf_check(
   let escaping = self
     .free_captures_of(tpe)
     .filter(c => !scope.captures.contains(c))
-  if escaping.length() == 0 {
+  if escaping.is_empty() {
     return
   }
   let message = if escaping.length() == 1 {
@@ -348,7 +348,7 @@ fn Typer::wf_check_types(
   let escaping = free_types_value(tpe, [])
     .filter(t => !self.st.u.is_type_var(t))
     .filter(t => !scope.types.contains(t))
-  if escaping.length() == 0 {
+  if escaping.is_empty() {
     return
   }
   let message = if escaping.length() == 1 {
@@ -444,7 +444,7 @@ fn Typer::wf_check_handled(
   let escaping = self
     .free_captures_of(tpe)
     .filter(c => !scope.captures.contains(c))
-  if escaping.length() == 0 {
+  if escaping.is_empty() {
     return
   }
   if escaping.any(c => bound.contains(c)) {
@@ -578,7 +578,7 @@ fn Typer::wf_stmt(self : Typer, s : Stmt, scope : WFScope) -> Unit {
                   "Local variable \{id.name} escapes through the returned value of type \{tpe}.",
                 )
                 self.wf_aborted = true
-              } else if escaping.length() > 0 {
+              } else if !escaping.is_empty() {
                 let message = if escaping.length() == 1 {
                   "Capture \{escaping[0].name().name} escapes through type \{tpe} inferred as return type."
                 } else {
@@ -753,7 +753,7 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
           let escaping = self
             .free_captures_of(tpe)
             .filter(c => capture.contains(c))
-          if escaping.length() > 0 {
+          if !escaping.is_empty() {
             self.error(
               body.span,
               "The return type \{tpe} of the region body is not allowed to refer to region \{id.name}.",

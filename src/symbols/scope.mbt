@@ -162,7 +162,7 @@ fn[T] qualified_first(
   bindings : Bindings,
   select : (Bindings) -> T? raise EffektError,
 ) -> T? raise EffektError {
-  if path.length() == 0 {
+  if path.is_empty() {
     select(bindings)
   } else {
     match bindings.namespaces.get(path[0]) {
@@ -197,7 +197,7 @@ fn[T] qualified_all(
   bindings : Bindings,
   select : (Bindings) -> T,
 ) -> Array[T] {
-  if path.length() == 0 {
+  if path.is_empty() {
     [select(bindings)]
   } else {
     match bindings.namespaces.get(path[0]) {
@@ -235,7 +235,7 @@ pub fn Scoping::lookup_first_term_option(
       Some(syms) =>
         if syms.length() > 1 {
           raise EffektError::Fatal("Ambiguous reference to \{name}")
-        } else if syms.length() == 0 {
+        } else if syms.is_empty() {
           None
         } else {
           Some(syms[0])
@@ -280,7 +280,7 @@ pub fn Scoping::lookup_overloaded_method(
 ) -> Array[Array[Sym]] {
   all(path, self.scope, b => {
     b.terms.get(name).unwrap_or([]).filter(s => s.is_operation())
-  }).filter(ns => ns.length() > 0)
+  }).filter(ns => !ns.is_empty())
 }
 
 ///|
@@ -298,7 +298,7 @@ pub fn Scope::lookup_term_option(
       Some(syms) =>
         if syms.length() > 1 {
           raise EffektError::Fatal("Ambiguous reference to \{name}")
-        } else if syms.length() == 0 {
+        } else if syms.is_empty() {
           None
         } else {
           Some(syms[0])
@@ -319,7 +319,7 @@ pub fn Scope::lookup_functions(
     .get(name)
     .unwrap_or([])
     .filter(s => s.is_callable() && !s.is_operation())
-  }).filter(ns => ns.length() > 0)
+  }).filter(ns => !ns.is_empty())
 }
 
 ///|
@@ -342,7 +342,7 @@ pub fn lookup_term_in_scope(
         Some(syms) =>
           if syms.length() > 1 {
             raise EffektError::Fatal("Ambiguous reference to \{name}")
-          } else if syms.length() == 0 {
+          } else if syms.is_empty() {
             None
           } else {
             Some(syms[0])
@@ -398,7 +398,7 @@ pub fn lookup_functions_in_scope(
     .get(name)
     .unwrap_or([])
     .filter(s => s.is_callable() && !s.is_operation())
-  if imported.length() > 0 {
+  if !imported.is_empty() {
     groups + [imported]
   } else {
     groups
@@ -413,7 +413,7 @@ pub fn Scoping::lookup_operation(
 ) -> Array[Array[Sym]] {
   all(path, self.scope, b => {
     b.terms.get(name).unwrap_or([]).filter(s => s.is_operation())
-  }).filter(ns => ns.length() > 0)
+  }).filter(ns => !ns.is_empty())
 }
 
 ///|
@@ -427,7 +427,7 @@ pub fn Scoping::lookup_function(
     .get(name)
     .unwrap_or([])
     .filter(s => s.is_callable() && !s.is_operation())
-  }).filter(ns => ns.length() > 0)
+  }).filter(ns => !ns.is_empty())
 }
 
 ///|

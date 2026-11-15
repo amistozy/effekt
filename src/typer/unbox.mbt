@@ -145,7 +145,7 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
             ).help("Use `box \{name}` to pass it as a value.")
             let error = match s {
               @symbols.Sym::UserFunction(f) =>
-                if f.vparams.length() == 0 && f.bparams.length() == 0 {
+                if f.vparams.is_empty() && f.bparams.is_empty() {
                   error.help(
                     "Did you mean to call the function using `\{name}()`?",
                   )
@@ -156,7 +156,7 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
                 // A block parameter of nullary function type: `{ f: () => A }`
                 match bp.tpe {
                   Some(@symbols.BlockType::FunctionType(_, _, vps, bps, _, _)) =>
-                    if vps.length() == 0 && bps.length() == 0 {
+                    if vps.is_empty() && bps.is_empty() {
                       error.help(
                         "Did you mean to call the function using `\{name}()`?",
                       )

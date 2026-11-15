@@ -381,7 +381,7 @@ fn and_return(s : Stmt, current : Expr) -> Stmt raise EffektError {
   let result_types = s.infer_type()
   let results : Array[Sym] = result_types.map(_ => Sym::id(Name::local("r")))
   let returns : Array[Expr] = []
-  for i = 0; i < results.length(); i = i + 1 {
+  for i in 0..<results.length() {
     returns.push(Expr::ValueVar(results[i], result_types[i]))
   }
   returns.push(current)
@@ -393,7 +393,7 @@ fn and_return(s : Stmt, current : Expr) -> Stmt raise EffektError {
 fn drop_state(s : Stmt, tpe : Array[ValueType], ref : Sym) -> Stmt {
   let results : Array[Sym] = tpe.map(_ => Sym::id(Name::local("r")))
   let returns : Array[Expr] = []
-  for i = 0; i < results.length(); i = i + 1 {
+  for i in 0..<results.length() {
     returns.push(Expr::ValueVar(results[i], tpe[i]))
   }
   Val(results + [Sym::id(ref.name())], s, Return(returns))

@@ -145,7 +145,7 @@ fn run_typecheck(
       errors.push(m.render())
     }
   }
-  if errors.length() > 0 {
+  if !errors.is_empty() {
     let message =
       $|type checking reported errors:
       $|\{errors.join("\n")}
@@ -902,7 +902,7 @@ fn extern_fn(
   })
   ctx.assign_symbol(id.uid, sym)
   let tree_params : Array[@source.ValueParam] = []
-  for i = 0; i < vparams.length(); i = i + 1 {
+  for i in 0..<vparams.length() {
     let t = params[i].1
     tree_params.push(
       value_param(
@@ -949,8 +949,7 @@ fn user_fn(
   })
   ctx.assign_symbol(id.uid, sym)
   let tree_params : Array[@source.ValueParam] = []
-  for p in params {
-    let (n, _, t) = p
+  for (n, _, t) in params {
     tree_params.push(
       value_param(
         @source.IdDef(n, test_span()),

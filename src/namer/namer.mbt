@@ -178,7 +178,7 @@ fn[T] Namer::in_namespace_path(
   path : Array[String],
   f : () -> T raise EffektError,
 ) -> T raise EffektError {
-  if path.length() == 0 {
+  if path.is_empty() {
     f()
   } else {
     self.in_namespace(path[0], () => {
@@ -319,7 +319,7 @@ fn[T] in_bindings(
   path : Array[String],
   select : (Bindings) -> T? raise EffektError,
 ) -> T? raise EffektError {
-  if path.length() == 0 {
+  if path.is_empty() {
     select(bindings)
   } else {
     match bindings.get_namespace(path[0]) {
@@ -352,7 +352,7 @@ fn Namer::lookup_paths(
   if path.length() < ns.length() {
     return [path]
   }
-  for i = 0; i < ns.length(); i = i + 1 {
+  for i in 0..<ns.length() {
     if path[i] != ns[i] {
       return [path]
     }
@@ -383,7 +383,7 @@ fn Namer::lookup_term(
               Some(syms) =>
                 if syms.length() > 1 {
                   raise EffektError::Fatal("Ambiguous reference to \{name}")
-                } else if syms.length() == 0 {
+                } else if syms.is_empty() {
                   None
                 } else {
                   Some(syms[0])
@@ -470,7 +470,7 @@ fn Namer::lookup_overloaded(
   filter : (Sym) -> Bool,
 ) -> Array[Array[Sym]] raise EffektError {
   let mut result = self.lookup_overloaded_at(path, name, filter)
-  if result.all(group => group.length() == 0) {
+  if result.all(group => group.is_empty()) {
     let paths = self.lookup_paths(path)
     if paths.length() > 1 {
       result = self.lookup_overloaded_at(paths[1], name, filter)
@@ -488,7 +488,7 @@ fn Namer::lookup_operation(
 ) -> Array[Array[Sym]] raise EffektError {
   self
   .lookup_overloaded(path, name, sym => sym.is_operation())
-  .filter(group => group.length() > 0)
+  .filter(group => !group.is_empty())
 }
 
 ///|
@@ -500,7 +500,7 @@ fn Namer::lookup_function(
 ) -> Array[Array[Sym]] raise EffektError {
   self
   .lookup_overloaded(path, name, sym => sym.is_callable() && !sym.is_operation())
-  .filter(group => group.length() > 0)
+  .filter(group => !group.is_empty())
 }
 
 ///|
@@ -513,7 +513,7 @@ fn Namer::lookup_first_block_param(
 ) -> Array[Sym] raise EffektError {
   for p in self.lookup_paths(path) {
     let local = self.scoping.lookup_first_block_param(p, name)
-    if local.length() > 0 {
+    if !local.is_empty() {
       return local
     }
     let imported = in_bindings(self.imports, p, bindings => {
@@ -531,7 +531,7 @@ fn Namer::lookup_first_block_param(
       }
     })
     match imported {
-      Some(params) => if params.length() > 0 { return params }
+      Some(params) => if !params.is_empty() { return params }
       None => ()
     }
   }
@@ -556,7 +556,7 @@ fn Namer::name_for(self : Namer, id : IdDef) -> Name {
     None => []
   }
   let full = prefix + id.path
-  if full.length() == 0 {
+  if full.is_empty() {
     Name::local(id.name)
   } else {
     Name::qualified(full, id.name)
@@ -1102,7 +1102,7 @@ fn Namer::resolve_fields(
     params.map(p => self.resolve_nonfunction_value_param(p))
   })
   let fields : Array[Sym] = []
-  for i = 0; i < params.length(); i = i + 1 {
+  for i in 0..<params.length() {
     let param_tree = params[i]
     let field_id = clone_id_def(param_tree.id)
     let field = mk_field(
@@ -1525,7 +1525,7 @@ fn Namer::resolve_clause(
         )
       }
       let cs = self.all_constructors_for(name)
-      if cs.length() > 0 {
+      if !cs.is_empty() {
         self.context.warning(
           clause.span,
           "Pattern binds variable \{name.name}. Maybe you meant to match on equally named constructor of type \{constructor_type_text(cs[0])}?",
@@ -1681,8 +1681,7 @@ fn Namer::check_implicit_flags(
   level : RequirementLevel,
 ) -> Unit {
   let mut current = level
-  for flag in flags {
-    let (is_implicit, name, span) = flag
+  for (is_implicit, name, span) in flags {
     let text = match span.text() {
       Some(t) => t
       None => name
@@ -1780,12 +1779,12 @@ fn Namer::resolve_overloaded_operation(
   id : IdRef,
 ) -> Bool raise EffektError {
   let syms = self.lookup_operation(id.path, id.name)
-  let syms2 = if syms.length() == 0 {
+  let syms2 = if syms.is_empty() {
     self.lookup_function(id.path, id.name)
   } else {
     syms
   }
-  if syms2.length() > 0 {
+  if !syms2.is_empty() {
     self.context.assign_symbol(id.uid, @symbols.Sym::call_target(syms2))
     true
   } else {
@@ -1801,19 +1800,19 @@ fn Namer::resolve_overloaded_function(
   id : IdRef,
 ) -> Bool raise EffektError {
   let syms = self.lookup_function(id.path, id.name)
-  let syms2 = if syms.length() == 0 {
+  let syms2 = if syms.is_empty() {
     self.lookup_operation(id.path, id.name)
   } else {
     syms
   }
   // Lookup the first block parameter and do not collect multiple since we do
   // not (yet?) permit overloading on block parameters.
-  let syms3 = if syms2.length() == 0 {
+  let syms3 = if syms2.is_empty() {
     [self.lookup_first_block_param(id.path, id.name)]
   } else {
     syms2
   }
-  if syms3.length() > 0 {
+  if !syms3.is_empty() {
     self.context.assign_symbol(id.uid, @symbols.Sym::call_target(syms3))
     true
   } else {
@@ -1836,7 +1835,7 @@ fn Namer::resolve_function_calltarget(
       sym
     }
     BlockTargets(blocks) => {
-      if blocks.length() == 0 {
+      if blocks.is_empty() {
         let ops = flatten_syms(self.lookup_operation(id.path, id.name))
         // The operations of the same name are *help* items of the error, not
         // diagnostics of their own (upstream's
@@ -1868,7 +1867,7 @@ fn Namer::resolve_select(self : Namer, id : IdRef) -> Sym raise EffektError {
       _ => false
     }
   })
-  if syms.length() == 0 {
+  if syms.is_empty() {
     self.context.abort(id.span, "Cannot resolve field access \{id_text(id)}")
   }
   let sym = @symbols.Sym::call_target(syms)
@@ -1883,7 +1882,7 @@ fn Namer::resolve_effect_call(
   id : IdRef,
 ) -> Sym raise EffektError {
   let syms = self.lookup_operation(id.path, id.name)
-  if syms.length() == 0 {
+  if syms.is_empty() {
     self.context.abort(
       id.span,
       "Cannot resolve effect operation \{id_text(id)}",
@@ -1914,14 +1913,14 @@ fn Namer::resolve_target_candidates(
 ) -> TargetResolution raise EffektError {
   for terms in candidates {
     // Should not occur by construction.
-    if terms.length() == 0 {
+    if terms.is_empty() {
       continue
     }
     if terms.all(sym => is_block_target(sym)) {
       let blocks : Array[Array[Sym]] = []
       for group in candidates {
         let bs = group.filter(sym => sym.is_block_symbol())
-        if bs.length() > 0 {
+        if !bs.is_empty() {
           blocks.push(bs)
         }
       }
@@ -2073,7 +2072,7 @@ fn Namer::resolve_value_type(
                 args.map(a => self.resolve_value_type(a, false)),
               )
             } else if sym.is_type_var() {
-              if args.length() > 0 {
+              if !args.is_empty() {
                 self.context.abort(
                   t.span,
                   "Type variables cannot be applied, but received \{args.length()} arguments.",
@@ -2221,7 +2220,7 @@ fn Namer::resolve_function_type(
           // One capture parameter per block parameter, then one per effect.
           let caps : Array[Sym] = []
           let bps : Array[BlockType] = []
-          for i = 0; i < bparams.length(); i = i + 1 {
+          for i in 0..<bparams.length() {
             let (id, btype) = bparams[i]
             let name = match id {
               Some(i) => name_of_id(i)
@@ -2319,7 +2318,7 @@ fn Namer::resolve_block_ref(
 ) -> BlockType raise EffektError {
   self.resolving_block_type(tpe, t => {
     let resolved = self.resolve_with_aliases(t)
-    if resolved.length() == 0 {
+    if resolved.is_empty() {
       self.context.abort(
         t.span,
         "Expected a single interface type, not an empty effect set.",
@@ -2386,7 +2385,7 @@ fn Namer::resolve_capture_set(
 /// the enclosing definitions, disambiguated by a counter that increments in
 /// depth-first order as the namer traverses the syntax tree.
 fn Namer::fresh_hole_id(self : Namer) -> String {
-  let prefix = if self.parent_definitions.length() == 0 {
+  let prefix = if self.parent_definitions.is_empty() {
     "hole"
   } else {
     let parts : Array[String] = []
@@ -2462,7 +2461,7 @@ fn describe_type(t : TypeTree) -> String {
 ///|
 fn pretty_source_effect_set(effects : Array[TypeTree]) -> String {
   let texts = effects.map(e => tree_text(e))
-  if texts.length() == 0 {
+  if texts.is_empty() {
     "{}"
   } else if texts.length() == 1 {
     texts[0]

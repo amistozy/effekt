@@ -385,7 +385,7 @@ fn Normalizer::moves_a_scope_into_a_prompt(
   ctx : NormCtx,
 ) -> Bool {
   let _ = self
-  ctx.prompts.length() > 0 && installs_scope(site.callee.body)
+  !ctx.prompts.is_empty() && installs_scope(site.callee.body)
 }
 
 ///|
@@ -445,7 +445,7 @@ fn Normalizer::carries_an_operation_to_its_handler(
   ctx : NormCtx,
   carrying_limit : Int32,
 ) -> Bool raise EffektError {
-  site.bargs.length() > 0 &&
+  !site.bargs.is_empty() &&
   site.callee.body.size() <= carrying_limit &&
   site.bargs.any(barg => {
     match self.known_and_used_once(barg, ctx) {
@@ -483,7 +483,7 @@ fn Normalizer::discount(
   } else {
     site.vargs.length()
   }
-  for i = 0; i < count; i = i + 1 {
+  for i in 0..<count {
     let arg = self.active_expr(site.vargs[i], ctx)
     match arg {
       Literal(_, _) | Make(_, _, _, _) =>
@@ -491,7 +491,7 @@ fn Normalizer::discount(
       _ => ()
     }
   }
-  if known.length() == 0 {
+  if known.is_empty() {
     0
   } else {
     dead_branches(known, site.callee.body)
@@ -636,8 +636,7 @@ fn Normalizer::rewrite_stmt(
             ),
           )
           let mut inner = ctx.with_block(id, forwarding)
-          for entry in lifted {
-            let (method, literal, _) = entry
+          for (method, literal, _) in lifted {
             inner = inner.with_block(method.id, BlockLit(literal))
           }
           let rest = self.rewrite_stmt(body, inner)
@@ -834,7 +833,7 @@ fn Normalizer::rewrite_stmt(
       Reset(
         self.rewrite_block_lit(
           body,
-          if body.bparams.length() > 0 {
+          if !body.bparams.is_empty() {
             ctx.enter_prompt(body.bparams[0].id)
           } else {
             ctx
@@ -1457,7 +1456,7 @@ fn adjust_type_args(
     return targs
   }
   let out : Array[ValueType] = []
-  for i = 0; i < count; i = i + 1 {
+  for i in 0..<count {
     if i < targs.length() {
       out.push(targs[i])
     } else {

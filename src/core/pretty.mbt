@@ -141,7 +141,7 @@ fn d_value_type(t : ValueType) -> Doc {
   match t {
     ValueVar(id) => doc_cat(text("'"), d_id(id))
     ValueData(symbol, targs) =>
-      if targs.length() == 0 {
+      if targs.is_empty() {
         d_id(symbol)
       } else {
         doc_cat(d_id(symbol), brackets_list(targs.map(d_value_type)))
@@ -177,7 +177,7 @@ fn d_block_type(t : BlockType) -> Doc {
         bparams.length()
       }
       let bps : Array[Doc] = []
-      for i = 0; i < n; i = i + 1 {
+      for i in 0..<n {
         bps.push(
           braces_inner(
             doc_cat(
@@ -203,7 +203,7 @@ fn d_block_type(t : BlockType) -> Doc {
       )
     }
     InterfaceType(symbol, targs) =>
-      if targs.length() == 0 {
+      if targs.is_empty() {
         d_id(symbol)
       } else {
         doc_cat(d_id(symbol), brackets_list(targs.map(d_value_type)))
@@ -238,7 +238,7 @@ fn d_captures(capt : Captures) -> Doc {
 
 ///|
 fn d_type_params(tps : Array[Sym]) -> Doc {
-  if tps.length() == 0 {
+  if tps.is_empty() {
     empty_doc()
   } else {
     brackets_list(tps.map(tp => doc_cat(text("'"), d_id(tp))))
@@ -258,11 +258,11 @@ fn d_params(
 ) -> Doc {
   let tps_doc = d_type_params(tps)
   let vps_doc = parens_list(vps.map(d_value_param))
-  let bps_doc = if bps.length() == 0 {
+  let bps_doc = if bps.is_empty() {
     empty_doc()
   } else {
     let docs : Array[Doc] = []
-    for i = 0; i < bps.length(); i = i + 1 {
+    for i in 0..<bps.length() {
       let cp = if i < cps.length() { Some(cps[i]) } else { None }
       docs.push(d_block_param_with_capture(bps[i], cp))
     }
@@ -303,13 +303,13 @@ fn d_args(
   vargs : Array[Expr],
   bargs : Array[Block],
 ) -> Doc {
-  let targs_doc = if targs.length() == 0 {
+  let targs_doc = if targs.is_empty() {
     empty_doc()
   } else {
     brackets_list(targs.map(d_value_type))
   }
   let vargs_doc = parens_list(vargs.map(d_expr))
-  let bargs_doc = if bargs.length() == 0 {
+  let bargs_doc = if bargs.is_empty() {
     empty_doc()
   } else {
     hsep(bargs.map(b => braces_inner(d_block_no_braces(b))))
@@ -596,7 +596,7 @@ fn d_block_lit(lit : BlockLit) -> Doc {
 
 ///|
 fn d_match_clauses(clauses : Array[Clause]) -> Doc {
-  if clauses.length() == 0 {
+  if clauses.is_empty() {
     text("{}")
   } else {
     let docs : Array[Doc] = []
@@ -638,7 +638,7 @@ fn d_type_template(
   decls : Array[Doc],
 ) -> Doc {
   let tps = d_type_params(tparams)
-  let body = if decls.length() == 0 {
+  let body = if decls.is_empty() {
     text("{}")
   } else {
     braced_block(vsep(decls))
@@ -674,13 +674,13 @@ fn d_flag(ff : FeatureFlag) -> Doc {
 
 ///|
 fn d_template(t : Template[Expr]) -> Doc {
-  let head = if t.strings.length() == 0 {
+  let head = if t.strings.is_empty() {
     text("\"\"\"\"\"\"")
   } else {
     string_literal(t.strings[0])
   }
   let mut doc = head
-  for i = 0; i < t.args.length(); i = i + 1 {
+  for i in 0..<t.args.length() {
     let s = if i + 1 < t.strings.length() { t.strings[i + 1] } else { "" }
     doc = doc_cat(
       doc,
@@ -817,7 +817,7 @@ fn d_module(m : ModuleDecl) -> Doc {
   let exports = vsep(
     m.exports.map(id => doc_spacecat(text("export"), d_id(id))),
   )
-  let tail = if m.exports.length() == 0 {
+  let tail = if m.exports.is_empty() {
     empty_doc()
   } else {
     doc_cat(emptyline(), exports)

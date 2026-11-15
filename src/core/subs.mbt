@@ -117,7 +117,7 @@ pub fn substitute_captures_with(
   capt : Captures,
   csubst : Map[Int32, Captures],
 ) -> Captures {
-  if csubst.length() == 0 {
+  if csubst.is_empty() {
     return capt
   }
   match capt {
@@ -210,19 +210,19 @@ pub fn substitute_block_lit_call(
   check_arity(bargs.length(), block.bparams.length(), "block arguments")
   check_arity(vargs.length(), block.vparams.length(), "value arguments")
   let tsubst : Map[Int32, ValueType] = Map([])
-  for i = 0; i < block.tparams.length(); i = i + 1 {
+  for i in 0..<block.tparams.length() {
     tsubst.set(block.tparams[i].uid(), targs[i])
   }
   let csubst : Map[Int32, Captures] = Map([])
-  for i = 0; i < block.cparams.length(); i = i + 1 {
+  for i in 0..<block.cparams.length() {
     csubst.set(block.cparams[i].uid(), block_captures(bargs[i]))
   }
   let vsubst : Map[Int32, Expr] = Map([])
-  for i = 0; i < block.vparams.length(); i = i + 1 {
+  for i in 0..<block.vparams.length() {
     vsubst.set(block.vparams[i].id.uid(), vargs[i])
   }
   let bsubst : Map[Int32, Block] = Map([])
-  for i = 0; i < block.bparams.length(); i = i + 1 {
+  for i in 0..<block.bparams.length() {
     bsubst.set(block.bparams[i].id.uid(), bargs[i])
   }
   substitute_stmt(block.body, Substitution(tsubst, csubst, vsubst, bsubst))

@@ -25,7 +25,7 @@ pub fn Module::Module(path : String, source : Span) -> Module {
   } else {
     segments[0:segments.length() - 1].to_owned()
   }
-  let local = if segments.length() == 0 {
+  let local = if segments.is_empty() {
     path
   } else {
     segments[segments.length() - 1]

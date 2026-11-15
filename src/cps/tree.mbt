@@ -446,7 +446,7 @@ pub fn Variables::meta(id : Sym) -> Variables {
 
 ///|
 pub fn Variables::is_empty(self : Variables) -> Bool {
-  self.ids.length() == 0
+  self.ids.is_empty()
 }
 
 ///|

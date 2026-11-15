@@ -25,7 +25,7 @@ pub fn runner_path(output : String) -> String {
 pub fn runner_contents(output : String) -> String {
   let normalized = normalize_separators(output)
   let segments = normalized.split("/").map(s => s.to_owned()).collect()
-  let base = if segments.length() == 0 {
+  let base = if segments.is_empty() {
     normalized
   } else {
     segments[segments.length() - 1]

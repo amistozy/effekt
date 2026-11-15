@@ -22,7 +22,7 @@ fn clone_id_def(id : IdDef) -> IdDef {
 /// The name of an identifier in binding position, *without* the surrounding
 /// namespace path. Mirrors upstream's `Name(id)`.
 fn name_of_id(id : IdDef) -> Name {
-  if id.path.length() == 0 {
+  if id.path.is_empty() {
     Name::local(id.name)
   } else {
     Name::qualified(id.path, id.name)
@@ -32,7 +32,7 @@ fn name_of_id(id : IdDef) -> Name {
 ///|
 /// Renders an identifier in use position, including its path, for diagnostics.
 fn id_text(id : IdRef) -> String {
-  if id.path.length() == 0 {
+  if id.path.is_empty() {
     id.name
   } else {
     "\{id.path.join("::")}::\{id.name}"
