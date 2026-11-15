@@ -285,18 +285,6 @@ pub fn BlockLit::new(
 }
 
 ///|
-/// The same block literal with a different body (the binders stay).
-pub fn BlockLit::with_body(self : BlockLit, body : Stmt) -> BlockLit {
-  {
-    tparams: self.tparams,
-    cparams: self.cparams,
-    vparams: self.vparams,
-    bparams: self.bparams,
-    body,
-  }
-}
-
-///|
 pub(all) struct ValueParam {
   id : Sym
   tpe : ValueType
@@ -376,12 +364,6 @@ pub(all) struct Clause {
 ///|
 pub fn Clause::Clause(tag : Sym, body : BlockLit) -> Clause {
   { tag, body, }
-}
-
-///|
-/// The same clause with a different body (the tag stays).
-pub fn Clause::with_body(self : Clause, body : BlockLit) -> Clause {
-  { tag: self.tag, body, }
 }
 
 // ---------------------------------------------------------------------------

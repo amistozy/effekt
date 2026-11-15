@@ -196,7 +196,6 @@ pub(all) struct BlockLit {
 }
 pub fn BlockLit::free(Self) -> Free
 pub fn BlockLit::new(Array[@symbols.Sym], Array[@symbols.Sym], Array[ValueParam], Array[BlockParam], Stmt) -> Self
-pub fn BlockLit::with_body(Self, Stmt) -> Self
 
 pub(all) struct BlockParam {
   id : @symbols.Sym
@@ -233,7 +232,6 @@ pub(all) struct Clause {
 }
 pub fn Clause::Clause(@symbols.Sym, BlockLit) -> Self
 pub fn Clause::free(Self) -> Free
-pub fn Clause::with_body(Self, BlockLit) -> Self
 
 pub(all) struct Constructor {
   id : @symbols.Sym

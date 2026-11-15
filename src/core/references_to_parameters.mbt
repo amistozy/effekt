@@ -356,17 +356,16 @@ fn extended(
 ) -> BlockVar raise EffektError {
   match callee.annotated_tpe {
     FunctionType(tparams, cparams, vparams, bparams, result) =>
-      BlockVar::new(
-        callee.id,
-        FunctionType(
+      {
+        ..callee,
+        annotated_tpe: FunctionType(
           tparams,
           cparams,
           vparams + [state_type],
           bparams,
           result + [state_type],
         ),
-        callee.annotated_capt,
-      )
+      }
     other =>
       raise EffektError::Internal(
         "Local definition without function type: \{callee.id.name().name} is a \{other}",
@@ -493,12 +492,10 @@ fn thread_state(
         scrutinee,
         tpe + [state_type],
         clauses.map(clause => {
-          Clause(
-            clause.tag,
-            clause.body.with_body(
-              thread_state(ref, state_type, uses, clause.body.body, current),
-            ),
-          )
+          Clause(clause.tag, {
+            ..clause.body,
+            body: thread_state(ref, state_type, uses, clause.body.body, current),
+          })
         }),
         match default {
           Some(body) => Some(thread_state(ref, state_type, uses, body, current))
@@ -559,11 +556,7 @@ fn thread_state(
         let param = lit.bparams[0]
         match param.tpe {
           PromptType(answer) => {
-            let retyped = BlockParam(
-              param.id,
-              PromptType(answer + [state_type]),
-              param.capt,
-            )
+            let retyped = { ..param, tpe: PromptType(answer + [state_type]), }
             let body = thread_state(ref, state_type, uses, lit.body, current)
             Reset(
               BlockLit::new(
@@ -584,31 +577,29 @@ fn thread_state(
       match k_param.tpe {
         ResumeType(result, answer) =>
           if uses.contains(prompt.id.uid()) {
-            let prompt_var = BlockVar::new(
-              prompt.id,
-              PromptType(answer + [state_type]),
-              prompt.annotated_capt,
-            )
+            let prompt_var = {
+              ..prompt,
+              annotated_tpe: PromptType(answer + [state_type]),
+            }
             let k_tpe = ResumeType(result + [state_type], answer + [state_type])
-            let k_param = BlockParam(k_param.id, k_tpe, k_param.capt)
+            let k_param = { ..k_param, tpe: k_tpe, }
             Shift(
               prompt_var,
               k_param,
               thread_state(ref, state_type, uses, body, current),
             )
           } else if mentions(ref, uses, s.free()) {
-            let retyped = BlockParam(
-              k_param.id,
-              ResumeType(result + [state_type], answer),
-              k_param.capt,
-            )
+            let retyped = {
+              ..k_param,
+              tpe: ResumeType(result + [state_type], answer),
+            }
             let captured = { shift: s, k: k_param.id, result, }
             Shift(
               prompt,
               retyped,
               captured.replace_resumptions(resumed => {
                 Resume(
-                  BlockVar::new(k_param.id, retyped.tpe, retyped.capt),
+                  BlockVar::new(retyped.id, retyped.tpe, retyped.capt),
                   thread_state(ref, state_type, uses, resumed, current),
                 )
               }),
@@ -623,11 +614,13 @@ fn thread_state(
         ResumeType(result, answer) =>
           if uses.contains(callee.id.uid()) {
             Resume(
-              BlockVar::new(
-                callee.id,
-                ResumeType(result + [state_type], answer + [state_type]),
-                callee.annotated_capt,
-              ),
+              {
+                ..callee,
+                annotated_tpe: ResumeType(
+                  result + [state_type],
+                  answer + [state_type],
+                ),
+              },
               thread_state(ref, state_type, uses, body, current),
             )
           } else {

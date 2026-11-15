@@ -53,11 +53,6 @@ fn joinpoint_results(label : BlockVar) -> Array[ValueType] raise EffektError {
 }
 
 ///|
-fn block_lit_with_body(lit : BlockLit, body : Stmt) -> BlockLit {
-  BlockLit::new(lit.tparams, lit.cparams, lit.vparams, lit.bparams, body)
-}
-
-///|
 /// `s` with every `return` replaced by a jump to `label` (upstream
 /// `toDirectStyle`).
 fn to_direct_style(s : Stmt, label : BlockVar) -> Stmt raise EffektError {
@@ -79,13 +74,10 @@ fn to_direct_style(s : Stmt, label : BlockVar) -> Stmt raise EffektError {
         scrutinee,
         joinpoint_results(label),
         clauses.map(clause => {
-          Clause(
-            clause.tag,
-            block_lit_with_body(
-              clause.body,
-              to_direct_style(clause.body.body, label),
-            ),
-          )
+          Clause(clause.tag, {
+            ..clause.body,
+            body: to_direct_style(clause.body.body, label),
+          })
         }),
         match default {
           Some(body) => Some(to_direct_style(body, label))

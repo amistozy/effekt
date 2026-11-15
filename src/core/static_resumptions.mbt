@@ -153,11 +153,10 @@ fn ShiftInfo::body(self : ShiftInfo) -> Stmt {
 
 ///|
 fn ShiftInfo::with_body(self : ShiftInfo, body : Stmt) -> ShiftInfo {
-  let shift = match self.shift {
-    Shift(prompt, k, _) => Shift(prompt, k, body)
-    _ => self.shift
+  match self.shift {
+    Shift(prompt, k, _) => { ..self, shift: Shift(prompt, k, body), }
+    _ => self
   }
-  { shift, k: self.k, result: self.result, }
 }
 
 ///|
@@ -315,7 +314,7 @@ fn frame_of(s : Stmt) -> Frame? {
           names: sym_set(lit.cparams + [lit.bparams[0].id]),
           before: Free::empty(),
           body: lit.body,
-          rebuild_with: b => Region(lit.with_body(b)),
+          rebuild_with: b => Region({ ..lit, body: b, }),
           is_delimiter: false,
         })
       } else {
@@ -327,7 +326,7 @@ fn frame_of(s : Stmt) -> Frame? {
           names: sym_set(lit.cparams + [lit.bparams[0].id]),
           before: Free::empty(),
           body: lit.body,
-          rebuild_with: b => Reset(lit.with_body(b)),
+          rebuild_with: b => Reset({ ..lit, body: b, }),
           is_delimiter: true,
         })
       } else {
@@ -423,7 +422,7 @@ fn tail_positions(s : Stmt) -> TailPositions? raise EffektError {
       if tail_called_only(id, body) && tail_called_only(id, lit.body) {
         Some({
           apply_tails: f => {
-            Def(id, Block::BlockLit(lit.with_body(f(lit.body))), f(body))
+            Def(id, Block::BlockLit({ ..lit, body: f(lit.body), }), f(body))
           },
           before: Free::empty(),
           transparents: [id],
@@ -492,7 +491,7 @@ fn tail_positions(s : Stmt) -> TailPositions? raise EffektError {
       Some({
         apply_tails: f => {
           let rewritten = clauses.map(clause => {
-            Clause(clause.tag, clause.body.with_body(f(clause.body.body)))
+            Clause(clause.tag, { ..clause.body, body: f(clause.body.body), })
           })
           let default = match default {
             Some(body) => Some(f(body))
@@ -944,13 +943,10 @@ fn reuse_leaf(
           FunctionType(tps, cps, vps, bps, _) =>
             Some(
               App(
-                Block::BlockVar(
-                  BlockVar::new(
-                    f.id,
-                    FunctionType(tps, cps, vps, bps, shift.result),
-                    f.annotated_capt,
-                  ),
-                ),
+                Block::BlockVar({
+                  ..f,
+                  annotated_tpe: FunctionType(tps, cps, vps, bps, shift.result),
+                }),
                 targs,
                 vargs,
                 bargs,
@@ -1181,13 +1177,10 @@ fn jumps_to_join(
           match f.annotated_tpe {
             FunctionType(tps, cps, vps, bps, _) =>
               App(
-                Block::BlockVar(
-                  BlockVar::new(
-                    f.id,
-                    FunctionType(tps, cps, vps, bps, prompt.answer),
-                    f.annotated_capt,
-                  ),
-                ),
+                Block::BlockVar({
+                  ..f,
+                  annotated_tpe: FunctionType(tps, cps, vps, bps, prompt.answer),
+                }),
                 targs,
                 vargs,
                 bargs,
@@ -1503,11 +1496,10 @@ fn reduce_rewriter(blocked : Map[Int32, Sym]) -> Rewrite {
                     let prompt = { param, capture, answer, }
                     let body = rewrite.rewrite_stmt(lit.body)
                     Some(
-                      Reset(
-                        lit.with_body(
-                          reduce_shifts(prompt, body, true, blocked),
-                        ),
-                      ),
+                      Reset({
+                        ..lit,
+                        body: reduce_shifts(prompt, body, true, blocked),
+                      }),
                     )
                   }
                 _ => None

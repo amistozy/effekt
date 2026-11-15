@@ -87,6 +87,13 @@ You can browse and install extra skills here:
   enum — `BlockVar` and `BlockLit` in `src/core`, where `T(...)` would be
   ambiguous with `Block::BlockVar` / `Block::BlockLit`; those keep `::new`.
 
+- **Update a record with `{ ..self, field: value }`, not a `with_*` helper.**
+  MoonBit keeps the other fields, so a pass that rebuilds a node with one field
+  changed (`BlockLit`, `Clause`, `BlockVar`, `BlockParam`, `ShiftInfo`, …) writes
+  the change where it is made instead of growing a helper per node and field. The
+  `with_bindings`/`with_block`-style helpers are a different thing: they run a
+  computation with temporarily changed *state*.
+
 - **Qualify a constructor by its type when the bare name is unbound.** In
   `@core`, the constructors of its own types are written bare
   (`FunctionType(…)`, `CaptureSetOf(…)`), because `prelude.mbt`'s `using` brings
