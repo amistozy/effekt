@@ -80,18 +80,23 @@ You can browse and install extra skills here:
   `scripts/e2e.ps1` runs the compiled programs, so any accidental change to a
   string's content is caught.
 
-- **Constructors are named `T::T`**, so a call site reads `T(...)`:
-  `pub fn Span::Span(...)` is called as `Span(...)` (also qualified:
-  `@util.Span(...)`). There is no `T::new` left in the project — rename one
-  whenever it appears (`Rewrite::Rewrite`, `Namer::Namer`, `BlockVar::BlockVar`,
-  `BlockLit::BlockLit`). The structs `BlockVar` and `BlockLit` share their name
-  with a constructor of the `Block` enum, so an *enum* use of the bare name is
-  ambiguous wherever the expected type does not settle it — a `let` binding, an
-  argument to an unannotated arrow closure, the return of an untyped match arm.
-  Write `Block::BlockVar(...)` / `Block::BlockLit(...)` at those spots (six of
-  them: `show.mbt`'s `generate_def`, `transform.mbt`'s eta expansions and the two
+- **Constructors are defined `T::T` and called `T(...)`.** `pub fn
+  Span::Span(...)` is written `Span(...)` at a call site (and `@util.Span(...)`
+  from another package); the same holds for the structs that carry a `T::T`
+  constructor for every field (`ValueParam`, `BlockParam`, `CallSite`, `Rewrite`,
+  `Bail`, `Continuation`, `Renamer`, `RecursiveFunction`, …). There is no
+  `T::new` left in the project — rename one whenever it appears. The two
+  exceptions are `BlockVar` and `BlockLit`: their name is also a constructor of
+  the `Block` enum, and MoonBit reports the bare name as ambiguous unless the
+  expected type settles it, so `let lit = BlockLit(...)` (and an argument of an
+  unannotated arrow closure) does *not* compile while `Reset(BlockLit(...))` does.
+  Both are therefore always written `BlockVar::BlockVar(...)` /
+  `BlockLit::BlockLit(...)`, so that the short `BlockVar(...)` is exactly the
+  enum constructor. That enum constructor needs `Block::BlockVar(...)` /
+  `Block::BlockLit(...)` in the same untyped positions (six of them:
+  `show.mbt`'s `generate_def`, `transform.mbt`'s eta expansions and the two
   `bparams.map` closures); a `match` pattern and a position with a known `Block`
-  type need no qualification, since the pattern arity / expected type decides.
+  type can use the bare name.
 
 - **Update a record with `{ ..self, field: value }`, not a `with_*` helper.**
   MoonBit keeps the other fields, so a pass that rebuilds a node with one field

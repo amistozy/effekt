@@ -335,12 +335,13 @@ fn escaping_ref_stmt(
 ///|
 /// Removes `capture` from every capture set in `s`.
 fn remove_capture(capture : Sym, s : Stmt) -> Stmt raise EffektError {
-  Rewrite::Rewrite(
+  let rewrite = Rewrite(
     None,
     None,
     Some(capt => capt.diff(CaptureSetOf([capture]))),
     None,
-  ).rewrite_stmt(s)
+  )
+  rewrite.rewrite_stmt(s)
 }
 
 // ---------------------------------------------------------------------------
@@ -670,7 +671,7 @@ fn eliminate(
 pub fn references_to_parameters(
   module : ModuleDecl,
 ) -> ModuleDecl raise EffektError {
-  let rewrite = Rewrite::Rewrite(
+  let rewrite = Rewrite(
     Some((rewrite, s) => {
       match s {
         Var(ref, init, capture, body) => {

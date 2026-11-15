@@ -270,12 +270,12 @@ fn Renamer::rewrite_operation(self : Renamer, op : Operation) -> Operation {
 
 ///|
 fn Renamer::rewrite_value_param(self : Renamer, p : ValueParam) -> ValueParam {
-  ValueParam::ValueParam(self.rewrite_id(p.id), self.rewrite_value_type(p.tpe))
+  ValueParam(self.rewrite_id(p.id), self.rewrite_value_type(p.tpe))
 }
 
 ///|
 fn Renamer::rewrite_block_param(self : Renamer, p : BlockParam) -> BlockParam {
-  BlockParam::BlockParam(
+  BlockParam(
     self.rewrite_id(p.id),
     self.rewrite_block_type(p.tpe),
     self.rewrite_captures(p.capt),
@@ -365,7 +365,7 @@ fn Renamer::rewrite_captures(self : Renamer, capt : Captures) -> Captures {
 /// Freshens a block and returns it together with the fresh symbols it introduced
 /// (fresh symbol -> the symbol it replaces), mirroring `Renamer.rename(b)`.
 pub fn rename_block(block : Block) -> (Block, Map[Int32, Sym]) {
-  let renamer = Renamer::Renamer()
+  let renamer = Renamer()
   let renamed = renamer.rewrite_block(block)
   (renamed, renamer.renamed)
 }
@@ -373,7 +373,7 @@ pub fn rename_block(block : Block) -> (Block, Map[Int32, Sym]) {
 ///|
 /// Freshens a block literal, see `rename_block`.
 pub fn rename_block_lit(block : BlockLit) -> (BlockLit, Map[Int32, Sym]) {
-  let renamer = Renamer::Renamer()
+  let renamer = Renamer()
   let renamed = renamer.rewrite_block_lit(block)
   (renamed, renamer.renamed)
 }

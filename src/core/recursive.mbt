@@ -64,10 +64,7 @@ fn RecursiveAnalysis::record_definition(
       "The definition \{id.name().name} is registered twice.",
     )
   }
-  self.definitions.set(
-    id.uid(),
-    RecursiveFunction::RecursiveFunction(definition),
-  )
+  self.definitions.set(id.uid(), RecursiveFunction(definition))
 }
 
 ///|

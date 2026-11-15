@@ -335,12 +335,12 @@ fn transform_implementation(
 
 ///|
 fn transform_value_param(p : ValueParam, env : Aliases) -> ValueParam {
-  ValueParam::ValueParam(p.id, transform_value_type(p.tpe, env))
+  ValueParam(p.id, transform_value_type(p.tpe, env))
 }
 
 ///|
 fn transform_block_param(p : BlockParam, env : Aliases) -> BlockParam {
-  BlockParam::BlockParam(
+  BlockParam(
     p.id,
     transform_block_type(p.tpe, env),
     transform_captures(p.capt, env),

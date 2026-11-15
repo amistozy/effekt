@@ -180,7 +180,7 @@ fn ShiftInfo::replace_resumptions_in(
   s : Stmt,
   by : (Stmt) -> Stmt raise EffektError,
 ) -> Stmt raise EffektError {
-  let rewrite = Rewrite::Rewrite(
+  let rewrite = Rewrite(
     Some((rewrite, stmt) => {
       match self.resume_of(stmt) {
         Some(resumed) => Some(by(rewrite.rewrite_stmt(resumed)))
@@ -815,7 +815,7 @@ fn blocked_prompts(module : ModuleDecl) -> Map[Int32, Sym] raise EffektError {
       _ => ()
     }
   }
-  let rewrite = Rewrite::Rewrite(
+  let rewrite = Rewrite(
     Some((_rewrite, s) => {
       on_stmt(s)
       None
@@ -876,7 +876,7 @@ fn reuse_go(
         transparents,
         sym_set(positions.transparents),
       )
-      let bail = Bail::Bail()
+      let bail = Bail()
       let rewritten = positions.rewrite(child => {
         match reuse_go(shift, at_prompt, child, extended) {
           Some(result) => result
@@ -1004,12 +1004,12 @@ fn joinpoint(
   blocked : Map[Int32, Sym],
   scope : ((Stmt) -> Stmt raise EffektError) -> Stmt raise EffektError,
 ) -> Stmt? raise EffektError {
-  let bail = Bail::Bail()
+  let bail = Bail()
   let fresh : Map[Int32, Sym] = Map([])
   for _, id in continuation.prompt.names() {
     fresh.set(id.uid(), Sym::id(id.name()))
   }
-  let renaming = Rewrite::Rewrite(
+  let renaming = Rewrite(
     None,
     Some(id => {
       match fresh.get(id.uid()) {
@@ -1226,7 +1226,7 @@ fn jumps_to_join_leaf(
 /// The statements `k` is resumed with in `s`.
 fn resumed_statements(k : Sym, s : Stmt) -> Array[Stmt] raise EffektError {
   let out : Array[Stmt] = []
-  let rewrite = Rewrite::Rewrite(
+  let rewrite = Rewrite(
     Some((rewrite, stmt) => {
       match stmt {
         Resume(k_var, resumed) =>
@@ -1352,8 +1352,7 @@ fn reduce_shifts(
         None =>
           // 1b) copied into a join point, if no `var` or a region lies above
           if joinable {
-            match
-              copy(Continuation::Continuation(prompt, None), shift, blocked) {
+            match copy(Continuation(prompt, None), shift, blocked) {
               Some(result) => result
               // 1c) else left alone
               None => s
@@ -1462,7 +1461,7 @@ fn retype_answer(s : Stmt, tpe : Array[ValueType]) -> Stmt {
 /// The rewrite of the pass: a shift whose context is unknown, and the statements
 /// around a `reset` whose prompt is not blocked.
 fn reduce_rewriter(blocked : Map[Int32, Sym]) -> Rewrite {
-  Rewrite::Rewrite(
+  Rewrite(
     Some((rewrite, s) => {
       match s {
         // 0) a shift whose context is unknown (inside a call or a closure),

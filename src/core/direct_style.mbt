@@ -99,7 +99,7 @@ fn to_direct_style(s : Stmt, label : BlockVar) -> Stmt raise EffektError {
 ///|
 /// `DirectStyle` (upstream `core/optimizer/DirectStyle.scala`).
 pub fn direct_style(module : ModuleDecl) -> ModuleDecl raise EffektError {
-  let rewrite = Rewrite::Rewrite(
+  let rewrite = Rewrite(
     Some((rewrite, s) => {
       match s {
         Val(ids, binding, body) => {

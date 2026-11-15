@@ -691,7 +691,7 @@ fn Normalizer::rewrite_stmt(
     App(callee, targs, vargs, bargs) =>
       match self.active_block(callee, ctx) {
         Known(BlockLit(lit), bound_by) if self.should_inline(
-            CallSite::CallSite(lit, bound_by, vargs, bargs),
+            CallSite(lit, bound_by, vargs, bargs),
             ctx,
           ) => {
           // a block used more than once uses its free variables more than once
@@ -737,7 +737,7 @@ fn Normalizer::rewrite_stmt(
                   )
                 _ =>
                   if self.should_inline(
-                      CallSite::CallSite(jump, bound_by, vargs, bargs),
+                      CallSite(jump, bound_by, vargs, bargs),
                       ctx,
                     ) {
                     self.reduce(
@@ -940,7 +940,7 @@ fn Normalizer::make_joinpoint(
     [],
     ids.mapi((i, id) => {
       let t = if i < tpe.length() { tpe[i] } else { unknown_value_type() }
-      ValueParam::ValueParam(id, t)
+      ValueParam(id, t)
     }),
     [],
     body,
@@ -1343,7 +1343,7 @@ fn Normalizer::forward(
     operation.bparams,
     body,
   )
-  let renamer = Renamer::Renamer()
+  let renamer = Renamer()
   let renamed = renamer.rewrite_operation(forwarding)
   self.copy_usage(renamer.renamed)
   renamed
