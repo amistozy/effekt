@@ -156,8 +156,9 @@ pub(all) enum Stmt {
   /// `val id = !ref; body`
   Get(Sym, Sym, Stmt)
   Put(Sym, Expr, Stmt)
-  /// `reset( { (p, ks, k) => STMT }, ks, k)`
-  Reset(BlockLit, MetaCont, Cont)
+  /// `reset({ (p, ks, k) => STMT }, arity, ks, k)`, where `arity` is the number
+  /// of values the body returns to the continuation below the reset.
+  Reset(BlockLit, Int32, MetaCont, Cont)
   /// `shift(p, { (resume, ks, k) => STMT }, ks, k)`
   Shift(Sym, BlockLit, MetaCont, Cont)
   /// `resume(r, (ks, k) => STMT, ks, k)`
@@ -333,7 +334,7 @@ pub fn Stmt::size(self : Stmt) -> Int32 {
     Dealloc(_, body) => body.size() + 1
     Get(_, _, body) => body.size() + 1
     Put(_, value, body) => value.size() + body.size() + 1
-    Reset(prog, ks, k) => prog.size() + ks.size() + k.size() + 1
+    Reset(prog, _, ks, k) => prog.size() + ks.size() + k.size() + 1
     Shift(_, body, ks, k) => body.size() + ks.size() + k.size() + 1
     Resume(_, body, ks, k) => body.size() + ks.size() + k.size() + 1
     Hole(_) => 1
@@ -593,7 +594,7 @@ pub fn Stmt::free(self : Stmt) -> Variables {
       Variables::block(reference).union(body.free().diff([id]))
     Put(reference, value, body) =>
       Variables::block(reference).union(value.free()).union(body.free())
-    Reset(prog, ks, k) => prog.free().union(ks.free()).union(k.free())
+    Reset(prog, _, ks, k) => prog.free().union(ks.free()).union(k.free())
     Shift(prompt, body, ks, k) =>
       Variables::block(prompt)
       .union(body.free())
@@ -812,7 +813,7 @@ pub fn Stmt::occurs(self : Stmt, id : Sym) -> Bool {
       reference.uid() == id.uid() || (v.uid() != id.uid() && body.occurs(id))
     Put(reference, value, body) =>
       reference.uid() == id.uid() || value.occurs(id) || body.occurs(id)
-    Reset(prog, ks, k) =>
+    Reset(prog, _, ks, k) =>
       prog.occurs(id) || ks.id.uid() == id.uid() || k.occurs(id)
     Shift(prompt, body, ks, k) =>
       prompt.uid() == id.uid() ||
@@ -1130,9 +1131,10 @@ pub fn substitute_stmt(
         substitute_expr(value, subst),
         substitute_stmt(body, subst),
       )
-    Reset(prog, ks, k) =>
+    Reset(prog, arity, ks, k) =>
       Reset(
         substitute_block_lit(prog, subst),
+        arity,
         substitute_meta_cont(ks, subst),
         substitute_cont(k, subst),
       )

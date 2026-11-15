@@ -17,6 +17,25 @@
 //     returns, reifying instead is semantics-preserving (just bigger output).
 
 ///|
+/// The number of values the body of a `reset` returns (upstream `stmt.tpe.size`),
+/// which is the arity of the continuation the reset returns to.
+///
+/// The inference raises on trees it cannot type — the hand-built ones of the
+/// tests annotate less than the transformer — where the prompt carries the same
+/// number in its answer; falling back to that keeps code generation going with
+/// the declared arity.
+fn reset_arity(body : @core.Stmt, prompt : @core.BlockParam) -> Int32 {
+  let types = body.infer_type() catch {
+    _ =>
+      match prompt.tpe {
+        @core.PromptType(answer) => answer
+        _ => [@core.t_unit()]
+      }
+  }
+  types.length()
+}
+
+///|
 /// A fresh value symbol with the given name.
 ///
 /// Upstream `core.Id(name)` mints an `Id` that is compared by name; here
@@ -396,6 +415,9 @@ fn transform_stmt(
         [prompt] => {
           let ks2 = fresh_sym("ks")
           let k2 = fresh_sym("k")
+          // upstream `stmt.tpe.size`: how many values the body returns, which the
+          // continuation the reset returns to (`RETURN_n`) has to accept
+          let arity = reset_arity(block_lit.body, prompt)
           Reset(
             BlockLit::new(
               [],
@@ -404,6 +426,7 @@ fn transform_stmt(
               k2,
               transform_stmt(block_lit.body, ks2, Dynamic(k2), ctx),
             ),
+            arity,
             MetaCont(ks),
             k.reify(),
           )

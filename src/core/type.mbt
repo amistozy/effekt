@@ -80,7 +80,10 @@ fn[T] union_captures(
 
 ///|
 /// Upstream `Type.inferType` on statements.
-fn Stmt::infer_type(self : Stmt) -> Array[ValueType] raise EffektError {
+///
+/// Public because `@cps` reads the number of values a `reset` returns from it
+/// (upstream `stmt.tpe.size`, see the `Reset` case of `cps/transform.mbt`).
+pub fn Stmt::infer_type(self : Stmt) -> Array[ValueType] raise EffektError {
   match self {
     Def(_, _, body) => body.infer_type()
     Let(_, _, body) => body.infer_type()

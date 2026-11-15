@@ -116,7 +116,8 @@ fn optimize(
   let module = normalize_round(module, roots, policy)
   // `StaticResumptions` runs after `Deadcode` and frees stuff, so let us run
   // `Deadcode` one more time
-  @core.deadcode(module, roots)
+  let module = @core.deadcode(module, roots)
+  @core.references_to_parameters(module)
 }
 
 ///|
@@ -130,7 +131,8 @@ fn normalize_round(
   let module = @core.normalize(module, roots, policy)
   let module = @core.deadcode(module, roots)
   let module = @core.static_resumptions(module)
-  @core.direct_style(module)
+  let module = @core.direct_style(module)
+  @core.references_to_parameters(module)
 }
 
 ///|

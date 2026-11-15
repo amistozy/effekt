@@ -186,7 +186,7 @@ pub(all) enum Stmt {
   Dealloc(@symbols.Sym, Stmt)
   Get(@symbols.Sym, @symbols.Sym, Stmt)
   Put(@symbols.Sym, Expr, Stmt)
-  Reset(BlockLit, MetaCont, Cont)
+  Reset(BlockLit, Int32, MetaCont, Cont)
   Shift(@symbols.Sym, BlockLit, MetaCont, Cont)
   Resume(@symbols.Sym, BlockLit, MetaCont, Cont)
   Hole(@util.Span)

@@ -628,6 +628,7 @@ fn handled_body_module() -> @cps.ModuleDecl {
           k_p,
           @cps.Jump(k_p, [int_pure(0)], @cps.MetaCont(ks_p)),
         ),
+        1,
         @cps.MetaCont(ks),
         @cps.Cont::ContLam(
           @cps.ContLam(
@@ -747,6 +748,7 @@ fn handler_with_effect_module() -> (@cps.ModuleDecl, @symbols.Sym) {
       k,
       @cps.Reset(
         prog,
+        1,
         @cps.MetaCont(ks),
         @cps.Cont::ContLam(
           @cps.ContLam(

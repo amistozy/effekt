@@ -129,7 +129,7 @@ fn occurrences_stmt(id : Sym, s : Stmt) -> Occurrences {
     Get(_ref, _id2, body) => occurrences_stmt(id, body)
     Put(_ref, value, body) =>
       occurrences_expr(id, value).combine(occurrences_stmt(id, body))
-    Reset(prog, _ks, k) =>
+    Reset(prog, _, _ks, k) =>
       occurrences_block_lit(id, prog).combine(occurrences_cont(id, k))
     Shift(_prompt, body, _ks, k) =>
       occurrences_block_lit(id, body).combine(occurrences_cont(id, k))
@@ -263,8 +263,8 @@ fn contify_in_stmt(id : Sym, s : Stmt) -> Stmt {
     Get(ref, id2, body) => Get(ref, id2, contify_in_stmt(id, body))
     Put(ref, value, body) =>
       Put(ref, contify_in_expr(id, value), contify_in_stmt(id, body))
-    Reset(prog, ks, k) =>
-      Reset(contify_in_block_lit(id, prog), ks, contify_in_cont(id, k))
+    Reset(prog, arity, ks, k) =>
+      Reset(contify_in_block_lit(id, prog), arity, ks, contify_in_cont(id, k))
     Shift(prompt, body, ks, k) =>
       Shift(prompt, contify_in_block_lit(id, body), ks, contify_in_cont(id, k))
     Resume(r, body, ks, k) =>
@@ -480,7 +480,8 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
     Dealloc(ref, body) => Dealloc(ref, rewrite_stmt(body))
     Get(ref, id, body) => Get(ref, id, rewrite_stmt(body))
     Put(ref, value, body) => Put(ref, rewrite_expr(value), rewrite_stmt(body))
-    Reset(prog, ks, k) => Reset(rewrite_block_lit(prog), ks, rewrite_cont(k))
+    Reset(prog, arity, ks, k) =>
+      Reset(rewrite_block_lit(prog), arity, ks, rewrite_cont(k))
     Shift(prompt, body, ks, k) =>
       Shift(prompt, rewrite_block_lit(body), ks, rewrite_cont(k))
     Resume(r, body, ks, k) =>

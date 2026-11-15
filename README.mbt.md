@@ -208,8 +208,9 @@ These are deliberate, and documented at the point of use in the sources:
 - **The optimizer is ported and runs.** The JavaScript pipeline performs
   upstream's `core/optimizer` chain (see `optimize` in `src/backend/emit.mbt`):
   `Deadcode`, `StaticArguments`, then three rounds of `BindSubexpressions` →
-  `Normalizer` → `Deadcode` → `StaticResumptions` → `DirectStyle`, and a final
-  `Deadcode`. `core.Show` runs *before* it, exactly as in upstream's
+  `Normalizer` → `Deadcode` → `StaticResumptions` → `DirectStyle` →
+  `ReferencesToParameters`, and two final cleanups (`Deadcode`,
+  `ReferencesToParameters`). `core.Show` runs *before* it, exactly as in upstream's
   `JavaScript.scala`, so the structural show instances the compiler generates are
   optimized along with everything else. The passes are
   `src/core/{deadcode,static_arguments,bind_subexpressions,normalize,
@@ -229,12 +230,7 @@ These are deliberate, and documented at the point of use in the sources:
     drop live calls.
   - `Mono`, `LambdaSets`, `ArityRaising` and `DropBindings` — the other phases
     upstream runs around its optimizer — are not ported.
-  - `ReferencesToParameters` is ported (`src/core/references_to_parameters.mbt`,
-    with `usesOf`/`escapes`/the state threading of upstream) but *not run:
-    threading the state of a reference that lives across a shift miscompiles
-    `testdata/upstream/examples/stdlib/stream/map.effekt`, so it stays out of the
-    pipeline until that is understood.
-  - the normalizer has four deviations: the sharing of pure expressions
+    - the normalizer has four deviations: the sharing of pure expressions
     (`Context.facts`, keyed by structural expression equality) is not ported,
     `covers`/`selecting` (which need the scrutinee's data type) are skipped, the
     `Shift` rule of `normalizeVal` is skipped too (it retypes the continuation
@@ -267,6 +263,12 @@ These are deliberate, and documented at the point of use in the sources:
   `Type.inferType`/`inferCapt` (`src/core/type.mbt`) recover what the optimizer
   reads, and a node the transformer could not annotate carries the sentinel
   `unknown_value_type()`/`unknown_block_type()`.
+- A `reset` returns to a continuation of its **own arity**: the JavaScript backend
+  emits one `RETURN_n` per arity the program needs (upstream's
+  `TransformerCps.returnFrom`), which is the number of values the reset's body
+  returns. This matters as soon as a node answers with several values — the
+  prompt/shift encoding of a multi-value `return`, or the extra result that
+  `ReferencesToParameters` threads through a definition.
 
 - The parser wraps *every* annotated result type in `Effectful(t, {})`, exactly
   like upstream's `Parser.effectful` ("if it's not a `${tpe} / ${effs}`, then

@@ -494,6 +494,7 @@ pub(all) enum Stmt {
   Hole(Array[ValueType], @util.Span)
 }
 pub fn Stmt::free(Self) -> Free
+pub fn Stmt::infer_type(Self) -> Array[ValueType] raise @util.EffektError
 
 pub(all) struct Substitution {
   vtypes : Map[Int32, ValueType]

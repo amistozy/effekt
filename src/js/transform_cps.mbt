@@ -22,11 +22,11 @@ fn reset_fn() -> Expr {
 }
 
 ///|
-/// `RETURN_1`, the continuation a `RESET` returns to. The runtime used to
-/// provide it as a global `RETURN`; since upstream's multi-arity returns it is
-/// passed in by the caller (see `TransformerCps.returnFrom`).
-fn return_1_fn() -> Expr {
-  Variable(JSName("RETURN_1"))
+/// `RETURN_n`, the continuation a `RESET` returns to: one per arity, since a
+/// reset's body returns as many values as the statement has results (upstream's
+/// `TransformerCps.returnFrom`).
+fn return_fn(arity : Int32) -> Expr {
+  Variable(JSName("RETURN_\{arity}"))
 }
 
 ///|
@@ -121,11 +121,10 @@ priv struct TransformerContext {
   /// thunk at that point — a missed optimisation, never a wrong program. The
   /// cell is an array so that every `{ ..self, … }` copy shares it.
   direct_fuel : Array[Int32]
-  /// Whether a `Reset` was translated, i.e. whether the module has to declare
-  /// the `RETURN_1` continuation that `RESET` is called with (the runtime used
-  /// to provide it as a global `RETURN`). The cell is an array so that every
+  /// The arities of the resets translated so far, i.e. the `RETURN_n`
+  /// continuations the module has to declare. The cell is an array so that every
   /// `{ ..self, … }` copy shares it.
-  uses_return_1 : Array[Bool]
+  return_arities : Array[Int32]
 }
 
 ///|
@@ -299,7 +298,7 @@ pub fn compile_cps(
     metacont: None,
     declarations,
     direct_fuel: [direct_fuel],
-    uses_return_1: [false],
+    return_arities: [],
   }
   let js_externs : Array[Stmt] = []
   for e in module.externs {
@@ -316,20 +315,34 @@ pub fn compile_cps(
   for d in module.definitions {
     stmts.push(to_js_toplevel(d, ctx))
   }
-  // `RESET` is called with the (single-value) return continuation of the frame
-  // it resets to. `RETURN_1` pops the frames of nested resets in tail position
-  // at once, so deep handler recursion does not grow the JS stack (upstream
-  // `TransformerCps.returns`).
+  // `RESET` is called with the return continuation of the frame it resets to: one
+  // `RETURN_n` per arity, since a reset's body returns as many values as the
+  // statement has results. `RETURN_n` pops the frames of nested resets in tail
+  // position at once, so deep handler recursion does not grow the JS stack
+  // (upstream `TransformerCps.returnFrom`).
   let preamble : Array[Stmt] = []
-  if ctx.uses_return_1[0] {
-    let return_1 =
-      #|function RETURN_1(x0, ks) {
-      #|  let rest = ks.rest
-      #|  while (rest.stack === RETURN_1) rest = rest.rest
-      #|  return rest.stack(x0, rest)
-      #|}
+  let arities : Array[Int32] = []
+  for arity in ctx.return_arities {
+    if !arities.contains(arity) {
+      arities.push(arity)
+    }
+  }
+  for arity in arities {
+    let params : Array[String] = []
+    let forwarded : Array[String] = []
+    for i = 0; i < arity; i = i + 1 {
+      params.push("x\{i}")
+      forwarded.push("x\{i}")
+    }
+    params.push("ks")
+    forwarded.push("rest")
+    let body = "function RETURN_\{arity}(\{params.join(", ")}) {\n" +
+      "  let rest = ks.rest\n" +
+      "  while (rest.stack === RETURN_\{arity}) rest = rest.rest\n" +
+      "  return rest.stack(\{forwarded.join(", ")})\n" +
+      "}"
     let no_values : Array[Expr] = []
-    preamble.push(RawStmt([return_1], no_values))
+    preamble.push(RawStmt([body], no_values))
   }
 
   let js_module = Module(
@@ -867,7 +880,7 @@ fn can_be_direct(
     @cps.Stmt::Get(_ref, _id, body) => can_be_direct(k, body, ctx)
     @cps.Stmt::Put(_ref, value, body) =>
       !value.occurs(k) && can_be_direct(k, body, ctx)
-    @cps.Stmt::Reset(_, _, _) => !stmt.occurs(k)
+    @cps.Stmt::Reset(_, _, _, _) => !stmt.occurs(k)
     @cps.Stmt::Shift(_, _, _, _) => !stmt.occurs(k)
     @cps.Stmt::Resume(_, _, _, _) => !stmt.occurs(k)
     @cps.Stmt::Hole(_) => true
@@ -1406,15 +1419,15 @@ fn to_js_stmt(
           (to_js_stmt(body, ctx).run)(k)
         },
       }
-    @cps.Stmt::Reset(prog, ks, k) => {
-      ctx.uses_return_1[0] = true
+    @cps.Stmt::Reset(prog, arity, ks, k) => {
+      ctx.return_arities.push(arity)
       pure([
         Return(
           call(reset_fn(), [
             requiring_thunk(ctx.nonrecursive(prog.ks), c => {
               to_js_block_expr(@cps.Block::BlockLit(prog), c)
             }),
-            return_1_fn(),
+            return_fn(arity),
             to_js_metacont(ks, ctx),
             to_js_cont(k, ctx),
           ]),
