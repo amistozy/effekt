@@ -205,50 +205,47 @@ These are deliberate, and documented at the point of use in the sources:
   a capture the binder drops (`Capture X escapes through type …`), and a type
   parameter of an existential pattern or of a higher-rank block that would leave
   its scope (`Type A escapes through type …`).
-- **Dead code elimination is partial.** `core/optimizer/Deadcode` (and the
-  `Reachable` analysis behind it) is ported and runs where upstream runs it,
-  between `Aggregate` and `core.Show`, so unreachable functions, constructors,
-  externs and toplevel definitions no longer reach the backend — that is what
-  keeps the prelude's LLVM-only externs from being reported as unsupported. One
-  rule of it is *not* ported: upstream also drops a local `val` whose binding is
-  a provably pure call (`Deadcode.isPureCall`), which needs precise capture
-  sets; with the approximate capture sets of this port such a call can look pure
-  while capturing a region (a `while` loop is exactly this shape), so the rule
-  would drop live calls. The rest of `core/optimizer/*` (`DropBindings`,
-  `StaticResumptions`, `DirectStyle`, `ReferencesToParameters`) is still
-  skipped; those passes are semantics-preserving, so omitting them only affects
-  the quality of the generated code, and the JS backend already implements its
-  own direct-style and loop optimizations (`src/js/transform_cps.mbt`).
-- **The first optimizer passes are ported but not run.** `BindSubexpressions`
-  (the normal form in which every subexpression is named and `val x = y` is
-  inlined away, `src/core/bind_subexpressions.mbt`), `StaticArguments` (the
-  worker/wrapper split of a recursive definition whose recursive calls leave
-  some arguments alone, `src/core/static_arguments.mbt`, with the call analysis
-  of `core/Recursive.scala`, `src/core/recursive.mbt`) and `Normalizer` with its
-  `InliningPolicy` (inlining, join points, folding `if`/`match`, commuting
-  `val`s, `src/core/normalize.mbt`, together with the `Renamer`,
-  `src/core/renamer.mbt`, and the node counts of `core/Tree.scala`'s `sizes`,
-  `src/core/size.mbt`) are ported, but `--show-core` and the generated
-  JavaScript still go through the unnormalized pipeline. Upstream runs them from
-  its optimizer, and without the remaining passes (`StaticResumptions`,
-  `DirectStyle`, …) that consume their output they would only make the core
-  dumps noisier; they are checked by unit tests and were smoke tested by
-  temporarily running them between `Deadcode` and `core.Show` over the whole
-  test corpus (all 618 programs, and `-Strict` stayed at 415/415 positive and
-  203/203 recorded negative diagnostics).
-  The type inference these passes read types from — `Type.inferType` and
+- **The optimizer is ported and runs.** The JavaScript pipeline performs
+  upstream's `core/optimizer` chain (see `optimize` in `src/backend/emit.mbt`):
+  `Deadcode`, `StaticArguments`, then three rounds of `BindSubexpressions` →
+  `Normalizer` → `Deadcode` → `StaticResumptions` → `DirectStyle`, and a final
+  `Deadcode`. `core.Show` runs *before* it, exactly as in upstream's
+  `JavaScript.scala`, so the structural show instances the compiler generates are
+  optimized along with everything else. The passes are
+  `src/core/{deadcode,static_arguments,bind_subexpressions,normalize,
+  static_resumptions,direct_style,references_to_parameters}.mbt`; they share the
+  congruence rewriter `src/core/rewrite.mbt` (upstream's `Tree.Rewrite`) and the
+  normalizer its `InliningPolicy`, the `Renamer` (`src/core/renamer.mbt`) and the
+  node counts of `core/Tree.scala`'s `sizes` (`src/core/size.mbt`).
+  `StaticArguments` comes with the call analysis of `core/Recursive.scala`
+  (`src/core/recursive.mbt`). The types the passes read — `Type.inferType` and
   `Type.inferCapt`, which upstream keeps separate from its debug-only checker —
-  is ported in `src/core/type.mbt`.
-  Four deviations remain in the normalizer, each documented at the point of use:
-  the sharing of pure expressions (`Context.facts`, which is keyed by structural
-  expression equality) is not ported, `covers`/`selecting` (which need the
-  scrutinee's data type) are skipped, the `Shift` rule of `normalizeVal` is
-  skipped too (it retypes the continuation with the type of the enclosing
-  statement, which the normalizer does not infer), and types written into the
-  tree are the unknown type rather than inferred ones. Where upstream asserts that the type
-  arguments of a redex line up, this port adapts them, because the pattern
-  matching compiler does not always bind the existential type parameters of a
-  match clause.
+  come from `src/core/type.mbt`.
+  Deliberate differences, each documented at the point of use:
+  - `Deadcode` does not drop a local `val` whose binding is a provably pure call
+    (`Deadcode.isPureCall`), which needs precise capture sets; with the
+    approximate capture sets of this port such a call can look pure while
+    capturing a region (a `while` loop is exactly this shape), so the rule would
+    drop live calls.
+  - `Mono`, `LambdaSets`, `ArityRaising` and `DropBindings` — the other phases
+    upstream runs around its optimizer — are not ported.
+  - `ReferencesToParameters` is ported (`src/core/references_to_parameters.mbt`,
+    with `usesOf`/`escapes`/the state threading of upstream) but *not run:
+    threading the state of a reference that lives across a shift miscompiles
+    `testdata/upstream/examples/stdlib/stream/map.effekt`, so it stays out of the
+    pipeline until that is understood.
+  - the normalizer has four deviations: the sharing of pure expressions
+    (`Context.facts`, keyed by structural expression equality) is not ported,
+    `covers`/`selecting` (which need the scrutinee's data type) are skipped, the
+    `Shift` rule of `normalizeVal` is skipped too (it retypes the continuation
+    with the type of the enclosing statement, which the normalizer does not
+    infer), and where upstream asserts that the type arguments of a redex line
+    up, this port adapts them, because the pattern matching compiler does not
+    always bind the existential type parameters of a match clause.
+  - a few tree annotations that upstream always knows are still the `unknown_*`
+    sentinels (`unknown_value_type()`/`unknown_block_type()`), e.g. the value a
+    `Bind::bind_impure_app` binds; `Type.inferType` propagates them instead of
+    failing.
 - **The Chez Scheme, LLVM and VM backends are not ported**, nor the LSP server,
   the REPL or the documentation generator.
 

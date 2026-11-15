@@ -287,12 +287,12 @@ fn Transformer::bind_block(
   self : Transformer,
   name : Sym,
   b : Block,
-) -> BlockVar {
+) -> BlockVar raise EffektError {
   self.emit(BindingDef(name, b))
-  match b {
-    BlockVar(bv) => BlockVar::new(name, bv.annotated_tpe, bv.annotated_capt)
-    _ => BlockVar::new(name, unknown_block_type(), Captures::empty())
-  }
+  // upstream `bind(name, b)`: the annotation is the *inferred* type of the block,
+  // which is exactly what `type.mbt` computes (a `BlockLit` becomes a function
+  // type, an `Unbox` the boxed type, `New` its interface).
+  BlockVar::new(name, b.infer_type(), b.infer_capt())
 }
 
 ///|

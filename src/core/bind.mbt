@@ -160,12 +160,11 @@ pub fn Bind::bind_impure_app(
 /// Binds a block to a fresh temporary.
 pub fn Bind::bind_block(block : Block) -> Bind[Block] {
   let id = Sym::tmp_block("tmp")
-  let bv = match block {
-    BlockVar(bv) => BlockVar::new(id, bv.annotated_tpe, bv.annotated_capt)
-    BlockLit(_) => BlockVar::new(id, unknown_block_type(), Captures::empty())
-    Unbox(_) => BlockVar::new(id, unknown_block_type(), Captures::empty())
-    New(_) => BlockVar::new(id, unknown_block_type(), Captures::empty())
-  }
+  let bv = BlockVar::new(
+    id,
+    block.infer_type_or_unknown(),
+    block.infer_capt_or_empty(),
+  )
   { value: BlockVar(bv), bindings: [BindingDef(id, block)], }
 }
 

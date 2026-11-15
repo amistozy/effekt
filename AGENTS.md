@@ -139,6 +139,17 @@ You can browse and install extra skills here:
   pretty printer (`show_core_*`) is likewise not `Show`: it lays out a whole
   module at a fixed width.
 
+- **Rewrite core trees through `Rewrite`, not with a new traversal.** A core
+  pass that rebuilds a tree uses the congruence in `src/core/rewrite.mbt`
+  (upstream `core/Tree.scala`'s `Tree.Rewrite`): `Rewrite::new(on_stmt, on_id,
+  on_captures, on_block)` takes hooks that return `Some(replacement)` for the
+  nodes they handle and `None` to fall back to the congruence. The default
+  rebuilds *everything* — ids, capture sets, types, declarations, externs — so an
+  `on_id` hook renames every occurrence, as upstream's `rewrite(id: Id)` does
+  (that is a plain substitution: `renamer.mbt` is the scoped freshener). A pass
+  that only *collects* something (upstream's `Tree.Query`) can run the same
+  congruence with a side-effecting hook that always returns `None`.
+
 - **Standard combinators take raising closures.** `Array::map`, `any`, `all`,
   `each`, `filter`, … declare their callback as `(T) -> U raise?`, so an arrow
   that aborts compilation is a legal argument: write `xs.map(x => …)` /
@@ -147,6 +158,14 @@ You can browse and install extra skills here:
   the result `raise?` (as `Template::map` does) instead of a concrete error
   type: the error is then inferred per call site, so a pure `f` keeps the
   result pure.
+
+- **Express upstream's `boundary`/`break` with a `Bail` flag or `Option`.**
+  `StaticResumptions` aborts a rule from inside a traversal, which Scala does with
+  a non-local `break`. MoonBit has no non-local return, and a dedicated `suberror`
+  cannot pass through `Rewrite` (whose hooks raise `EffektError`), so the pass
+  carries a small `Bail` struct: the inner helper sets `aborted` and returns
+  anything, and each caller checks the flag before it uses the result. Where a
+  helper can simply return `Option`, that is preferred (`reuse`, `joinpoint`).
 
 - **Restore saved state with `defer`, not `errdefer` plus a manual restore.**
   MoonBit's `defer` runs on both exits (return and raise, verified), so

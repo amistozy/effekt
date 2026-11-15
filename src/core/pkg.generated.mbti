@@ -20,6 +20,8 @@ pub fn clear_pattern_equality_functions() -> Unit
 
 pub fn deadcode(ModuleDecl, Array[@symbols.Sym]) -> ModuleDecl
 
+pub fn direct_style(ModuleDecl) -> ModuleDecl raise @util.EffektError
+
 pub fn expr_type_hint(Expr) -> ValueType
 
 pub fn free_var_extern_body(ExternBody[Expr]) -> Free
@@ -37,6 +39,8 @@ pub fn normalize(ModuleDecl, Array[@symbols.Sym], InliningPolicy) -> ModuleDecl 
 pub fn pm_compile(Array[PMClause], ValueType) -> Stmt raise @util.EffektError
 
 pub fn pm_normalize(PMClause) -> PMClause raise @util.EffektError
+
+pub fn references_to_parameters(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
 pub fn rename_block(Block) -> (Block, Map[Int32, @symbols.Sym])
 
@@ -71,6 +75,8 @@ pub fn show_phase(ModuleDecl) -> ModuleDecl raise @util.EffektError
 pub fn single(Array[ValueType]) -> ValueType raise @util.EffektError
 
 pub fn static_arguments(ModuleDecl) -> ModuleDecl raise @util.EffektError
+
+pub fn static_resumptions(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
 pub fn substitute_as_var(@symbols.Sym, Substitution) -> @symbols.Sym raise @util.EffektError
 
@@ -178,6 +184,8 @@ pub(all) enum Block {
   New(Implementation)
 }
 pub fn Block::free(Self) -> Free
+pub fn Block::infer_capt_or_empty(Self) -> @symbols.Captures
+pub fn Block::infer_type_or_unknown(Self) -> BlockType
 
 pub(all) struct BlockLit {
   tparams : Array[@symbols.Sym]
@@ -188,6 +196,7 @@ pub(all) struct BlockLit {
 }
 pub fn BlockLit::free(Self) -> Free
 pub fn BlockLit::new(Array[@symbols.Sym], Array[@symbols.Sym], Array[ValueParam], Array[BlockParam], Stmt) -> Self
+pub fn BlockLit::with_body(Self, Stmt) -> Self
 
 pub(all) struct BlockParam {
   id : @symbols.Sym
@@ -224,6 +233,7 @@ pub(all) struct Clause {
 }
 pub fn Clause::Clause(@symbols.Sym, BlockLit) -> Self
 pub fn Clause::free(Self) -> Free
+pub fn Clause::with_body(Self, BlockLit) -> Self
 
 pub(all) struct Constructor {
   id : @symbols.Sym

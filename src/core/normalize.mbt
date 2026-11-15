@@ -945,7 +945,7 @@ fn Normalizer::make_joinpoint(
     [],
     body,
   )
-  let kv = BlockVar::new(k, unknown_block_type(), Captures::empty())
+  let kv = BlockVar::new(k, definition.infer_type(), definition.infer_capt())
   Def(k, BlockLit(definition), f(kv, ctx.with_block(k, BlockLit(definition))))
 }
 
@@ -1273,7 +1273,7 @@ fn Normalizer::reduce(
           bindings.push(BindingDef(id, block))
           bvars.push(
             BlockVar(
-              BlockVar::new(id, unknown_block_type(), block_captures(block)),
+              BlockVar::new(id, block.infer_type(), block_captures(block)),
             ),
           )
           self.copy_usage_one(id, bparam.id)
@@ -1300,7 +1300,7 @@ fn Normalizer::lift(
   self : Normalizer,
   operation : Operation,
   interface_id : Sym,
-) -> (BlockVar, BlockLit, Operation) {
+) -> (BlockVar, BlockLit, Operation) raise EffektError {
   let literal = BlockLit::new(
     operation.tparams,
     operation.cparams,
@@ -1310,8 +1310,8 @@ fn Normalizer::lift(
   )
   let method = BlockVar::new(
     Sym::id(operation.name.name()),
-    unknown_block_type(),
-    Captures::empty(),
+    literal.infer_type(),
+    literal.infer_capt(),
   )
   self.copy_usage_one(method.id, interface_id)
   let forwarder = self.forward(operation, method)

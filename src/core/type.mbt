@@ -42,6 +42,26 @@ fn instantiated_results(
 }
 
 ///|
+/// `Block::infer_type`, degrading to `unknown_block_type()` where the inference
+/// fails. The port writes `unknown_*` where upstream always knows the type, so a
+/// caller that has no reasonable way to fail rebinds such a block with the
+/// sentinel rather than aborting.
+pub fn Block::infer_type_or_unknown(self : Block) -> BlockType {
+  self.infer_type() catch {
+    _ => unknown_block_type()
+  }
+}
+
+///|
+/// `Block::infer_capt`, degrading to the empty capture set (see
+/// [[Block::infer_type_or_unknown]]).
+pub fn Block::infer_capt_or_empty(self : Block) -> Captures {
+  self.infer_capt() catch {
+    _ => Captures::empty()
+  }
+}
+
+///|
 /// Unions the captures of the given items, as upstream's `allCapt`.
 fn[T] union_captures(
   xs : Array[T],

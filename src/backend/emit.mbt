@@ -77,9 +77,60 @@ pub fn middle_end(
   )
   let aggregated = @core.deadcode(aggregated, required)
   // 2c. Replace the prelude's `show` extern by compiler-generated structural
-  //     show definitions.
+  //     show definitions. Upstream runs `core.Show` before its optimizer, so the
+  //     instances it generates are optimized (and dead-coded) along with
+  //     everything else.
   let aggregated = @core.show_phase(aggregated)
+  // 2d. The optimizer: upstream's `Optimizer.optimize`, minus the phases that
+  //     are not ported (`Mono`, `LambdaSets`, `ArityRaising`, `DropBindings`).
+  let aggregated = optimize(aggregated, main_sym)
   (aggregated, main_sym)
+}
+
+///|
+/// `Optimizer.optimize`: dead code elimination, then the static argument
+/// transformation, then three rounds of normalization (each of which ends in the
+/// passes that consume the normal form), and two final cleanups.
+///
+/// Upstream normalizes three times "since tail resumptions might only surface
+/// after normalization and leave dead `Reset`s"; the rounds run the same phases on
+/// a shrinking tree.
+///
+/// `ReferencesToParameters` is ported (`src/core/references_to_parameters.mbt`)
+/// but not run: threading the state of a reference that lives across a shift
+/// miscompiles `testdata/upstream/examples/stdlib/stream/map.effekt`, so the pass
+/// stays out of the pipeline until that is understood.
+fn optimize(
+  module : @core.ModuleDecl,
+  main_sym : Sym,
+) -> @core.ModuleDecl raise EffektError {
+  let roots = [main_sym]
+  // (1) first thing we do is simply remove unused definitions (this speeds up
+  //     all following analyses and rewrites)
+  let module = @core.deadcode(module, roots)
+  // (2) lift static arguments
+  let module = @core.static_arguments(module)
+  let policy = @core.InliningPolicy::default()
+  let module = normalize_round(module, roots, policy)
+  let module = normalize_round(module, roots, policy)
+  let module = normalize_round(module, roots, policy)
+  // `StaticResumptions` runs after `Deadcode` and frees stuff, so let us run
+  // `Deadcode` one more time
+  @core.deadcode(module, roots)
+}
+
+///|
+/// One round of the optimizer's normalization (upstream `Optimizer.normalize`).
+fn normalize_round(
+  module : @core.ModuleDecl,
+  roots : Array[Sym],
+  policy : @core.InliningPolicy,
+) -> @core.ModuleDecl raise EffektError {
+  let module = @core.bind_subexpressions(module)
+  let module = @core.normalize(module, roots, policy)
+  let module = @core.deadcode(module, roots)
+  let module = @core.static_resumptions(module)
+  @core.direct_style(module)
 }
 
 ///|
