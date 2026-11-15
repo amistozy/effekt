@@ -108,9 +108,13 @@ You can browse and install extra skills here:
   Walking a collection is `for x in xs`, `for i, x in xs` with the index,
   `for (a, b) in pairs` over tuples, `for c in s` over the characters of a
   `String` (no `s[i].to_char()`); a state machine is
-  `for pat = init { … continue next }`. `while` stays for scans whose bound is a
-  predicate (`while i < s.length() && s[i].is_digit()`, worklists,
+  `for pat = init { … continue next }`, and an inclusive bound is `0..<=n`.
+  `while` stays for scans whose bound is a predicate
+  (`while i < s.length() && s[i].is_digit()`, worklists,
   `while changed`), and for loops whose index does not advance by one.
+  A loop that walks right-to-left is `xs.rev_fold(init=…, (acc, x) => …)` when
+  it folds a value, and `for (x, y) in xs.zip(ys).rev()` when it needs two
+  arrays in step.
 
 - **Ask the standard library before writing a helper.** `xs.is_empty()` (not
   `xs.length() == 0` — the core library has 399 of the former and 28 of the

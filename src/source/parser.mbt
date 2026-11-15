@@ -2958,11 +2958,9 @@ fn Parser::list_literal(self : Parser) -> Term raise EffektError {
       TComma,
       TRBracket,
     )
-    let mut result = self.nil_tree()
-    for i = items.items.length() - 1; i >= 0; i = i - 1 {
-      result = cons_tree(items.items[i], result)
-    }
-    result
+    items.items.rev_fold(init=self.nil_tree(), (acc, item) => {
+      cons_tree(item, acc)
+    })
   })
 }
 
@@ -3197,11 +3195,10 @@ fn Parser::template_string(
         let exprs = interleave(do_lits, do_splices)
         let unit_span = self.span().synthesized()
         let unit = mk_term(unit_span, TermKind::Literal(LUnit, t_unit()))
-        let mut body = mk_stmt(unit_span, StmtKind::Return(unit))
-        for i = exprs.length() - 1; i >= 0; i = i - 1 {
-          let sp = exprs[i].span.synthesized()
-          body = mk_stmt(sp, StmtKind::ExprStmt(exprs[i], body))
-        }
+        let body = exprs.rev_fold(
+          init=mk_stmt(unit_span, StmtKind::Return(unit)),
+          (acc, e) => mk_stmt(e.span.synthesized(), StmtKind::ExprStmt(e, acc)),
+        )
         let blk_span = self.span().synthesized()
         let blk = mk_term(blk_span, TermKind::BlockLiteral([], [], [], body))
         mk_term(blk_span, TermKind::Call(IdTarget(target), [], [], [blk]))

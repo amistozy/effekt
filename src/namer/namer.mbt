@@ -597,7 +597,7 @@ fn Namer::define_id(
 ) -> Unit raise EffektError {
   self.context.assign_symbol(id.uid, sym)
   let is_type = sym.is_type_symbol()
-  for i = 0; i <= id.path.length(); i = i + 1 {
+  for i in 0..<=id.path.length() {
     let suffix = id.path[i:].to_owned()
     self.in_namespace_path(suffix, () => {
       if is_type {
@@ -644,7 +644,7 @@ fn Namer::define_def(
 ///|
 fn Namer::bind_term(self : Namer, sym : Sym) -> Unit raise EffektError {
   let name = sym.name()
-  for i = 0; i <= name.path.length(); i = i + 1 {
+  for i in 0..<=name.path.length() {
     let suffix = name.path[i:].to_owned()
     self.in_namespace_path(suffix, () => {
       self.scoping.define_term(name.name, sym)
@@ -655,7 +655,7 @@ fn Namer::bind_term(self : Namer, sym : Sym) -> Unit raise EffektError {
 ///|
 fn Namer::bind_type(self : Namer, sym : Sym) -> Unit raise EffektError {
   let name = sym.name()
-  for i = 0; i <= name.path.length(); i = i + 1 {
+  for i in 0..<=name.path.length() {
     let suffix = name.path[i:].to_owned()
     self.in_namespace_path(suffix, () => {
       self.scoping.define_type(name.name, sym)

@@ -402,9 +402,8 @@ fn pm_split_on_literal(
 
   // (4) assemble syntax tree for the pattern match
   let mut result = pm_compile(defaults, motif)
-  for i = variants.length() - 1; i >= 0; i = i - 1 {
-    let value = variants[i]
-    let thn = pm_compile(clauses_for[i], motif)
+  for (value, clauses) in variants.zip(clauses_for).rev() {
+    let thn = pm_compile(clauses, motif)
     let els = result
     result = match value {
       LUnit => thn

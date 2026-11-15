@@ -76,11 +76,7 @@ pub fn Binding::to_toplevel(self : Binding) -> Toplevel raise EffektError {
 ///|
 /// Prefixes `body` with the given bindings.
 pub fn bindings_to_stmt(bindings : Array[Binding], body : Stmt) -> Stmt {
-  let mut result = body
-  for i = bindings.length() - 1; i >= 0; i = i - 1 {
-    result = bindings[i].to_stmt(result)
-  }
-  result
+  bindings.rev_fold(init=body, (acc, b) => b.to_stmt(acc))
 }
 
 ///|

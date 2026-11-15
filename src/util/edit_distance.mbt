@@ -4,13 +4,6 @@
 // so the distance is only computed while it can still stay below `limit`.
 
 ///|
-/// The code units of a string. Names are compared character-wise, so the
-/// conversions up front keep the dynamic program simple.
-fn chars_of(s : String) -> Array[Char] {
-  s.to_array()
-}
-
-///|
 /// The lower-case ASCII code of a character, so that type names can be compared
 /// case-insensitively (`Mytype` vs `MyType`) without a Unicode case table.
 fn lower_code(c : Char) -> Int32 {
@@ -28,8 +21,8 @@ fn lower_code(c : Char) -> Int32 {
 /// The common prefix and suffix are stripped first (like upstream), which makes
 /// the dynamic program tiny for the typos that actually occur in practice.
 pub fn edit_distance(a : String, b : String, limit : Int32) -> Int32? {
-  let left = chars_of(a)
-  let right = chars_of(b)
+  let left = a.to_array()
+  let right = b.to_array()
   let n = left.length()
   let m = right.length()
   if n == 0 {
@@ -65,28 +58,17 @@ pub fn edit_distance(a : String, b : String, limit : Int32) -> Int32? {
   // `prev[j]` is the distance of `s1[0:i-1]` and `s2[0:j-1]`.
   let mut prev : Array[Int32] = Array::make(lm + 1, 0)
   let mut cur : Array[Int32] = Array::make(lm + 1, 0)
-  for j = 0; j <= lm; j = j + 1 {
+  for j in 0..<=lm {
     prev[j] = j
   }
-  for i = 1; i <= ln; i = i + 1 {
+  for i in 1..<=ln {
     cur[0] = i
     let mut row_min = cur[0]
-    for j = 1; j <= lm; j = j + 1 {
+    for j in 1..<=lm {
       let cost = if s1[i - 1] == s2[j - 1] { 0 } else { 1 }
-      let deletion = prev[j] + 1
-      let insertion = cur[j - 1] + 1
-      let substitution = prev[j - 1] + cost
-      let mut best = deletion
-      if insertion < best {
-        best = insertion
-      }
-      if substitution < best {
-        best = substitution
-      }
+      let best = (prev[j] + 1).min(cur[j - 1] + 1).min(prev[j - 1] + cost)
       cur[j] = best
-      if best < row_min {
-        row_min = best
-      }
+      row_min = row_min.min(best)
     }
     if row_min > limit {
       return None
@@ -106,13 +88,13 @@ pub fn edit_distance(a : String, b : String, limit : Int32) -> Int32? {
 ///|
 /// Are the two names equal when ignoring ASCII case?
 fn equal_ignoring_case(a : String, b : String) -> Bool {
-  let left = chars_of(a)
-  let right = chars_of(b)
+  let left = a.to_array()
+  let right = b.to_array()
   if left.length() != right.length() {
     return false
   }
-  for i in 0..<left.length() {
-    if lower_code(left[i]) != lower_code(right[i]) {
+  for (l, r) in left.zip(right) {
+    if lower_code(l) != lower_code(r) {
       return false
     }
   }

@@ -790,10 +790,7 @@ fn Typer::check_pending_matches(self : Typer) -> Unit {
       types.push(self.st.u.prune_value(t))
     }
     let clauses = pending.clauses
-    let used : Array[Bool] = []
-    for i = 0; i <= clauses.length(); i = i + 1 {
-      used.push(false)
-    }
+    let used : Array[Bool] = Array::make(clauses.length() + 1, false)
     let checker : Exhaustivity = {
       typer: self,
       clauses,
