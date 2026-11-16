@@ -385,7 +385,8 @@ fn format_args(parts : Array[String]) -> String {
   } else if parts.length() == 1 {
     parts[0]
   } else {
-    parts[0:parts.length() - 1].join(", ") + " and " + parts[parts.length() - 1]
+    let last = parts[parts.length() - 1]
+    "\{parts[0:parts.length() - 1].join(", ")} and \{last}"
   }
 }
 

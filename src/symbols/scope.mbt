@@ -158,7 +158,7 @@ pub fn Scoping::import_as(
 
 ///|
 fn[T] qualified_first(
-  path : Array[String],
+  path : ArrayView[String],
   bindings : Bindings,
   select : (Bindings) -> T? raise EffektError,
 ) -> T? raise EffektError {
@@ -167,14 +167,14 @@ fn[T] qualified_first(
   } else {
     match bindings.namespaces.get(path[0]) {
       None => None
-      Some(ns) => qualified_first(path[1:].to_owned(), ns, select)
+      Some(ns) => qualified_first(path[1:], ns, select)
     }
   }
 }
 
 ///|
 fn[T] first(
-  path : Array[String],
+  path : ArrayView[String],
   scope : Scope,
   select : (Bindings) -> T? raise EffektError,
 ) -> T? raise EffektError {
@@ -193,7 +193,7 @@ fn[T] first(
 
 ///|
 fn[T] qualified_all(
-  path : Array[String],
+  path : ArrayView[String],
   bindings : Bindings,
   select : (Bindings) -> T,
 ) -> Array[T] {
@@ -202,14 +202,14 @@ fn[T] qualified_all(
   } else {
     match bindings.namespaces.get(path[0]) {
       None => []
-      Some(ns) => qualified_all(path[1:].to_owned(), ns, select)
+      Some(ns) => qualified_all(path[1:], ns, select)
     }
   }
 }
 
 ///|
 fn[T] all(
-  path : Array[String],
+  path : ArrayView[String],
   scope : Scope,
   select : (Bindings) -> T,
 ) -> Array[T] {

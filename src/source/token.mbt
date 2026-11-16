@@ -27,7 +27,7 @@ pub(all) enum LexerError {
 pub fn LexerError::message(self : LexerError) -> String {
   match self {
     InvalidEscapeSequence(str) =>
-      "Invalid character in escape sequence: `\\" + str + "`"
+      "Invalid character in escape sequence: `\\\{str}`"
     Expected(char) => "Expected '\{char}' while lexing"
     UnknownChar(char) =>
       "Unknown character '\{char}' (U+\{char.to_int().to_string(radix=16).to_upper()}) in file"

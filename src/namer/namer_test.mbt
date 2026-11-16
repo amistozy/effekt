@@ -388,10 +388,10 @@ test "a local val shadows a toplevel val" {
       assert_eq(symbol_kind(context, toplevel_id.uid), "ValBinder")
       assert_eq(symbol_kind(context, local_id.uid), "ValBinder")
       // the two binders are different symbols ...
-      assert_true(!same_symbol(context, toplevel_id.uid, local_id.uid))
+      assert_false(same_symbol(context, toplevel_id.uid, local_id.uid))
       // ... and the use refers to the local one
       assert_true(same_symbol(context, use.uid, local_id.uid))
-      assert_true(!same_symbol(context, use.uid, toplevel_id.uid))
+      assert_false(same_symbol(context, use.uid, toplevel_id.uid))
     }
     None => {
       println(messages(context))
@@ -727,11 +727,11 @@ test "a local definition shadows an imported name" {
       match resolve_with(module, context, deps) {
         Some(_) => {
           // the definition shadows the imported name instead of being ambiguous
-          assert_true(!context.has_errors())
+          assert_false(context.has_errors())
           assert_true(same_symbol(context, use.uid, local_answer_id.uid))
           match lib_context.symbol_of(lib_answer_id.uid) {
             Some(imported) =>
-              assert_true(!same_symbol(context, use.uid, imported.uid()))
+              assert_false(same_symbol(context, use.uid, imported.uid()))
             None => assert_true(false)
           }
         }
@@ -890,7 +890,7 @@ test "the `resolve` entry point publishes the module in the context" {
     }
     None => assert_true(false)
   }
-  assert_true(!context.has_errors())
+  assert_false(context.has_errors())
 }
 
 ///|
@@ -1021,7 +1021,7 @@ test "an importer resolved after its dependency sees its terms and types" {
         Some(app) => {
           // including a module twice imports it once
           assert_eq(app.module.includes.length(), 1)
-          assert_true(!context.has_errors())
+          assert_false(context.has_errors())
           // the *type* `Box[Int]` of the dependency resolves to the same symbol
           match context.symbol_of(box_int.uid) {
             Some(sym) => assert_eq(sym.uid(), box_uid)

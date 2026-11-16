@@ -510,7 +510,7 @@ test "parse: multiple operations and new" {
 test "parse: errors are reported" {
   let (decl, messages) = parse_module("def main( = 1")
   assert_true(decl is None)
-  assert_true(!messages.is_empty())
+  assert_false(messages.is_empty())
 }
 
 ///|
@@ -520,7 +520,7 @@ test "parse: reports an error for stray tokens" {
     #|42 43
   let (decl, messages) = parse_module(src)
   assert_true(decl is None)
-  assert_true(!messages.is_empty())
+  assert_false(messages.is_empty())
 }
 
 // ---------------------------------------------------------------------------
@@ -660,7 +660,7 @@ test "parse term: holes" {
 test "parse term: term errors are reported" {
   let (term, messages) = parse_expr("1 +")
   assert_true(term is None)
-  assert_true(!messages.is_empty())
+  assert_false(messages.is_empty())
   let (term2, _) = parse_expr("1 2")
   assert_true(term2 is None)
 }
@@ -800,7 +800,7 @@ test "parse: upstream exception library" {
 fn check_spans(d : @source.ModuleDecl) -> Unit raise {
   for def in d.defs {
     assert_true(def.span.start <= def.span.end)
-    assert_true(!def.span.is_missing())
+    assert_false(def.span.is_missing())
     match def.kind {
       FunDef(id, _, vparams, bparams, _, _, body) => {
         assert_true(id.span.start <= id.span.end)

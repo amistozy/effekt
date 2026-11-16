@@ -386,7 +386,7 @@ fn Exhaustivity::check_scrutinees(
     self.missing_default(tpes[0], traces[0])
     return
   }
-  self.match_clauses(clauses[0], clauses[1:].to_owned())
+  self.match_clauses(clauses[0], clauses[1:])
 }
 
 ///|
@@ -437,7 +437,7 @@ fn Exhaustivity::check_other(
   if clauses.is_empty() {
     self.missing_default(tpe, trace)
   } else {
-    self.match_clauses(clauses[0], clauses[1:].to_owned())
+    self.match_clauses(clauses[0], clauses[1:])
   }
 }
 
@@ -473,7 +473,7 @@ fn Exhaustivity::check_datatype(
     if covered.is_empty() {
       self.missing_tag(ctor, trace)
     } else {
-      self.match_clauses(covered[0], covered[1:].to_owned())
+      self.match_clauses(covered[0], covered[1:])
     }
   }
 }
@@ -542,28 +542,25 @@ fn Exhaustivity::check_literal(
     Some(values) =>
       for value in values {
         match covered_by(table, value) {
-          Some(cs) =>
-            if !cs.is_empty() {
-              self.match_clauses(cs[0], cs[1:].to_owned())
-            }
+          Some(cs) => if !cs.is_empty() { self.match_clauses(cs[0], cs[1:]) }
           None =>
             if defaults.is_empty() {
               self.missing_literal(value, trace)
             } else {
-              self.match_clauses(defaults[0], defaults[1:].to_owned())
+              self.match_clauses(defaults[0], defaults[1:])
             }
         }
       }
     None => {
       for entry in table {
         if !entry.1.is_empty() {
-          self.match_clauses(entry.1[0], entry.1[1:].to_owned())
+          self.match_clauses(entry.1[0], entry.1[1:])
         }
       }
       if defaults.is_empty() {
         self.missing_default(tpe, trace)
       } else {
-        self.match_clauses(defaults[0], defaults[1:].to_owned())
+        self.match_clauses(defaults[0], defaults[1:])
       }
     }
   }
@@ -573,7 +570,7 @@ fn Exhaustivity::check_literal(
 fn Exhaustivity::match_clauses(
   self : Exhaustivity,
   head : Clause,
-  alternatives : Array[Clause],
+  alternatives : ArrayView[Clause],
 ) -> Unit {
   if head.conds.is_empty() {
     self.use(head.index)
@@ -587,7 +584,7 @@ fn Exhaustivity::match_clauses(
       if alternatives.is_empty() {
         self.missing_guard(span)
       } else {
-        self.match_clauses(alternatives[0], alternatives[1:].to_owned())
+        self.match_clauses(alternatives[0], alternatives[1:])
       }
     }
     CPatterns(patterns) =>
@@ -604,16 +601,12 @@ fn Exhaustivity::match_clauses(
           PTag(ctor, _) => {
             let tpe = @symbols.constructor_applied_datatype(ctor)
             let all : Array[Clause] = [head]
-            for a in alternatives {
-              all.push(a)
-            }
+            all.append(alternatives)
             self.check_scrutinee(trace, tpe, all)
           }
           PLit(_, tpe) => {
             let all : Array[Clause] = [head]
-            for a in alternatives {
-              all.push(a)
-            }
+            all.append(alternatives)
             self.check_scrutinee(trace, tpe, all)
           }
           PAny => ()

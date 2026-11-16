@@ -64,8 +64,8 @@ test "command line defaults" {
   assert_eq(opts.include_paths, [])
   // argparse fills the declared default in.
   assert_eq(opts.lib_path, "libraries")
-  assert_true(!opts.show_help)
-  assert_true(!opts.run)
+  assert_false(opts.show_help)
+  assert_false(opts.run)
 }
 
 ///|
@@ -100,7 +100,7 @@ test "the help text documents every option" {
     assert_true(help.contains(flag))
   }
   // `usage` is printed with `println`, so it must not end in a newline.
-  assert_true(!help.has_suffix("\n"))
+  assert_false(help.has_suffix("\n"))
 }
 
 ///|
@@ -184,7 +184,7 @@ test "frontend rejects ill-typed programs" {
     #|
   let messages = check_program("bad.effekt", text)
   let errors = messages.filter(m => m.severity == @util.Error)
-  assert_true(!errors.is_empty())
+  assert_false(errors.is_empty())
 }
 
 ///|
@@ -411,7 +411,7 @@ test "an unsolved effect argument is solved from the declaration" {
 /// only exist in the context annotations of the module that defined them.
 test "a library module that uses cross-module inferred types type-checks" {
   let result = frontend_only("libraries/common/list.effekt")
-  assert_true(!result.failed)
+  assert_false(result.failed)
 }
 
 ///|

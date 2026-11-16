@@ -336,15 +336,9 @@ pub fn state_effect_sym() -> Sym {
 ///|
 pub fn t_state_extract(s : BlockType) -> ValueType raise EffektError {
   match s {
-    InterfaceType(i, args) =>
-      if i.uid() == state_effect.interface.uid() && args.length() == 1 {
-        args[0]
-      } else {
-        raise EffektError::Internal(
-          "Expected builtin state, but got " + "state",
-        )
-      }
-    _ => raise EffektError::Internal("Expected builtin state")
+    InterfaceType(i, args) if i.uid() == state_effect.interface.uid() &&
+      args.length() == 1 => args[0]
+    tpe => raise EffektError::Internal("Expected builtin state, but got \{tpe}")
   }
 }
 

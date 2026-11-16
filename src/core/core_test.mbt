@@ -106,7 +106,7 @@ test "core: free variables" {
   // x is bound inside the block, but free in the body of the definition
   assert_true(free.contains(x))
   // f is bound by the definition itself
-  assert_true(!free.contains(f))
+  assert_false(free.contains(f))
 }
 
 ///|

@@ -30,7 +30,7 @@ test "cps: free variables of a let expression" {
   assert_true(free.contains(k))
   assert_true(free.contains(ks))
   // x is bound by the let, and the binding does not mention it
-  assert_true(!free.contains(x))
+  assert_false(free.contains(x))
 }
 
 ///|
@@ -49,9 +49,9 @@ test "cps: free variables of a block literal exclude its parameters" {
   let blk : @cps.Block = @cps.BlockLit(lit)
   let free = blk.free()
   assert_true(free.contains(y))
-  assert_true(!free.contains(x))
-  assert_true(!free.contains(ks))
-  assert_true(!free.contains(k))
+  assert_false(free.contains(x))
+  assert_false(free.contains(ks))
+  assert_false(free.contains(k))
 }
 
 ///|

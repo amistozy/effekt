@@ -175,15 +175,13 @@ fn[T] Namer::in_namespace(
 ///|
 fn[T] Namer::in_namespace_path(
   self : Namer,
-  path : Array[String],
+  path : ArrayView[String],
   f : () -> T raise EffektError,
 ) -> T raise EffektError {
   if path.is_empty() {
     f()
   } else {
-    self.in_namespace(path[0], () => {
-      self.in_namespace_path(path[1:].to_owned(), f)
-    })
+    self.in_namespace(path[0], () => self.in_namespace_path(path[1:], f))
   }
 }
 
@@ -314,7 +312,7 @@ fn merge_bindings(target : Bindings, source : Bindings) -> Unit {
 /// Navigates `path` in `bindings` and selects from the bindings found.
 fn[T] in_bindings(
   bindings : Bindings,
-  path : Array[String],
+  path : ArrayView[String],
   select : (Bindings) -> T? raise EffektError,
 ) -> T? raise EffektError {
   if path.is_empty() {
@@ -322,7 +320,7 @@ fn[T] in_bindings(
   } else {
     match bindings.get_namespace(path[0]) {
       None => None
-      Some(child) => in_bindings(child, path[1:].to_owned(), select)
+      Some(child) => in_bindings(child, path[1:], select)
     }
   }
 }
@@ -598,8 +596,7 @@ fn Namer::define_id(
   self.context.assign_symbol(id.uid, sym)
   let is_type = sym.is_type_symbol()
   for i in 0..<=id.path.length() {
-    let suffix = id.path[i:].to_owned()
-    self.in_namespace_path(suffix, () => {
+    self.in_namespace_path(id.path[i:], () => {
       if is_type {
         // Upstream `Scope.define(name, sym: TypeSymbol)`: a type may not be
         // declared twice in the *same* scope, and a type parameter that hides
@@ -645,8 +642,7 @@ fn Namer::define_def(
 fn Namer::bind_term(self : Namer, sym : Sym) -> Unit raise EffektError {
   let name = sym.name()
   for i in 0..<=name.path.length() {
-    let suffix = name.path[i:].to_owned()
-    self.in_namespace_path(suffix, () => {
+    self.in_namespace_path(name.path[i:], () => {
       self.scoping.define_term(name.name, sym)
     })
   }
@@ -656,8 +652,7 @@ fn Namer::bind_term(self : Namer, sym : Sym) -> Unit raise EffektError {
 fn Namer::bind_type(self : Namer, sym : Sym) -> Unit raise EffektError {
   let name = sym.name()
   for i in 0..<=name.path.length() {
-    let suffix = name.path[i:].to_owned()
-    self.in_namespace_path(suffix, () => {
+    self.in_namespace_path(name.path[i:], () => {
       self.scoping.define_type(name.name, sym)
     })
   }

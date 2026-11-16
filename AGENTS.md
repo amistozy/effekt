@@ -137,6 +137,15 @@ You can browse and install extra skills here:
   the element is taken as it is). Loop over tuples by destructuring in the header
   (`for (a, b) in pairs`), not by binding the pair and unpacking it inside.
 
+- **Take `ArrayView[T]` when a function only reads a sequence.** An `Array`
+  coerces to an `ArrayView` at a call site, so a reader accepts arrays, slices
+  and views without copying (`fn in_bindings(bindings, path : ArrayView[String],
+  select)`); the core library has 364 such parameters and this port had none,
+  which showed up as `path[1:].to_owned()` in every recursive step of the
+  namer's path walk (now `path[1:]`). Keep `Array[T]` for a parameter that is
+  mutated, stored in a field or returned, and for results. `Array::append` is
+  the counterpart: `all.append(alternatives)` instead of a push loop.
+
 - **Test an enum with a pattern condition, not a two-arm `match`.** `if e is
   Some(x) { … }` binds `x` in the condition and replaces
   `match e { Some(x) => …, None => () }` (a shape the core library writes 1489

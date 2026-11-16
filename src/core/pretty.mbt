@@ -375,7 +375,7 @@ fn d_literal(value : LiteralValue) -> Doc {
     @source.LInt(n) => text(n.to_string())
     @source.LDouble(d) => text(d.to_string())
     @source.LString(s) => string_literal(s)
-    @source.LChar(c) => text("'\\" + c.to_string() + "'")
+    @source.LChar(c) => text("'\\\{c}'")
     @source.LByte(b) => text(hex_byte(b))
   }
 }

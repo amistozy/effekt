@@ -103,16 +103,16 @@ test "lexer: function definition" {
 
 ///|
 test "lexer: braces and interpolation nesting" {
-  assert_true(!has_error("${}"))
-  assert_true(!has_error("\" before ${ ${} } after\""))
+  assert_false(has_error("${}"))
+  assert_false(has_error("\" before ${ ${} } after\""))
   assert_eq(kinds("${ ${} }"), "${ ${ }$ }$ EOF")
-  assert_true(!has_error("}"))
-  assert_true(!has_error("{}}"))
-  assert_true(!has_error("{ 42 "))
-  assert_true(!has_error("\"${}}}}\""))
-  assert_true(!has_error("\"}\""))
-  assert_true(!has_error("\" before ${ \"${ 42 }\" } after\""))
-  assert_true(!has_error("<\"${ <{ 5 }> }\">"))
+  assert_false(has_error("}"))
+  assert_false(has_error("{}}"))
+  assert_false(has_error("{ 42 "))
+  assert_false(has_error("\"${}}}}\""))
+  assert_false(has_error("\"}\""))
+  assert_false(has_error("\" before ${ \"${ 42 }\" } after\""))
+  assert_false(has_error("<\"${ <{ 5 }> }\">"))
 }
 
 ///|
@@ -159,9 +159,9 @@ test "lexer: hex literals with eight digits are integers" {
 ///|
 test "lexer: big numbers" {
   assert_true(has_error("9223372036854775808"))
-  assert_true(!has_error("9223372036854775807"))
+  assert_false(has_error("9223372036854775807"))
   assert_true(has_error("-9223372036854775809"))
-  assert_true(!has_error("-9223372036854775808"))
+  assert_false(has_error("-9223372036854775808"))
   assert_eq(
     kinds("foo(9223372036854775808)"),
     "id:foo ( !err:Invalid integer format, not a 64bit integer literal ) EOF",
@@ -187,8 +187,8 @@ test "lexer: single line strings" {
   assert_eq(kinds("\"\\\"hello\\\"\""), "str(\"\"hello\"\") EOF")
   assert_eq(kinds("\"\\n\""), "str(\"\n\") EOF")
   assert_true(has_error("\"\\k\""))
-  assert_true(!has_error("\"\\u001b\""))
-  assert_true(!has_error("\"\\u{001b}\""))
+  assert_false(has_error("\"\\u001b\""))
+  assert_false(has_error("\"\\u{001b}\""))
   assert_eq(kinds("'\\''"), "chr:39 EOF")
   assert_eq(kinds("\"'\""), "str(\"'\") EOF")
   assert_eq(kinds("'\\\"'"), "chr:34 EOF")
@@ -305,7 +305,7 @@ test "lexer: multiline string holes" {
     #|  ${ do bar() }
     #|">
     #|
-  assert_true(!has_error(prog3))
+  assert_false(has_error(prog3))
 }
 
 ///|
@@ -319,7 +319,7 @@ test "lexer: quoted multi-line string" {
 
 ///|
 test "lexer: simple nested interpolated string" {
-  assert_true(!has_error("\"${\"${1}\"2}\""))
+  assert_false(has_error("\"${\"${1}\"2}\""))
 }
 
 ///|
