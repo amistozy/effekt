@@ -18,3 +18,4 @@ testdata/**/*.js
 # Upstream corpus scratch output
 .upstream-out/
 .upstream-*.log
+__pycache__/
