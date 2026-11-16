@@ -498,29 +498,28 @@ fn Normalizer::discount(
 /// The size of the branches that knowing the given values would delete.
 fn dead_branches(known : Map[Int32, Expr], body : Stmt) -> Int32 {
   let mut acc = 0
-  let mut current = body
-  while true {
+  for current = body {
     match current {
       // a binder cannot select a branch, so pass through it
-      Val(_, _, rest) => current = rest
-      Let(_, _, rest) => current = rest
-      ImpureApp(_, _, _, _, _, rest) => current = rest
-      Def(_, _, rest) => current = rest
-      Alloc(_, _, _, rest) => current = rest
-      Var(_, _, _, rest) => current = rest
-      Get(_, _, _, _, rest) => current = rest
-      Put(_, _, _, rest) => current = rest
+      Val(_, _, rest) => continue rest
+      Let(_, _, rest) => continue rest
+      ImpureApp(_, _, _, _, _, rest) => continue rest
+      Def(_, _, rest) => continue rest
+      Alloc(_, _, _, rest) => continue rest
+      Var(_, _, _, rest) => continue rest
+      Get(_, _, _, _, rest) => continue rest
+      Put(_, _, _, rest) => continue rest
       If(cond, thn, els) =>
         match cond {
           ValueVar(id, _) =>
             match known.get(id.uid()) {
               Some(Literal(LBool(true), _)) => {
                 acc = acc + els.size()
-                current = thn
+                continue thn
               }
               Some(Literal(LBool(false), _)) => {
                 acc = acc + thn.size()
-                current = els
+                continue els
               }
               _ => return acc
             }
@@ -546,13 +545,13 @@ fn dead_branches(known : Map[Int32, Expr], body : Stmt) -> Int32 {
                     if default is Some(d) {
                       acc = acc + d.size()
                     }
-                    current = clause.body.body
+                    continue clause.body.body
                   }
                   None =>
                     match default {
                       Some(d) => {
                         acc = acc + dead
-                        current = d
+                        continue d
                       }
                       None => return acc + dead
                     }
