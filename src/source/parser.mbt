@@ -998,12 +998,9 @@ fn join_strings(xs : Array[String], sep : String) -> String {
 }
 
 ///|
-fn[T] array_init(xs : Array[T]) -> Array[T] {
-  let result : Array[T] = []
-  for i in 0..<(xs.length() - 1) {
-    result.push(xs[i])
-  }
-  result
+/// The array without its last element (Scala's `init`).
+fn[T] init_of(xs : Array[T]) -> Array[T] {
+  xs[:xs.length() - 1].to_owned()
 }
 
 ///|
@@ -3227,24 +3224,16 @@ fn Parser::is_id_ref(self : Parser) -> Bool raise EffektError {
 ///|
 fn Parser::id_ref(self : Parser) -> IdRef raise EffektError {
   self.nonterminal(() => {
-    let ids = self.some_sep(() => self.ident(), TPathSep)
-    IdRef::qualified(
-      array_init(ids.items),
-      ids.items[ids.items.length() - 1],
-      self.span(),
-    )
+    let ids = self.some_sep(() => self.ident(), TPathSep).items
+    IdRef::qualified(init_of(ids), ids[ids.length() - 1], self.span())
   })
 }
 
 ///|
 fn Parser::id_def(self : Parser) -> IdDef raise EffektError {
   self.nonterminal(() => {
-    let ids = self.some_sep(() => self.ident(), TPathSep)
-    IdDef::qualified(
-      array_init(ids.items),
-      ids.items[ids.items.length() - 1],
-      self.span(),
-    )
+    let ids = self.some_sep(() => self.ident(), TPathSep).items
+    IdDef::qualified(init_of(ids), ids[ids.length() - 1], self.span())
   })
 }
 
