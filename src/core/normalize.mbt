@@ -215,10 +215,7 @@ pub fn normalize(
 
 ///|
 fn Normalizer::usage_of(self : Normalizer, id : Sym) -> Usage {
-  match self.usage.get(id.uid()) {
-    Some(usage) => usage
-    None => Never
-  }
+  self.usage.get(id.uid()).unwrap_or(Never)
 }
 
 ///|
@@ -279,11 +276,7 @@ fn Normalizer::active_expr(
   ctx : NormCtx,
 ) -> Expr raise EffektError {
   match self.rewrite_expr(e, ctx) {
-    ValueVar(id, _) as stuck =>
-      match ctx.exprs.get(id.uid()) {
-        Some(other) => other
-        None => stuck
-      }
+    ValueVar(id, _) as stuck => ctx.exprs.get(id.uid()).unwrap_or(stuck)
     other => other
   }
 }
@@ -1426,10 +1419,7 @@ fn Normalizer::normalize_match(
     clauses.map(clause => {
       Clause(clause.tag, self.rewrite_block_lit(clause.body, ctx))
     }),
-    match default {
-      Some(d) => Some(self.rewrite_stmt(d, ctx))
-      None => None
-    },
+    default.map(d => self.rewrite_stmt(d, ctx)),
   )
 }
 

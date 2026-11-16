@@ -157,11 +157,10 @@ You can browse and install extra skills here:
   `" ".repeat(n)`, a `code_point_count(s)` scan is `s.char_length()` (the number
   of Unicode scalars; `s.length()` is the UTF-16 code-unit count), `xs.map(f)` +
   `out.append(…)` is `xs.map(f).flatten()`, and a push that can skip an element
-  is `xs.filter_map(x => …)` with an `Option` callback. Two more core
-  conversions: an accumulator that only unions/concatenates is
-  `xs.fold(init=…, (acc, x) => …)` (this port writes `.fold(` 2.5x as densely as
-  the core library), and `Stmt?`-shaped defaults are `x.map(s => …).unwrap_or(…)`
-  rather than a two-arm `match`.
+  is `xs.filter_map(x => …)` with an `Option` callback. An accumulator that only
+  unions/concatenates is `xs.fold(init=…, (acc, x) => …)` (this port writes
+  `.fold(` 2.5x as densely as the core library). `Option`-shaped code has its own
+  bullet below.
 
 - **`Map` is `@builtin`'s linked hash map, and it has combinators too.** Build
   one from pairs with the constructor — `Map(ids.map(id => (id.uid(), id)))`, not
@@ -214,16 +213,21 @@ You can browse and install extra skills here:
   has no `.map` spelling.
 
 - **Bail out with `guard <good condition> else { … }`, not an `if` around the
-  failure.** The core library spells an early exit as a guard about thirteen
-  times more often than as an `if` (1849 `guard` statements against 77
-  `if !cond { …bail… }` and 179 `if cond != … { …bail… }`), and this port now
-  follows it: `if !started { return None }` is `guard started else { return None }`
-  and `if a.length() != b.length() { return false }` is
-  `guard a.length() == b.length() else { return false }`. The `else` block
-  returns from the nearest enclosing *function*, so it ends in `return`/`raise`/
-  `continue`/`break` or in a value of that function's result type
-  (`guard x is Some(v) else { None }`). A pattern bound in the condition is in
-  scope after the statement, which is what collapses a "look up or abort"
+  failure.** The *polarity* of the condition decides the spelling, not the
+  keyword: the core library writes 1237 `guard … else` statements and 1019
+  `if <cond> { return/raise/break/continue }` ones, so both are about equally
+  common — but it almost never writes the double negative (`guard !cond else`
+  93 times, `if !cond { …bail… }` 62), and this port follows: `if !started
+  { return None }` is `guard started else { return None }` and
+  `if a.length() != b.length() { return false }` is
+  `guard a.length() == b.length() else { return false }`. So the rule is "state
+  the condition you *want*, then bail in the else" when that comes out positive,
+  and keep `if <bad condition> { bail }` when *that* is the natural reading
+  (`if xs.is_empty() { return [] }` needs no `guard !xs.is_empty()`). The `else`
+  block returns from the nearest enclosing *function*, so it ends in
+  `return`/`raise`/`continue`/`break` or in a value of that function's result
+  type (`guard x is Some(v) else { None }`). A pattern bound in the condition is
+  in scope after the statement, which is what collapses a "look up or abort"
   `match` into one statement: `guard self.ctx.symbol_of(id.uid) is Some(s) else
   { raise … }` then `s`; the condition may combine it with `&&`
   (`guard expr is ValueVar(id, _) && id == ids[i] else { return false }`).
@@ -241,6 +245,29 @@ You can browse and install extra skills here:
   (`if phase is Failed(kind, message) { … }`). A `match` stays when both arms do
   something, when the result is a value, or when the arms are themselves
   patterns of a larger match.
+
+- **An `Option` that is mapped, defaulted or filtered is a combinator, not a
+  `match`.** The transliterated forms are easy to spot and this port had 29 + 14
+  of them:
+
+  - `match o { Some(v) => Some(f(v)), None => None }` is `o.map(v => f(v))`. The
+    core library writes that match exactly once — inside `Option::map` itself.
+  - `match o { Some(v) => v, None => <default> }` is `o.unwrap_or(<default>)`
+    **only when the default is already a value** (a variable, literal, `[]`, or
+    an enum constant). Scala's `getOrElse` is by-name, so a default that is a
+    call or a constructor application (`ValueVar(id)`, `self.sym_of_id_def(d)`,
+    a whole subtree rewrite) keeps the `match`: `unwrap_or` would evaluate it on
+    every call, which is a silent performance bug in `Rewrite`'s congruence and
+    in the substitution passes. Core draws the line the same way —
+    `unwrap_or("")`, `unwrap_or(0)`, `unwrap_or(false)` on one side,
+    `match … { None => panic() }` and `unwrap_or_else(() => …)` for the expensive
+    side. On a map the same thing is `m.get_or_default(k, default)`.
+  - `match o { Some(_) => true, None => false }` is `o is Some(_)`. Note that
+    `Option::is_some()`/`is_none()` are *deprecated* (they are reported as error
+    0020, "use `x is Some(_)` instead"), so the pattern form is the only option.
+  - `Some(v) => if keep(v) { Some(v) } else { None }` is `o.filter(keep)`, and a
+    `match` whose `Some` arm only feeds another `Some`-taking lookup is
+    `o.bind(v => …)` (`context.mbt`'s `find_*` lookups are all `map`s now).
 
 - **Update a record with `{ ..self, field: value }`, not a `with_*` helper.**
   MoonBit keeps the other fields, so a pass that rebuilds a node with one field

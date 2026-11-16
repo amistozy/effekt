@@ -35,10 +35,7 @@ fn Aliases::empty() -> Aliases {
 
 ///|
 fn Aliases::resolve(self : Aliases, id : Sym) -> Sym {
-  match self.aliases.get(id.uid()) {
-    Some(other) => other
-    None => id
-  }
+  self.aliases.get(id.uid()).unwrap_or(id)
 }
 
 ///|
@@ -220,10 +217,7 @@ fn transform_stmt(s : Stmt, env : Aliases) -> Stmt {
           clauses.map(clause => {
             Clause(clause.tag, transform_block_lit(clause.body, env))
           }),
-          match default {
-            Some(body) => Some(transform_stmt(body, env))
-            None => None
-          },
+          default.map(body => transform_stmt(body, env)),
         )
       })
     // congruences

@@ -117,11 +117,7 @@ pub fn Substitutions::substitute_captures(
   c : Captures,
 ) -> Captures {
   match c {
-    @symbols.Captures::CaptVar(x) =>
-      match self.captures.get(x.uid()) {
-        Some(s) => s
-        None => c
-      }
+    @symbols.Captures::CaptVar(x) => self.captures.get(x.uid()).unwrap_or(c)
     @symbols.Captures::CaptureSetOf(cs) => {
       let out : Array[Sym] = []
       for s in cs {
@@ -150,11 +146,7 @@ pub fn Substitutions::substitute_value(
   t : ValueType,
 ) -> ValueType {
   match t {
-    @symbols.ValueType::ValueTypeRef(x) =>
-      match self.values.get(x.uid()) {
-        Some(t) => t
-        None => t
-      }
+    @symbols.ValueType::ValueTypeRef(x) => self.values.get(x.uid()).unwrap_or(t)
     @symbols.ValueType::ValueTypeApp(c, args) =>
       @symbols.ValueType::ValueTypeApp(
         c,

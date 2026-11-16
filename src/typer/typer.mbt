@@ -2228,10 +2228,7 @@ fn Typer::check_expr_kind(
         scs,
         results.map(r => r.tpe),
         clauses,
-        match default {
-          Some(_) => true
-          None => false
-        },
+        default is Some(_),
         e.span,
       )
       TyRes(joined, res_eff)
@@ -3779,7 +3776,7 @@ pub fn Typer::resolve_block_type(
         let b = self.resolve_block_type(e)
         resolved_effs.push(b)
       }
-      let distinct_effs = dedup_block_types(resolved_effs)
+      let distinct_effs = @symbols.dedup_blocks(resolved_effs)
       for e in distinct_effs {
         let capture = Sym::capture_param(effect_name(e))
         cps.push(capture)
@@ -3816,7 +3813,7 @@ pub fn Typer::resolve_block_type(
             vps,
             bps,
             ret,
-            eff_union(inner_effs, Effects(dedup_block_types(resolved_effs))),
+            eff_union(inner_effs, Effects(@symbols.dedup_blocks(resolved_effs))),
           )
         _ => b
       }
@@ -3849,17 +3846,6 @@ pub fn Typer::resolve_captures(self : Typer, c : CaptureSetTree) -> Captures {
     }
   }
   @symbols.Captures::CaptureSetOf(out)
-}
-
-///|
-fn dedup_block_types(xs : ArrayView[BlockType]) -> Array[BlockType] {
-  let out : Array[BlockType] = []
-  for x in xs {
-    if !out.any(y => interface_type_equal(x, y)) {
-      out.push(x)
-    }
-  }
-  out
 }
 
 ///|

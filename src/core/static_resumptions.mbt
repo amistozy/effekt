@@ -170,10 +170,7 @@ fn ShiftInfo::replace_resumptions_in(
 ) -> Stmt raise EffektError {
   let rewrite = Rewrite(
     Some((rewrite, stmt) => {
-      match self.resume_of(stmt) {
-        Some(resumed) => Some(by(rewrite.rewrite_stmt(resumed)))
-        None => None
-      }
+      self.resume_of(stmt).map(resumed => by(rewrite.rewrite_stmt(resumed)))
     }),
     None,
     None,
@@ -888,10 +885,9 @@ fn reuse_go(
               if (!frame.is_delimiter || at_prompt) &&
                 !frame.before.contains(shift.k) &&
                 !shift.observes(frame.names, frame.body) {
-                match reuse_go(shift, at_prompt, frame.body, transparents) {
-                  Some(result) => Some(frame.rebuild(result))
-                  None => None
-                }
+                reuse_go(shift, at_prompt, frame.body, transparents).map(result => {
+                  frame.rebuild(result)
+                })
               } else if s.free().contains(shift.k) {
                 None
               } else {
@@ -990,12 +986,7 @@ fn joinpoint(
   }
   let renaming = Rewrite(
     None,
-    Some(id => {
-      match fresh.get(id.uid()) {
-        Some(f) => f
-        None => id
-      }
-    }),
+    Some(id => fresh.get(id.uid()).unwrap_or(id)),
     None,
     None,
   )

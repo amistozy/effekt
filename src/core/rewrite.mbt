@@ -306,10 +306,7 @@ fn Rewrite::rewrite_stmt_children(
         self.rewrite_expr(scrutinee),
         annotated.map(t => self.rewrite_value_type(t)),
         clauses.map(c => self.rewrite_clause(c)),
-        match default {
-          Some(body) => Some(self.rewrite_stmt(body))
-          None => None
-        },
+        default.map(body => self.rewrite_stmt(body)),
       )
     Region(body) => Region(self.rewrite_block_lit(body))
     Alloc(id, init, region, body) =>

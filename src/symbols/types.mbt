@@ -130,7 +130,7 @@ pub fn Effects::distinct(self : Effects) -> Effects {
 }
 
 ///|
-fn dedup_blocks(xs : ArrayView[BlockType]) -> Array[BlockType] {
+pub fn dedup_blocks(xs : ArrayView[BlockType]) -> Array[BlockType] {
   let out : Array[BlockType] = []
   for x in xs {
     if !out.any(y => interface_type_equal(x, y)) {

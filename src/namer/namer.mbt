@@ -440,10 +440,7 @@ fn Namer::lookup_overloaded_at(
 ) -> Array[Array[Sym]] raise EffektError {
   let groups = self.scoping.lookup_overloaded(path, name, filter)
   let imported = in_bindings(self.imports, path, bindings => {
-    match bindings.terms.get(name) {
-      Some(syms) => Some(syms.filter(filter))
-      None => None
-    }
+    bindings.terms.get(name).map(syms => syms.filter(filter))
   })
   match imported {
     Some(group) => groups + [group]
@@ -746,10 +743,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
         let ret = self.in_local_scope(() => {
           self.bind_values(vps)
           self.bind_blocks(bps)
-          match annot {
-            Some(t) => Some(self.resolve_effectful(t))
-            None => None
-          }
+          annot.map(t => self.resolve_effectful(t))
         })
         mk_user_function(
           unique,

@@ -889,10 +889,7 @@ fn recursive_info_of(
 ) -> RecursiveDefInfo? {
   match b {
     @cps.Block::BlockVar(id) =>
-      match ctx.recursive {
-        Some(info) => if info.id.uid() == id.uid() { Some(info) } else { None }
-        None => None
-      }
+      ctx.recursive.filter(info => info.id.uid() == id.uid())
     _ => None
   }
 }

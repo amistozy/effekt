@@ -491,10 +491,7 @@ fn thread_state(
             body: thread_state(ref, state_type, uses, clause.body.body, current),
           })
         }),
-        match default {
-          Some(body) => Some(thread_state(ref, state_type, uses, body, current))
-          None => None
-        },
+        default.map(body => thread_state(ref, state_type, uses, body, current)),
       )
     Var(other, init, capture, rest) =>
       Var(

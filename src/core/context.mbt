@@ -146,10 +146,7 @@ pub fn DeclarationContext::find_data(
   self : DeclarationContext,
   id : Sym,
 ) -> Declaration? {
-  match self.datas.get(id.uid()) {
-    Some(i) => Some(self.declarations[i])
-    None => None
-  }
+  self.datas.get(id.uid()).map(i => self.declarations[i])
 }
 
 ///|
@@ -157,10 +154,7 @@ pub fn DeclarationContext::find_data_of_constructor(
   self : DeclarationContext,
   constructor : Constructor,
 ) -> Declaration? {
-  match self.constructors.get(constructor.id.uid()) {
-    Some(ref) => Some(ref.data)
-    None => None
-  }
+  self.constructors.get(constructor.id.uid()).map(ref => ref.data)
 }
 
 ///|
@@ -168,10 +162,7 @@ pub fn DeclarationContext::find_data_of_field(
   self : DeclarationContext,
   field : Field,
 ) -> Declaration? {
-  match self.fields.get(field.id.uid()) {
-    Some(ref) => Some(ref.constructor_ref.data)
-    None => None
-  }
+  self.fields.get(field.id.uid()).map(ref => ref.constructor_ref.data)
 }
 
 ///|
@@ -179,10 +170,7 @@ pub fn DeclarationContext::find_interface(
   self : DeclarationContext,
   id : Sym,
 ) -> Declaration? {
-  match self.interfaces.get(id.uid()) {
-    Some(i) => Some(self.declarations[i])
-    None => None
-  }
+  self.interfaces.get(id.uid()).map(i => self.declarations[i])
 }
 
 ///|
@@ -190,10 +178,7 @@ pub fn DeclarationContext::find_interface_of_property(
   self : DeclarationContext,
   property : Property,
 ) -> Declaration? {
-  match self.properties.get(property.id.uid()) {
-    Some(ref) => Some(ref.interface)
-    None => None
-  }
+  self.properties.get(property.id.uid()).map(ref => ref.interface)
 }
 
 ///|
@@ -201,10 +186,7 @@ pub fn DeclarationContext::find_constructor(
   self : DeclarationContext,
   id : Sym,
 ) -> Constructor? {
-  match self.constructors.get(id.uid()) {
-    Some(ref) => Some(ref.constructor)
-    None => None
-  }
+  self.constructors.get(id.uid()).map(ref => ref.constructor)
 }
 
 ///|
@@ -212,10 +194,7 @@ pub fn DeclarationContext::find_constructor_of_field(
   self : DeclarationContext,
   field : Field,
 ) -> Constructor? {
-  match self.fields.get(field.id.uid()) {
-    Some(ref) => Some(ref.constructor_ref.constructor)
-    None => None
-  }
+  self.fields.get(field.id.uid()).map(ref => ref.constructor_ref.constructor)
 }
 
 ///|
@@ -239,10 +218,7 @@ pub fn DeclarationContext::find_field(
   self : DeclarationContext,
   id : Sym,
 ) -> Field? {
-  match self.fields.get(id.uid()) {
-    Some(ref) => Some(ref.field)
-    None => None
-  }
+  self.fields.get(id.uid()).map(ref => ref.field)
 }
 
 ///|
@@ -250,10 +226,7 @@ pub fn DeclarationContext::find_property(
   self : DeclarationContext,
   id : Sym,
 ) -> Property? {
-  match self.properties.get(id.uid()) {
-    Some(ref) => Some(ref.property)
-    None => None
-  }
+  self.properties.get(id.uid()).map(ref => ref.property)
 }
 
 ///|
@@ -277,10 +250,7 @@ pub fn DeclarationContext::find_extern_def(
   self : DeclarationContext,
   id : Sym,
 ) -> Extern? {
-  match self.extern_defs.get(id.uid()) {
-    Some(i) => Some(self.externs[i])
-    None => None
-  }
+  self.extern_defs.get(id.uid()).map(i => self.externs[i])
 }
 
 ///|
@@ -289,10 +259,9 @@ pub fn DeclarationContext::find_extern_def_by_name(
   name : String,
   params : ArrayView[ValueType],
 ) -> Extern? {
-  match self.extern_defs_by_name.get(extern_def_key(name, params)) {
-    Some(i) => Some(self.externs[i])
-    None => None
-  }
+  self.extern_defs_by_name
+  .get(extern_def_key(name, params))
+  .map(i => self.externs[i])
 }
 
 ///|
@@ -300,10 +269,7 @@ pub fn DeclarationContext::find_extern_data(
   self : DeclarationContext,
   id : Sym,
 ) -> Extern? {
-  match self.extern_datas.get(id.uid()) {
-    Some(i) => Some(self.externs[i])
-    None => None
-  }
+  self.extern_datas.get(id.uid()).map(i => self.externs[i])
 }
 
 // Panicking lookups

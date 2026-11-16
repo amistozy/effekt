@@ -180,10 +180,7 @@ fn Reachable::update(self : Reachable, id : Sym, u : Usage) -> Unit {
 
 ///|
 fn Reachable::usage(self : Reachable, id : Sym) -> Usage {
-  match self.reachable.get(id.uid()) {
-    Some(u) => u
-    None => Never
-  }
+  self.reachable.get(id.uid()).unwrap_or(Never)
 }
 
 ///|

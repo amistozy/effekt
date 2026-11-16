@@ -71,10 +71,7 @@ pub fn[T] Maybe::get_or_else_lazy(
   self : Maybe[T],
   default : () -> T raise EffektError,
 ) -> T raise EffektError {
-  match self.value {
-    Some(v) => v
-    None => default()
-  }
+  self.value.unwrap_or_else(default)
 }
 
 ///|
@@ -93,18 +90,12 @@ pub fn[T, U] Maybe::map(
   self : Maybe[T],
   f : (T) -> U raise EffektError,
 ) -> Maybe[U] raise EffektError {
-  match self.value {
-    Some(v) => { value: Some(f(v)), span: self.span, }
-    None => { value: None, span: self.span, }
-  }
+  { value: self.value.map(v => f(v)), span: self.span, }
 }
 
 ///|
 pub fn[T] Maybe::non_empty(self : Maybe[T]) -> Bool {
-  match self.value {
-    Some(_) => true
-    None => false
-  }
+  self.value is Some(_)
 }
 
 ///|

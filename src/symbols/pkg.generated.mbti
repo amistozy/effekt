@@ -34,6 +34,8 @@ pub fn core_builtin_to_string(Sym) -> String?
 
 pub fn core_builtins() -> Map[String, Sym]
 
+pub fn dedup_blocks(ArrayView[BlockType]) -> Array[BlockType]
+
 pub fn dedup_syms(ArrayView[Sym]) -> Array[Sym]
 
 pub fn double_type_sym() -> Sym
@@ -393,7 +395,6 @@ pub fn Scoping::lookup_first_term_option(Self, ArrayView[String], String) -> Sym
 pub fn Scoping::lookup_function(Self, ArrayView[String], String) -> Array[Array[Sym]]
 pub fn Scoping::lookup_operation(Self, ArrayView[String], String) -> Array[Array[Sym]]
 pub fn Scoping::lookup_overloaded(Self, ArrayView[String], String, (Sym) -> Bool) -> Array[Array[Sym]]
-pub fn Scoping::lookup_overloaded_method(Self, ArrayView[String], String) -> Array[Array[Sym]]
 pub fn Scoping::lookup_type_option(Self, ArrayView[String], String) -> Sym? raise @util.EffektError
 pub fn[T] Scoping::namespace(Self, String, () -> T) -> T
 pub fn Scoping::path(Self) -> Array[String]?

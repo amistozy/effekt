@@ -79,10 +79,7 @@ fn to_direct_style(s : Stmt, label : BlockVar) -> Stmt raise EffektError {
             body: to_direct_style(clause.body.body, label),
           })
         }),
-        match default {
-          Some(body) => Some(to_direct_style(body, label))
-          None => None
-        },
+        default.map(body => to_direct_style(body, label)),
       )
     Hole(_, span) => Hole(joinpoint_results(label), span)
     Alloc(id, init, region, body) =>

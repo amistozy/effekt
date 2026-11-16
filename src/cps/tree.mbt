@@ -946,10 +946,7 @@ pub fn substitute_as_cont_var(
 
 ///|
 pub fn substitute_meta_cont(ks : MetaCont, subst : Substitution) -> MetaCont {
-  match subst.metaconts.get(ks.id.uid()) {
-    Some(replacement) => replacement
-    None => ks
-  }
+  subst.metaconts.get(ks.id.uid()).unwrap_or(ks)
 }
 
 ///|
@@ -1047,10 +1044,7 @@ pub fn substitute_stmt(
       Match(
         substitute_expr(scrutinee, subst),
         clauses.map(c => substitute_clause(c, subst)),
-        match default {
-          Some(body) => Some(substitute_stmt(body, subst))
-          None => None
-        },
+        default.map(body => substitute_stmt(body, subst)),
       )
     LetDef(id, binding, body) =>
       LetDef(

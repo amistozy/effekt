@@ -95,10 +95,7 @@ pub fn usage() -> String {
 
 ///|
 fn flag(matches : @argparse.Matches, name : String) -> Bool {
-  match matches.flags.get(name) {
-    Some(value) => value
-    None => false
-  }
+  matches.flags.get(name).unwrap_or(false)
 }
 
 ///|
@@ -113,10 +110,7 @@ fn option(matches : @argparse.Matches, name : String) -> String? {
 ///|
 /// All values of an option (used by the repeatable `-I`/`--include`).
 fn option_values(matches : @argparse.Matches, name : String) -> Array[String] {
-  match matches.values.get(name) {
-    Some(values) => values
-    None => []
-  }
+  matches.values.get(name).unwrap_or([])
 }
 
 ///|

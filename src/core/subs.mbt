@@ -313,10 +313,7 @@ pub fn substitute_stmt(
         substitute_expr(scrutinee, subst),
         tpe.map(t => substitute_value_type(t, subst)),
         clauses.map(c => Clause(c.tag, substitute_block_lit(c.body, subst))),
-        match default {
-          Some(body) => Some(substitute_stmt(body, subst))
-          None => None
-        },
+        default.map(body => substitute_stmt(body, subst)),
       )
     Alloc(id, init, region, body) =>
       Alloc(

@@ -47,11 +47,7 @@ fn TypeSubst::without(self : TypeSubst, shadowed : ArrayView[Sym]) -> TypeSubst 
 ///|
 fn TypeSubst::value_type(self : TypeSubst, tpe : ValueType) -> ValueType {
   match tpe {
-    @symbols.ValueTypeRef(x) =>
-      match self.lookup(x) {
-        Some(t) => t
-        None => tpe
-      }
+    @symbols.ValueTypeRef(x) => self.lookup(x).unwrap_or(tpe)
     @symbols.ValueTypeApp(ctor, args) =>
       @symbols.ValueTypeApp(ctor, args.map(a => self.value_type(a)))
     @symbols.BoxedType(inner, capt) =>

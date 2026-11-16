@@ -378,10 +378,7 @@ fn StaticArguments::rewrite_stmt(
         clauses.map(clause => {
           Clause(clause.tag, self.rewrite_block_lit(clause.body))
         }),
-        match default {
-          Some(body) => Some(self.rewrite_stmt(body))
-          None => None
-        },
+        default.map(body => self.rewrite_stmt(body)),
       )
     Region(body) => Region(self.rewrite_block_lit(body))
     Alloc(id, init, region, body) =>

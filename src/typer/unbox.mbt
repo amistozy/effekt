@@ -219,10 +219,7 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
         @source.TermKind::While(
           guards.map(g => self.rewrite_guard(g)),
           self.rewrite_stmt(body),
-          match default {
-            Some(d) => Some(self.rewrite_stmt(d))
-            None => None
-          },
+          default.map(d => self.rewrite_stmt(d)),
         ),
       )
     @source.TermKind::Match(scs, clauses, default) =>
@@ -231,10 +228,7 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
         @source.TermKind::Match(
           scs.map(sc => self.rewrite_as_expr(sc)),
           clauses.map(c => self.rewrite_clause(c)),
-          match default {
-            Some(d) => Some(self.rewrite_stmt(d))
-            None => None
-          },
+          default.map(d => self.rewrite_stmt(d)),
         ),
       )
     @source.TermKind::Select(recv, name) =>

@@ -24,10 +24,7 @@ fn Renamer::Renamer() -> Renamer {
 ///|
 /// The fresh variant of `id`, or `id` itself if it is free.
 fn Renamer::rewrite_id(self : Renamer, id : Sym) -> Sym {
-  match self.scope.get(id.uid()) {
-    Some(fresh) => fresh
-    None => id
-  }
+  self.scope.get(id.uid()).unwrap_or(id)
 }
 
 ///|
@@ -183,10 +180,7 @@ fn Renamer::rewrite_stmt(self : Renamer, s : Stmt) -> Stmt {
             self.rewrite_block_lit(clause.body),
           )
         }),
-        match default {
-          Some(body) => Some(self.rewrite_stmt(body))
-          None => None
-        },
+        default.map(body => self.rewrite_stmt(body)),
       )
     Region(body) => Region(self.rewrite_block_lit(body))
     Put(ref, capt, value, body) =>

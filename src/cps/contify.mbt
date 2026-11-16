@@ -230,10 +230,7 @@ fn contify_in_stmt(id : Sym, s : Stmt) -> Stmt {
       Match(
         contify_in_expr(id, scrutinee),
         translated,
-        match default {
-          Some(body) => Some(contify_in_stmt(id, body))
-          None => None
-        },
+        default.map(body => contify_in_stmt(id, body)),
       )
     }
     LetDef(id2, binding, body) =>
@@ -453,10 +450,7 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
       Match(
         rewrite_expr(scrutinee),
         translated,
-        match default {
-          Some(body) => Some(rewrite_stmt(body))
-          None => None
-        },
+        default.map(body => rewrite_stmt(body)),
       )
     }
     LetExpr(id, binding, body) =>

@@ -623,12 +623,7 @@ pub fn pm_normalize(clause : PMClause) -> PMClause raise EffektError {
     Map([]),
   )
   // TODO also substitute types?
-  let args = clause.args.map(a => {
-    match substitution.get(a.id.uid()) {
-      Some(v) => v
-      None => a
-    }
-  })
+  let args = clause.args.map(a => substitution.get(a.id.uid()).unwrap_or(a))
   PMClause(conditions, clause.label, clause.targs, args)
 }
 

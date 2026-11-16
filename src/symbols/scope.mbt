@@ -270,17 +270,6 @@ pub fn Scoping::lookup_overloaded(
 }
 
 ///|
-pub fn Scoping::lookup_overloaded_method(
-  self : Scoping,
-  path : ArrayView[String],
-  name : String,
-) -> Array[Array[Sym]] {
-  all(path, self.scope, b => {
-    b.terms.get(name).unwrap_or([]).filter(s => s.is_operation())
-  }).filter(ns => !ns.is_empty())
-}
-
-///|
 /// Looks a term up in a scope chain. The type checker needs this for
 /// name-based implicit arguments: the name only becomes known once the
 /// callee's parameter list is, which is after the namer has run.

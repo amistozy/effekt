@@ -285,11 +285,7 @@ pub fn substitute_value_type_with(
   csubst : Map[Int32, Captures],
 ) -> ValueType {
   match tpe {
-    ValueVar(sym) =>
-      match vsubst.get(sym.uid()) {
-        Some(replacement) => replacement
-        None => tpe
-      }
+    ValueVar(sym) => vsubst.get(sym.uid()).unwrap_or(tpe)
     ValueData(sym, targs) =>
       ValueData(
         sym,
