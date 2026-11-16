@@ -116,12 +116,13 @@ You can browse and install extra skills here:
   it folds a value, `for (x, y) in xs.zip(ys).rev()` when it needs two
   arrays in step, and a descending counted loop is a *reversed range*:
   `for i in n>..1` for `for i = n - 1; i > 0; i = i - 1`, or
-  `for i in (self.position - 1)>=..0` for a scan that starts at
-  `position - 1` and includes `0`. Note that the mirror of `a..<b` is
-  `a>..b`, which excludes the *start* and includes the end (`3>..0` is
-  `2, 1, 0`), while `a>=..b` includes both ends (`3>=..0` is `3, 2, 1, 0`); a
-  descending range whose start is below its end is empty. Write `>..`/`>=..`
-  without spaces around it. A worklist is drained with
+  `for i in self.position>..0` for a scan that starts at `position - 1` and
+  includes `0`. Note that the mirror of `a..<b` is `a>..b`, which excludes the
+  *start* and includes the end (`3>..0` is `2, 1, 0`), while `a>=..b` includes
+  both ends (`3>=..0` is `3, 2, 1, 0`); a descending range whose start is below
+  its end is empty, so `pos>..0` is the safe spelling for a scan that may start
+  at `0`. Write `>..`/`>=..` without spaces around it, and prefer the form
+  without arithmetic in the bound. A worklist is drained with
   `while stack.pop() is Some(x) { … }` instead of
   `while !stack.is_empty() { let x = stack.pop().unwrap() }`.
 

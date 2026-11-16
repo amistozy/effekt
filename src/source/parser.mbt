@@ -511,7 +511,7 @@ fn Parser::consume(self : Parser, kind : TokenKind) -> Unit raise EffektError {
 /// Did the previous (non-space) token end the line, i.e. is there a newline
 /// between it and the token we are looking at?
 fn Parser::saw_newline_last(self : Parser) -> Bool raise EffektError {
-  for i in (self.position - 1)>=..0 {
+  for i in self.position>..0 {
     let token = self.fail_on_error_token(self.tokens[i], i)
     guard token.kind.is_space() && token.kind != TNewline else {
       return token.kind == TNewline
