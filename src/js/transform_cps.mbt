@@ -238,10 +238,7 @@ fn check_main_signature(
             )
           }
           if !lit.bparams.is_empty() {
-            let effects : Array[String] = []
-            for p in lit.bparams {
-              effects.push(@core.show_core_block_type(p.tpe))
-            }
+            let effects = lit.bparams.map(p => @core.show_core_block_type(p.tpe))
             raise EffektError::Fatal(
               "Main cannot have effects, but includes effects: {\{effects.join(", ")}}.",
             )
@@ -296,10 +293,7 @@ pub fn compile_cps(
       js_externs.push(to_js_extern(e, ctx))
     }
   }
-  let js_declarations : Array[Stmt] = []
-  for d in module.declarations {
-    js_declarations.append(to_js_declaration(d))
-  }
+  let js_declarations = module.declarations.map(to_js_declaration).flatten()
   let stmts : Array[Stmt] = []
 
   for d in module.definitions {
@@ -410,10 +404,7 @@ fn to_js_extern(
         @cps.StringExternBody(_, contents) => {
           let ks = fresh_name("ks_")
           let k = fresh_name("k_")
-          let params : Array[JSName] = []
-          for p in vps + bps {
-            params.push(to_js_param(p))
-          }
+          let params = (vps + bps).map(to_js_param)
           Stmt::Function(name_def(id), params + [ks, k], [
             Return(
               call(to_js_template(contents, ctx), [Variable(ks), Variable(k)]),
@@ -426,20 +417,14 @@ fn to_js_extern(
           report_unsupported(ctx, id, err)
           let ks = fresh_name("ks_")
           let k = fresh_name("k_")
-          let params : Array[JSName] = []
-          for p in vps + bps {
-            params.push(to_js_param(p))
-          }
+          let params = (vps + bps).map(to_js_param)
           Stmt::Function(name_def(id), params + [ks, k], [
             Return(call(effekt_field("unreachable"), [])),
           ])
         }
       }
     @cps.ExternDef(id, vps, bps, false, body) => {
-      let params : Array[JSName] = []
-      for p in vps + bps {
-        params.push(to_js_param(p))
-      }
+      let params = (vps + bps).map(to_js_param)
       match body {
         @cps.StringExternBody(_, contents) =>
           Stmt::Function(name_def(id), params, [
@@ -553,10 +538,7 @@ fn maybe_to_loop(
     used,
   }
   let translated_body = to_js_stmt(lit.body, ctx.with_recursive(info)).stmts()
-  let params : Array[JSName] = []
-  for p in lit.vparams + lit.bparams {
-    params.push(name_def(p))
-  }
+  let params = (lit.vparams + lit.bparams).map(name_def)
   let all_params = params + [name_def(lit.ks), name_def(lit.k)]
   if used.jumped.val {
     lambda_stmts(all_params, [
@@ -577,10 +559,7 @@ fn to_js_block_expr(
     @cps.Block::Unbox(e) => to_js_cps_expr(e, ctx)
     @cps.Block::New(handler) => to_js_implementation(handler, ctx)
     @cps.Block::BlockLit(lit) => {
-      let params : Array[JSName] = []
-      for p in lit.vparams + lit.bparams {
-        params.push(name_def(p))
-      }
+      let params = (lit.vparams + lit.bparams).map(name_def)
 
       lambda_stmts(
         params + [name_def(lit.ks), name_def(lit.k)],
@@ -608,10 +587,7 @@ fn to_js_implementation(
 ) -> Expr raise EffektError {
   let properties : Array[ObjectProperty] = []
   for op in handler.operations {
-    let params : Array[JSName] = []
-    for p in op.vparams + op.bparams {
-      params.push(name_def(p))
-    }
+    let params = (op.vparams + op.bparams).map(name_def)
     properties.push(
       ObjectProperty(
         name_def(op.name),
@@ -772,10 +748,9 @@ fn inline_extern(
       let conts : Map[Int32, @cps.Cont] = Map([])
       let metaconts : Map[Int32, @cps.MetaCont] = Map([])
       let subst = @cps.Substitution(values, blocks, conts, metaconts)
-      let substituted : Array[Expr] = []
-      for arg in template.args {
-        substituted.push(to_js_cps_expr(@cps.substitute_expr(arg, subst), ctx))
-      }
+      let substituted = template.args.map(arg => {
+        to_js_cps_expr(@cps.substitute_expr(arg, subst), ctx)
+      })
       RawExpr(template.strings, substituted)
     }
     None => call(name_ref(id), args.map(a => to_js_cps_expr(a, ctx)))
@@ -1027,10 +1002,7 @@ fn to_js_stmt(
         let cont_body = binding.body
         {
           run: k => {
-            let out : Array[Stmt] = []
-            for p in params {
-              out.push(js_let(name_def(p), undefined()))
-            }
+            let out = params.map(p => js_let(name_def(p), undefined()))
             out.append(
               to_js_stmt(body2, ctx.mark_direct_style(id, params)).stmts(),
             )

@@ -67,11 +67,7 @@ fn[T] union_captures(
   xs : ArrayView[T],
   f : (T) -> Captures raise EffektError,
 ) -> Captures raise EffektError {
-  let mut out = Captures::empty()
-  for x in xs {
-    out = out.union(f(x))
-  }
-  out
+  xs.fold(init=Captures::empty(), (acc, x) => acc.union(f(x)))
 }
 
 // ---------------------------------------------------------------------------

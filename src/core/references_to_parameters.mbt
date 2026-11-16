@@ -25,13 +25,7 @@ priv struct Dependency {
 ///|
 /// Whether `ids` and `free` share a symbol.
 fn mentions_any(free : Map[Int32, Sym], ids : Map[Int32, Sym]) -> Bool {
-  let mut found = false
-  for uid, _ in ids {
-    if free.contains(uid) {
-      found = true
-    }
-  }
-  found
+  ids.keys().any(uid => free.contains(uid))
 }
 
 ///|

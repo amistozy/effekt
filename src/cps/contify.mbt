@@ -65,11 +65,7 @@ fn Occurrences::combine(self : Occurrences, other : Occurrences) -> Occurrences 
 
 ///|
 fn[T] all_occurrences(xs : Array[T], f : (T) -> Occurrences) -> Occurrences {
-  let mut acc = Occurrences::none()
-  for x in xs {
-    acc = f(x).combine(acc)
-  }
-  acc
+  xs.fold(init=Occurrences::none(), (acc, x) => f(x).combine(acc))
 }
 
 // ---------------------------------------------------------------------------
@@ -432,12 +428,12 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
         _ => LetDef(id, rewrite_block(binding), rewrite_stmt(rest))
       }
     // Congruences
-    Jump(k, vargs, ks) => Jump(k, vargs.map(e => rewrite_expr(e)), ks)
+    Jump(k, vargs, ks) => Jump(k, vargs.map(rewrite_expr), ks)
     App(callee, vargs, bargs, ks, k) =>
       App(
         rewrite_block(callee),
-        vargs.map(e => rewrite_expr(e)),
-        bargs.map(b => rewrite_block(b)),
+        vargs.map(rewrite_expr),
+        bargs.map(rewrite_block),
         ks,
         rewrite_cont(k),
       )
@@ -445,18 +441,15 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
       Invoke(
         rewrite_block(callee),
         method,
-        vargs.map(e => rewrite_expr(e)),
-        bargs.map(b => rewrite_block(b)),
+        vargs.map(rewrite_expr),
+        bargs.map(rewrite_block),
         ks,
         rewrite_cont(k),
       )
     If(cond, thn, els) =>
       If(rewrite_expr(cond), rewrite_stmt(thn), rewrite_stmt(els))
     Match(scrutinee, clauses, default) => {
-      let translated : Array[Clause] = []
-      for clause in clauses {
-        translated.push(rewrite_clause(clause))
-      }
+      let translated = clauses.map(rewrite_clause)
       Match(
         rewrite_expr(scrutinee),
         translated,
@@ -474,8 +467,8 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
       ImpureApp(
         id,
         callee,
-        vargs.map(e => rewrite_expr(e)),
-        bargs.map(b => rewrite_block(b)),
+        vargs.map(rewrite_expr),
+        bargs.map(rewrite_block),
         rewrite_stmt(body),
       )
     Region(id, ks, body) => Region(id, ks, rewrite_stmt(body))
@@ -506,8 +499,8 @@ fn rewrite_expr(e : Expr) -> Expr raise EffektError {
   match e {
     ValueVar(_) => e
     Literal(_, _) => e
-    PureApp(id, vargs) => PureApp(id, vargs.map(x => rewrite_expr(x)))
-    Make(data, tag, vargs) => Make(data, tag, vargs.map(x => rewrite_expr(x)))
+    PureApp(id, vargs) => PureApp(id, vargs.map(rewrite_expr))
+    Make(data, tag, vargs) => Make(data, tag, vargs.map(rewrite_expr))
     Box(b) => Box(rewrite_block(b))
   }
 }
@@ -590,7 +583,7 @@ fn rewrite_extern_body(
     StringExternBody(feature_flag, template) =>
       StringExternBody(
         feature_flag,
-        Template(template.strings, template.args.map(a => rewrite_expr(a))),
+        Template(template.strings, template.args.map(rewrite_expr)),
       )
     Unsupported(err) => Unsupported(err)
   }
@@ -615,14 +608,8 @@ fn rewrite_toplevel(
 ///|
 /// Rewrites a CPS module, contifying calls where possible.
 pub fn contify(module : ModuleDecl) -> ModuleDecl raise EffektError {
-  let externs : Array[Extern] = []
-  for e in module.externs {
-    externs.push(rewrite_extern(e))
-  }
-  let definitions : Array[ToplevelDefinition] = []
-  for d in module.definitions {
-    definitions.push(rewrite_toplevel(d))
-  }
+  let externs = module.externs.map(rewrite_extern)
+  let definitions = module.definitions.map(rewrite_toplevel)
   ModuleDecl(
     module.path,
     module.includes,

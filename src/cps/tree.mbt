@@ -260,11 +260,7 @@ pub fn Def::Def(id : Sym, block : Block) -> Def {
 
 ///|
 fn[T] size_all(xs : Array[T], f : (T) -> Int32) -> Int32 {
-  let mut acc = 0
-  for x in xs {
-    acc = acc + f(x)
-  }
-  acc
+  xs.fold(init=0, (acc, x) => acc + f(x))
 }
 
 ///|
@@ -461,20 +457,12 @@ pub fn Variables::contains(self : Variables, id : Sym) -> Bool {
 
 ///|
 pub fn Variables::to_array(self : Variables) -> Array[Sym] {
-  let out : Array[Sym] = []
-  for _, v in self.ids {
-    out.push(v)
-  }
-  out
+  self.ids.values().to_array()
 }
 
 ///|
 pub fn Variables::union(self : Variables, other : Variables) -> Variables {
-  let ids = self.ids.copy()
-  for k, v in other.ids {
-    ids.set(k, v)
-  }
-  { ids, }
+  { ids: self.ids.merge(other.ids), }
 }
 
 ///|
@@ -489,11 +477,7 @@ pub fn Variables::diff(self : Variables, ids : Array[Sym]) -> Variables {
 
 ///|
 fn[T] vars_all(xs : Array[T], f : (T) -> Variables) -> Variables {
-  let mut acc = Variables::empty()
-  for x in xs {
-    acc = acc.union(f(x))
-  }
-  acc
+  xs.fold(init=Variables::empty(), (acc, x) => acc.union(f(x)))
 }
 
 ///|

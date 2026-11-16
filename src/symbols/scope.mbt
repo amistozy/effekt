@@ -146,10 +146,7 @@ pub fn Scoping::import_as(
   bindings : Bindings,
   path : ArrayView[String],
 ) -> Unit {
-  let mut ns = self.scope.bindings()
-  for seg in path {
-    ns = ns.namespace(seg)
-  }
+  let ns = path.fold(init=self.scope.bindings(), (ns, seg) => ns.namespace(seg))
   ns.import_all(bindings)
 }
 

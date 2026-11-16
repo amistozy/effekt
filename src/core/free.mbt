@@ -144,13 +144,9 @@ pub fn Free::without(
 /// conflict the right-hand side wins.
 pub fn Free::union(self : Free, other : Free) -> Free {
   let values = self.values.copy()
-  for k, v in other.values {
-    values.set(k, v)
-  }
+  values.merge_in_place(other.values)
   let blocks = self.blocks.copy()
-  for k, b in other.blocks {
-    blocks.set(k, b)
-  }
+  blocks.merge_in_place(other.blocks)
   { values, blocks, }
 }
 
@@ -166,11 +162,7 @@ pub fn capture_set(c : Sym) -> Captures {
 
 ///|
 fn[T] free_all(xs : ArrayView[T], f : (T) -> Free) -> Free {
-  let mut acc = Free::empty()
-  for x in xs {
-    acc = acc.union(f(x))
-  }
-  acc
+  xs.fold(init=Free::empty(), (acc, x) => acc.union(f(x)))
 }
 
 ///|
@@ -195,10 +187,9 @@ pub fn Stmt::free(self : Stmt) -> Free {
       .union(body.free().remove_value(id))
     Return(exprs) => free_all(exprs, e => e.free())
     Val(ids, binding, body) => {
-      let mut body_free = body.free()
-      for id in ids {
-        body_free = body_free.remove_value(id)
-      }
+      let body_free = ids.fold(init=body.free(), (acc, id) => {
+        acc.remove_value(id)
+      })
       body_free.union(binding.free())
     }
     App(callee, _, vargs, bargs) =>

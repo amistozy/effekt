@@ -836,7 +836,7 @@ pub fn Typer::check_try_handle(
   // fresh capture variable for the continuations
   let continuation_capt_sym = self.fresh_capt_var("handler")
   let continuation_capt = @symbols.Captures::CaptVar(continuation_capt_sym)
-  let handled_captures = provided_capabilities.map(c => capture_of_capability(c))
+  let handled_captures = provided_capabilities.map(capture_of_capability)
   let continuation_handled = self.without(continuation_capt, handled_captures)
 
   // (2) check the handled program
@@ -907,21 +907,13 @@ fn Typer::warn_about_handlers(
 ) -> Unit {
   let explicit : Array[Sym] = []
   for h in handlers {
-    if h.capability is Some(bp) {
-      if self.ctx.symbol_of(bp.id.uid) is Some(s) {
-        explicit.push(s)
-      }
+    if h.capability is Some(bp) && self.ctx.symbol_of(bp.id.uid) is Some(s) {
+      explicit.push(s)
     }
   }
   for i in 0..<effects.length() {
     // the same effect can be provided by several handlers; warn only once
-    let mut reported = false
-    for j in 0..<i {
-      if interface_type_equal(effects[i], effects[j]) {
-        reported = true
-      }
-    }
-    if reported {
+    guard !effects[:i].any(e => interface_type_equal(effects[i], e)) else {
       continue
     }
     let mut count = 0

@@ -276,10 +276,9 @@ fn Namer::import_as(
   bindings : Bindings,
   path : ArrayView[String],
 ) -> Unit {
-  let mut target = self.imports
-  for segment in path {
-    target = target.namespace(segment)
-  }
+  let target = path.fold(init=self.imports, (ns, segment) => {
+    ns.namespace(segment)
+  })
   merge_bindings(target, bindings)
 }
 
@@ -1012,10 +1011,9 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
       }
       @source.InterfaceDef(id, _, operations) => {
         let interface = self.symbol_of_node(d.uid)
-        let ops : Array[Sym] = []
-        for op in operations {
-          ops.push(self.resolve_operation(op, interface, id.name))
-        }
+        let ops = operations.map(op => {
+          self.resolve_operation(op, interface, id.name)
+        })
         set_interface_operations(interface, ops)
       }
       @source.NamespaceDef(id, definitions) =>
@@ -1444,17 +1442,11 @@ fn Namer::resolve_pattern(
             "Can only pattern match on constructors of data types.",
           )
       }
-      let out : Array[Sym] = []
-      for sub in patterns {
-        out.append(self.resolve_pattern(sub))
-      }
+      let out = patterns.map(sub => self.resolve_pattern(sub)).flatten()
       out
     }
     @source.MultiPattern(patterns) => {
-      let out : Array[Sym] = []
-      for sub in patterns {
-        out.append(self.resolve_pattern(sub))
-      }
+      let out = patterns.map(sub => self.resolve_pattern(sub)).flatten()
       out
     }
   }
@@ -2313,10 +2305,7 @@ fn Namer::resolve_effects(
   self : Namer,
   effs : EffectsTree,
 ) -> Effects raise EffektError {
-  let all : Array[BlockType] = []
-  for eff in effs.effs {
-    all.append(self.resolve_with_aliases(eff))
-  }
+  let all = effs.effs.map(eff => self.resolve_with_aliases(eff)).flatten()
   @symbols.Effects(all)
 }
 
@@ -2339,10 +2328,7 @@ fn Namer::resolve_capture_set(
   self : Namer,
   capt : CaptureSetTree,
 ) -> Captures raise EffektError {
-  let syms : Array[Sym] = []
-  for id in capt.captures {
-    syms.push(self.resolve_capture_id(id))
-  }
+  let syms = capt.captures.map(id => self.resolve_capture_id(id))
   @symbols.CaptureSetOf(@symbols.dedup_syms(syms))
 }
 
@@ -2358,10 +2344,7 @@ fn Namer::fresh_hole_id(self : Namer) -> String {
   let prefix = if self.parent_definitions.is_empty() {
     "hole"
   } else {
-    let parts : Array[String] = []
-    for d in self.parent_definitions {
-      parts.push(def_id_name(d))
-    }
+    let parts = self.parent_definitions.map(def_id_name)
     parts.join("_")
   }
   let count = match self.hole_count.get(prefix) {
@@ -2430,7 +2413,7 @@ fn describe_type(t : TypeTree) -> String {
 
 ///|
 fn pretty_source_effect_set(effects : ArrayView[TypeTree]) -> String {
-  let texts = effects.map(e => tree_text(e))
+  let texts = effects.map(tree_text)
   if texts.is_empty() {
     "{}"
   } else if texts.length() == 1 {

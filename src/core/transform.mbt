@@ -71,10 +71,7 @@ pub fn transform_with_exports(
   exports : Array[Sym],
 ) -> ModuleDecl raise EffektError {
   let t = Transformer(ctx, module_path, find_equality_functions(module))
-  let toplevels : Array[CoreToplevel] = []
-  for d in module.defs {
-    toplevels.append(t.transform_toplevel(d))
-  }
+  let toplevels = module.defs.map(d => t.transform_toplevel(d)).flatten()
   let declarations : Array[Declaration] = []
   let externs : Array[Extern] = []
   let definitions : Array[Toplevel] = []
@@ -769,22 +766,10 @@ fn Transformer::transform_toplevel(
   match d.kind {
     @source.FunDef(_id, tps, vps, bps, _cpt, _ret, body) => {
       let sym = self.sym_of_def(d)
-      let tparams : Array[Sym] = []
-      for p in tps {
-        tparams.push(self.sym_of_id_def(p))
-      }
-      let cparams : Array[Sym] = []
-      for b in bps {
-        cparams.push(self.block_param_capture(b))
-      }
-      let vparams : Array[ValueParam] = []
-      for p in vps {
-        vparams.push(self.transform_value_param(p))
-      }
-      let bparams : Array[BlockParam] = []
-      for p in bps {
-        bparams.push(self.transform_block_param(p))
-      }
+      let tparams = tps.map(p => self.sym_of_id_def(p))
+      let cparams = bps.map(b => self.block_param_capture(b))
+      let vparams = vps.map(p => self.transform_value_param(p))
+      let bparams = bps.map(p => self.transform_block_param(p))
       let body = self.insert_bindings(() => self.transform_stmt(body))
       result.push(
         CoreToplevelDef(
@@ -806,10 +791,7 @@ fn Transformer::transform_toplevel(
       } else {
         ctors.map(c => self.sym_of_constructor(c))
       }
-      let core_ctors : Array[Constructor] = []
-      for c in ctor_syms {
-        core_ctors.push(self.transform_constructor(c))
-      }
+      let core_ctors = ctor_syms.map(c => self.transform_constructor(c))
       result.push(
         CoreToplevelDecl(DeclarationData(datatype, dt_tparams, core_ctors)),
       )
@@ -818,10 +800,7 @@ fn Transformer::transform_toplevel(
       let rec = self.sym_of_def(d)
       let rec_tparams = self.type_constructor_tparams_of(rec, tparams)
       let ctor_syms = type_constructor_constructors(rec)
-      let core_ctors : Array[Constructor] = []
-      for c in ctor_syms {
-        core_ctors.push(self.transform_constructor(c))
-      }
+      let core_ctors = ctor_syms.map(c => self.transform_constructor(c))
       result.push(
         CoreToplevelDecl(DeclarationData(rec, rec_tparams, core_ctors)),
       )
@@ -890,18 +869,9 @@ fn Transformer::transform_toplevel(
             self.module_path,
             sym,
           )
-          let cps : Array[Sym] = []
-          for b in bps {
-            cps.push(self.block_param_capture(b))
-          }
-          let vparams : Array[ValueParam] = []
-          for p in vps {
-            vparams.push(self.transform_value_param(p))
-          }
-          let bparams : Array[BlockParam] = []
-          for p in bps {
-            bparams.push(self.transform_block_param(p))
-          }
+          let cps = bps.map(b => self.block_param_capture(b))
+          let vparams = vps.map(p => self.transform_value_param(p))
+          let bparams = bps.map(p => self.transform_block_param(p))
           let tbody = self.transform_extern_bodies(bodies, "ExternDef")
           result.push(
             CoreToplevelExtern(
@@ -1060,10 +1030,9 @@ fn Transformer::transform_constructor(
     Constructor(c) => {
       let universals = type_constructor_tparams(c.tpe).length()
       let tparams = array_drop(c.tparams, universals)
-      let fields : Array[Field] = []
-      for f in c.fields {
-        fields.push(Field(f, self.transform_value_type(field_return_type(f))))
-      }
+      let fields = c.fields.map(f => {
+        Field(f, self.transform_value_type(field_return_type(f)))
+      })
       Constructor(ctor, tparams, fields)
     }
     _ =>
@@ -1125,22 +1094,10 @@ fn Transformer::transform_stmt(
     @source.DefStmt(d, rest) =>
       match d.kind {
         @source.FunDef(_id, tps, vps, bps, _cpt, _ret, body) => {
-          let tparams : Array[Sym] = []
-          for p in tps {
-            tparams.push(self.sym_of_id_def(p))
-          }
-          let cparams : Array[Sym] = []
-          for b in bps {
-            cparams.push(self.block_param_capture(b))
-          }
-          let vparams : Array[ValueParam] = []
-          for p in vps {
-            vparams.push(self.transform_value_param(p))
-          }
-          let bparams : Array[BlockParam] = []
-          for p in bps {
-            bparams.push(self.transform_block_param(p))
-          }
+          let tparams = tps.map(p => self.sym_of_id_def(p))
+          let cparams = bps.map(b => self.block_param_capture(b))
+          let vparams = vps.map(p => self.transform_value_param(p))
+          let bparams = bps.map(p => self.transform_block_param(p))
           let body = self.insert_bindings(() => self.transform_stmt(body))
           self.emit(
             BindingDef(
@@ -1335,10 +1292,9 @@ fn Transformer::transform_as_control_block(
           // if this block argument expects to be called using PureApp or
           // ImpureApp, make sure it is by wrapping it in a BlockLit.
           let targs : Array[ValueType] = tparams.map(t => ValueVar(t))
-          let vparams : Array[ValueParam] = []
-          for t in vparamtps {
-            vparams.push(ValueParam(Sym::tmp_value("valueParam"), t))
-          }
+          let vparams = vparamtps.map(t => {
+            ValueParam(Sym::tmp_value("valueParam"), t)
+          })
           let vargs = vparams.map(p => Expr::ValueVar(p.id, p.tpe))
 
           // [[ f ]] = { (x) => f(x) }
@@ -1418,22 +1374,10 @@ fn Transformer::transform_as_control_block(
       }
     }
     @source.BlockLiteral(tps, vps, bps, body) => {
-      let tparams : Array[Sym] = []
-      for t in tps {
-        tparams.push(self.sym_of_id_def(t))
-      }
-      let cparams : Array[Sym] = []
-      for b in bps {
-        cparams.push(self.block_param_capture(b))
-      }
-      let vparams : Array[ValueParam] = []
-      for p in vps {
-        vparams.push(self.transform_value_param(p))
-      }
-      let bparams : Array[BlockParam] = []
-      for p in bps {
-        bparams.push(self.transform_block_param(p))
-      }
+      let tparams = tps.map(t => self.sym_of_id_def(t))
+      let cparams = bps.map(b => self.block_param_capture(b))
+      let vparams = vps.map(p => self.transform_value_param(p))
+      let bparams = bps.map(p => self.transform_block_param(p))
       let body = self.insert_bindings(() => self.transform_stmt(body))
       BlockLit(BlockLit::BlockLit(tparams, cparams, vparams, bparams, body))
     }
@@ -1752,14 +1696,8 @@ fn Transformer::transform_as_stmt(
       let type_args = self
         .type_arguments_of(tree)
         .map(t => self.transform_value_type(t))
-      let value_args : Array[Expr] = []
-      for a in vargs {
-        value_args.push(self.transform_as_expr(a.value))
-      }
-      let block_args : Array[Block] = []
-      for b in bargs {
-        block_args.push(self.transform_as_block(b))
-      }
+      let value_args = vargs.map(a => self.transform_as_expr(a.value))
+      let block_args = bargs.map(b => self.transform_as_block(b))
       let receiver_type = match self.ctx.block_type_of(receiver.uid) {
         Some(t) => self.transform_block_type(t)
         None => unknown_block_type()
@@ -1792,14 +1730,8 @@ fn Transformer::transform_as_stmt(
               let type_args = self
                 .type_arguments_of(tree)
                 .map(t => self.transform_value_type(t))
-              let value_args : Array[Expr] = []
-              for a in vargs {
-                value_args.push(self.transform_as_expr(a.value))
-              }
-              let block_args : Array[Block] = []
-              for b in bargs {
-                block_args.push(self.transform_as_block(b))
-              }
+              let value_args = vargs.map(a => self.transform_as_expr(a.value))
+              let block_args = bargs.map(b => self.transform_as_block(b))
               App(Unbox(e), type_args, value_args, block_args)
             }
             _ =>
@@ -1829,10 +1761,7 @@ fn Transformer::transform_match(
 ) -> Stmt raise EffektError {
   // (1) Bind scrutinee and all clauses so we do not have to deal with sharing
   //     on demand.
-  let scrutinees : Array[Expr] = []
-  for sc in scs {
-    scrutinees.push(self.bind_expr(self.transform_as_expr(sc)))
-  }
+  let scrutinees = scs.map(sc => self.bind_expr(self.transform_as_expr(sc)))
   let clauses : Array[PMClause] = []
   for i in 0..<cs.length() {
     clauses.push(self.preprocess("k\{i}", scrutinees, cs[i]))
@@ -1879,14 +1808,8 @@ fn Transformer::make_function_call(
   let targs = self
     .type_arguments_of(call)
     .map(t => self.transform_value_type(t))
-  let value_args : Array[Expr] = []
-  for a in vargs {
-    value_args.push(self.transform_as_expr(a.value))
-  }
-  let block_args : Array[Block] = []
-  for b in bargs {
-    block_args.push(self.transform_as_block(b))
-  }
+  let value_args = vargs.map(a => self.transform_as_expr(a.value))
+  let block_args = bargs.map(b => self.transform_as_block(b))
 
   match sym {
     ExternFunction(_) =>
@@ -1997,14 +1920,8 @@ fn Transformer::transform_op_clause(
   prompt : BlockVar?,
 ) -> Operation raise EffektError {
   let op = self.sym_of_ref(cl.id)
-  let vps : Array[ValueParam] = []
-  for p in cl.vparams {
-    vps.push(self.transform_value_param(p))
-  }
-  let tps : Array[Sym] = []
-  for p in cl.tparams {
-    tps.push(self.sym_of_id_def(p))
-  }
+  let vps = cl.vparams.map(p => self.transform_value_param(p))
+  let tps = cl.tparams.map(p => self.sym_of_id_def(p))
 
   match prompt {
     Some(prompt) => {
@@ -2155,10 +2072,7 @@ fn Transformer::transform_op_clause(
       }
     }
     None => {
-      let bps : Array[BlockParam] = []
-      for p in cl.bparams {
-        bps.push(self.transform_block_param(p))
-      }
+      let bps = cl.bparams.map(p => self.transform_block_param(p))
       let cps : Array[Sym] = []
       for b in cl.bparams {
         cps.push(
@@ -2346,10 +2260,7 @@ fn Transformer::preprocess_patterns(
 ) -> PMClause raise EffektError {
   // create joinpoint
   let tparams : Array[Sym] = []
-  let params : Array[ValueParam] = []
-  for p in patterns {
-    params.append(self.bound_in_pattern(p.pattern))
-  }
+  let params = patterns.map(p => self.bound_in_pattern(p.pattern)).flatten()
   for g in guards {
     match g.kind {
       @source.PatternGuard(_, pattern) =>
@@ -2407,17 +2318,11 @@ fn Transformer::bound_in_pattern(
       [ValueParam(sym, self.value_type_of_sym(sym))]
     }
     @source.TagPattern(_id, patterns) => {
-      let out : Array[ValueParam] = []
-      for inner in patterns {
-        out.append(self.bound_in_pattern(inner))
-      }
+      let out = patterns.map(inner => self.bound_in_pattern(inner)).flatten()
       out
     }
     @source.MultiPattern(patterns) => {
-      let out : Array[ValueParam] = []
-      for inner in patterns {
-        out.append(self.bound_in_pattern(inner))
-      }
+      let out = patterns.map(inner => self.bound_in_pattern(inner)).flatten()
       out
     }
     @source.LiteralPattern(_, _) => []
@@ -2558,10 +2463,7 @@ fn Transformer::transform_guard(
       }
     }
   })
-  let out : Array[PMCondition] = []
-  for b in bindings {
-    out.push(PMRun(b))
-  }
+  let out = bindings.map(b => PMRun(b))
   out.push(cond)
   out
 }

@@ -60,7 +60,7 @@ pub fn Delimiter::to_token_kind(
     CharString =>
       if contents.is_empty() {
         TError(EmptyCharLiteral)
-      } else if code_point_count(contents) > 1 {
+      } else if contents.char_length() > 1 {
         TError(MultipleCodePointsInChar)
       } else {
         TChr(char_at(contents, 0).to_int())
@@ -94,23 +94,6 @@ fn char_at(s : String, i : Int32) -> Char {
       u.to_char().unwrap_or('\u{FFFD}')
     }
   }
-}
-
-///|
-/// The number of Unicode code points in a string.
-fn code_point_count(s : String) -> Int32 {
-  let mut i = 0
-  let mut count = 0
-  while i < s.length() {
-    let u = s[i]
-    if u.is_leading_surrogate() && i + 1 < s.length() {
-      i = i + 2
-    } else {
-      i = i + 1
-    }
-    count = count + 1
-  }
-  count
 }
 
 ///|
@@ -237,10 +220,9 @@ fn parse_double_lit(s : String) -> Double? {
 fn parse_byte_lit(s : String) -> Int32? {
   guard s.length() == 2 else { return None }
   let mut acc = 0
-  for i in 0..<2 {
-    let u = s[i]
-    guard is_hex_digit(u.to_char().unwrap_or('\u{0}')) else { return None }
-    acc = acc * 16 + hex_value(u.to_char().unwrap_or('0'))
+  for c in s {
+    guard is_hex_digit(c) else { return None }
+    acc = acc * 16 + hex_value(c)
   }
   Some(acc)
 }
@@ -251,10 +233,9 @@ fn parse_byte_lit(s : String) -> Int32? {
 fn parse_hex_int_lit(s : String) -> Int64? {
   guard s.length() == 8 else { return None }
   let mut acc : Int64 = 0
-  for i in 0..<8 {
-    let u = s[i]
-    guard is_hex_digit(u.to_char().unwrap_or('\u{0}')) else { return None }
-    acc = acc * 16 + hex_value(u.to_char().unwrap_or('0')).to_int64()
+  for c in s {
+    guard is_hex_digit(c) else { return None }
+    acc = acc * 16 + hex_value(c).to_int64()
   }
   Some(acc)
 }

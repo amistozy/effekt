@@ -243,16 +243,10 @@ pub fn generate_constructor(
   let reflect = JSName("__reflect")
   let equals = JSName("__equals")
 
-  let params : Array[JSName] = []
-  for f in fields {
-    params.push(name_def(f.id))
-  }
+  let params = fields.map(f => name_def(f.id))
 
   // constructor(param...) { this.__tag = TAG; this.param = param; ... }
-  let init_params : Array[Stmt] = []
-  for p in params {
-    init_params.push(Assign(this_field(p), Variable(p)))
-  }
+  let init_params = params.map(p => Assign(this_field(p), Variable(p)))
   let init_tag = Assign(this_field(tag), raw_expr(tag_value.to_string()))
   let js_constructor = Stmt::Function(
     JSName("constructor"),
@@ -261,10 +255,7 @@ pub fn generate_constructor(
   )
 
   // __reflect() { return { __tag: TAG, __name: "NAME", __data: [this.param...] } }
-  let reflected_data : Array[Expr] = []
-  for f in fields {
-    reflected_data.push(this_field(member_name_ref(f.id)))
-  }
+  let reflected_data = fields.map(f => this_field(member_name_ref(f.id)))
   let js_reflect = Stmt::Function(reflect, [], [
     Return(
       Object([
@@ -287,10 +278,7 @@ pub fn generate_constructor(
 
   let other_exists = If(not_expr(Variable(other)), abort, noop)
   let compare_tags = If(compare(tag), abort, noop)
-  let compare_fields : Array[Stmt] = []
-  for p in params {
-    compare_fields.push(If(compare(p), abort, noop))
-  }
+  let compare_fields = params.map(p => If(compare(p), abort, noop))
   let js_equals = Stmt::Function(
     equals,
     [other],

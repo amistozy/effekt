@@ -50,15 +50,10 @@ pub fn Substitutions::compose(
   self : Substitutions,
   other : Substitutions,
 ) -> Substitutions {
-  let values = self.values.copy()
-  for k, v in other.values {
-    values.set(k, v)
+  {
+    values: self.values.merge(other.values),
+    captures: self.captures.merge(other.captures),
   }
-  let captures = self.captures.copy()
-  for k, v in other.captures {
-    captures.set(k, v)
-  }
-  { values, captures, }
 }
 
 ///|

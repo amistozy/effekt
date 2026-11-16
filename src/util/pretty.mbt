@@ -198,6 +198,13 @@ pub fn render(doc : Doc) -> String {
 }
 
 ///|
+/// Ends the current line and starts the next one at column `indent`.
+fn newline(buf : StringBuilder, indent : Int32) -> Unit {
+  buf.write_string("\n")
+  buf.write_string(" ".repeat(indent))
+}
+
+///|
 pub fn render_width(doc : Doc, width : Int32) -> String {
   let buf = StringBuilder()
   let mut col = 0
@@ -220,27 +227,16 @@ pub fn render_width(doc : Doc, width : Int32) -> String {
           buf.write_string(" ")
           col = col + 1
         } else {
-          buf.write_string("\n")
-          for _ in 0..<item.indent {
-            buf.write_string(" ")
-          }
+          newline(buf, item.indent)
           col = item.indent
         }
       SoftBreak =>
-        if item.mode == Flat {
-          ()
-        } else {
-          buf.write_string("\n")
-          for _ in 0..<item.indent {
-            buf.write_string(" ")
-          }
+        if item.mode == Break {
+          newline(buf, item.indent)
           col = item.indent
         }
       HardLine => {
-        buf.write_string("\n")
-        for _ in 0..<item.indent {
-          buf.write_string(" ")
-        }
+        newline(buf, item.indent)
         col = item.indent
       }
       Group(d) => {

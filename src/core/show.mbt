@@ -616,10 +616,9 @@ fn ShowContext::generate_data_instance(
   let value_tpe = ValueData(data_id, targs.map(t => self.lookup_type(t)))
   let vparam = ValueParam(value_id, value_tpe)
 
-  let constructor_vparams : Array[Array[ValueParam]] = []
-  for constr in constructors {
-    constructor_vparams.push(self.constructor_vparams(constr))
-  }
+  let constructor_vparams = constructors.map(constr => {
+    self.constructor_vparams(constr)
+  })
   let clauses : Array[Clause] = []
   for i in 0..<constructors.length() {
     clauses.push(
@@ -717,10 +716,7 @@ fn ShowContext::constructor_stmt(
     t_string(),
     t_string(),
   ])
-  let pure_fields : Array[(Sym, Stmt)] = []
-  for field in constr.fields {
-    pure_fields.push(self.field_pure(dctx, field))
-  }
+  let pure_fields = constr.fields.map(field => self.field_pure(dctx, field))
   let concatenated = PureApp(infix_concat, [], [
     Literal(LString("\{constr.id.name().name}("), t_string()),
     concat_pure(dctx, pure_fields),
@@ -805,10 +801,7 @@ fn ShowContext::field_pure(
 pub fn show_phase(module : ModuleDecl) -> ModuleDecl raise EffektError {
   let ctx = ShowContext()
   let dctx = DeclarationContext(module.declarations, module.externs)
-  let definitions : Array[Toplevel] = []
-  for d in module.definitions {
-    definitions.push(ctx.transform_toplevel(dctx, d))
-  }
+  let definitions = module.definitions.map(d => ctx.transform_toplevel(dctx, d))
   definitions.append(ctx.all_show_defs())
   ModuleDecl(
     module.path,
@@ -855,10 +848,9 @@ fn ShowContext::transform_implementation(
   dctx : DeclarationContext,
   implementation : Implementation,
 ) -> Implementation raise EffektError {
-  let operations : Array[Operation] = []
-  for op in implementation.operations {
-    operations.push(self.transform_operation(dctx, op))
-  }
+  let operations = implementation.operations.map(op => {
+    self.transform_operation(dctx, op)
+  })
   Implementation(implementation.interface, operations)
 }
 

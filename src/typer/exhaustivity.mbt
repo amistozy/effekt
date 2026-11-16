@@ -623,10 +623,7 @@ fn constructor_pattern(ctor : Sym) -> String {
   if fields.is_empty() {
     return "\{name}()"
   }
-  let parts : Array[String] = []
-  for _ in fields {
-    parts.push("_")
-  }
+  let parts = fields.map(_ => "_")
   "\{name}(\{parts.join(", ")})"
 }
 
@@ -643,10 +640,13 @@ fn Exhaustivity::trace_to_case(
       if self.scrutinees.length() == 1 {
         acc
       } else {
-        let parts : Array[String] = []
-        for s in self.scrutinees {
-          parts.push(if s.uid == uid { acc } else { "_" })
-        }
+        let parts = self.scrutinees.map(s => {
+          if s.uid == uid {
+            acc
+          } else {
+            "_"
+          }
+        })
         parts.join(", ")
       }
     TChild(ctor, field, outer) => {

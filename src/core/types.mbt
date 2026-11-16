@@ -273,10 +273,7 @@ pub fn instantiate(
 /// parameters of a function type are stored as (singleton) capture sets, while
 /// upstream core stores the ids directly.
 fn capture_ids(cs : ArrayView[Captures]) -> Array[Sym] {
-  let out : Array[Sym] = []
-  for c in cs {
-    out.append(c.to_array())
-  }
+  let out = cs.map(c => c.to_array()).flatten()
   out
 }
 

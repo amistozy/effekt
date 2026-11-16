@@ -154,10 +154,9 @@ pub struct PrecedenceTable {
 /// The precedence table used by the parser. Mirrors `Parser.precedenceTable`.
 pub fn build_precedence_table() -> PrecedenceTable {
   let relations : Array[(TokenKind, TokenKind)] = []
-  let assoc : Array[(TokenKind, Associativity)] = []
-  for op in [TEqEqEq, TNotEqEq, TLtEq, TGtEq, TLt, TGt] {
-    assoc.push((op, AssocNone))
-  }
+  let assoc = [TEqEqEq, TNotEqEq, TLtEq, TGtEq, TLt, TGt].map(op => {
+    (op, AssocNone)
+  })
   let loosen = (looser : Array[TokenKind], tighter : Array[TokenKind]) => {
     for l in looser {
       for t in tighter {
@@ -972,29 +971,15 @@ fn[T] Parser::documented(
 ///|
 fn[A] interleave(xs : ArrayView[A], ys : ArrayView[A]) -> Array[A] {
   let result : Array[A] = []
-  let mut i = 0
-  while i < xs.length() || i < ys.length() {
+  for i in 0..<xs.length().max(ys.length()) {
     if i < xs.length() {
       result.push(xs[i])
     }
     if i < ys.length() {
       result.push(ys[i])
     }
-    i = i + 1
   }
   result
-}
-
-///|
-fn join_strings(xs : ArrayView[String], sep : String) -> String {
-  let buf = StringBuilder()
-  for i in 0..<xs.length() {
-    if i > 0 {
-      buf.write_string(sep)
-    }
-    buf.write_string(xs[i])
-  }
-  buf.to_string()
 }
 
 ///|
@@ -1026,7 +1011,7 @@ fn Parser::maybe_documentation(self : Parser) -> String? raise EffektError {
     docs.push(message)
   }
   guard !docs.is_empty() else { None }
-  Some(join_strings(docs, "\\n"))
+  Some(docs.join("\\n"))
 }
 
 ///|
@@ -1186,7 +1171,7 @@ fn Parser::include_decl(self : Parser) -> Include raise EffektError {
 fn Parser::module_name(self : Parser) -> String raise EffektError {
   self.labelled("module name", () => {
     let ids = self.some_sep(() => self.ident(), TSlash)
-    join_strings(ids.items, "/")
+    ids.items.join("/")
   })
 }
 
@@ -1671,7 +1656,7 @@ fn Parser::extern_include(self : Parser, info : Info) -> Def raise EffektError {
 fn Parser::extern_string(self : Parser, info : Info) -> Def raise EffektError {
   let ff = self.maybe_feature_flag()
   let template = self.template(() => self.expr())
-  let contents = join_strings(template.strings.map(s => s.unspan), "")
+  let contents = template.strings.map(s => s.unspan).join("")
   if !template.args.is_empty() {
     self.warn(
       "Splices in an extern string are not supported; use `extern def` with feature-flagged bodies instead",

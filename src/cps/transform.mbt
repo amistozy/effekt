@@ -83,7 +83,7 @@ fn Continuation::reify(self : Continuation) -> Cont raise EffektError {
     Static(hints, k) => {
       let params = hints.map(fresh_like)
       let ks = fresh_sym("ks")
-      ContLam(ContLam(params, ks, k(params.map(p => ValueVar(p)), ks)))
+      ContLam(ContLam(params, ks, k(params.map(v => ValueVar(v)), ks)))
     }
   }
 }
@@ -195,14 +195,8 @@ fn TransformationContext::bind_block(
 /// Translates a core module into the CPS representation.
 pub fn transform(module : @core.ModuleDecl) -> ModuleDecl raise EffektError {
   let ctx = TransformationContext::empty()
-  let externs : Array[Extern] = []
-  for e in module.externs {
-    externs.push(transform_extern(e, ctx))
-  }
-  let definitions : Array[ToplevelDefinition] = []
-  for d in module.definitions {
-    definitions.push(transform_toplevel(d, ctx))
-  }
+  let externs = module.externs.map(e => transform_extern(e, ctx))
+  let definitions = module.definitions.map(d => transform_toplevel(d, ctx))
   ModuleDecl(
     module.path,
     module.includes,
@@ -249,14 +243,8 @@ fn transform_extern(
       annotated_capture,
       body
     ) => {
-      let vps : Array[Sym] = []
-      for p in vparams {
-        vps.push(p.id)
-      }
-      let bps : Array[Sym] = []
-      for p in bparams {
-        bps.push(p.id)
-      }
+      let vps = vparams.map(p => p.id)
+      let bps = bparams.map(p => p.id)
       let is_async = annotated_capture
         .to_array()
         .any(c => c == @symbols.async_capture())
@@ -394,10 +382,9 @@ fn transform_stmt(
           )
         _ =>
           with_joinpoint(k, k2 => {
-            let translated : Array[Clause] = []
-            for clause in clauses {
-              translated.push(transform_clause(clause, ks, k2, ctx))
-            }
+            let translated = clauses.map(clause => {
+              transform_clause(clause, ks, k2, ctx)
+            })
             let translated_default = match default {
               Some(body) => Some(transform_stmt(body, ks, k2, ctx))
               None => None
@@ -513,10 +500,7 @@ fn transform_clause(
   k : Continuation,
   ctx : TransformationContext,
 ) -> Clause raise EffektError {
-  let vparams : Array[Sym] = []
-  for p in clause.body.vparams {
-    vparams.push(p.id)
-  }
+  let vparams = clause.body.vparams.map(p => p.id)
   // The constructor tag of a core clause is remembered in the clause's
   // parameter list; see `clause_with_tag` in `prelude.mbt`.
   clause_with_tag(
@@ -535,10 +519,7 @@ fn transform_impl(
   implementation : @core.Implementation,
   ctx : TransformationContext,
 ) -> Implementation raise EffektError {
-  let operations : Array[Operation] = []
-  for op in implementation.operations {
-    operations.push(transform_op(op, ctx))
-  }
+  let operations = implementation.operations.map(op => transform_op(op, ctx))
   Implementation(implementation.interface, operations)
 }
 
@@ -549,14 +530,8 @@ fn transform_op(
 ) -> Operation raise EffektError {
   let ks = fresh_sym("ks")
   let k = fresh_sym("k")
-  let vparams : Array[Sym] = []
-  for p in op.vparams {
-    vparams.push(p.id)
-  }
-  let bparams : Array[Sym] = []
-  for p in op.bparams {
-    bparams.push(p.id)
-  }
+  let vparams = op.vparams.map(p => p.id)
+  let bparams = op.bparams.map(p => p.id)
   Operation(
     op.name,
     vparams,
@@ -597,14 +572,8 @@ fn transform_block_lit(
 ) -> BlockLit raise EffektError {
   let ks = fresh_sym("ks")
   let k = fresh_sym("k")
-  let vparams : Array[Sym] = []
-  for p in block.vparams {
-    vparams.push(p.id)
-  }
-  let bparams : Array[Sym] = []
-  for p in block.bparams {
-    bparams.push(p.id)
-  }
+  let vparams = block.vparams.map(p => p.id)
+  let bparams = block.bparams.map(p => p.id)
   BlockLit::BlockLit(
     vparams,
     bparams,

@@ -6,11 +6,7 @@
 
 ///|
 fn[T] size_all(xs : ArrayView[T], f : (T) -> Int32) -> Int32 {
-  let mut acc = 0
-  for x in xs {
-    acc = acc + f(x)
-  }
-  acc
+  xs.fold(init=0, (acc, x) => acc + f(x))
 }
 
 ///|

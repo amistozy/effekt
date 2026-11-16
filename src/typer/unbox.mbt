@@ -81,10 +81,7 @@ fn Unboxer::rewrite_module(
   self : Unboxer,
   m : ModuleDecl,
 ) -> ModuleDecl raise EffektError {
-  let defs : Array[Def] = []
-  for d in m.defs {
-    defs.push(self.rewrite_def(d))
-  }
+  let defs = m.defs.map(d => self.rewrite_def(d))
   { ..m, defs, }
 }
 
@@ -276,17 +273,8 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
       let vargs_transformed = vargs.map(a => self.rewrite_arg(a))
       let bargs_transformed = bargs.map(b => self.rewrite_as_block(b))
       let has_methods = match self.symbol_of(id.uid) {
-        Some(@symbols.Sym::CallTarget(ct)) => {
-          let mut found = false
-          for scope in ct.symbols {
-            for s in scope {
-              if s.is_operation() {
-                found = true
-              }
-            }
-          }
-          found
-        }
+        Some(@symbols.Sym::CallTarget(ct)) =>
+          ct.symbols.any(scope => scope.any(s => s.is_operation()))
         Some(s) => s.is_operation()
         None => false
       }

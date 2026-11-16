@@ -29,20 +29,12 @@
 ///|
 /// A set of symbols, keyed by `uid` (MoonBit maps need `Hash`, `Sym` has none).
 fn sym_set(ids : ArrayView[Sym]) -> Map[Int32, Sym] {
-  let out : Map[Int32, Sym] = Map([])
-  for id in ids {
-    out.set(id.uid(), id)
-  }
-  out
+  Map(ids.map(id => (id.uid(), id)))
 }
 
 ///|
 fn sym_set_union(a : Map[Int32, Sym], b : Map[Int32, Sym]) -> Map[Int32, Sym] {
-  let out = a.copy()
-  for uid, id in b {
-    out.set(uid, id)
-  }
-  out
+  a.merge(b)
 }
 
 ///|
@@ -57,20 +49,16 @@ fn captures_of_value_type(tpe : ValueType) -> Captures {
 
 ///|
 fn captures_of_value_types(tpes : ArrayView[ValueType]) -> Captures {
-  let mut out = Captures::empty()
-  for tpe in tpes {
-    out = out.union(captures_of_value_type(tpe))
-  }
-  out
+  tpes.fold(init=Captures::empty(), (acc, tpe) => {
+    acc.union(captures_of_value_type(tpe))
+  })
 }
 
 ///|
 fn captures_of_block_types(tpes : ArrayView[BlockType]) -> Captures {
-  let mut out = Captures::empty()
-  for tpe in tpes {
-    out = out.union(captures_of_block_type(tpe))
-  }
-  out
+  tpes.fold(init=Captures::empty(), (acc, tpe) => {
+    acc.union(captures_of_block_type(tpe))
+  })
 }
 
 ///|
@@ -447,16 +435,10 @@ fn tail_positions(s : Stmt) -> TailPositions? raise EffektError {
     ImpureApp(id, callee, targs, vargs, bargs, body) =>
       Some({
         apply_tails: f => ImpureApp(id, callee, targs, vargs, bargs, f(body)),
-        before: {
-          let mut out = Block::BlockVar(callee).free()
-          for v in vargs {
-            out = out.union(v.free())
-          }
-          for b in bargs {
-            out = out.union(b.free())
-          }
-          out
-        },
+        before: Block::BlockVar(callee)
+        .free()
+        .union(free_all(vargs, v => v.free()))
+        .union(free_all(bargs, b => b.free())),
         transparents: [],
       })
     Def(id, block, body) =>
@@ -1416,10 +1398,10 @@ fn shifts_to(prompt : Prompt, s : Stmt) -> Array[ShiftInfo] raise EffektError {
         _ =>
           match tail_positions(s) {
             Some(positions) => {
-              let out : Array[ShiftInfo] = []
-              for child in positions.tails() {
-                out.append(shifts_to(prompt, child))
-              }
+              let out = positions
+                .tails()
+                .map(child => shifts_to(prompt, child))
+                .flatten()
               out
             }
             None => []

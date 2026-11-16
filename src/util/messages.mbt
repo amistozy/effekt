@@ -129,37 +129,18 @@ priv struct Excerpt {
 ///|
 /// The line where `span` starts, marked to its end on that line.
 fn excerpt_of(span : Span) -> Excerpt? {
-  if span.origin == Missing {
-    return None
-  }
+  guard span.origin != Missing else { return None }
   let pos = span.position()
   let code = span.source.line_text(pos.line)
-  if code == "" {
-    return None
-  }
+  guard code != "" else { return None }
   let end = span.source.offset_to_position(span.end)
   let width = if end.line == pos.line && end.column > pos.column {
     end.column - pos.column
   } else {
     1
   }
-  let marker = StringBuilder()
-  for _ in 0..<(pos.column - 1) {
-    marker.write_string(" ")
-  }
-  for _ in 0..<width {
-    marker.write_string("^")
-  }
-  Some({ line: pos.line, code, marker: marker.to_string(), })
-}
-
-///|
-fn spaces(count : Int32) -> String {
-  let buf = StringBuilder()
-  for _ in 0..<count {
-    buf.write_string(" ")
-  }
-  buf.to_string()
+  let marker = " ".repeat(pos.column - 1) + "^".repeat(width)
+  Some({ line: pos.line, code, marker, })
 }
 
 ///|
@@ -167,7 +148,7 @@ fn spaces(count : Int32) -> String {
 /// diagnostic and its notes.
 fn align_line(line : Int32, width : Int32) -> String {
   let shown = line.to_string()
-  spaces(width - shown.length()) + shown
+  " ".repeat(width - shown.length()) + shown
 }
 
 ///|
@@ -206,23 +187,17 @@ fn with_phase(text : String, phase : String?) -> String {
 pub fn Message::render(self : Message) -> String {
   let primary = excerpt_of(self.span)
   // One gutter for the whole diagnostic, as wide as its largest line number.
-  let mut width = 0
-  if primary is Some(e) {
-    width = e.line.to_string().length()
+  let mut width = match primary {
+    Some(e) => e.line.to_string().length()
+    None => 0
   }
   let items : Array[(String, String, Excerpt?)] = []
   for note in self.notes {
     match note {
       Note(text, at) => {
-        let excerpt = match at {
-          Some(span) => excerpt_of(span)
-          None => None
-        }
+        let excerpt = at.bind(excerpt_of)
         if excerpt is Some(e) {
-          let len = e.line.to_string().length()
-          if len > width {
-            width = len
-          }
+          width = width.max(e.line.to_string().length())
         }
         items.push(("note", text, excerpt))
       }
@@ -238,24 +213,26 @@ pub fn Message::render(self : Message) -> String {
     "[\{self.severity}] \{self.span.source.name}:\{pos.line}:\{pos.column}: \{text}"
   }
   lines.push(header)
+  // `padding` is the blank line-number column that keeps the excerpts lined up
+  // with the ones that do print a number.
+  let padding = " ".repeat(width)
   let mut previous_excerpt = match primary {
     Some(e) => {
-      lines.push(align_line(e.line, width) + "  " + e.code)
-      lines.push(spaces(width) + "  " + e.marker)
+      lines.push("\{align_line(e.line, width)}  \{e.code}")
+      lines.push("\{padding}  \{e.marker}")
       true
     }
     None => false
   }
-  for i in 0..<items.length() {
-    let (kind, text, excerpt) = items[i]
+  for i, (kind, text, excerpt) in items {
     if i == 0 || excerpt is Some(_) || previous_excerpt {
       lines.push("")
     }
-    lines.push(spaces(width + 2) + "* " + kind + ": " + text)
+    lines.push("\{padding}  * \{kind}: \{text}")
     match excerpt {
       Some(e) => {
-        lines.push(align_line(e.line, width) + "  |  " + e.code)
-        lines.push(spaces(width + 2) + "|  " + e.marker)
+        lines.push("\{align_line(e.line, width)}  |  \{e.code}")
+        lines.push("\{padding}  |  \{e.marker}")
         previous_excerpt = true
       }
       None => previous_excerpt = false

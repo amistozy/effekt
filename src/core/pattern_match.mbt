@@ -233,10 +233,7 @@ pub fn pm_compile(
   }
 
   // (0) normalize clauses
-  let normalized : Array[PMClause] = []
-  for c in clauses {
-    normalized.push(pm_normalize(c))
-  }
+  let normalized = clauses.map(pm_normalize)
 
   let head = normalized[0]
   let remaining = pm_drop_first(normalized)
@@ -658,37 +655,27 @@ fn pm_normalize_conditions(
   match conditions[0] {
     PMPatterns(other) => {
       let substituted : Map[Int32, PMVarPattern] = Map([])
-      let additional : Array[(Int32, PMVar)] = []
+      let additional : Map[Int32, PMVar] = Map([])
       for _, vp in other {
-        let sc = match substitution.get(vp.variable.id.uid()) {
-          Some(v) => v
-          None => vp.variable
-        }
+        let sc = substitution.get(vp.variable.id.uid()).unwrap_or(vp.variable)
         // The pattern is re-keyed by the (possibly substituted) variable:
         // `case a is x; x is Cons => ...` normalizes to `case a is Cons`, i.e.
         // the later pattern is now matched on `a`.
         substituted.set(sc.id.uid(), PMVarPattern(sc, vp.pattern))
-        match vp.pattern {
-          PMAny(aid) => additional.push((aid.uid(), sc))
-          _ => ()
+        if vp.pattern is PMAny(aid) {
+          additional.set(aid.uid(), sc)
         }
       }
-      let filtered : Map[Int32, PMVarPattern] = Map([])
-      for k, vp in substituted {
-        match vp.pattern {
-          PMTag(_, _, _, _) | PMLiteral(_, _, _) => filtered.set(k, vp)
-          _ => ()
-        }
-      }
-      let new_patterns = patterns.copy()
-      for k, v in filtered {
-        new_patterns.set(k, v)
-      }
-      let new_substitution = substitution.copy()
-      for pair in additional {
-        new_substitution.set(pair.0, pair.1)
-      }
-      pm_normalize_conditions(new_patterns, rest, new_substitution)
+      // Only the concrete patterns become part of the matrix; `Any` and
+      // `Ignore` were substituted away above.
+      let filtered = substituted.filter((_, vp) => {
+        vp.pattern is PMTag(_, _, _, _) || vp.pattern is PMLiteral(_, _, _)
+      })
+      pm_normalize_conditions(
+        patterns.merge(filtered),
+        rest,
+        substitution.merge(additional),
+      )
     }
     PMRun(binding) => {
       let substituted = substitute_binding(
@@ -722,10 +709,7 @@ fn pm_normalize_conditions(
 
 ///|
 fn pm_value_substitution(substitution : Map[Int32, PMVar]) -> Substitution {
-  let values : Map[Int32, Expr] = Map([])
-  for k, v in substitution {
-    values.set(k, v.to_expr())
-  }
+  let values = substitution.map((_, v) => v.to_expr())
   Substitution(Map([]), Map([]), values, Map([]))
 }
 

@@ -256,10 +256,10 @@ fn StaticArguments::wrap_definition(
     }
   }
   // The worker closes over the static block arguments of the wrapper.
-  let mut new_captures = Block::BlockLit(lit).infer_capt()
-  for c in select_static(static_b, fresh_cparams) {
-    new_captures = new_captures.union(CaptureSetOf([c]))
-  }
+  let new_captures = select_static(static_b, fresh_cparams).fold(
+    init=Block::BlockLit(lit).infer_capt(),
+    (acc, c) => acc.union(capture_set(c)),
+  )
   let worker_id = Sym::id(id.name().rename(original => "\{original}_worker"))
   let worker_var = BlockVar::BlockVar(worker_id, worker_type, new_captures)
   self.workers.set(id.uid(), Block::BlockVar(worker_var))

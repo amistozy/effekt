@@ -124,7 +124,11 @@ You can browse and install extra skills here:
   at `0`. Write `>..`/`>=..` without spaces around it, and prefer the form
   without arithmetic in the bound. A worklist is drained with
   `while stack.pop() is Some(x) { … }` instead of
-  `while !stack.is_empty() { let x = stack.pop().unwrap() }`.
+  `while !stack.is_empty() { let x = stack.pop().unwrap() }`. One thing *not*
+  to copy: `.each(f)` looks like the terse spelling of a one-statement loop, but
+  the core library's own code uses `for` 1287 times and `.each` only 40 (its 143
+  `.each` sites are mostly tests), so a loop whose body is a single call stays a
+  `for` loop — `for x in xs { f(x) }`, not `xs.each(f)`.
 
 - **Never silence an unused parameter; prefix it with `_`.** `let _ = self` and
   `let _ = ctx` at the top of a body are the workaround this project used to
@@ -147,6 +151,28 @@ You can browse and install extra skills here:
   index is needed, `xs.filter(p)` when the push is guarded, `xs.to_array()` when
   the element is taken as it is). Loop over tuples by destructuring in the header
   (`for (a, b) in pairs`), not by binding the pair and unpacking it inside.
+
+  The same applies to the builders this project used to hand-roll: a
+  `join_strings(xs, sep)` loop is `xs.join(sep)`, a `spaces(n)` loop is
+  `" ".repeat(n)`, a `code_point_count(s)` scan is `s.char_length()` (the number
+  of Unicode scalars; `s.length()` is the UTF-16 code-unit count), `xs.map(f)` +
+  `out.append(…)` is `xs.map(f).flatten()`, and a push that can skip an element
+  is `xs.filter_map(x => …)` with an `Option` callback. Two more core
+  conversions: an accumulator that only unions/concatenates is
+  `xs.fold(init=…, (acc, x) => …)` (this port writes `.fold(` 2.5x as densely as
+  the core library), and `Stmt?`-shaped defaults are `x.map(s => …).unwrap_or(…)`
+  rather than a two-arm `match`.
+
+- **`Map` is `@builtin`'s linked hash map, and it has combinators too.** Build
+  one from pairs with the constructor — `Map(ids.map(id => (id.uid(), id)))`, not
+  a loop of `.set` — copy-merge two with `xs.merge(ys)` (the right-hand side wins
+  on a conflict and new keys are appended, exactly like a `set` loop over a
+  `copy`), mutate-receive with `ys.merge_in_place(xs)`, transform the values with
+  `m.map((k, v) => …)`, pick a subset with `m.filter((k, v) => …)`, ask about the
+  keys with `m.keys().any(f)` / `m.keys().all(f)`, and materialize with
+  `m.values().to_array()` / `m.to_array()`. Iteration order is observable (it is
+  the insertion order), so a conversion may only reorder the *insertions* the way
+  the loop did: `merge` appends, which is what the `copy`+`set` loop did too.
 
 - **Take `ArrayView[T]` when a function only reads a sequence.** An `Array`
   coerces to an `ArrayView` at a call site, so a reader accepts arrays, slices
@@ -171,11 +197,21 @@ You can browse and install extra skills here:
   is a real arm (spell it, even when the caller guarantees a non-empty list);
   `xs[:xs.length() - 1].to_owned()` is the same slice without the element, and
   a slice's end is clamped, so both are fine on an empty array. A push loop
-  that maps (`for x in xs { out.push(f(x)) }`, of which this port still has
-  many) is `xs.map(f)`, but only where that reads better: this port already
-  writes `.map(` seven times as densely as the core library, so the loop is not
-  wrong when the pushed expression is long or the loop accumulates into several
-  arrays at once.
+  that maps (`for x in xs { out.push(f(x)) }`) is `xs.map(f)` — this port now
+  writes `.map(` fifteen times as densely as the core library, and the sweep
+  that got it there deleted 93 such loops — and the callback is the bare
+  function when it is one (`vargs.map(rewrite_expr)`, not
+  `vargs.map(e => rewrite_expr(e))`). Constructors are the exception: a
+  constructor is not a first-class function
+  (`Using constructors as higher order function directly is forbidden`), so
+  `map(PMRun)` has to stay `map(b => PMRun(b))`, and `map(ValueVar)` is doubly
+  rejected because `ValueVar` is both an `Expr` and a `ValueType` constructor.
+  Four parameter arrays built one after another (`tparams`, `cparams`,
+  `vparams`, `bparams`) become four adjacent `let … = xs.map(…)` lines. The
+  loop stays when it accumulates into several arrays at once, when the pushed
+  expression is long enough that the closure buries it, and when the collection
+  is a *range*: `0..<n` is not an array, so `for i in 0..<n { out.push(f(i)) }`
+  has no `.map` spelling.
 
 - **Bail out with `guard <good condition> else { … }`, not an `if` around the
   failure.** The core library spells an early exit as a guard about thirteen

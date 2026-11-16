@@ -58,10 +58,7 @@ pub fn resolve_extern_defs(
   module : ModuleDecl,
   ctx : Context,
 ) -> ModuleDecl raise EffektError {
-  let defs : Array[Def] = []
-  for d in module.defs {
-    defs.append(resolve_extern_def(d, ctx))
-  }
+  let defs = module.defs.map(d => resolve_extern_def(d, ctx)).flatten()
   { ..module, defs, }
 }
 
@@ -188,10 +185,7 @@ fn resolve_extern_def(d : Def, ctx : Context) -> Array[Def] raise EffektError {
         []
       }
     NamespaceDef(id, defs) => {
-      let inner : Array[Def] = []
-      for sub in defs {
-        inner.append(resolve_extern_def(sub, ctx))
-      }
+      let inner = defs.map(sub => resolve_extern_def(sub, ctx)).flatten()
       [copy_def(d, NamespaceDef(id, inner), ctx)]
     }
     _ => [d]

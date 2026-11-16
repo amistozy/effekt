@@ -329,9 +329,7 @@ pub fn Typer::check_call_to(
     )
   }
   self.using_capture(
-    @symbols.Captures::CaptureSetOf(
-      capabilities.map(c => capture_of_capability(c)),
-    ),
+    @symbols.Captures::CaptureSetOf(capabilities.map(capture_of_capability)),
   )
 
   TyRes(inst.ret, effs)
@@ -388,7 +386,7 @@ fn format_args(parts : ArrayView[String]) -> String {
     parts[0]
   } else {
     let last = parts[parts.length() - 1]
-    "\{parts[0:parts.length() - 1].join(", ")} and \{last}"
+    "\{parts[:parts.length() - 1].join(", ")} and \{last}"
   }
 }
 
@@ -396,17 +394,13 @@ fn format_args(parts : ArrayView[String]) -> String {
 fn describe_args(types : Int32, values : Int32, blocks : Int32) -> String {
   let parts : Array[String] = []
   if types > 0 {
-    parts.push("\{types} type argument" + (if types == 1 { "" } else { "s" }))
+    parts.push(pluralized(types, "type argument"))
   }
   if values > 0 {
-    parts.push(
-      "\{values} value argument" + (if values == 1 { "" } else { "s" }),
-    )
+    parts.push(pluralized(values, "value argument"))
   }
   if blocks > 0 {
-    parts.push(
-      "\{blocks} block argument" + (if blocks == 1 { "" } else { "s" }),
-    )
+    parts.push(pluralized(blocks, "block argument"))
   }
   if parts.is_empty() {
     "no arguments"

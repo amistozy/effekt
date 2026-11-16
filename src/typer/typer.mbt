@@ -1107,10 +1107,7 @@ fn Typer::unknowns_value(self : Typer, t : ValueType) -> Array[String] {
         []
       }
     @symbols.ValueType::ValueTypeApp(_, args) => {
-      let out : Array[String] = []
-      for a in args {
-        out.append(self.unknowns_value(a))
-      }
+      let out = args.map(a => self.unknowns_value(a)).flatten()
       out
     }
     @symbols.ValueType::BoxedType(b, c) =>
@@ -1122,17 +1119,11 @@ fn Typer::unknowns_value(self : Typer, t : ValueType) -> Array[String] {
 fn Typer::unknowns_block(self : Typer, t : BlockType) -> Array[String] {
   match self.st.u.prune_block(t) {
     @symbols.BlockType::InterfaceType(_, args) => {
-      let out : Array[String] = []
-      for a in args {
-        out.append(self.unknowns_value(a))
-      }
+      let out = args.map(a => self.unknowns_value(a)).flatten()
       out
     }
     @symbols.BlockType::FunctionType(_, capts, vps, bps, ret, effs) => {
-      let out : Array[String] = []
-      for v in vps {
-        out.append(self.unknowns_value(v))
-      }
+      let out = vps.map(v => self.unknowns_value(v)).flatten()
       for b in bps {
         out.append(self.unknowns_block(b))
       }
@@ -1594,8 +1585,7 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
                   )
                   self.annotate_value(d.uid, res.tpe)
                   self.annotate_effects(d.uid, res.effs)
-                  let filter = cps +
-                    capabilities.map(c => capture_of_capability(c))
+                  let filter = cps + capabilities.map(capture_of_capability)
                   self.flows_into_without(
                     inferred,
                     function_capture,
@@ -1645,13 +1635,13 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
                   self.annotate_value(d.uid, res.tpe)
                   self.annotate_effects(d.uid, effects)
                   let filter = match view {
-                    Some(v) => v.bparams.map(b => capture_of_capability(b))
+                    Some(v) => v.bparams.map(capture_of_capability)
                     None => []
                   }
                   self.flows_into_without(
                     inferred,
                     function_capture,
-                    filter + capabilities.map(c => capture_of_capability(c)),
+                    filter + capabilities.map(capture_of_capability),
                     d.span,
                   )
                   self.annotate_capture(d.uid, function_capture)
@@ -1760,7 +1750,7 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
         let function_capture = self.lookup_capture(sym)
         let inferred = @symbols.Captures::CaptVar(self.fresh_capt_var("extern"))
         let block_captures = match view {
-          Some(v) => v.bparams.map(b => capture_of_capability(b))
+          Some(v) => v.bparams.map(capture_of_capability)
           None => []
         }
         self.flows_into_without(
@@ -3159,12 +3149,7 @@ pub fn Typer::unify_effects(
     }
     candidates.push((e2, pairs))
   }
-  let mut no_partner = false
-  for entry in candidates {
-    if entry.1.is_empty() {
-      no_partner = true
-    }
-  }
+  let no_partner = candidates.any(entry => entry.1.is_empty())
   if no_partner {
     // The sets cannot be equal (a known mismatch), even if one side still has
     // an unknown. The message names the unsubstituted sets, like upstream.
@@ -3815,10 +3800,7 @@ pub fn Typer::resolve_block_type(
     @source.TypeKind::Effectful(inner, effs) => {
       // `T / E` in block position: the type of a block with effects
       let b = self.resolve_block_type(inner)
-      let resolved_effs : Array[BlockType] = []
-      for e in effs.effs {
-        resolved_effs.push(self.resolve_block_type(e))
-      }
+      let resolved_effs = effs.effs.map(e => self.resolve_block_type(e))
       match b {
         @symbols.BlockType::FunctionType(
           tparams,

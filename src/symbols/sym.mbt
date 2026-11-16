@@ -674,7 +674,7 @@ pub fn Sym::as_callable(self : Sym) -> CallableView? {
     Constructor(c) =>
       Some({
         tparams: c.tparams,
-        vparams: c.fields.map(f => field_param(f)),
+        vparams: c.fields.map(field_param),
         bparams: [],
         annotated_captures: None,
         annotated_result: Some(constructor_applied_datatype(self)),
