@@ -189,8 +189,7 @@ pub fn fresh_name(s : String) -> JSName {
 // ---------------------------------------------------------------------------
 
 ///|
-pub fn should_export(id : Sym) -> Bool {
-  let _ = id
+pub fn should_export(_id : Sym) -> Bool {
   true
 }
 

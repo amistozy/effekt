@@ -179,9 +179,9 @@ pub fn CapScope::relevant_in_scope_for(
         | BindAll(caps, parent) => {
           for _, cap in caps {
             match cap_type(cap) {
-              Some(@symbols.BlockType::InterfaceType(other, _)) =>
+              Some(@symbols.BlockType::InterfaceType(other, _) as tpe) =>
                 if other == c {
-                  out.push(cap_type(cap).unwrap())
+                  out.push(tpe)
                 }
               _ => ()
             }

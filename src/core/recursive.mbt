@@ -45,7 +45,7 @@ fn RecursiveAnalysis::enter(self : RecursiveAnalysis, id : Sym) -> Unit {
 
 ///|
 fn RecursiveAnalysis::leave(self : RecursiveAnalysis) -> Unit {
-  let _ = self.stack.pop()
+  ignore(self.stack.pop())
 }
 
 ///|

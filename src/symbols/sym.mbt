@@ -463,7 +463,7 @@ pub fn Sym::is_term_symbol(self : Sym) -> Bool {
 
 ///|
 pub fn Sym::is_type_symbol(self : Sym) -> Bool {
-  self.is_term_symbol() == false
+  !self.is_term_symbol()
 }
 
 ///|

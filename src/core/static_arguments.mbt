@@ -150,9 +150,7 @@ fn[T] StaticArguments::enter_function(
   f : () -> T raise EffektError,
 ) -> T raise EffektError {
   self.stack.push(id)
-  defer {
-    let _ = self.stack.pop()
-  }
+  defer ignore(self.stack.pop())
   f()
 }
 

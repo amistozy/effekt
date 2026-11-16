@@ -199,8 +199,7 @@ pub fn render_width(doc : Doc, width : Int32) -> String {
   let buf = StringBuilder()
   let mut col = 0
   let stack : Array[RenderItem] = [{ indent: 0, mode: Break, doc, }]
-  while !stack.is_empty() {
-    let item = stack.pop().unwrap()
+  while stack.pop() is Some(item) {
     match item.doc {
       Empty => ()
       Text(s) => {
@@ -258,8 +257,7 @@ fn fits(space : Int32, doc : Doc) -> Bool {
   }
   let mut remaining = space
   let stack : Array[Doc] = [doc]
-  while !stack.is_empty() {
-    let d = stack.pop().unwrap()
+  while stack.pop() is Some(d) {
     match d {
       Empty => ()
       Text(s) => {

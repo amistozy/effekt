@@ -802,7 +802,7 @@ fn check_spans(d : @source.ModuleDecl) -> Unit raise {
     assert_true(def.span.start <= def.span.end)
     assert_true(!def.span.is_missing())
     match def.kind {
-      FunDef(id, _, vparams, bparams, _, ret, body) => {
+      FunDef(id, _, vparams, bparams, _, _, body) => {
         assert_true(id.span.start <= id.span.end)
         for p in vparams {
           assert_true(p.id.span.start <= p.id.span.end)
@@ -810,7 +810,6 @@ fn check_spans(d : @source.ModuleDecl) -> Unit raise {
         for p in bparams {
           assert_true(p.id.span.start <= p.id.span.end)
         }
-        let _ = ret
         assert_true(body.span.start <= body.span.end)
       }
       _ => ()

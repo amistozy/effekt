@@ -92,9 +92,8 @@ fn Continuation::reify(self : Continuation) -> Cont raise EffektError {
 /// `reifyAt(tpe)`: see the note at the top of the file — the type is ignored.
 fn Continuation::reify_at(
   self : Continuation,
-  tpe : ValueType?,
+  _tpe : ValueType?,
 ) -> Cont raise EffektError {
-  let _ = tpe
   self.reify()
 }
 

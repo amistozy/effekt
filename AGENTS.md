@@ -114,7 +114,16 @@ You can browse and install extra skills here:
   `while changed`), and for loops whose index does not advance by one.
   A loop that walks right-to-left is `xs.rev_fold(init=…, (acc, x) => …)` when
   it folds a value, and `for (x, y) in xs.zip(ys).rev()` when it needs two
-  arrays in step.
+  arrays in step. A worklist is drained with `while stack.pop() is Some(x) { … }`
+  instead of `while !stack.is_empty() { let x = stack.pop().unwrap() }`.
+
+- **Never silence an unused parameter; prefix it with `_`.** `let _ = self` and
+  `let _ = ctx` at the top of a body are the workaround this project used to
+  need, and they are gone: a parameter that the body does not read is written
+  `_self`, `_ctx`, `_role` in the signature (the compiler treats a leading
+  underscore as intentional), and a bound pattern that is not used is `_`
+  (`FunDef(id, _, vparams, _, _, _, body)`). Discarding the *value of a call* is
+  `ignore(f(x))`; `let _ = pattern` stays for binding nothing.
 
 - **Ask the standard library before writing a helper.** `xs.is_empty()` (not
   `xs.length() == 0` — the core library has 399 of the former and 28 of the

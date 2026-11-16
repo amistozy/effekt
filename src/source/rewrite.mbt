@@ -501,10 +501,8 @@ pub fn rewrite_type(
 ///|
 pub fn rewrite_capture_set(
   c : CaptureSetTree,
-  ctx : Context,
-  hooks : Hooks,
+  _ctx : Context,
+  _hooks : Hooks,
 ) -> CaptureSetTree {
-  let _ = ctx
-  let _ = hooks
   c
 }

@@ -1796,15 +1796,13 @@ fn Transformer::transform_as_stmt(
         @source.ExprTarget(t) =>
           match t.kind {
             @source.Unbox(expr) => {
-              let (fun_tpe, capture) = match self.source_type_of(expr) {
-                @symbols.ValueType::BoxedType(s, c) => (s, c)
+              match self.source_type_of(expr) {
+                @symbols.ValueType::BoxedType(_, _) => ()
                 got =>
                   raise EffektError::Internal(
                     "Should be a boxed function type with a known capture set, but got \{got}.",
                   )
               }
-              let _ = fun_tpe
-              let _ = capture
               let e = self.transform_as_expr(expr)
               let type_args = self
                 .type_arguments_of(tree)

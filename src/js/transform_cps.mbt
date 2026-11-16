@@ -203,11 +203,10 @@ pub fn take_unsupported_messages() -> Array[(Span, String)] {
 /// `Unsupported` body from a `Severities.Warning` message) and still generates a
 /// function that traps, so the module only fails if that function is called.
 fn report_unsupported(
-  ctx : TransformerContext,
+  _ctx : TransformerContext,
   id : Sym,
   err : EffektError,
 ) -> Unit {
-  let _ = ctx
   let message = match err {
     EffektError::Fatal(m) => m
     EffektError::Internal(m) => "Internal error: \{m}"
@@ -631,8 +630,7 @@ fn to_js_implementation(
 // ---------------------------------------------------------------------------
 
 ///|
-fn to_js_metacont(ks : @cps.MetaCont, ctx : TransformerContext) -> Expr {
-  let _ = ctx
+fn to_js_metacont(ks : @cps.MetaCont, _ctx : TransformerContext) -> Expr {
   name_ref(ks.id)
 }
 

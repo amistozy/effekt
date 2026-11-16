@@ -48,9 +48,7 @@ fn[T] Renamer::with_bindings(
   defer (for entry in shadowed {
     match entry {
       (uid, Some(previous)) => self.scope.set(uid, previous)
-      (uid, None) => {
-        let _ = self.scope.remove(uid)
-      }
+      (uid, None) => ignore(self.scope.remove(uid))
     }
   })
   f()

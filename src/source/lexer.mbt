@@ -553,7 +553,7 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
     }
     ('$', _) => self.advance_with(1, TError(UnknownChar('$')))
     ('}', _) if self.is_at_interpolation_boundary() => {
-      let _ = self.interpolation_depths.pop()
+      ignore(self.interpolation_depths.pop())
       self.braces = self.braces - 1
       self.resume_string_next = true // remember to resume with a string next!
       self.advance_with(1, TSpliceEnd)
@@ -773,7 +773,7 @@ fn Lexer::close_string(
   terminator : String,
 ) -> TokenKind {
   if should_pop {
-    let _ = self.delimiters.pop()
+    ignore(self.delimiters.pop())
   }
   let kind = delimiter.to_token_kind(contents.to_string(), terminator)
   if unterminated {
@@ -788,13 +788,8 @@ fn Lexer::close_string(
 /// is popped (upstream `delimiters.popWhile(_ == RawString)`): the next line is
 /// lexed as usual, and a splice that is still open is closed by its `}`.
 fn Lexer::pop_raw_strings(self : Lexer) -> Unit {
-  while !self.delimiters.is_empty() {
-    match self.delimiters[self.delimiters.length() - 1] {
-      RawString => {
-        let _ = self.delimiters.pop()
-      }
-      _ => break
-    }
+  while self.delimiters.last() is Some(RawString) {
+    ignore(self.delimiters.pop())
   }
 }
 

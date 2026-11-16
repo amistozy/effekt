@@ -150,11 +150,10 @@ pub fn Loader::locate(self : Loader, path : String) -> String? {
 /// Locates an `extern include` target, which is a path relative to the file
 /// that contains the include.
 pub fn Loader::locate_relative(
-  self : Loader,
+  _self : Loader,
   importer_source : Source,
   relative : String,
 ) -> String? {
-  let _ = self
   let base = dirname(importer_source.name)
   let candidate = join_path(base, relative)
   if file_exists(candidate) {

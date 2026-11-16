@@ -378,11 +378,10 @@ fn installs_scope(body : Stmt) -> Bool {
 
 ///|
 fn Normalizer::moves_a_scope_into_a_prompt(
-  self : Normalizer,
+  _self : Normalizer,
   site : CallSite,
   ctx : NormCtx,
 ) -> Bool {
-  let _ = self
   !ctx.prompts.is_empty() && installs_scope(site.callee.body)
 }
 
@@ -406,11 +405,10 @@ fn Normalizer::used_once(
 
 ///|
 fn Normalizer::shifts_to_an_enclosing_prompt(
-  self : Normalizer,
+  _self : Normalizer,
   implementation : Implementation,
   ctx : NormCtx,
 ) -> Bool {
-  let _ = self
   let shifts = (s : Stmt) => {
     match s {
       Shift(prompt, _, _) => ctx.has_prompt(prompt.id)
@@ -1348,11 +1346,10 @@ fn Normalizer::forward(
 ///|
 /// The operation of `implementation` that is named `method`.
 fn Normalizer::select_operation(
-  self : Normalizer,
+  _self : Normalizer,
   implementation : Implementation,
   method : Sym,
 ) -> BlockLit? {
-  let _ = self
   for op in implementation.operations {
     if op.name == method {
       return Some(
