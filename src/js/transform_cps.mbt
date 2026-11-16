@@ -1252,9 +1252,7 @@ fn to_js_stmt(
               }
 
               // Assign the substituted arguments
-              for i = 0
-                  i < info.vparams.length().min(vargs.length())
-                  i = i + 1 {
+              for i in 0..<info.vparams.length().min(vargs.length()) {
                 stmts.push(
                   Assign(
                     name_ref(info.vparams[i]),
@@ -1262,9 +1260,7 @@ fn to_js_stmt(
                   ),
                 )
               }
-              for i = 0
-                  i < info.bparams.length().min(bargs.length())
-                  i = i + 1 {
+              for i in 0..<info.bparams.length().min(bargs.length()) {
                 stmts.push(
                   Assign(
                     name_ref(info.bparams[i]),
