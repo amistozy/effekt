@@ -511,15 +511,10 @@ fn Parser::consume(self : Parser, kind : TokenKind) -> Unit raise EffektError {
 /// Did the previous (non-space) token end the line, i.e. is there a newline
 /// between it and the token we are looking at?
 fn Parser::saw_newline_last(self : Parser) -> Bool raise EffektError {
-  let mut i = self.position - 1
-  while i >= 0 {
+  for i in (self.position - 1)>=..0 {
     let token = self.fail_on_error_token(self.tokens[i], i)
-    if token.kind.is_space() && token.kind != TNewline {
-      i = i - 1
-    } else if token.kind == TNewline {
-      return true
-    } else {
-      return false
+    guard token.kind.is_space() && token.kind != TNewline else {
+      return token.kind == TNewline
     }
   }
   self.fail("Unexpected start of file")

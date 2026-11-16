@@ -316,7 +316,7 @@ fn report_cycle(
   // Upstream's `Source.name` for an imported module is `./<path>.effekt`
   // (`VirtualFileSource`); `moduleOf` strips the `.effekt` again.
   let dependencies : Array[String] = ["./\{vias[0]}"]
-  for i = vias.length() - 1; i > 0; i = i - 1 {
+  for i in vias.length()>..1 {
     dependencies.push("./\{vias[i]}")
   }
   // The cycle is reported on the loader's view of the root, i.e. under the
@@ -341,7 +341,7 @@ fn report_cycle(
     visited_span(include_span_of(loader, closing.key, vias[0]), closing),
     "Cannot compile dependency: \{dependencies[0]}",
   )
-  for i = vias.length() - 1; i > 0; i = i - 1 {
+  for i in vias.length()>..1 {
     ctx.error(
       visited_span(
         include_span_of(loader, stack[i - 1].key, vias[i]),
