@@ -284,15 +284,6 @@ pub fn js_let(name : JSName, binding : Expr) -> Stmt {
 }
 
 ///|
-pub fn js_let_multi(names : Array[JSName], binding : Expr) -> Stmt {
-  match names.length() {
-    0 => Stmt::ExprStmt(binding)
-    1 => js_let(names[0], binding)
-    _ => Stmt::Let(PatternArray(names.map(n => PatternVariable(n))), binding)
-  }
-}
-
-///|
 pub fn call(receiver : Expr, args : Array[Expr]) -> Expr {
   Expr::Call(receiver, args)
 }

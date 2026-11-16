@@ -21,17 +21,6 @@ pub fn Bindings::empty() -> Bindings {
 }
 
 ///|
-/// Copies the *bindings maps* of `self` but shares the namespace objects.
-pub fn Bindings::fork(self : Bindings) -> Bindings {
-  {
-    terms: self.terms.copy(),
-    types: self.types.copy(),
-    captures: self.captures.copy(),
-    namespaces: self.namespaces.copy(),
-  }
-}
-
-///|
 pub fn Bindings::import_all(self : Bindings, other : Bindings) -> Unit {
   for name, syms in other.terms {
     let existing = self.terms.get(name).unwrap_or([])
@@ -474,18 +463,6 @@ pub fn Scoping::lookup_first_option(
       (None, None) => None
     }
   })
-}
-
-///|
-pub fn Scoping::lookup_first(
-  self : Scoping,
-  path : ArrayView[String],
-  name : String,
-) -> Sym raise EffektError {
-  guard self.lookup_first_option(path, name) is Some(s) else {
-    raise EffektError::Fatal("Could not resolve \{name}")
-  }
-  s
 }
 
 ///|

@@ -150,22 +150,6 @@ pub fn DeclarationContext::find_data(
 }
 
 ///|
-pub fn DeclarationContext::find_data_of_constructor(
-  self : DeclarationContext,
-  constructor : Constructor,
-) -> Declaration? {
-  self.constructors.get(constructor.id.uid()).map(ref => ref.data)
-}
-
-///|
-pub fn DeclarationContext::find_data_of_field(
-  self : DeclarationContext,
-  field : Field,
-) -> Declaration? {
-  self.fields.get(field.id.uid()).map(ref => ref.constructor_ref.data)
-}
-
-///|
 pub fn DeclarationContext::find_interface(
   self : DeclarationContext,
   id : Sym,
@@ -174,27 +158,11 @@ pub fn DeclarationContext::find_interface(
 }
 
 ///|
-pub fn DeclarationContext::find_interface_of_property(
-  self : DeclarationContext,
-  property : Property,
-) -> Declaration? {
-  self.properties.get(property.id.uid()).map(ref => ref.interface)
-}
-
-///|
 pub fn DeclarationContext::find_constructor(
   self : DeclarationContext,
   id : Sym,
 ) -> Constructor? {
   self.constructors.get(id.uid()).map(ref => ref.constructor)
-}
-
-///|
-pub fn DeclarationContext::find_constructor_of_field(
-  self : DeclarationContext,
-  field : Field,
-) -> Constructor? {
-  self.fields.get(field.id.uid()).map(ref => ref.constructor_ref.constructor)
 }
 
 ///|
@@ -276,44 +244,6 @@ pub fn DeclarationContext::find_extern_data(
 // -----------------
 
 ///|
-pub fn DeclarationContext::get_declaration(
-  self : DeclarationContext,
-  id : Sym,
-) -> Declaration raise EffektError {
-  match self.find_declaration(id) {
-    Some(d) => d
-    None => panic("No declaration found for \{show_core_stmt_hint(id)}.")
-  }
-}
-
-///|
-fn show_core_stmt_hint(id : Sym) -> String {
-  id.name().name
-}
-
-///|
-pub fn DeclarationContext::get_data(
-  self : DeclarationContext,
-  id : Sym,
-) -> Declaration raise EffektError {
-  match self.find_data(id) {
-    Some(d) => d
-    None => panic("No declaration found for data type \{id.name().name}.")
-  }
-}
-
-///|
-pub fn DeclarationContext::get_interface(
-  self : DeclarationContext,
-  id : Sym,
-) -> Declaration raise EffektError {
-  match self.find_interface(id) {
-    Some(d) => d
-    None => panic("No declaration found for interface \{id.name().name}.")
-  }
-}
-
-///|
 pub fn DeclarationContext::get_constructor(
   self : DeclarationContext,
   id : Sym,
@@ -332,61 +262,6 @@ pub fn DeclarationContext::get_constructor_tag(
   match self.find_constructor_tag(id) {
     Some(tag) => tag
     None => panic("No declaration found for constructor \{id.name().name}.")
-  }
-}
-
-///|
-pub fn DeclarationContext::get_field(
-  self : DeclarationContext,
-  id : Sym,
-) -> Field raise EffektError {
-  match self.find_field(id) {
-    Some(f) => f
-    None => panic("No declaration found for field \{id.name().name}.")
-  }
-}
-
-///|
-pub fn DeclarationContext::get_property(
-  self : DeclarationContext,
-  id : Sym,
-) -> Property raise EffektError {
-  match self.find_property(id) {
-    Some(p) => p
-    None => panic("No declaration found for property \{id.name().name}.")
-  }
-}
-
-///|
-pub fn DeclarationContext::get_property_tag(
-  self : DeclarationContext,
-  id : Sym,
-) -> Int32 raise EffektError {
-  match self.find_property_tag(id) {
-    Some(tag) => tag
-    None => panic("No declaration found for property \{id.name().name}.")
-  }
-}
-
-///|
-pub fn DeclarationContext::get_extern_def(
-  self : DeclarationContext,
-  id : Sym,
-) -> Extern raise EffektError {
-  match self.find_extern_def(id) {
-    Some(d) => d
-    None => panic("No extern definition found for \{id.name().name}.")
-  }
-}
-
-///|
-pub fn DeclarationContext::get_extern_data(
-  self : DeclarationContext,
-  id : Sym,
-) -> Extern raise EffektError {
-  match self.find_extern_data(id) {
-    Some(d) => d
-    None => panic("No extern data found for \{id.name().name}.")
   }
 }
 

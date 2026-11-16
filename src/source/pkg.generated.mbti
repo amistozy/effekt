@@ -37,15 +37,11 @@ pub fn mk_type(@util.Span, TypeKind) -> TypeTree
 
 pub fn parse_module_decl(@util.Source, Context) -> ModuleDecl? raise @util.EffektError
 
-pub fn parse_statement(@util.Source, Context) -> Stmt? raise @util.EffektError
-
 pub fn parse_term(@util.Source, Context) -> Term? raise @util.EffektError
 
 pub fn reference_to_capability(@symbols.Sym, Context) -> Term
 
 pub fn resolve_extern_defs(ModuleDecl, Context) -> ModuleDecl raise @util.EffektError
-
-pub fn resume_kind() -> TokenKind
 
 pub fn rewrite_capture_set(CaptureSetTree, Context, Hooks) -> CaptureSetTree
 
@@ -70,8 +66,6 @@ pub fn rewrite_term(Term, Context, Hooks) -> Term raise @util.EffektError
 pub fn rewrite_type(TypeTree, Context, Hooks) -> TypeTree raise @util.EffektError
 
 pub fn rewrite_value_arg(ValueArg, Context, Hooks) -> ValueArg raise @util.EffektError
-
-pub fn soft_keyword(String) -> TokenKind
 
 pub fn supported_flags(Context) -> Array[String]
 
@@ -98,7 +92,6 @@ pub(all) enum CallTarget {
   IdTarget(IdRef)
   ExprTarget(Term)
 }
-pub fn CallTarget::span_of(Self) -> @util.Span
 
 pub(all) struct CaptureSetTree {
   span : @util.Span
@@ -190,7 +183,6 @@ pub fn Context::set_phase(Self, String) -> Unit
 pub fn Context::set_resolved_module(Self, @symbols.Module) -> Unit
 pub fn Context::supports(Self, String) -> Bool
 pub fn Context::symbol_of(Self, Int32) -> @symbols.Sym?
-pub fn Context::symbol_of_or(Self, Int32, @symbols.Sym) -> @symbols.Sym
 pub fn Context::type_arguments_of(Self, Int32) -> Array[@symbols.ValueType]
 pub fn Context::unbox_parent_of(Self, Int32) -> UnboxParent?
 pub fn Context::value_type_of(Self, Int32) -> @symbols.ValueType?
@@ -254,7 +246,6 @@ pub(all) enum FeatureFlag {
   NamedFeatureFlag(String)
   Default
 }
-pub fn FeatureFlag::is_default(Self) -> Bool
 pub fn FeatureFlag::matches(Self, String) -> Bool
 pub fn FeatureFlag::matches_any(Self, ArrayView[String]) -> Bool
 pub impl Show for FeatureFlag

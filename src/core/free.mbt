@@ -290,21 +290,6 @@ pub fn Toplevel::free(self : Toplevel) -> Free {
 }
 
 ///|
-/// The free variables of a whole module: the union over all definitions and
-/// over the splices of all extern bodies.
-pub fn free_var_module(m : ModuleDecl) -> Free {
-  let mut acc = free_all(m.definitions, t => t.free())
-  for e in m.externs {
-    match e {
-      ExternDef(_, _, _, _, vparams, bparams, _, _, body) =>
-        acc = acc.union(free_var_extern_body(body).without(vparams, bparams))
-      _ => ()
-    }
-  }
-  acc
-}
-
-///|
 pub fn free_var_extern_body(body : ExternBody[Expr]) -> Free {
   match body {
     StringExternBody(_, contents) => free_all(contents.args, e => e.free())

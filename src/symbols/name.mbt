@@ -25,11 +25,6 @@ pub fn Name::anon() -> Name {
 }
 
 ///|
-pub fn Name::is_anon(self : Name) -> Bool {
-  self.path.is_empty() && self.name == "__anon"
-}
-
-///|
 pub fn Name::rename(self : Name, f : (String) -> String) -> Name {
   { path: self.path, name: f(self.name), }
 }

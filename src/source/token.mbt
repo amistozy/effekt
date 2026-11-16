@@ -389,17 +389,6 @@ pub fn TokenKind::is_space(self : TokenKind) -> Bool {
 }
 
 ///|
-/// Soft keywords are identifiers to the lexer.
-pub fn soft_keyword(word : String) -> TokenKind {
-  TIdent(word)
-}
-
-///|
-pub fn resume_kind() -> TokenKind {
-  TIdent("resume")
-}
-
-///|
 pub fn in_kind() -> TokenKind {
   TIdent("in")
 }

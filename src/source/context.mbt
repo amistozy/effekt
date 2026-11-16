@@ -208,15 +208,6 @@ pub fn Context::symbol_of(self : Context, uid : Int32) -> Sym? {
 }
 
 ///|
-pub fn Context::symbol_of_or(
-  self : Context,
-  uid : Int32,
-  fallback : Sym,
-) -> Sym {
-  self.symbols.get(uid).unwrap_or(fallback)
-}
-
-///|
 pub fn Context::assign_value_type(
   self : Context,
   uid : Int32,

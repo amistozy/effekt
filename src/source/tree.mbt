@@ -132,14 +132,6 @@ pub fn FeatureFlag::matches_any(
 }
 
 ///|
-pub fn FeatureFlag::is_default(self : FeatureFlag) -> Bool {
-  match self {
-    Default => true
-    _ => false
-  }
-}
-
-///|
 pub impl Show for FeatureFlag with fn output(self, logger) {
   match self {
     NamedFeatureFlag(n) => logger.write_string(n)
@@ -308,14 +300,6 @@ pub(all) struct Term {
 pub(all) enum CallTarget {
   IdTarget(IdRef)
   ExprTarget(Term)
-}
-
-///|
-pub fn CallTarget::span_of(self : CallTarget) -> Span {
-  match self {
-    IdTarget(id) => id.span
-    ExprTarget(r) => r.span
-  }
 }
 
 ///|

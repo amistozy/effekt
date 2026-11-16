@@ -55,11 +55,6 @@ pub fn Source::empty() -> Source {
 }
 
 ///|
-pub fn Source::line_count(self : Source) -> Int32 {
-  self.line_starts.length()
-}
-
-///|
 /// The offset at which `line` (1-based) starts. Clamped to the file.
 pub fn Source::line_start(self : Source, line : Int32) -> Int32 {
   if line <= 1 {
@@ -178,11 +173,6 @@ pub fn Span::with_origin(
 ///|
 pub fn Span::missing() -> Span {
   { source: Source::empty(), start: 0, end: 0, origin: Missing, }
-}
-
-///|
-pub fn Span::missing_in(source : Source) -> Span {
-  { source, start: 0, end: 0, origin: Missing, }
 }
 
 ///|

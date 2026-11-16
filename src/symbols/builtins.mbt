@@ -230,21 +230,6 @@ pub fn region_type_sym() -> Sym {
 }
 
 ///|
-pub fn io_capability_sym() -> Sym {
-  io_capability
-}
-
-///|
-pub fn async_capability_sym() -> Sym {
-  async_capability
-}
-
-///|
-pub fn global_capability_sym() -> Sym {
-  global_capability
-}
-
-///|
 pub fn io_capture() -> Sym {
   match io_capability {
     ExternResource(r) => r.capture

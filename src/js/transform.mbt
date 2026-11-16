@@ -10,12 +10,6 @@
 // are not part of this port's `@symbols` package, and it is only needed by
 // `js.Module.virtual`, whereas `compile_cps` renders `js.Module.commonjs`.
 
-///|
-/// The feature flags supported by the JavaScript backend.
-pub fn js_feature_flags() -> Array[String] {
-  ["js"]
-}
-
 // ---------------------------------------------------------------------------
 // Strings
 // ---------------------------------------------------------------------------
@@ -76,11 +70,6 @@ pub fn js_escape(name : String) -> String {
 ///|
 pub fn js_module_name(path : String) -> String {
   "$\{path.replace_all(old="/", new="_").replace_all(old="-", new="_")}"
-}
-
-///|
-pub fn js_module_file(path : String) -> String {
-  "\{path.replace_all(old="/", new="_").replace_all(old="-", new="_")}.js"
 }
 
 // Attempt to have better / shorter names: `used_names` counts the names handed
@@ -186,11 +175,6 @@ pub fn fresh_name(s : String) -> JSName {
 // ---------------------------------------------------------------------------
 
 ///|
-pub fn should_export(_id : Sym) -> Bool {
-  true
-}
-
-///|
 fn this_field(field : JSName) -> Expr {
   Member(Variable(JSName("this")), field)
 }
@@ -215,14 +199,6 @@ fn equals_call(a : Expr, b : Expr) -> Expr {
 ///|
 fn bool_literal(b : Bool) -> Expr {
   raw_expr(b.to_string())
-}
-
-///|
-pub fn tag_for(
-  constructor : Sym,
-  declarations : @core.DeclarationContext,
-) -> Expr raise EffektError {
-  raw_expr(declarations.get_constructor_tag(constructor).to_string())
 }
 
 ///|

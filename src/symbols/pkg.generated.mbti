@@ -6,8 +6,6 @@ import {
 }
 
 // Values
-pub fn async_capability_sym() -> Sym
-
 pub fn async_capture() -> Sym
 
 pub fn available_type_names(Scope, Bindings) -> Array[String]
@@ -44,15 +42,11 @@ pub fn field_param(Sym) -> Sym
 
 pub fn field_return_type(Sym) -> ValueType
 
-pub fn global_capability_sym() -> Sym
-
 pub fn global_capture() -> Sym
 
 pub fn int_type_sym() -> Sym
 
 pub fn interface_type_equal(BlockType, BlockType) -> Bool
-
-pub fn io_capability_sym() -> Sym
 
 pub fn io_capture() -> Sym
 
@@ -119,7 +113,6 @@ pub(all) struct Bindings {
 }
 pub fn Bindings::add_term(Self, String, Sym) -> Unit
 pub fn Bindings::empty() -> Self
-pub fn Bindings::fork(Self) -> Self
 pub fn Bindings::get_namespace(Self, String) -> Self?
 pub fn Bindings::import_all(Self, Self) -> Unit
 pub fn Bindings::namespace(Self, String) -> Self
@@ -138,9 +131,7 @@ pub(all) enum BlockType {
   FunctionType(Array[Sym], Array[Captures], Array[ValueType], Array[BlockType], ValueType, Effects)
   InterfaceType(Sym, Array[ValueType])
 }
-pub fn BlockType::interface_ctor(Self) -> Sym?
 pub fn BlockType::interface_name(Self) -> Name?
-pub fn BlockType::is_interface(Self) -> Bool
 pub impl Show for BlockType
 
 pub(all) struct CallTargetSym {
@@ -319,8 +310,6 @@ pub(all) struct Module {
 }
 pub fn Module::Module(String, @util.Span) -> Self
 pub fn Module::dependencies(Self) -> Array[Self]
-pub fn Module::find_dependency(Self, Name) -> Self?
-pub fn Module::is_prelude(Self) -> Bool
 pub impl Show for Module
 
 #derive(Eq)
@@ -329,7 +318,6 @@ pub(all) struct Name {
   name : String
 }
 pub fn Name::anon() -> Self
-pub fn Name::is_anon(Self) -> Bool
 pub fn Name::local(String) -> Self
 pub fn Name::qualified(Array[String], String) -> Self
 pub fn Name::qualified_name(Self) -> String
@@ -388,7 +376,6 @@ pub fn Scoping::exports(Self) -> Bindings
 pub fn Scoping::import_all(Self, Bindings) -> Unit
 pub fn Scoping::import_as(Self, Bindings, ArrayView[String]) -> Unit
 pub fn Scoping::lookup_capture(Self, ArrayView[String], String) -> Sym? raise @util.EffektError
-pub fn Scoping::lookup_first(Self, ArrayView[String], String) -> Sym raise @util.EffektError
 pub fn Scoping::lookup_first_block_param(Self, ArrayView[String], String) -> Array[Sym] raise @util.EffektError
 pub fn Scoping::lookup_first_option(Self, ArrayView[String], String) -> Sym? raise @util.EffektError
 pub fn Scoping::lookup_first_term_option(Self, ArrayView[String], String) -> Sym? raise @util.EffektError
@@ -455,15 +442,12 @@ pub fn Sym::decl(Self) -> @util.Span
 pub fn Sym::error_block_type(@util.Span) -> Self
 pub fn Sym::error_value_type(@util.Span) -> Self
 pub fn Sym::id(Name) -> Self
-pub fn Sym::implicit_param(Name, ValueType?, @util.Span) -> Self
 pub fn Sym::is_block_symbol(Self) -> Bool
 pub fn Sym::is_block_type_constructor(Self) -> Bool
 pub fn Sym::is_callable(Self) -> Bool
-pub fn Sym::is_capture(Self) -> Bool
 pub fn Sym::is_implicit(Self) -> Bool
 pub fn Sym::is_operation(Self) -> Bool
 pub fn Sym::is_ref_binder(Self) -> Bool
-pub fn Sym::is_synthetic(Self) -> Bool
 pub fn Sym::is_term_symbol(Self) -> Bool
 pub fn Sym::is_type_symbol(Self) -> Bool
 pub fn Sym::is_type_var(Self) -> Bool

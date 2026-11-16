@@ -15,12 +15,6 @@ pub fn show_stmts(stmts : ArrayView[Stmt]) -> String {
 }
 
 ///|
-/// Renders the statements of a module.
-pub fn show_module(m : Module) -> String {
-  show_stmts(m.stmts)
-}
-
-///|
 pub fn show_stmt(s : Stmt) -> String {
   render_width(d_stmt(s), 80)
 }

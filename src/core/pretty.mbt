@@ -33,16 +33,6 @@ pub fn show_core_expr(e : Expr) -> String {
 }
 
 ///|
-pub fn show_core_block(b : Block) -> String {
-  render_width(d_block(b), 60)
-}
-
-///|
-pub fn show_core_implementation(i : Implementation) -> String {
-  render_width(d_implementation(i), 60)
-}
-
-///|
 pub fn show_core_value_type(t : ValueType) -> String {
   render_width(d_value_type(t), 60)
 }
@@ -50,11 +40,6 @@ pub fn show_core_value_type(t : ValueType) -> String {
 ///|
 pub fn show_core_block_type(t : BlockType) -> String {
   render_width(d_block_type(t), 60)
-}
-
-///|
-pub fn show_core_captures(c : Captures) -> String {
-  render_width(d_captures(c), 60)
 }
 
 // ---------------------------------------------------------------------------

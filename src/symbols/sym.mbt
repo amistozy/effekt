@@ -499,15 +499,6 @@ pub fn Sym::is_type_var(self : Sym) -> Bool {
 }
 
 ///|
-pub fn Sym::is_capture(self : Sym) -> Bool {
-  match self {
-    CaptUnificationVar(_) | CaptureParam(_) | LexicalRegion(_) | Resource(_) =>
-      true
-    _ => false
-  }
-}
-
-///|
 /// Is this a callable that can be applied to arguments?
 pub fn Sym::is_callable(self : Sym) -> Bool {
   match self {
@@ -529,20 +520,6 @@ pub fn Sym::is_operation(self : Sym) -> Bool {
   }
 }
 
-///|
-pub fn Sym::is_synthetic(self : Sym) -> Bool {
-  match self {
-    Field(_)
-    | Constructor(_)
-    | CallTarget(_)
-    | Wildcard(_)
-    | TmpValue(_)
-    | TmpBlock(_)
-    | ResumeParam(_) => true
-    _ => false
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Constructors
 // ---------------------------------------------------------------------------
@@ -550,11 +527,6 @@ pub fn Sym::is_synthetic(self : Sym) -> Bool {
 ///|
 pub fn Sym::value_param(name : Name, tpe : ValueType?, decl : Span) -> Sym {
   ValueParam({ base: base(name, decl), tpe, is_implicit: false, })
-}
-
-///|
-pub fn Sym::implicit_param(name : Name, tpe : ValueType?, decl : Span) -> Sym {
-  ValueParam({ base: base(name, decl), tpe, is_implicit: true, })
 }
 
 ///|

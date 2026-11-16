@@ -148,25 +148,6 @@ fn push_new(out : Array[Sym], xs : ArrayView[Sym]) -> Unit {
   }
 }
 
-///|
-/// Checks that the captures bound by a handler / function / region do not
-/// escape through an inferred type.
-pub fn Typer::check_no_capture_escape(
-  self : Typer,
-  bound : ArrayView[Sym],
-  free : ArrayView[Sym],
-  span : Span,
-  msg : String,
-) -> Unit {
-  let escaping = free.filter(c => bound.contains(c))
-  if !escaping.is_empty() {
-    self.error(
-      span,
-      "\{msg} Escaping: \{@symbols.Captures::CaptureSetOf(escaping)}",
-    )
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Escapes of captures and type parameters through inferred types
 // ---------------------------------------------------------------------------

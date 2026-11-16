@@ -83,14 +83,6 @@ pub fn main_module_key(path : String) -> String {
 }
 
 ///|
-/// A module that has been located on disk.
-pub(all) struct LoadedModule {
-  path : String
-  source : Source
-  tree : ModuleDecl
-}
-
-///|
 pub struct Loader {
   /// Directories searched for `<module-path>.effekt`.
   roots : Array[String]
@@ -145,23 +137,6 @@ pub fn Loader::locate(self : Loader, path : String) -> String? {
 }
 
 ///|
-/// Locates an `extern include` target, which is a path relative to the file
-/// that contains the include.
-pub fn Loader::locate_relative(
-  _self : Loader,
-  importer_source : Source,
-  relative : String,
-) -> String? {
-  let base = dirname(importer_source.name)
-  let candidate = join_path(base, relative)
-  if file_exists(candidate) {
-    Some(candidate)
-  } else {
-    None
-  }
-}
-
-///|
 /// Reads and parses the module at `path`, caching the result.
 pub fn Loader::load_tree(
   self : Loader,
@@ -203,12 +178,6 @@ pub fn Loader::load_tree(
       tree
     }
   }
-}
-
-///|
-/// The include paths named by a module, in order.
-pub fn includes_of(tree : ModuleDecl) -> Array[Include] {
-  tree.includes
 }
 
 ///|

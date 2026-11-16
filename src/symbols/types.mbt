@@ -43,26 +43,9 @@ pub(all) enum BlockType {
 }
 
 ///|
-/// Convenience: is this block type an interface (effect) type?
-pub fn BlockType::is_interface(self : BlockType) -> Bool {
-  match self {
-    InterfaceType(_, _) => true
-    _ => false
-  }
-}
-
-///|
 pub fn BlockType::interface_name(self : BlockType) -> Name? {
   match self {
     InterfaceType(ctor, _) => Some(ctor.name())
-    _ => None
-  }
-}
-
-///|
-pub fn BlockType::interface_ctor(self : BlockType) -> Sym? {
-  match self {
-    InterfaceType(ctor, _) => Some(ctor)
     _ => None
   }
 }

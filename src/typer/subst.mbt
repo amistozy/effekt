@@ -66,15 +66,6 @@ pub fn Substitutions::bind_value(
 }
 
 ///|
-pub fn Substitutions::bind_captures(
-  self : Substitutions,
-  key : Sym,
-  value : Captures,
-) -> Unit {
-  self.captures.set(key.uid(), value)
-}
-
-///|
 /// Removes the given type and capture parameters (shadowing).
 pub fn Substitutions::without(
   self : Substitutions,
@@ -94,16 +85,6 @@ pub fn Substitutions::without(
     }
   }
   { values, captures, }
-}
-
-///|
-pub fn Substitutions::value_of(self : Substitutions, x : Sym) -> ValueType? {
-  self.values.get(x.uid())
-}
-
-///|
-pub fn Substitutions::captures_of(self : Substitutions, x : Sym) -> Captures? {
-  self.captures.get(x.uid())
 }
 
 // Substitution

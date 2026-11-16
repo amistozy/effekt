@@ -408,6 +408,22 @@ You can browse and install extra skills here:
   after a full clean `moon check -d` (delete `_build`: a cached build hides
   whole packages).
 
+- **A `pub` declaration the checker cannot see a use for is still dead code.**
+  `unused_value` only fires for package-private items, so an exported function
+  with no call site lives on in `.mbti` forever. Count its name across `src/**`
+  and `cmd/**` (a call site spells the same name — method syntax included) and
+  delete it when it appears only at the definition; that is how 55 functions
+  and one `pub(all) struct` left this round: the `get_*` "find or panic" twins
+  of `context.mbt`'s `find_*`, `show_core_block`/`show_core_implementation`/
+  `show_core_captures` beside the live `show_core_*` ones, the `doc_softbreak`/
+  `doc_hardline` accessors beside a live `doc_*` family, a duplicate
+  `Scoping::lookup_overloaded_method`, `js_feature_flags`, `free_var_module`,
+  and `reset_uid`, whose doc comment claimed the tests used it while nothing
+  did. Deleting is cheap (git keeps the history) and it pulls the next one out
+  by the roots: `show_core_stmt_hint` existed only for one deleted panic
+  message, and `moon check -d` reports it the moment its last caller goes.
+  `moon info` then shrinks `.mbti` to match.
+
 ## Git workflow
 
 - **Commit and push automatically.** After finishing a change, do not stop to ask

@@ -33,13 +33,7 @@ pub fn js_const(@symbols.JSName, Expr) -> Stmt
 
 pub fn js_escape(String) -> String
 
-pub fn js_feature_flags() -> Array[String]
-
 pub fn js_let(@symbols.JSName, Expr) -> Stmt
-
-pub fn js_let_multi(Array[@symbols.JSName], Expr) -> Stmt
-
-pub fn js_module_file(String) -> String
 
 pub fn js_module_name(String) -> String
 
@@ -67,17 +61,11 @@ pub fn raw_stmt(String) -> Stmt
 
 pub fn reset_naming() -> Unit
 
-pub fn should_export(@symbols.Sym) -> Bool
-
 pub fn show_expr(Expr) -> String
-
-pub fn show_module(Module) -> String
 
 pub fn show_stmt(Stmt) -> String
 
 pub fn show_stmts(ArrayView[Stmt]) -> String
-
-pub fn tag_for(@symbols.Sym, @core.DeclarationContext) -> Expr raise @util.EffektError
 
 pub fn take_unsupported_messages() -> Array[(@util.Span, String)]
 

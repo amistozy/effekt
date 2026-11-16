@@ -26,8 +26,6 @@ pub fn expr_type_hint(Expr) -> ValueType
 
 pub fn free_var_extern_body(ExternBody[Expr]) -> Free
 
-pub fn free_var_module(ModuleDecl) -> Free
-
 pub fn instantiate(BlockType, ArrayView[ValueType], ArrayView[@symbols.Captures]) -> BlockType raise @util.EffektError
 
 pub fn is_unknown_block_type(BlockType) -> Bool
@@ -52,15 +50,9 @@ pub fn set_pattern_equality_functions(Array[@symbols.Sym]) -> Unit
 
 pub fn show_core(ModuleDecl) -> String
 
-pub fn show_core_block(Block) -> String
-
 pub fn show_core_block_type(BlockType) -> String
 
-pub fn show_core_captures(@symbols.Captures) -> String
-
 pub fn show_core_expr(Expr) -> String
-
-pub fn show_core_implementation(Implementation) -> String
 
 pub fn show_core_stmt(Stmt) -> String
 
@@ -271,30 +263,18 @@ pub(all) struct DeclarationContext {
 }
 pub fn DeclarationContext::DeclarationContext(Array[Declaration], Array[Extern]) -> Self
 pub fn DeclarationContext::find_constructor(Self, @symbols.Sym) -> Constructor?
-pub fn DeclarationContext::find_constructor_of_field(Self, Field) -> Constructor?
 pub fn DeclarationContext::find_constructor_tag(Self, @symbols.Sym) -> Int32?
 pub fn DeclarationContext::find_data(Self, @symbols.Sym) -> Declaration?
-pub fn DeclarationContext::find_data_of_constructor(Self, Constructor) -> Declaration?
-pub fn DeclarationContext::find_data_of_field(Self, Field) -> Declaration?
 pub fn DeclarationContext::find_declaration(Self, @symbols.Sym) -> Declaration?
 pub fn DeclarationContext::find_extern_data(Self, @symbols.Sym) -> Extern?
 pub fn DeclarationContext::find_extern_def(Self, @symbols.Sym) -> Extern?
 pub fn DeclarationContext::find_extern_def_by_name(Self, String, ArrayView[ValueType]) -> Extern?
 pub fn DeclarationContext::find_field(Self, @symbols.Sym) -> Field?
 pub fn DeclarationContext::find_interface(Self, @symbols.Sym) -> Declaration?
-pub fn DeclarationContext::find_interface_of_property(Self, Property) -> Declaration?
 pub fn DeclarationContext::find_property(Self, @symbols.Sym) -> Property?
 pub fn DeclarationContext::find_property_tag(Self, @symbols.Sym) -> Int32?
 pub fn DeclarationContext::get_constructor(Self, @symbols.Sym) -> Constructor raise @util.EffektError
 pub fn DeclarationContext::get_constructor_tag(Self, @symbols.Sym) -> Int32 raise @util.EffektError
-pub fn DeclarationContext::get_data(Self, @symbols.Sym) -> Declaration raise @util.EffektError
-pub fn DeclarationContext::get_declaration(Self, @symbols.Sym) -> Declaration raise @util.EffektError
-pub fn DeclarationContext::get_extern_data(Self, @symbols.Sym) -> Extern raise @util.EffektError
-pub fn DeclarationContext::get_extern_def(Self, @symbols.Sym) -> Extern raise @util.EffektError
-pub fn DeclarationContext::get_field(Self, @symbols.Sym) -> Field raise @util.EffektError
-pub fn DeclarationContext::get_interface(Self, @symbols.Sym) -> Declaration raise @util.EffektError
-pub fn DeclarationContext::get_property(Self, @symbols.Sym) -> Property raise @util.EffektError
-pub fn DeclarationContext::get_property_tag(Self, @symbols.Sym) -> Int32 raise @util.EffektError
 
 pub(all) enum Expr {
   ValueVar(@symbols.Sym, ValueType)

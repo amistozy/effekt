@@ -1068,17 +1068,6 @@ pub fn Typer::assert_concrete_effect(
 }
 
 ///|
-pub fn Typer::assert_concrete_effects(
-  self : Typer,
-  effs : Effects,
-  span : Span,
-) -> Unit raise EffektError {
-  for e in effs.distinct().effects {
-    self.assert_concrete_effect(e, span)
-  }
-}
-
-///|
 fn Typer::assert_concrete_function(
   self : Typer,
   id : IdDef,

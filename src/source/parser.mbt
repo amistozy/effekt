@@ -4019,39 +4019,3 @@ pub fn parse_term(
   let parser = Parser(tokens, source, context)
   parser.parse_term_entry()
 }
-
-///|
-/// Parses a single statement (convenience for tests).
-pub fn parse_statement(
-  source : Source,
-  context : Context,
-) -> Stmt? raise EffektError {
-  context.set_phase("parser")
-  let tokens = Lexer::lex(source)
-  let parser = Parser(tokens, source, context)
-  try {
-    let stmt = parser.nonterminal(() => {
-      parser.spaces()
-      let s = parser.stmt()
-      if parser.peek(TEOF) {
-        s
-      } else {
-        parser.fail("Unexpected item")
-      }
-    })
-    parser.report_recoverable_diagnostics()
-    if parser.diagnostics.all(d => d.kind != Error) {
-      Some(stmt)
-    } else {
-      None
-    }
-  } catch {
-    Fatal(msg) => {
-      parser.report_recoverable_diagnostics()
-      let pos = parser.fail_position
-      parser.report(msg, [], pos, pos, Error)
-      None
-    }
-    Internal(m) => raise EffektError::Internal(m)
-  }
-}

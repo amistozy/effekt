@@ -14,9 +14,3 @@ pub fn fresh_uid() -> Int32 {
   uid_counter.val = n + 1
   n
 }
-
-///|
-/// Resets the counter. Only used by tests to get deterministic output.
-pub fn reset_uid() -> Unit {
-  uid_counter.val = 0
-}

@@ -41,11 +41,6 @@ pub fn Module::Module(path : String, source : Span) -> Module {
 }
 
 ///|
-pub fn Module::is_prelude(self : Module) -> Bool {
-  self.name.name == "effekt"
-}
-
-///|
 /// A topological ordering of all transitive dependencies: the order in which
 /// modules need to be compiled.
 pub fn Module::dependencies(self : Module) -> Array[Module] {
@@ -61,20 +56,6 @@ pub fn Module::dependencies(self : Module) -> Array[Module] {
     }
   }
   out
-}
-
-///|
-pub fn Module::find_dependency(self : Module, path : Name) -> Module? {
-  if self.name == path {
-    return Some(self)
-  }
-  let mut found : Module? = None
-  for dep in self.dependencies() {
-    if dep.name == path {
-      found = Some(dep)
-    }
-  }
-  found
 }
 
 ///|

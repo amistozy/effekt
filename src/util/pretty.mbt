@@ -52,16 +52,6 @@ pub fn doc_line() -> Doc {
 }
 
 ///|
-pub fn doc_softbreak() -> Doc {
-  SoftBreak
-}
-
-///|
-pub fn doc_hardline() -> Doc {
-  HardLine
-}
-
-///|
 pub fn doc_nest(n : Int32, d : Doc) -> Doc {
   Nest(n, d)
 }
@@ -113,12 +103,6 @@ pub fn hsep(docs : ArrayView[Doc]) -> Doc {
 }
 
 ///|
-/// Like `vsep`, but each separator is a single space when flat.
-pub fn fill_sep(docs : ArrayView[Doc]) -> Doc {
-  vsep(docs)
-}
-
-///|
 pub fn punctuate(docs : ArrayView[Doc], sep : Doc) -> Doc {
   match docs.length() {
     0 => Empty
@@ -165,11 +149,6 @@ pub fn brackets_inner(d : Doc) -> Doc {
 /// `group (nest (line <> d))` — the standard "hang" combinator.
 pub fn nested(d : Doc) -> Doc {
   doc_group(doc_nest(2, doc_cat(Line, d)))
-}
-
-///|
-pub fn nested_at(indent : Int32, d : Doc) -> Doc {
-  doc_group(doc_nest(indent, doc_cat(Line, d)))
 }
 
 // Rendering
