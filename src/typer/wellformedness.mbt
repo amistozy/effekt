@@ -400,8 +400,8 @@ fn Typer::wf_pattern_existentials(
               Some(ts) => ts.length()
               None => 0
             }
-            for i = universals; i < all.length(); i = i + 1 {
-              push_new(out, [all[i]])
+            for t in all[universals:] {
+              push_new(out, [t])
             }
           }
       }

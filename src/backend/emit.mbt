@@ -256,10 +256,8 @@ fn collect_mains(
 /// The prelude's `infixEq` overloads, used to compile literal patterns.
 pub fn find_infix_eqs(modules : Array[@namer.ResolvedModule]) -> Array[Sym] {
   for m in modules {
-    if m.module.exports.terms.get("infixEq") is Some(syms) {
-      if !syms.is_empty() {
-        return syms
-      }
+    if m.module.exports.terms.get("infixEq") is Some(syms) && !syms.is_empty() {
+      return syms
     }
   }
   []

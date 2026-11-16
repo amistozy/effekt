@@ -275,9 +275,7 @@ pub fn instantiate(
 fn capture_ids(cs : Array[Captures]) -> Array[Sym] {
   let out : Array[Sym] = []
   for c in cs {
-    for x in c.to_array() {
-      out.push(x)
-    }
+    out.append(c.to_array())
   }
   out
 }

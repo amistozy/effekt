@@ -237,6 +237,13 @@ pub fn Unification::lower_of(self : Unification, uid : Int32) -> Array[Sym] {
 }
 
 ///|
+/// The diagnostic for capture bounds that are not included in the solution
+/// (upstream's `Constraints.checkConsistency`).
+fn captures_not_allowed(diff : Array[Sym]) -> String {
+  "Not allowed \{@symbols.Captures::CaptureSetOf(diff)}"
+}
+
+///|
 /// Adds a subcapturing link `lo - filter <: hi`.
 pub fn Unification::link(
   self : Unification,
@@ -272,9 +279,7 @@ pub fn Unification::propagate(self : Unification) -> String? {
       // upper(b) + filter flows into upper(a)
       if self.upper.get(b) is Some(ub) {
         let target : Array[Sym] = []
-        for c in ub {
-          target.push(c)
-        }
+        target.append(ub)
         for c in filter {
           if !target.contains(c) {
             target.push(c)
@@ -300,10 +305,8 @@ pub fn Unification::propagate(self : Unification) -> String? {
   for uid, lo in self.lower {
     if self.upper.get(uid) is Some(up) {
       let diff = lo.filter(c => !up.contains(c))
-      if !diff.is_empty() {
-        // Upstream's `Constraints.checkConsistency`.
-        return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
-      }
+      // Upstream's `Constraints.checkConsistency`.
+      guard diff.is_empty() else { return Some(captures_not_allowed(diff)) }
     }
   }
   None
@@ -320,17 +323,13 @@ pub fn Unification::require_lower(
     Some(sol) => {
       let solved = sol.to_array()
       let diff = bounds.filter(c => !solved.contains(c))
-      if !diff.is_empty() {
-        return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
-      }
+      guard diff.is_empty() else { Some(captures_not_allowed(diff)) }
       None
     }
     None => {
       if self.upper.get(x.uid()) is Some(up) {
         let diff = bounds.filter(c => !up.contains(c))
-        if !diff.is_empty() {
-          return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
-        }
+        guard diff.is_empty() else { return Some(captures_not_allowed(diff)) }
       }
       let current = self.lower_of(x.uid())
       let next = current.copy()
@@ -356,17 +355,13 @@ pub fn Unification::require_upper(
     Some(sol) => {
       let solved = sol.to_array()
       let diff = solved.filter(c => !bounds.contains(c))
-      if !diff.is_empty() {
-        return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
-      }
+      guard diff.is_empty() else { Some(captures_not_allowed(diff)) }
       None
     }
     None => {
       if self.lower.get(x.uid()) is Some(lo) {
         let diff = lo.filter(c => !bounds.contains(c))
-        if !diff.is_empty() {
-          return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
-        }
+        guard diff.is_empty() else { return Some(captures_not_allowed(diff)) }
       }
       match self.upper.get(x.uid()) {
         Some(up) => {
@@ -389,9 +384,7 @@ pub fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
   let bounds = self.lower_of(x.uid())
   if self.upper.get(x.uid()) is Some(up) {
     let diff = bounds.filter(c => !up.contains(c))
-    if !diff.is_empty() {
-      return Some("Not allowed \{@symbols.Captures::CaptureSetOf(diff)}")
-    }
+    guard diff.is_empty() else { return Some(captures_not_allowed(diff)) }
   }
   self.capts.set(x.uid(), @symbols.Captures::CaptureSetOf(bounds))
   None

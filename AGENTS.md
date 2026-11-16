@@ -129,7 +129,9 @@ You can browse and install extra skills here:
   `xs.length() == 0` — the core library has 399 of the former and 28 of the
   latter), `a.min(b)`/`a.max(b)`, `xs.last()`, `xs.rev()`, `xs.contains(x)`,
   `xs.search(x)` (returns `Int32?`; `search_by(p)` for a predicate),
-  `xs.sort_by(cmp)`, `xs.any/all/fold`, `xs[m..n]` views with `.to_array()`.
+  `xs.sort_by(cmp)`, `xs.any/all/fold`, `xs[m..n]` views with `.to_owned()` (the
+  `ArrayView::to_array` of older compilers is deprecated; `String::to_array` is
+  the unrelated string → `Array[Char]` conversion and is fine).
   A helper that only renames one of those is deleted (`min2`, `array_index_of`,
   the `length() == 0`/`length() > 0` comparisons are all gone that way). An
   accumulator loop that only maps is `xs.map(f)` (`xs.mapi((i, x) => …)` when the
@@ -144,7 +146,35 @@ You can browse and install extra skills here:
   which showed up as `path[1:].to_owned()` in every recursive step of the
   namer's path walk (now `path[1:]`). Keep `Array[T]` for a parameter that is
   mutated, stored in a field or returned, and for results. `Array::append` is
-  the counterpart: `all.append(alternatives)` instead of a push loop.
+  the counterpart, and a loop that only copies one array into another is
+  `out.append(xs)` — not `for x in xs { out.push(x) }`; `xs[1:].to_owned()` is
+  "everything but the first", and `[x] + xs` prepends one element. A push loop
+  that maps (`for x in xs { out.push(f(x)) }`, of which this port still has
+  many) is `xs.map(f)`, but only where that reads better: this port already
+  writes `.map(` seven times as densely as the core library, so the loop is not
+  wrong when the pushed expression is long or the loop accumulates into several
+  arrays at once.
+
+- **Bail out with `guard <good condition> else { … }`, not an `if` around the
+  failure.** The core library spells an early exit as a guard about thirteen
+  times more often than as an `if` (1849 `guard` statements against 77
+  `if !cond { …bail… }` and 179 `if cond != … { …bail… }`), and this port now
+  follows it: `if !started { return None }` is `guard started else { return None }`
+  and `if a.length() != b.length() { return false }` is
+  `guard a.length() == b.length() else { return false }`. The `else` block
+  returns from the nearest enclosing *function*, so it ends in `return`/`raise`/
+  `continue`/`break` or in a value of that function's result type
+  (`guard x is Some(v) else { None }`). A pattern bound in the condition is in
+  scope after the statement, which is what collapses a "look up or abort"
+  `match` into one statement: `guard self.ctx.symbol_of(id.uid) is Some(s) else
+  { raise … }` then `s`; the condition may combine it with `&&`
+  (`guard expr is ValueVar(id, _) && id == ids[i] else { return false }`).
+  Two limits come from the type checker and shape where a guard can go: a
+  *value* `else` block is only accepted where the expected type is the
+  function's result type, so inside an `if` or `for` body (expected `Unit`) it
+  has to `return`/`raise`/`continue` instead; and a `guard` in tail position
+  types as `Unit`, so the last statement of a function cannot be a guard — the
+  bound value follows it.
 
 - **Test an enum with a pattern condition, not a two-arm `match`.** `if e is
   Some(x) { … }` binds `x` in the condition and replaces

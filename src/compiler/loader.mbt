@@ -63,9 +63,7 @@ pub fn Loader::is_library_prelude(
   path : String,
   input : String,
 ) -> Bool {
-  if !is_prelude_path(path) {
-    return false
-  }
+  guard is_prelude_path(path) else { return false }
   match self.locate(path) {
     Some(file) => resolve_path(file) == resolve_path(input)
     None => false

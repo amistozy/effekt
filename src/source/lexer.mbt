@@ -193,9 +193,7 @@ fn parse_int_lit(s : String) -> Int64? {
     started = true
     i = i + 1
   }
-  if !started {
-    return None
-  }
+  guard started else { return None }
   let value = if neg { result } else { -result }
   Some(value)
 }
@@ -219,9 +217,7 @@ fn parse_double_lit(s : String) -> Double? {
     seen_digit = true
     i = i + 1
   }
-  if !seen_digit {
-    return None
-  }
+  guard seen_digit else { return None }
   let mut result = int_part
   if i < s.length() && s[i] == '.' {
     i = i + 1
@@ -232,24 +228,18 @@ fn parse_double_lit(s : String) -> Double? {
       i = i + 1
     }
   }
-  if i != s.length() {
-    return None
-  }
+  guard i == s.length() else { return None }
   Some(if neg { -result } else { result })
 }
 
 ///|
 /// Parses a hex string of exactly two digits into a byte value.
 fn parse_byte_lit(s : String) -> Int32? {
-  if s.length() != 2 {
-    return None
-  }
+  guard s.length() == 2 else { return None }
   let mut acc = 0
   for i in 0..<2 {
     let u = s[i]
-    if !is_hex_digit(u.to_char().unwrap_or('\u{0}')) {
-      return None
-    }
+    guard is_hex_digit(u.to_char().unwrap_or('\u{0}')) else { return None }
     acc = acc * 16 + hex_value(u.to_char().unwrap_or('0'))
   }
   Some(acc)
@@ -259,15 +249,11 @@ fn parse_byte_lit(s : String) -> Int32? {
 /// Parses a hex string of exactly eight digits into an integer (`0xffffffff`
 /// is 4294967295, so the digits are not sign extended).
 fn parse_hex_int_lit(s : String) -> Int64? {
-  if s.length() != 8 {
-    return None
-  }
+  guard s.length() == 8 else { return None }
   let mut acc : Int64 = 0
   for i in 0..<8 {
     let u = s[i]
-    if !is_hex_digit(u.to_char().unwrap_or('\u{0}')) {
-      return None
-    }
+    guard is_hex_digit(u.to_char().unwrap_or('\u{0}')) else { return None }
     acc = acc * 16 + hex_value(u.to_char().unwrap_or('0')).to_int64()
   }
   Some(acc)
@@ -801,9 +787,7 @@ fn Lexer::lex_unicode_escape(self : Lexer) -> Int32 {
     let _ = self.advance()
     let start = self.offset
     self.advance_while((curr, _) => curr != '}')
-    if self.current_char != '}' {
-      return -1
-    }
+    guard self.current_char == '}' else { return -1 }
     let _ = self.advance() // consume '}'
     let hex_str = self.slice(start, self.offset - 1)
     parse_hex_int(hex_str)
@@ -824,9 +808,7 @@ fn parse_hex_int(s : String) -> Int32 {
   }
   let mut acc = 0
   for u in s {
-    if !is_hex_digit(u) {
-      return -1
-    }
+    guard is_hex_digit(u) else { return -1 }
     acc = acc * 16 + hex_value(u)
   }
   acc

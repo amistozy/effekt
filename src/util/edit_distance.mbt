@@ -90,13 +90,9 @@ pub fn edit_distance(a : String, b : String, limit : Int32) -> Int32? {
 fn equal_ignoring_case(a : String, b : String) -> Bool {
   let left = a.to_array()
   let right = b.to_array()
-  if left.length() != right.length() {
-    return false
-  }
+  guard left.length() == right.length() else { return false }
   for (l, r) in left.zip(right) {
-    if lower_code(l) != lower_code(r) {
-      return false
-    }
+    guard lower_code(l) == lower_code(r) else { return false }
   }
   true
 }

@@ -244,7 +244,7 @@ pub fn Typer::check_call_to(
   // recursion is bounded (upstream: the recursion guard in
   // `GenerateImplicitArgs`, see `with_implicit_guard`).
   let implicit_vargs : Array[Term] = []
-  for i = vargs.length(); i < fun_vps.length(); i = i + 1 {
+  for i in vargs.length()..<fun_vps.length() {
     let tpe = inst.vparams[i]
     let stencil : ImplicitStencil = {
       name: known_vps[i].name().name,
@@ -275,7 +275,7 @@ pub fn Typer::check_call_to(
     implicit_vargs.push(term)
   }
   let implicit_bargs : Array[Term] = []
-  for j = bargs.length(); j < fun_bps.length(); j = j + 1 {
+  for j in bargs.length()..<fun_bps.length() {
     let btpe = inst.bparams[j]
     let capt = capt_args[j]
     self.flows_into(capt, callsite, span)
@@ -527,13 +527,9 @@ fn implicit_tail_matches(
   if provided == total {
     return true
   }
-  if params.length() != total {
-    return false
-  }
-  for i = provided; i < total; i = i + 1 {
-    if !params[i].is_implicit() {
-      return false
-    }
+  guard params.length() == total else { return false }
+  for i in provided..<total {
+    guard params[i].is_implicit() else { return false }
   }
   true
 }
@@ -557,7 +553,7 @@ fn Typer::candidates_in_order(
   let sorted = candidates.copy()
   let sorted_keys = keys.copy()
   // insertion sort: the lists are short and it is stable
-  for i = 1; i < sorted.length(); i = i + 1 {
+  for i in 1..<sorted.length() {
     let current = sorted[i]
     let current_key = sorted_keys[i]
     let mut j = i - 1
@@ -583,9 +579,7 @@ fn string_less(a : String, b : String) -> Bool {
   for i in 0..<n {
     let x = ca[i].to_int()
     let y = cb[i].to_int()
-    if x != y {
-      return x < y
-    }
+    guard x == y else { return x < y }
   }
   ca.length() < cb.length()
 }
@@ -665,9 +659,7 @@ pub fn Typer::check_overloaded_function_call(
       // underlines the 7 characters of `typeTag`, not `typeTag()`.
       self.abort(id.span, self.ambiguous_overload_message(successes))
     }
-    for f in failures {
-      all_failures.push(f)
-    }
+    all_failures.append(failures)
   }
   match all_failures {
     [(_, msg, muted)] =>
@@ -678,11 +670,11 @@ pub fn Typer::check_overloaded_function_call(
       if muted.is_empty() {
         self.abort(call.span, msg)
       } else {
-        for i = 1; i < muted.length(); i = i + 1 {
+        for msg in muted[1:] {
           // `self.error_message`, not `self.ctx.report`: a nested call may itself
           // be checked while an enclosing candidate is muted, and then these
           // diagnostics have to stay muted as well.
-          self.error_message(muted[i])
+          self.error_message(msg)
         }
         self.abort_message(muted[0])
       }
@@ -906,8 +898,8 @@ pub fn Typer::check_overloaded_method_call(
         if muted.is_empty() {
           self.abort(call.span, msg)
         } else {
-          for i = 1; i < muted.length(); i = i + 1 {
-            self.error_message(muted[i])
+          for msg in muted[1:] {
+            self.error_message(msg)
           }
           self.abort_message(muted[0])
         }

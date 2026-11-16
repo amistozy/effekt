@@ -179,9 +179,7 @@ pub fn compile_file(
       None
     }
   }
-  for m in ctx.messages {
-    messages.push(m)
-  }
+  messages.append(ctx.messages)
   let has_errors = messages.any(m => m.severity == Error)
   { output: result, messages, failed: has_errors, }
 }
@@ -289,12 +287,12 @@ fn report_cycle(
   // `ModuleDecl.path` is the declared module name (`module cyclic_a`).
   let names : Array[String] = []
   let vias : Array[String] = []
-  for i = from; i < stack.length(); i = i + 1 {
-    match loader.tree_of(stack[i].key) {
+  for entry in stack[from:] {
+    match loader.tree_of(entry.key) {
       Some(t) => names.push(t.path)
-      None => names.push(stack[i].key)
+      None => names.push(entry.key)
     }
-    vias.push(stack[i].via)
+    vias.push(entry.via)
   }
   // The cycle is closed by the include that led back to the root, whose path
   // names the root module.
@@ -421,7 +419,7 @@ pub fn module_path_of(file : String) -> String {
 pub fn render_messages(messages : Array[Message]) -> String {
   let sorted = messages.copy()
   // insertion sort: the lists are short and it keeps the order stable
-  for i = 1; i < sorted.length(); i = i + 1 {
+  for i in 1..<sorted.length() {
     let current = sorted[i]
     let mut j = i - 1
     while j >= 0 && compare_positions(sorted[j].span, current.span) > 0 {

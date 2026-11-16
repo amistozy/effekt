@@ -157,13 +157,9 @@ pub fn interface_type_equal(a : BlockType, b : BlockType) -> Bool {
 
 ///|
 pub fn value_types_equal(a : Array[ValueType], b : Array[ValueType]) -> Bool {
-  if a.length() != b.length() {
-    return false
-  }
+  guard a.length() == b.length() else { return false }
   for i in 0..<a.length() {
-    if !value_type_equal(a[i], b[i]) {
-      return false
-    }
+    guard value_type_equal(a[i], b[i]) else { return false }
   }
   true
 }
@@ -215,9 +211,7 @@ fn canonical_compare_value_lists(
   let n = if a.length() < b.length() { a.length() } else { b.length() }
   for i in 0..<n {
     let c = canonical_compare_value(a[i], b[i])
-    if c != 0 {
-      return c
-    }
+    guard c == 0 else { return c }
   }
   a.length() - b.length()
 }

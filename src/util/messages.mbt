@@ -230,13 +230,12 @@ pub fn Message::render(self : Message) -> String {
     }
   }
   let lines : Array[String] = []
-  let sev = self.severity.to_string()
   let text = with_phase(self.text, self.phase)
   let header = if self.span.origin == Missing {
-    "[\{sev}] \{text}"
+    "[\{self.severity}] \{text}"
   } else {
     let pos = self.span.position()
-    "[\{sev}] \{self.span.source.name}:\{pos.line}:\{pos.column}: \{text}"
+    "[\{self.severity}] \{self.span.source.name}:\{pos.line}:\{pos.column}: \{text}"
   }
   lines.push(header)
   let mut previous_excerpt = match primary {

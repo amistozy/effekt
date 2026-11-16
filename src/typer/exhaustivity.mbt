@@ -138,9 +138,7 @@ fn Clause::minus(self : Clause, t : Trace) -> Clause {
   match self.conds[0] {
     CPatterns(ps) => {
       let conds : Array[Cond] = [CPatterns(without_trace(ps, t))]
-      for i = 1; i < self.conds.length(); i = i + 1 {
-        conds.push(self.conds[i])
-      }
+      conds.append(self.conds[1:])
       normalize_conds(conds, self.index)
     }
     _ => self
@@ -163,19 +161,13 @@ fn Clause::plus(self : Clause, others : Array[(Trace, Pat)]) -> Clause {
   } else {
     conds.push(CPatterns(others))
   }
-  for i = start; i < self.conds.length(); i = i + 1 {
-    conds.push(self.conds[i])
-  }
+  conds.append(self.conds[start:])
   normalize_conds(conds, self.index)
 }
 
 ///|
 fn Clause::rest(self : Clause) -> Array[Cond] {
-  let out : Array[Cond] = []
-  for i = 1; i < self.conds.length(); i = i + 1 {
-    out.push(self.conds[i])
-  }
-  out
+  self.conds[1:].to_owned()
 }
 
 // ---------------------------------------------------------------------------
@@ -263,18 +255,14 @@ fn Exhaustivity::missing_tag(
   at : Trace,
 ) -> Unit {
   let next : Array[Missing] = [MTag(ctor, at)]
-  for m in self.missing {
-    next.push(m)
-  }
+  next.append(self.missing)
   self.missing = next
 }
 
 ///|
 fn Exhaustivity::missing_guard(self : Exhaustivity, span : Span) -> Unit {
   let next : Array[Missing] = [MGuard(span)]
-  for m in self.missing {
-    next.push(m)
-  }
+  next.append(self.missing)
   self.missing = next
 }
 
@@ -285,9 +273,7 @@ fn Exhaustivity::missing_literal(
   at : Trace,
 ) -> Unit {
   let next : Array[Missing] = [MLit(value, at)]
-  for m in self.missing {
-    next.push(m)
-  }
+  next.append(self.missing)
   self.missing = next
 }
 
@@ -298,9 +284,7 @@ fn Exhaustivity::missing_default(
   at : Trace,
 ) -> Unit {
   let next : Array[Missing] = [MDefault(tpe, at)]
-  for m in self.missing {
-    next.push(m)
-  }
+  next.append(self.missing)
   self.missing = next
 }
 
@@ -801,9 +785,7 @@ fn Typer::check_pending_matches(self : Typer) -> Unit {
         None => arity_ok = false
       }
     }
-    if !arity_ok {
-      continue
-    }
+    guard arity_ok else { continue }
     if pending.has_default {
       initial.push({ conds: [], index: -1, })
     }

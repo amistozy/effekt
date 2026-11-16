@@ -496,10 +496,10 @@ pub fn Scoping::lookup_first(
   path : Array[String],
   name : String,
 ) -> Sym raise EffektError {
-  match self.lookup_first_option(path, name) {
-    Some(s) => s
-    None => raise EffektError::Fatal("Could not resolve \{name}")
+  guard self.lookup_first_option(path, name) is Some(s) else {
+    raise EffektError::Fatal("Could not resolve \{name}")
   }
+  s
 }
 
 ///|

@@ -170,20 +170,12 @@ pub fn PMClause::PMClause(
 
 ///|
 fn[T] pm_drop_first(xs : Array[T]) -> Array[T] {
-  let out : Array[T] = []
-  for i in 1..<xs.length() {
-    out.push(xs[i])
-  }
-  out
+  xs[1:].to_owned()
 }
 
 ///|
 fn[T] pm_prepend(x : T, xs : Array[T]) -> Array[T] {
-  let out : Array[T] = [x]
-  for y in xs {
-    out.push(y)
-  }
-  out
+  [x] + xs
 }
 
 // ---------------------------------------------------------------------------
@@ -529,9 +521,7 @@ fn pm_split_on_tag(
           PMPatterns(nested),
           PMPatterns(rest_patterns),
         ]
-        for cond in rest_conds {
-          conds.push(cond)
-        }
+        conds.append(rest_conds)
         let cl = PMClause(conds, c.label, c.targs, c.args)
         match clauses_for.get(constructor.uid()) {
           Some(list) => list.push(cl)

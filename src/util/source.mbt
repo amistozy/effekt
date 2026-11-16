@@ -234,9 +234,7 @@ pub fn Span::text(self : Span) -> String? {
 ///|
 /// Extends a span to cover everything up to `other`.
 pub fn Span::to_span(self : Span, other : Span) -> Span {
-  if self.source.name != other.source.name {
-    return self
-  }
+  guard self.source.name == other.source.name else { self }
   {
     source: self.source,
     start: self.start,
@@ -255,9 +253,7 @@ pub fn Span::merge(self : Span, other : Span) -> Span {
   }
   let a = if self.start <= other.start { self } else { other }
   let b = if self.end >= other.end { self } else { other }
-  if a.source.name != b.source.name {
-    return a
-  }
+  guard a.source.name == b.source.name else { a }
   { source: a.source, start: a.start, end: b.end, origin: a.origin, }
 }
 

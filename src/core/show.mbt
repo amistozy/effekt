@@ -529,12 +529,10 @@ fn ShowContext::generate_show_instance(
           // only *generates* the instance for the looked-up type and does not
           // register it under the variable itself, so `getShowBlockVar` aborts
           // when the looked-up type already has an instance.
-          let lookup = match self.tparam_lookup.get(name.uid()) {
-            Some(t) => t
-            None =>
-              raise EffektError::Fatal(
-                "Too much type indirection over show, cannot lookup '\{name.name().name}'",
-              )
+          guard self.tparam_lookup.get(name.uid()) is Some(lookup) else {
+            raise EffektError::Fatal(
+              "Too much type indirection over show, cannot lookup '\{name.name().name}'",
+            )
           }
           match self.show_names.get(value_type_key(lookup)) {
             Some(_) => None
@@ -811,9 +809,7 @@ pub fn show_phase(module : ModuleDecl) -> ModuleDecl raise EffektError {
   for d in module.definitions {
     definitions.push(ctx.transform_toplevel(dctx, d))
   }
-  for defn in ctx.all_show_defs() {
-    definitions.push(defn)
-  }
+  definitions.append(ctx.all_show_defs())
   ModuleDecl(
     module.path,
     module.includes,

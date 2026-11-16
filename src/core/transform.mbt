@@ -73,9 +73,7 @@ pub fn transform_with_exports(
   let t = Transformer(ctx, module_path, find_equality_functions(module))
   let toplevels : Array[CoreToplevel] = []
   for d in module.defs {
-    for x in t.transform_toplevel(d) {
-      toplevels.push(x)
-    }
+    toplevels.append(t.transform_toplevel(d))
   }
   let declarations : Array[Declaration] = []
   let externs : Array[Extern] = []
@@ -98,9 +96,7 @@ pub fn transform_with_exports(
 /// the driver, or an `infixEq` extern declared in the module itself.
 fn find_equality_functions(module : @source.ModuleDecl) -> Array[Sym] {
   let out : Array[Sym] = pattern_equality_functions.val.copy()
-  if !out.is_empty() {
-    return out
-  }
+  guard out.is_empty() else { return out }
   for d in module.defs {
     match d.kind {
       @source.ExternDef(id, _, _, _, _, _, _) =>
@@ -371,10 +367,10 @@ fn Transformer::sym_of_id_def(
   self : Transformer,
   id : @source.IdDef,
 ) -> Sym raise EffektError {
-  match self.ctx.symbol_of(id.uid) {
-    Some(s) => s
-    None => raise EffektError::Internal("No symbol annotated for `\{id.name}`.")
+  guard self.ctx.symbol_of(id.uid) is Some(s) else {
+    raise EffektError::Internal("No symbol annotated for `\{id.name}`.")
   }
+  s
 }
 
 ///|
@@ -382,10 +378,10 @@ fn Transformer::sym_of_ref(
   self : Transformer,
   id : @source.IdRef,
 ) -> Sym raise EffektError {
-  match self.ctx.symbol_of(id.uid) {
-    Some(s) => s
-    None => raise EffektError::Internal("No symbol annotated for `\{id.name}`.")
+  guard self.ctx.symbol_of(id.uid) is Some(s) else {
+    raise EffektError::Internal("No symbol annotated for `\{id.name}`.")
   }
+  s
 }
 
 ///|
@@ -702,10 +698,7 @@ fn Transformer::transform_captures(
       let out : Array[Sym] = []
       for c in cs {
         match self.capture_substitution.get(c.uid()) {
-          Some(replacement) =>
-            for x in replacement.to_array() {
-              out.push(x)
-            }
+          Some(replacement) => out.append(replacement.to_array())
           None => out.push(c)
         }
       }
@@ -959,9 +952,7 @@ fn Transformer::transform_toplevel(
     }
     @source.NamespaceDef(_name, defs) =>
       for inner in defs {
-        for x in self.transform_toplevel(inner) {
-          result.push(x)
-        }
+        result.append(self.transform_toplevel(inner))
       }
 
     // For now we forget about all of the following definitions in core:
@@ -1053,9 +1044,7 @@ fn Transformer::type_constructor_tparams_of(
   from_source : Array[@source.IdDef],
 ) -> Array[Sym] {
   let tparams = type_constructor_tparams(sym)
-  if !tparams.is_empty() {
-    return tparams
-  }
+  guard tparams.is_empty() else { return tparams }
   let out : Array[Sym] = []
   for t in from_source {
     if self.ctx.symbol_of(t.uid) is Some(s) {
@@ -2363,16 +2352,12 @@ fn Transformer::preprocess_patterns(
   let tparams : Array[Sym] = []
   let params : Array[ValueParam] = []
   for p in patterns {
-    for vp in self.bound_in_pattern(p.pattern) {
-      params.push(vp)
-    }
+    params.append(self.bound_in_pattern(p.pattern))
   }
   for g in guards {
     match g.kind {
       @source.PatternGuard(_, pattern) =>
-        for vp in self.bound_in_pattern(pattern) {
-          params.push(vp)
-        }
+        params.append(self.bound_in_pattern(pattern))
       @source.BooleanGuard(_) => ()
     }
   }
@@ -2395,9 +2380,7 @@ fn Transformer::preprocess_patterns(
     conditions.push(PMPatterns(transformed_patterns))
   }
   for g in guards {
-    for c in self.transform_guard(g) {
-      conditions.push(c)
-    }
+    conditions.append(self.transform_guard(g))
   }
 
   let targs : Array[ValueType] = tparams.map(t => ValueVar(t))
@@ -2430,18 +2413,14 @@ fn Transformer::bound_in_pattern(
     @source.TagPattern(_id, patterns) => {
       let out : Array[ValueParam] = []
       for inner in patterns {
-        for vp in self.bound_in_pattern(inner) {
-          out.push(vp)
-        }
+        out.append(self.bound_in_pattern(inner))
       }
       out
     }
     @source.MultiPattern(patterns) => {
       let out : Array[ValueParam] = []
       for inner in patterns {
-        for vp in self.bound_in_pattern(inner) {
-          out.push(vp)
-        }
+        out.append(self.bound_in_pattern(inner))
       }
       out
     }

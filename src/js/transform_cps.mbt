@@ -700,10 +700,7 @@ fn literal_to_js(value : LiteralValue) -> Expr {
 ///|
 /// `UByte.unsafeFromByte(b).toHexString`, e.g. `0x0F`.
 fn byte_to_hex_string(b : Int32) -> String {
-  let digits : Array[Char] = []
-  for c in "0123456789ABCDEF" {
-    digits.push(c)
-  }
+  let digits = "0123456789ABCDEF".to_array()
   let v = b & 0xFF
   let buf = StringBuilder()
   buf.write_string("0x")
@@ -762,9 +759,8 @@ fn inline_extern(
   args : Array[@cps.Expr],
   ctx : TransformerContext,
 ) -> Expr raise EffektError {
-  let extern_def = match ctx.externs.get(id.uid()) {
-    Some(d) => d
-    None => return call(name_ref(id), args.map(a => to_js_cps_expr(a, ctx)))
+  guard ctx.externs.get(id.uid()) is Some(extern_def) else {
+    return call(name_ref(id), args.map(a => to_js_cps_expr(a, ctx)))
   }
   match extern_inline_template(extern_def) {
     Some((params, template)) => {

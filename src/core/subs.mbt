@@ -122,22 +122,11 @@ pub fn substitute_captures_with(
   }
   match capt {
     CaptureSetOf(cs) => {
-      let mut changed = false
-      for c in cs {
-        if csubst.contains(c.uid()) {
-          changed = true
-        }
-      }
-      if !changed {
-        return capt
-      }
+      guard cs.any(c => csubst.contains(c.uid())) else { return capt }
       let out : Array[Sym] = []
       for c in cs {
         match csubst.get(c.uid()) {
-          Some(replacement) =>
-            for x in replacement.to_array() {
-              out.push(x)
-            }
+          Some(replacement) => out.append(replacement.to_array())
           None => out.push(c)
         }
       }

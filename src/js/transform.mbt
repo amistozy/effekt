@@ -114,10 +114,7 @@ fn is_js_letter(c : Char) -> Bool {
 /// `findFirstIn`, that is, the longest prefix of letters, `$` and `_word`
 /// groups.
 fn base_name_of(name : String) -> String {
-  let chars : Array[Char] = []
-  for c in name {
-    chars.push(c)
-  }
+  let chars = name.to_array()
   let buf = StringBuilder()
   let mut i = 0
   while i < chars.length() && (is_js_letter(chars[i]) || chars[i] == '$') {

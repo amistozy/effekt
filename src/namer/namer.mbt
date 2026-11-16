@@ -349,9 +349,7 @@ fn Namer::lookup_paths(
     return [path]
   }
   for i in 0..<ns.length() {
-    if path[i] != ns[i] {
-      return [path]
-    }
+    guard path[i] == ns[i] else { return [path] }
   }
   let stripped = path[ns.length():].to_owned()
   if stripped.length() == path.length() {
@@ -507,9 +505,7 @@ fn Namer::lookup_first_block_param(
 ) -> Array[Sym] raise EffektError {
   for p in self.lookup_paths(path) {
     let local = self.scoping.lookup_first_block_param(p, name)
-    if !local.is_empty() {
-      return local
-    }
+    guard local.is_empty() else { return local }
     let imported = in_bindings(self.imports, p, bindings => {
       match bindings.terms.get(name) {
         Some(syms) =>
@@ -524,10 +520,8 @@ fn Namer::lookup_first_block_param(
         None => None
       }
     })
-    if imported is Some(params) {
-      if !params.is_empty() {
-        return params
-      }
+    if imported is Some(params) && !params.is_empty() {
+      return params
     }
   }
   []
@@ -1452,18 +1446,14 @@ fn Namer::resolve_pattern(
       }
       let out : Array[Sym] = []
       for sub in patterns {
-        for p in self.resolve_pattern(sub) {
-          out.push(p)
-        }
+        out.append(self.resolve_pattern(sub))
       }
       out
     }
     @source.MultiPattern(patterns) => {
       let out : Array[Sym] = []
       for sub in patterns {
-        for p in self.resolve_pattern(sub) {
-          out.push(p)
-        }
+        out.append(self.resolve_pattern(sub))
       }
       out
     }
@@ -2325,9 +2315,7 @@ fn Namer::resolve_effects(
 ) -> Effects raise EffektError {
   let all : Array[BlockType] = []
   for eff in effs.effs {
-    for resolved in self.resolve_with_aliases(eff) {
-      all.push(resolved)
-    }
+    all.append(self.resolve_with_aliases(eff))
   }
   @symbols.Effects(all)
 }

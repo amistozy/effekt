@@ -661,12 +661,7 @@ fn Typer::lexical_capability(
       match self.st.u.prune_block(cap_tpe) {
         @symbols.BlockType::InterfaceType(c2, args2) =>
           if ctor == c2 && args.length() == args2.length() {
-            let mut ok = true
-            for i = 0; i < args.length() && ok; i = i + 1 {
-              if !self.types_compatible(args[i], args2[i]) {
-                ok = false
-              }
-            }
+            let ok = args.zip(args2).all(p => self.types_compatible(p.0, p.1))
             if ok {
               compatible.push(cap)
             }
@@ -686,9 +681,7 @@ fn Typer::lexical_capability(
   let first = self.st.u.prune_block(capability_type(compatible[0]).unwrap())
   for cap in compatible[1:] {
     let tpe = self.st.u.prune_block(capability_type(cap).unwrap())
-    if !interface_type_equal(first, tpe) {
-      return None
-    }
+    guard interface_type_equal(first, tpe) else { return None }
   }
   let cap = compatible[0]
   self.unify_capability_interface(target, cap)
@@ -1116,9 +1109,7 @@ fn Typer::unknowns_value(self : Typer, t : ValueType) -> Array[String] {
     @symbols.ValueType::ValueTypeApp(_, args) => {
       let out : Array[String] = []
       for a in args {
-        for u in self.unknowns_value(a) {
-          out.push(u)
-        }
+        out.append(self.unknowns_value(a))
       }
       out
     }
@@ -1133,37 +1124,25 @@ fn Typer::unknowns_block(self : Typer, t : BlockType) -> Array[String] {
     @symbols.BlockType::InterfaceType(_, args) => {
       let out : Array[String] = []
       for a in args {
-        for u in self.unknowns_value(a) {
-          out.push(u)
-        }
+        out.append(self.unknowns_value(a))
       }
       out
     }
     @symbols.BlockType::FunctionType(_, capts, vps, bps, ret, effs) => {
       let out : Array[String] = []
       for v in vps {
-        for u in self.unknowns_value(v) {
-          out.push(u)
-        }
+        out.append(self.unknowns_value(v))
       }
       for b in bps {
-        for u in self.unknowns_block(b) {
-          out.push(u)
-        }
+        out.append(self.unknowns_block(b))
       }
       for e in effs.effects {
-        for u in self.unknowns_block(e) {
-          out.push(u)
-        }
+        out.append(self.unknowns_block(e))
       }
       for c in capts {
-        for u in self.unknowns_captures(c) {
-          out.push(u)
-        }
+        out.append(self.unknowns_captures(c))
       }
-      for u in self.unknowns_value(ret) {
-        out.push(u)
-      }
+      out.append(self.unknowns_value(ret))
       dedup_syms_strings(out)
     }
   }
@@ -3112,13 +3091,9 @@ fn same_interface_type(a : BlockType, b : BlockType) -> Bool {
 ///|
 /// Do two effect sets contain the same interface types (in the same order)?
 fn same_effects(a : Array[BlockType], b : Array[BlockType]) -> Bool {
-  if a.length() != b.length() {
-    return false
-  }
+  guard a.length() == b.length() else { return false }
   for i in 0..<a.length() {
-    if !same_interface_type(a[i], b[i]) {
-      return false
-    }
+    guard same_interface_type(a[i], b[i]) else { return false }
   }
   true
 }

@@ -950,14 +950,9 @@ fn Normalizer::make_joinpoint(
 ///|
 /// Whether the given expressions are exactly the given variables, in order.
 fn variables_are(exprs : Array[Expr], ids : Array[Sym]) -> Bool {
-  if exprs.length() != ids.length() {
-    return false
-  }
+  guard exprs.length() == ids.length() else { return false }
   for i, expr in exprs {
-    match expr {
-      ValueVar(id, _) => if id != ids[i] { return false }
-      _ => return false
-    }
+    guard expr is ValueVar(id, _) && id == ids[i] else { return false }
   }
   true
 }

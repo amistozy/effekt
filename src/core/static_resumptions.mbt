@@ -1373,10 +1373,8 @@ fn reduce_shifts(
   }
   // 3) a `var` or a region is popped by the answer, so the shifts below it still
   // stand at the prompt; but it cannot be copied, so from here only 1a) applies
-  if frame_of(s) is Some(frame) {
-    if !frame.is_delimiter {
-      return frame.rebuild(reduce_shifts(prompt, frame.body, false, blocked))
-    }
+  if frame_of(s) is Some(frame) && !frame.is_delimiter {
+    return frame.rebuild(reduce_shifts(prompt, frame.body, false, blocked))
   }
   // 4) anything else pushes nothing, so continue into its tail positions
   match tail_positions(s) {
@@ -1420,9 +1418,7 @@ fn shifts_to(prompt : Prompt, s : Stmt) -> Array[ShiftInfo] raise EffektError {
             Some(positions) => {
               let out : Array[ShiftInfo] = []
               for child in positions.tails() {
-                for shift in shifts_to(prompt, child) {
-                  out.push(shift)
-                }
+                out.append(shifts_to(prompt, child))
               }
               out
             }

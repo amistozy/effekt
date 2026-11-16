@@ -171,9 +171,7 @@ pub fn[S, T] Bind::traverse(l : Array[S], f : (S) -> Bind[T]) -> Bind[Array[T]] 
   for x in l {
     let b = f(x)
     values.push(b.value)
-    for binding in b.bindings {
-      bindings.push(binding)
-    }
+    bindings.append(b.bindings)
   }
   { value: values, bindings, }
 }
