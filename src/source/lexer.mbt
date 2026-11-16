@@ -827,27 +827,22 @@ fn Lexer::singleline_comment(self : Lexer) -> TokenKind {
 
 ///|
 fn Lexer::multiline_comment(self : Lexer) -> TokenKind {
-  let mut done = false
-  while !self.at_end_of_input() && !done {
+  while !self.at_end_of_input() {
     let c = self.current_char
     let n = self.next_char
     match (c, n) {
       ('/', '*') => self.advance_k(2) // ignored!
       ('*', '/') => {
         self.advance_k(2)
-        done = true
+        // Remove `/*` and `*/`
+        return TComment(self.get_current_slice(2, 2))
       }
       _ => {
         let _ = self.advance()
       }
     }
   }
-  if !done {
-    TError(UnterminatedComment)
-  } else {
-    // Remove `/*` and `*/`
-    TComment(self.get_current_slice(2, 2))
-  }
+  TError(UnterminatedComment)
 }
 
 ///|

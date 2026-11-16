@@ -1020,24 +1020,13 @@ fn Info::is_non_empty(self : Info) -> Bool {
 ///|
 /// Collects consecutive `///` doc comment lines.
 fn Parser::maybe_documentation(self : Parser) -> String? raise EffektError {
-  let mut found = false
   let docs : Array[String] = []
-  let mut go = true
-  while go {
-    match self.peek_kind() {
-      TDocComment(message) => {
-        found = true
-        let _ = self.next()
-        docs.push(message)
-      }
-      _ => go = false
-    }
+  while self.peek_kind() is TDocComment(message) {
+    let _ = self.next()
+    docs.push(message)
   }
-  if !found {
-    None
-  } else {
-    Some(join_strings(docs, "\\n"))
-  }
+  guard !docs.is_empty() else { None }
+  Some(join_strings(docs, "\\n"))
 }
 
 ///|
@@ -1117,15 +1106,9 @@ fn Parser::default_module_path(self : Parser) -> String {
 
 ///|
 fn Parser::shebang(self : Parser) -> Unit raise EffektError {
-  let mut go = true
-  while go {
-    match self.peek_kind() {
-      TShebang(_) => {
-        let kind = self.peek_kind()
-        self.consume(kind)
-      }
-      _ => go = false
-    }
+  while self.peek_kind() is TShebang(_) {
+    let kind = self.peek_kind()
+    self.consume(kind)
   }
 }
 
@@ -1863,17 +1846,11 @@ fn Parser::string_lit(self : Parser) -> String raise EffektError {
         let buf = StringBuilder()
         buf.write_string(first)
         let mut last_terminator = terminator
-        let mut more = true
-        while more {
-          match self.peek_kind() {
-            TRawStr(s, terminator) => {
-              let _ = self.next()
-              buf.write_string(last_terminator)
-              buf.write_string(s)
-              last_terminator = terminator
-            }
-            _ => more = false
-          }
+        while self.peek_kind() is TRawStr(s, terminator) {
+          let _ = self.next()
+          buf.write_string(last_terminator)
+          buf.write_string(s)
+          last_terminator = terminator
         }
         buf.to_string()
       }
@@ -2632,10 +2609,8 @@ fn Parser::assign_expr(
 /// parsed with the correct left-associativity.
 fn Parser::call_expr(self : Parser, callee : Term) -> Term raise EffektError {
   let mut e = callee
-  let mut go = true
-  while go && (self.peek(TDot) || self.is_arguments()) {
-    let kind = self.peek_kind()
-    if kind == TDot {
+  while self.peek(TDot) || self.is_arguments() {
+    if self.peek(TDot) {
       self.consume(TDot)
       let member_id = self.id_ref()
       if self.is_arguments() {
@@ -2647,15 +2622,13 @@ fn Parser::call_expr(self : Parser, callee : Term) -> Term raise EffektError {
       } else {
         e = mk_term(self.span(), TermKind::MethodCall(e, member_id, [], [], []))
       }
-    } else if self.is_arguments() {
+    } else {
       let target : CallTarget = match e.kind {
         Var(id) => IdTarget(id)
         _ => ExprTarget(e)
       }
       let (targs, vargs, bargs) = self.arguments()
       e = mk_term(self.span(), TermKind::Call(target, targs, vargs, bargs))
-    } else {
-      go = false
     }
   }
   e
@@ -2673,8 +2646,7 @@ fn Parser::expr_outer(
 ) -> Term raise EffektError {
   self.nonterminal(() => {
     let mut left = self.prim_expr()
-    let mut go = true
-    while go {
+    while true {
       let kind = self.peek_kind()
       if self.is_infix_op(kind) {
         let precedence = match prev_op {
@@ -2682,7 +2654,7 @@ fn Parser::expr_outer(
           None => RightBindsTighter
         }
         match precedence {
-          LeftBindsTighter => go = false
+          LeftBindsTighter => break
           RightBindsTighter => {
             self.check_binary_op_whitespace()
             let op_token = self.next()
@@ -2701,7 +2673,7 @@ fn Parser::expr_outer(
       } else if self.peek(TDot) || self.is_arguments() {
         left = self.call_expr(left)
       } else {
-        go = false
+        break
       }
     }
     left

@@ -370,7 +370,7 @@ fn Exhaustivity::check_scrutinees(
     self.missing_default(tpes[0], traces[0])
     return
   }
-  self.match_clauses(clauses[0], clauses[1:])
+  self.match_clauses(clauses)
 }
 
 ///|
@@ -421,7 +421,7 @@ fn Exhaustivity::check_other(
   if clauses.is_empty() {
     self.missing_default(tpe, trace)
   } else {
-    self.match_clauses(clauses[0], clauses[1:])
+    self.match_clauses(clauses)
   }
 }
 
@@ -457,7 +457,7 @@ fn Exhaustivity::check_datatype(
     if covered.is_empty() {
       self.missing_tag(ctor, trace)
     } else {
-      self.match_clauses(covered[0], covered[1:])
+      self.match_clauses(covered)
     }
   }
 }
@@ -526,32 +526,43 @@ fn Exhaustivity::check_literal(
     Some(values) =>
       for value in values {
         match covered_by(table, value) {
-          Some(cs) => if !cs.is_empty() { self.match_clauses(cs[0], cs[1:]) }
+          Some(cs) => self.match_clauses(cs)
           None =>
             if defaults.is_empty() {
               self.missing_literal(value, trace)
             } else {
-              self.match_clauses(defaults[0], defaults[1:])
+              self.match_clauses(defaults)
             }
         }
       }
     None => {
       for entry in table {
-        if !entry.1.is_empty() {
-          self.match_clauses(entry.1[0], entry.1[1:])
-        }
+        self.match_clauses(entry.1)
       }
       if defaults.is_empty() {
         self.missing_default(tpe, trace)
       } else {
-        self.match_clauses(defaults[0], defaults[1:])
+        self.match_clauses(defaults)
       }
     }
   }
 }
 
 ///|
+/// Matches the clause matrix `clauses`: the first clause is the one whose
+/// conditions are checked, the rest are the alternatives that have to match
+/// when it does not.
 fn Exhaustivity::match_clauses(
+  self : Exhaustivity,
+  clauses : ArrayView[Clause],
+) -> Unit {
+  guard clauses is [head, .. alternatives] else { return }
+  self.match_clause(head, alternatives)
+}
+
+///|
+/// Matches `head` against the `alternatives` that follow it in the matrix.
+fn Exhaustivity::match_clause(
   self : Exhaustivity,
   head : Clause,
   alternatives : ArrayView[Clause],
@@ -563,17 +574,17 @@ fn Exhaustivity::match_clauses(
   match head.conds[0] {
     CGuard(span) => {
       // the guard is true: the rest of this clause has to match
-      self.match_clauses(normalize_conds(head.rest(), head.index), alternatives)
+      self.match_clause(normalize_conds(head.rest(), head.index), alternatives)
       // the guard is false: the remaining clauses have to match
       if alternatives.is_empty() {
         self.missing_guard(span)
       } else {
-        self.match_clauses(alternatives[0], alternatives[1:])
+        self.match_clauses(alternatives)
       }
     }
     CPatterns(patterns) =>
       if patterns.is_empty() {
-        self.match_clauses(
+        self.match_clause(
           normalize_conds(head.rest(), head.index),
           alternatives,
         )
