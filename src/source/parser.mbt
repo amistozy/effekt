@@ -998,12 +998,6 @@ fn join_strings(xs : Array[String], sep : String) -> String {
 }
 
 ///|
-/// The array without its last element (Scala's `init`).
-fn[T] init_of(xs : Array[T]) -> Array[T] {
-  xs[:xs.length() - 1].to_owned()
-}
-
-///|
 fn[T] SpannedTemplate::unspan_template(
   self : SpannedTemplate[T],
 ) -> Template[T] {
@@ -3224,16 +3218,20 @@ fn Parser::is_id_ref(self : Parser) -> Bool raise EffektError {
 ///|
 fn Parser::id_ref(self : Parser) -> IdRef raise EffektError {
   self.nonterminal(() => {
-    let ids = self.some_sep(() => self.ident(), TPathSep).items
-    IdRef::qualified(init_of(ids), ids[ids.length() - 1], self.span())
+    match self.some_sep(() => self.ident(), TPathSep).items {
+      [.. path, name] => IdRef::qualified(path.to_owned(), name, self.span())
+      [] => self.fail("Expected an identifier")
+    }
   })
 }
 
 ///|
 fn Parser::id_def(self : Parser) -> IdDef raise EffektError {
   self.nonterminal(() => {
-    let ids = self.some_sep(() => self.ident(), TPathSep).items
-    IdDef::qualified(init_of(ids), ids[ids.length() - 1], self.span())
+    match self.some_sep(() => self.ident(), TPathSep).items {
+      [.. path, name] => IdDef::qualified(path.to_owned(), name, self.span())
+      [] => self.fail("Expected an identifier")
+    }
   })
 }
 

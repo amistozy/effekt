@@ -157,9 +157,13 @@ You can browse and install extra skills here:
   mutated, stored in a field or returned, and for results. `Array::append` is
   the counterpart, and a loop that only copies one array into another is
   `out.append(xs)` — not `for x in xs { out.push(x) }`; `xs[1:].to_owned()` is
-  "everything but the first", `xs[:xs.length() - 1].to_owned()` (or a helper
-  built on it) is "everything but the last" — a slice's end is clamped, so both
-  are fine on an empty array — and `[x] + xs` prepends one element. A push loop
+  "everything but the first", and `[x] + xs` prepends one element. To take the
+  last element off *and* keep the rest, destructure instead of indexing twice:
+  `match ids { [.. init, last] => … }`. The rest binding is an `ArrayView`, so
+  it needs `.to_owned()` where an `Array` has to be stored, and the empty case
+  is a real arm (spell it, even when the caller guarantees a non-empty list);
+  `xs[:xs.length() - 1].to_owned()` is the same slice without the element, and
+  a slice's end is clamped, so both are fine on an empty array. A push loop
   that maps (`for x in xs { out.push(f(x)) }`, of which this port still has
   many) is `xs.map(f)`, but only where that reads better: this port already
   writes `.map(` seven times as densely as the core library, so the loop is not
