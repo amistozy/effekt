@@ -607,7 +607,7 @@ fn[T] Parser::soft_fail_with(
 fn Parser::report(
   self : Parser,
   msg : String,
-  helps : Array[String],
+  helps : ArrayView[String],
   from : Int32,
   to : Int32,
   severity : Severity,
@@ -970,7 +970,7 @@ fn[T] Parser::documented(
 }
 
 ///|
-fn[A] interleave(xs : Array[A], ys : Array[A]) -> Array[A] {
+fn[A] interleave(xs : ArrayView[A], ys : ArrayView[A]) -> Array[A] {
   let result : Array[A] = []
   let mut i = 0
   while i < xs.length() || i < ys.length() {
@@ -986,7 +986,7 @@ fn[A] interleave(xs : Array[A], ys : Array[A]) -> Array[A] {
 }
 
 ///|
-fn join_strings(xs : Array[String], sep : String) -> String {
+fn join_strings(xs : ArrayView[String], sep : String) -> String {
   let buf = StringBuilder()
   for i in 0..<xs.length() {
     if i > 0 {

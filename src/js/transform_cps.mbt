@@ -480,7 +480,7 @@ fn to_js_extern(
 }
 
 ///|
-fn show_tparams(tps : Array[Sym]) -> String {
+fn show_tparams(tps : ArrayView[Sym]) -> String {
   if tps.is_empty() {
     ""
   } else {
@@ -756,7 +756,7 @@ fn can_inline(extern_def : @cps.Extern) -> Bool {
 ///|
 fn inline_extern(
   id : Sym,
-  args : Array[@cps.Expr],
+  args : ArrayView[@cps.Expr],
   ctx : TransformerContext,
 ) -> Expr raise EffektError {
   guard ctx.externs.get(id.uid()) is Some(extern_def) else {

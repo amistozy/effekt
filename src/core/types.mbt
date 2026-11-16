@@ -134,7 +134,7 @@ pub fn t_state_extract(tpe : BlockType) -> ValueType? {
 
 ///|
 /// The surface rendering of a type application: `Name` or `Name[A, B]`.
-fn show_type_application(name : Name, args : Array[ValueType]) -> String {
+fn show_type_application(name : Name, args : ArrayView[ValueType]) -> String {
   if args.is_empty() {
     name.name
   } else {
@@ -144,7 +144,7 @@ fn show_type_application(name : Name, args : Array[ValueType]) -> String {
 
 ///|
 /// A parenthesized type list, `(A, B)`; a single type prints bare.
-fn show_type_list(tpes : Array[ValueType]) -> String {
+fn show_type_list(tpes : ArrayView[ValueType]) -> String {
   tpes.map(t => "\{t}").join(", ")
 }
 
@@ -214,7 +214,7 @@ pub impl Show for BlockType with fn output(self, logger) {
 ///|
 /// Upstream `Type.single`: expressions (and thus FFI calls) produce exactly one
 /// value.
-pub fn single(tpes : Array[ValueType]) -> ValueType raise EffektError {
+pub fn single(tpes : ArrayView[ValueType]) -> ValueType raise EffektError {
   if tpes.length() == 1 {
     return tpes[0]
   }
@@ -228,8 +228,8 @@ pub fn single(tpes : Array[ValueType]) -> ValueType raise EffektError {
 /// function type and drops the parameters, which the arguments have bound.
 pub fn instantiate(
   tpe : BlockType,
-  targs : Array[ValueType],
-  cargs : Array[Captures],
+  targs : ArrayView[ValueType],
+  cargs : ArrayView[Captures],
 ) -> BlockType raise EffektError {
   match tpe {
     FunctionType(tparams, cparams, vparams, bparams, result) => {
@@ -272,7 +272,7 @@ pub fn instantiate(
 /// The ids occurring in a list of capture sets. In `@symbols` the capture
 /// parameters of a function type are stored as (singleton) capture sets, while
 /// upstream core stores the ids directly.
-fn capture_ids(cs : Array[Captures]) -> Array[Sym] {
+fn capture_ids(cs : ArrayView[Captures]) -> Array[Sym] {
   let out : Array[Sym] = []
   for c in cs {
     out.append(c.to_array())

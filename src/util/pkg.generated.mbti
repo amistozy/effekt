@@ -14,7 +14,7 @@ pub fn comma() -> Doc
 
 pub fn compare_string(String, String) -> Int32
 
-pub fn did_you_mean(String, Array[String], (String) -> String?) -> String?
+pub fn did_you_mean(String, ArrayView[String], (String) -> String?) -> String?
 
 pub fn did_you_mean_type(String) -> String?
 
@@ -38,15 +38,15 @@ pub fn edit_distance(String, String, Int32) -> Int32?
 
 pub fn empty_doc() -> Doc
 
-pub fn fill_sep(Array[Doc]) -> Doc
+pub fn fill_sep(ArrayView[Doc]) -> Doc
 
 pub fn fresh_uid() -> Int32
 
-pub fn hcat(Array[Doc]) -> Doc
+pub fn hcat(ArrayView[Doc]) -> Doc
 
-pub fn hsep(Array[Doc]) -> Doc
+pub fn hsep(ArrayView[Doc]) -> Doc
 
-pub fn intercalate(Array[String], Array[Doc]) -> Array[Doc]
+pub fn intercalate(ArrayView[String], ArrayView[Doc]) -> Array[Doc]
 
 pub fn internal_error(String) -> Unit raise EffektError
 
@@ -56,7 +56,7 @@ pub fn nested_at(Int32, Doc) -> Doc
 
 pub fn parens_inner(Doc) -> Doc
 
-pub fn punctuate(Array[Doc], Doc) -> Doc
+pub fn punctuate(ArrayView[Doc], Doc) -> Doc
 
 pub fn render(Doc) -> String
 
@@ -66,9 +66,9 @@ pub fn reset_uid() -> Unit
 
 pub fn text(String) -> Doc
 
-pub fn vcat(Array[Doc]) -> Doc
+pub fn vcat(ArrayView[Doc]) -> Doc
 
-pub fn vsep(Array[Doc]) -> Doc
+pub fn vsep(ArrayView[Doc]) -> Doc
 
 // Errors
 pub(all) suberror EffektError {

@@ -50,7 +50,7 @@ pub(all) struct DeclarationContext {
 }
 
 ///|
-fn extern_def_key(name : String, params : Array[ValueType]) -> String {
+fn extern_def_key(name : String, params : ArrayView[ValueType]) -> String {
   let rendered : Array[String] = params.map(show_core_value_type)
   "\{name}(\{rendered.join(", ")})"
 }
@@ -287,7 +287,7 @@ pub fn DeclarationContext::find_extern_def(
 pub fn DeclarationContext::find_extern_def_by_name(
   self : DeclarationContext,
   name : String,
-  params : Array[ValueType],
+  params : ArrayView[ValueType],
 ) -> Extern? {
   match self.extern_defs_by_name.get(extern_def_key(name, params)) {
     Some(i) => Some(self.externs[i])

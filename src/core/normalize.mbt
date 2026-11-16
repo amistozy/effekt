@@ -167,7 +167,7 @@ priv struct Normalizer {
 /// starts from (upstream: `Normalizer.normalize(entrypoints, m, policy)`).
 pub fn normalize(
   module : ModuleDecl,
-  entrypoints : Array[Sym],
+  entrypoints : ArrayView[Sym],
   policy : InliningPolicy,
 ) -> ModuleDecl raise EffektError {
   let usage = reachable_usage(module, entrypoints)
@@ -870,7 +870,7 @@ fn Normalizer::rewrite_stmt(
 /// here is replaced by the expression it is known to equal.
 fn Normalizer::normalize_let(
   self : Normalizer,
-  bindings : Array[(Sym, Expr)],
+  bindings : ArrayView[(Sym, Expr)],
   body : Stmt,
   ctx : NormCtx,
 ) -> Stmt raise EffektError {
@@ -896,8 +896,8 @@ fn Normalizer::normalize_let(
 /// `body` only applies a variable to the ids (do not eta-expand variables).
 fn Normalizer::joinpoint(
   self : Normalizer,
-  ids : Array[Sym],
-  tpe : Array[ValueType],
+  ids : ArrayView[Sym],
+  tpe : ArrayView[ValueType],
   body : Stmt,
   f : (BlockVar, NormCtx) -> Stmt raise EffektError,
   ctx : NormCtx,
@@ -916,8 +916,8 @@ fn Normalizer::joinpoint(
 ///|
 fn Normalizer::make_joinpoint(
   self : Normalizer,
-  ids : Array[Sym],
-  tpe : Array[ValueType],
+  ids : ArrayView[Sym],
+  tpe : ArrayView[ValueType],
   body : Stmt,
   f : (BlockVar, NormCtx) -> Stmt raise EffektError,
   ctx : NormCtx,
@@ -948,7 +948,7 @@ fn Normalizer::make_joinpoint(
 
 ///|
 /// Whether the given expressions are exactly the given variables, in order.
-fn variables_are(exprs : Array[Expr], ids : Array[Sym]) -> Bool {
+fn variables_are(exprs : ArrayView[Expr], ids : ArrayView[Sym]) -> Bool {
   guard exprs.length() == ids.length() else { return false }
   for i, expr in exprs {
     guard expr is ValueVar(id, _) && id == ids[i] else { return false }
@@ -958,13 +958,13 @@ fn variables_are(exprs : Array[Expr], ids : Array[Sym]) -> Bool {
 
 ///|
 /// Fresh copies of the given ids (upstream: `Id(id.name)`).
-fn fresh_ids(ids : Array[Sym]) -> Array[Sym] {
+fn fresh_ids(ids : ArrayView[Sym]) -> Array[Sym] {
   ids.map(id => Sym::id(id.name()))
 }
 
 ///|
 /// Applies the given block variable to the given values.
-fn jump(k : BlockVar, ids : Array[Sym], tpe : Array[ValueType]) -> Stmt {
+fn jump(k : BlockVar, ids : ArrayView[Sym], tpe : ArrayView[ValueType]) -> Stmt {
   App(
     BlockVar(k),
     [],
@@ -1243,8 +1243,8 @@ fn Normalizer::reduce(
   self : Normalizer,
   b : BlockLit,
   targs : Array[ValueType],
-  vargs : Array[Expr],
-  bargs : Array[Block],
+  vargs : ArrayView[Expr],
+  bargs : ArrayView[Block],
   ctx : NormCtx,
 ) -> Stmt raise EffektError {
   let bindings : Array[Binding] = []
@@ -1416,7 +1416,7 @@ fn Normalizer::normalize_match(
   self : Normalizer,
   scrutinee : Expr,
   tpe : Array[ValueType],
-  clauses : Array[Clause],
+  clauses : ArrayView[Clause],
   default : Stmt?,
   ctx : NormCtx,
 ) -> Stmt raise EffektError {

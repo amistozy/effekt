@@ -10,7 +10,7 @@ import {
 // Values
 pub fn bind_subexpressions(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
-pub fn bindings_to_stmt(Array[Binding], Stmt) -> Stmt
+pub fn bindings_to_stmt(ArrayView[Binding], Stmt) -> Stmt
 
 pub fn block_captures(Block) -> @symbols.Captures
 
@@ -18,7 +18,7 @@ pub fn capture_set(@symbols.Sym) -> @symbols.Captures
 
 pub fn clear_pattern_equality_functions() -> Unit
 
-pub fn deadcode(ModuleDecl, Array[@symbols.Sym]) -> ModuleDecl
+pub fn deadcode(ModuleDecl, ArrayView[@symbols.Sym]) -> ModuleDecl
 
 pub fn direct_style(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
@@ -28,15 +28,15 @@ pub fn free_var_extern_body(ExternBody[Expr]) -> Free
 
 pub fn free_var_module(ModuleDecl) -> Free
 
-pub fn instantiate(BlockType, Array[ValueType], Array[@symbols.Captures]) -> BlockType raise @util.EffektError
+pub fn instantiate(BlockType, ArrayView[ValueType], ArrayView[@symbols.Captures]) -> BlockType raise @util.EffektError
 
 pub fn is_unknown_block_type(BlockType) -> Bool
 
 pub fn is_unknown_value_type(ValueType) -> Bool
 
-pub fn normalize(ModuleDecl, Array[@symbols.Sym], InliningPolicy) -> ModuleDecl raise @util.EffektError
+pub fn normalize(ModuleDecl, ArrayView[@symbols.Sym], InliningPolicy) -> ModuleDecl raise @util.EffektError
 
-pub fn pm_compile(Array[PMClause], ValueType) -> Stmt raise @util.EffektError
+pub fn pm_compile(ArrayView[PMClause], ValueType) -> Stmt raise @util.EffektError
 
 pub fn pm_normalize(PMClause) -> PMClause raise @util.EffektError
 
@@ -66,13 +66,13 @@ pub fn show_core_stmt(Stmt) -> String
 
 pub fn show_core_toplevel(Toplevel) -> String
 
-pub fn show_core_toplevels(Array[Toplevel]) -> String
+pub fn show_core_toplevels(ArrayView[Toplevel]) -> String
 
 pub fn show_core_value_type(ValueType) -> String
 
 pub fn show_phase(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
-pub fn single(Array[ValueType]) -> ValueType raise @util.EffektError
+pub fn single(ArrayView[ValueType]) -> ValueType raise @util.EffektError
 
 pub fn static_arguments(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
@@ -86,7 +86,7 @@ pub fn substitute_block(Block, Substitution) -> Block raise @util.EffektError
 
 pub fn substitute_block_lit(BlockLit, Substitution) -> BlockLit raise @util.EffektError
 
-pub fn substitute_block_lit_call(BlockLit, Array[ValueType], Array[Expr], Array[Block]) -> Stmt raise @util.EffektError
+pub fn substitute_block_lit_call(BlockLit, ArrayView[ValueType], ArrayView[Expr], ArrayView[Block]) -> Stmt raise @util.EffektError
 
 pub fn substitute_block_param(BlockParam, Substitution) -> BlockParam
 
@@ -161,7 +161,7 @@ pub fn[A, B] Bind::flat_map(Self[A], (A) -> Self[B]) -> Self[B]
 pub fn[A, B] Bind::map(Self[A], (A) -> B) -> Self[B]
 pub fn[A] Bind::pure(A) -> Self[A]
 pub fn[A] Bind::run(Self[A], (A) -> Stmt) -> Stmt
-pub fn[S, T] Bind::traverse(Array[S], (S) -> Self[T]) -> Self[Array[T]]
+pub fn[S, T] Bind::traverse(ArrayView[S], (S) -> Self[T]) -> Self[Array[T]]
 
 pub(all) enum Binding {
   BindingVal(Array[@symbols.Sym], Stmt)
@@ -279,7 +279,7 @@ pub fn DeclarationContext::find_data_of_field(Self, Field) -> Declaration?
 pub fn DeclarationContext::find_declaration(Self, @symbols.Sym) -> Declaration?
 pub fn DeclarationContext::find_extern_data(Self, @symbols.Sym) -> Extern?
 pub fn DeclarationContext::find_extern_def(Self, @symbols.Sym) -> Extern?
-pub fn DeclarationContext::find_extern_def_by_name(Self, String, Array[ValueType]) -> Extern?
+pub fn DeclarationContext::find_extern_def_by_name(Self, String, ArrayView[ValueType]) -> Extern?
 pub fn DeclarationContext::find_field(Self, @symbols.Sym) -> Field?
 pub fn DeclarationContext::find_interface(Self, @symbols.Sym) -> Declaration?
 pub fn DeclarationContext::find_interface_of_property(Self, Property) -> Declaration?
@@ -345,9 +345,9 @@ pub fn Free::remove_block(Self, @symbols.Sym) -> Self
 pub fn Free::remove_value(Self, @symbols.Sym) -> Self
 pub fn Free::union(Self, Self) -> Self
 pub fn Free::value(@symbols.Sym, ValueType) -> Self
-pub fn Free::without(Self, Array[ValueParam], Array[BlockParam]) -> Self
-pub fn Free::without_blocks(Self, Array[@symbols.Sym]) -> Self
-pub fn Free::without_values(Self, Array[@symbols.Sym]) -> Self
+pub fn Free::without(Self, ArrayView[ValueParam], ArrayView[BlockParam]) -> Self
+pub fn Free::without_blocks(Self, ArrayView[@symbols.Sym]) -> Self
+pub fn Free::without_values(Self, ArrayView[@symbols.Sym]) -> Self
 
 pub(all) struct FreeBlock {
   id : @symbols.Sym
@@ -504,11 +504,11 @@ pub(all) struct Substitution {
 }
 pub fn Substitution::Substitution(Map[Int32, ValueType], Map[Int32, @symbols.Captures], Map[Int32, Expr], Map[Int32, Block]) -> Self
 pub fn Substitution::empty() -> Self
-pub fn Substitution::shadow_blocks(Self, Array[@symbols.Sym]) -> Self
-pub fn Substitution::shadow_captures(Self, Array[@symbols.Sym]) -> Self
-pub fn Substitution::shadow_params(Self, Array[ValueParam], Array[BlockParam]) -> Self
-pub fn Substitution::shadow_types(Self, Array[@symbols.Sym]) -> Self
-pub fn Substitution::shadow_values(Self, Array[@symbols.Sym]) -> Self
+pub fn Substitution::shadow_blocks(Self, ArrayView[@symbols.Sym]) -> Self
+pub fn Substitution::shadow_captures(Self, ArrayView[@symbols.Sym]) -> Self
+pub fn Substitution::shadow_params(Self, ArrayView[ValueParam], ArrayView[BlockParam]) -> Self
+pub fn Substitution::shadow_types(Self, ArrayView[@symbols.Sym]) -> Self
+pub fn Substitution::shadow_values(Self, ArrayView[@symbols.Sym]) -> Self
 
 pub(all) enum Toplevel {
   ToplevelDef(@symbols.Sym, Block)

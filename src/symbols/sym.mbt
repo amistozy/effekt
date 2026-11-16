@@ -887,7 +887,7 @@ pub impl Show for Captures with fn output(self, logger) {
 }
 
 ///|
-pub fn dedup_syms(xs : Array[Sym]) -> Array[Sym] {
+pub fn dedup_syms(xs : ArrayView[Sym]) -> Array[Sym] {
   let out : Array[Sym] = []
   for x in xs {
     if !out.contains(x) {

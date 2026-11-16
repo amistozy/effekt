@@ -37,7 +37,7 @@ pub fn Substitution::Substitution(
 }
 
 ///|
-fn[V] shadowed(m : Map[Int32, V], ids : Array[Sym]) -> Map[Int32, V] {
+fn[V] shadowed(m : Map[Int32, V], ids : ArrayView[Sym]) -> Map[Int32, V] {
   let copy = m.copy()
   for id in ids {
     copy.remove(id.uid())
@@ -48,7 +48,7 @@ fn[V] shadowed(m : Map[Int32, V], ids : Array[Sym]) -> Map[Int32, V] {
 ///|
 pub fn Substitution::shadow_types(
   self : Substitution,
-  shadowed_ids : Array[Sym],
+  shadowed_ids : ArrayView[Sym],
 ) -> Substitution {
   {
     vtypes: shadowed(self.vtypes, shadowed_ids),
@@ -61,7 +61,7 @@ pub fn Substitution::shadow_types(
 ///|
 pub fn Substitution::shadow_captures(
   self : Substitution,
-  shadowed_ids : Array[Sym],
+  shadowed_ids : ArrayView[Sym],
 ) -> Substitution {
   {
     vtypes: self.vtypes,
@@ -74,7 +74,7 @@ pub fn Substitution::shadow_captures(
 ///|
 pub fn Substitution::shadow_values(
   self : Substitution,
-  shadowed_ids : Array[Sym],
+  shadowed_ids : ArrayView[Sym],
 ) -> Substitution {
   {
     vtypes: self.vtypes,
@@ -87,7 +87,7 @@ pub fn Substitution::shadow_values(
 ///|
 pub fn Substitution::shadow_blocks(
   self : Substitution,
-  shadowed_ids : Array[Sym],
+  shadowed_ids : ArrayView[Sym],
 ) -> Substitution {
   {
     vtypes: self.vtypes,
@@ -100,8 +100,8 @@ pub fn Substitution::shadow_blocks(
 ///|
 pub fn Substitution::shadow_params(
   self : Substitution,
-  vparams : Array[ValueParam],
-  bparams : Array[BlockParam],
+  vparams : ArrayView[ValueParam],
+  bparams : ArrayView[BlockParam],
 ) -> Substitution {
   self
   .shadow_values(vparams.map(p => p.id))
@@ -190,9 +190,9 @@ pub fn block_captures(b : Block) -> Captures {
 /// the given arguments in the body of the block.
 pub fn substitute_block_lit_call(
   block : BlockLit,
-  targs : Array[ValueType],
-  vargs : Array[Expr],
-  bargs : Array[Block],
+  targs : ArrayView[ValueType],
+  vargs : ArrayView[Expr],
+  bargs : ArrayView[Block],
 ) -> Stmt raise EffektError {
   check_arity(targs.length(), block.tparams.length(), "type arguments")
   check_arity(bargs.length(), block.cparams.length(), "capture arguments")

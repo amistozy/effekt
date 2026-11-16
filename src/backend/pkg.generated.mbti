@@ -10,23 +10,23 @@ import {
 }
 
 // Values
-pub fn aggregate(Array[@core.ModuleDecl], String) -> @core.ModuleDecl
+pub fn aggregate(ArrayView[@core.ModuleDecl], String) -> @core.ModuleDecl
 
-pub fn emit(Array[@namer.ResolvedModule], @source.Context) -> String raise @util.EffektError
+pub fn emit(ArrayView[@namer.ResolvedModule], @source.Context) -> String raise @util.EffektError
 
 pub fn exports_of(@symbols.Module) -> Array[@symbols.Sym]
 
 pub fn find_exported(@symbols.Module, String) -> @symbols.Sym?
 
-pub fn find_infix_eqs(Array[@namer.ResolvedModule]) -> Array[@symbols.Sym]
+pub fn find_infix_eqs(ArrayView[@namer.ResolvedModule]) -> Array[@symbols.Sym]
 
-pub fn find_main(Array[@namer.ResolvedModule], @source.Context) -> @symbols.Sym?
+pub fn find_main(ArrayView[@namer.ResolvedModule], @source.Context) -> @symbols.Sym?
 
 pub fn main_name() -> String
 
-pub fn middle_end(Array[@namer.ResolvedModule], @source.Context) -> (@core.ModuleDecl, @symbols.Sym) raise @util.EffektError
+pub fn middle_end(ArrayView[@namer.ResolvedModule], @source.Context) -> (@core.ModuleDecl, @symbols.Sym) raise @util.EffektError
 
-pub fn show_core(Array[@namer.ResolvedModule], @source.Context) -> String raise @util.EffektError
+pub fn show_core(ArrayView[@namer.ResolvedModule], @source.Context) -> String raise @util.EffektError
 
 // Errors
 

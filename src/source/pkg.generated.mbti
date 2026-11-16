@@ -15,7 +15,7 @@ pub fn definition_for_capability(@symbols.Sym, Context) -> BlockParam
 
 pub fn explicit_capabilities(ModuleDecl, Context) -> ModuleDecl raise @util.EffektError
 
-pub fn find_preferred(Array[ExternBody], Context) -> ExternBody?
+pub fn find_preferred(ArrayView[ExternBody], Context) -> ExternBody?
 
 pub fn in_kind() -> TokenKind
 
@@ -256,7 +256,7 @@ pub(all) enum FeatureFlag {
 }
 pub fn FeatureFlag::is_default(Self) -> Bool
 pub fn FeatureFlag::matches(Self, String) -> Bool
-pub fn FeatureFlag::matches_any(Self, Array[String]) -> Bool
+pub fn FeatureFlag::matches_any(Self, ArrayView[String]) -> Bool
 pub impl Show for FeatureFlag
 
 pub(all) enum GuardKind {

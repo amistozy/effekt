@@ -273,7 +273,7 @@ fn collect_order(
 /// `Context.in`), which is what the recorded `.check` file shows.
 fn report_cycle(
   loader : Loader,
-  stack : Array[Visit],
+  stack : ArrayView[Visit],
   from : Int32,
   via : String,
   ctx : Context,
@@ -416,8 +416,8 @@ pub fn module_path_of(file : String) -> String {
 /// `info` messages are hints ("Did you mean ...?"), and upstream reports them
 /// next to the errors they belong to; they are what the negative corpus tests
 /// check for (`[info] path:line:col ...`), so they are rendered as well.
-pub fn render_messages(messages : Array[Message]) -> String {
-  let sorted = messages.copy()
+pub fn render_messages(messages : ArrayView[Message]) -> String {
+  let sorted = messages.to_owned()
   // insertion sort: the lists are short and it keeps the order stable
   for i in 1..<sorted.length() {
     let current = sorted[i]

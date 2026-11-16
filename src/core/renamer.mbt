@@ -35,7 +35,7 @@ fn Renamer::rewrite_id(self : Renamer, id : Sym) -> Sym {
 /// previous scope is restored afterwards, also when `f` fails.
 fn[T] Renamer::with_bindings(
   self : Renamer,
-  ids : Array[Sym],
+  ids : ArrayView[Sym],
   f : () -> T,
 ) -> T {
   let shadowed : Array[(Int32, Sym?)] = []

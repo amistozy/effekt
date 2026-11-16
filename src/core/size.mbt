@@ -5,7 +5,7 @@
 // numbers are comparable with upstream's `--max-inline-size` threshold.
 
 ///|
-fn[T] size_all(xs : Array[T], f : (T) -> Int32) -> Int32 {
+fn[T] size_all(xs : ArrayView[T], f : (T) -> Int32) -> Int32 {
   let mut acc = 0
   for x in xs {
     acc = acc + f(x)

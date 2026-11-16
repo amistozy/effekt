@@ -10,7 +10,7 @@
 
 ///|
 /// Renders a list of statements, one per line.
-pub fn show_stmts(stmts : Array[Stmt]) -> String {
+pub fn show_stmts(stmts : ArrayView[Stmt]) -> String {
   render_width(vsep(stmts.map(d_stmt)), 80)
 }
 
@@ -40,12 +40,12 @@ fn d_name(name : JSName) -> Doc {
 }
 
 ///|
-fn parens_list(docs : Array[Doc]) -> Doc {
+fn parens_list(docs : ArrayView[Doc]) -> Doc {
   parens_inner(punctuate(docs, comma()))
 }
 
 ///|
-fn brackets_list(docs : Array[Doc]) -> Doc {
+fn brackets_list(docs : ArrayView[Doc]) -> Doc {
   brackets_inner(punctuate(docs, comma()))
 }
 
@@ -57,7 +57,7 @@ fn js_block(content : Doc) -> Doc {
 
 ///|
 /// `jsBlock(docs)`. An empty block is printed as `{}`.
-fn js_block_docs(docs : Array[Doc]) -> Doc {
+fn js_block_docs(docs : ArrayView[Doc]) -> Doc {
   if docs.is_empty() {
     text("{}")
   } else {
@@ -67,7 +67,7 @@ fn js_block_docs(docs : Array[Doc]) -> Doc {
 
 ///|
 /// `jsBlock(vsep(docs, sep))`: the documents are interleaved with `sep`.
-fn js_block_sep(docs : Array[Doc]) -> Doc {
+fn js_block_sep(docs : ArrayView[Doc]) -> Doc {
   if docs.is_empty() {
     text("{}")
   } else {
@@ -79,7 +79,7 @@ fn js_block_sep(docs : Array[Doc]) -> Doc {
 /// Upstream effekt's `util.intercalate(a, b)`: `a[0], b[0], a[1], b[1], ...`.
 /// (The `intercalate` of our `@util` package has a different shape, so the JS
 /// printer uses this local version.)
-fn interleave(strings : Array[String], docs : Array[Doc]) -> Array[Doc] {
+fn interleave(strings : ArrayView[String], docs : ArrayView[Doc]) -> Array[Doc] {
   let out : Array[Doc] = []
   for i in 0..<strings.length() {
     out.push(text(strings[i]))
@@ -113,7 +113,7 @@ fn d_expr_atom(e : Expr) -> Doc {
 }
 
 ///|
-fn d_raw(strings : Array[String], args : Array[Expr]) -> Doc {
+fn d_raw(strings : ArrayView[String], args : ArrayView[Expr]) -> Doc {
   hcat(interleave(strings, args.map(d_expr_atom)))
 }
 

@@ -316,7 +316,7 @@ pub fn Unification::propagate(self : Unification) -> String? {
 /// `bounds <: ?x`
 pub fn Unification::require_lower(
   self : Unification,
-  bounds : Array[Sym],
+  bounds : ArrayView[Sym],
   x : Sym,
 ) -> String? {
   match self.capts.get(x.uid()) {
@@ -348,7 +348,7 @@ pub fn Unification::require_lower(
 /// `?x <: bounds`
 pub fn Unification::require_upper(
   self : Unification,
-  bounds : Array[Sym],
+  bounds : ArrayView[Sym],
   x : Sym,
 ) -> String? {
   match self.capts.get(x.uid()) {
@@ -368,7 +368,7 @@ pub fn Unification::require_upper(
           let intersection = up.filter(c => bounds.contains(c))
           self.upper.set(x.uid(), intersection)
         }
-        None => self.upper.set(x.uid(), bounds.copy())
+        None => self.upper.set(x.uid(), bounds.to_owned())
       }
       self.propagate()
     }
@@ -394,7 +394,7 @@ pub fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
 /// Solves capture variables that went out of scope.
 pub fn Unification::solve_all(
   self : Unification,
-  xs : Array[Sym],
+  xs : ArrayView[Sym],
 ) -> Array[String] {
   let errors : Array[String] = []
   for x in xs {

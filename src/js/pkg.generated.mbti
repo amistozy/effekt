@@ -75,7 +75,7 @@ pub fn show_module(Module) -> String
 
 pub fn show_stmt(Stmt) -> String
 
-pub fn show_stmts(Array[Stmt]) -> String
+pub fn show_stmts(ArrayView[Stmt]) -> String
 
 pub fn tag_for(@symbols.Sym, @core.DeclarationContext) -> Expr raise @util.EffektError
 

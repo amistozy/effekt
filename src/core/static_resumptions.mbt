@@ -28,7 +28,7 @@
 
 ///|
 /// A set of symbols, keyed by `uid` (MoonBit maps need `Hash`, `Sym` has none).
-fn sym_set(ids : Array[Sym]) -> Map[Int32, Sym] {
+fn sym_set(ids : ArrayView[Sym]) -> Map[Int32, Sym] {
   let out : Map[Int32, Sym] = Map([])
   for id in ids {
     out.set(id.uid(), id)
@@ -56,7 +56,7 @@ fn captures_of_value_type(tpe : ValueType) -> Captures {
 }
 
 ///|
-fn captures_of_value_types(tpes : Array[ValueType]) -> Captures {
+fn captures_of_value_types(tpes : ArrayView[ValueType]) -> Captures {
   let mut out = Captures::empty()
   for tpe in tpes {
     out = out.union(captures_of_value_type(tpe))
@@ -65,7 +65,7 @@ fn captures_of_value_types(tpes : Array[ValueType]) -> Captures {
 }
 
 ///|
-fn captures_of_block_types(tpes : Array[BlockType]) -> Captures {
+fn captures_of_block_types(tpes : ArrayView[BlockType]) -> Captures {
   let mut out = Captures::empty()
   for tpe in tpes {
     out = out.union(captures_of_block_type(tpe))
@@ -784,7 +784,7 @@ fn escaping_expr(closed : Map[Int32, Sym], e : Expr) -> Bool raise EffektError {
 ///|
 fn exprs_escape(
   closed : Map[Int32, Sym],
-  exprs : Array[Expr],
+  exprs : ArrayView[Expr],
 ) -> Bool raise EffektError {
   exprs.any(e => escaping_expr(closed, e))
 }
@@ -792,7 +792,7 @@ fn exprs_escape(
 ///|
 fn blocks_escape(
   closed : Map[Int32, Sym],
-  blocks : Array[Block],
+  blocks : ArrayView[Block],
 ) -> Bool raise EffektError {
   blocks.any(b => escaping_block(closed, b))
 }
@@ -997,7 +997,7 @@ fn copy(
 fn joinpoint(
   continuation : Continuation,
   result : Array[ValueType],
-  shifts : Array[ShiftInfo],
+  shifts : ArrayView[ShiftInfo],
   blocked : Map[Int32, Sym],
   scope : ((Stmt) -> Stmt raise EffektError) -> Stmt raise EffektError,
 ) -> Stmt? raise EffektError {

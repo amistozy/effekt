@@ -14,7 +14,10 @@ pub fn supported_flags(ctx : Context) -> Array[String] {
 ///|
 /// Picks the body whose feature flag matches, preferring the earliest entry in
 /// the supported list. Returns `None` if no body is applicable.
-pub fn find_preferred(bodies : Array[ExternBody], ctx : Context) -> ExternBody? {
+pub fn find_preferred(
+  bodies : ArrayView[ExternBody],
+  ctx : Context,
+) -> ExternBody? {
   let supported = supported_flags(ctx)
   let mut best : ExternBody? = None
   let mut best_rank = supported.length() + 1
@@ -38,7 +41,10 @@ pub fn find_preferred(bodies : Array[ExternBody], ctx : Context) -> ExternBody? 
 }
 
 ///|
-fn unsupported_error(bodies : Array[ExternBody], ctx : Context) -> ExternBody {
+fn unsupported_error(
+  bodies : ArrayView[ExternBody],
+  ctx : Context,
+) -> ExternBody {
   let flags : Array[String] = bodies.map(b => b.flag().to_string())
   let supported = supported_flags(ctx).join(", ")
   Unsupported(

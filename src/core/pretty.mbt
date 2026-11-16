@@ -13,7 +13,7 @@ pub fn show_core(m : ModuleDecl) -> String {
 
 ///|
 /// Renders a list of toplevel definitions.
-pub fn show_core_toplevels(definitions : Array[Toplevel]) -> String {
+pub fn show_core_toplevels(definitions : ArrayView[Toplevel]) -> String {
   render_width(d_toplevels(definitions), 60)
 }
 
@@ -71,7 +71,7 @@ fn d_id(id : Sym) -> Doc {
 
 ///|
 /// A comma separated list of binders, e.g. the patterns of a `val`.
-fn d_ids(ids : Array[Sym]) -> Doc {
+fn d_ids(ids : ArrayView[Sym]) -> Doc {
   punctuate(ids.map(d_id), comma())
 }
 
@@ -82,17 +82,17 @@ fn emptyline() -> Doc {
 }
 
 ///|
-fn parens_list(docs : Array[Doc]) -> Doc {
+fn parens_list(docs : ArrayView[Doc]) -> Doc {
   parens_inner(punctuate(docs, comma()))
 }
 
 ///|
-fn braces_list(docs : Array[Doc]) -> Doc {
+fn braces_list(docs : ArrayView[Doc]) -> Doc {
   braces_inner(punctuate(docs, comma()))
 }
 
 ///|
-fn brackets_list(docs : Array[Doc]) -> Doc {
+fn brackets_list(docs : ArrayView[Doc]) -> Doc {
   brackets_inner(punctuate(docs, comma()))
 }
 
@@ -157,7 +157,7 @@ fn d_value_type(t : ValueType) -> Doc {
 ///|
 /// A list of types in a position where a single type prints bare:
 /// `Int`, or `(Int, Bool)` for several results.
-fn d_type_list(tpes : Array[ValueType]) -> Doc {
+fn d_type_list(tpes : ArrayView[ValueType]) -> Doc {
   if tpes.length() == 1 {
     d_value_type(tpes[0])
   } else {
@@ -237,7 +237,7 @@ fn d_captures(capt : Captures) -> Doc {
 }
 
 ///|
-fn d_type_params(tps : Array[Sym]) -> Doc {
+fn d_type_params(tps : ArrayView[Sym]) -> Doc {
   if tps.is_empty() {
     empty_doc()
   } else {
@@ -251,10 +251,10 @@ fn d_type_params(tps : Array[Sym]) -> Doc {
 
 ///|
 fn d_params(
-  tps : Array[Sym],
-  cps : Array[Sym],
-  vps : Array[ValueParam],
-  bps : Array[BlockParam],
+  tps : ArrayView[Sym],
+  cps : ArrayView[Sym],
+  vps : ArrayView[ValueParam],
+  bps : ArrayView[BlockParam],
 ) -> Doc {
   let tps_doc = d_type_params(tps)
   let vps_doc = parens_list(vps.map(d_value_param))
@@ -299,9 +299,9 @@ fn d_block_param_with_capture(p : BlockParam, cparam : Sym?) -> Doc {
 
 ///|
 fn d_args(
-  targs : Array[ValueType],
-  vargs : Array[Expr],
-  bargs : Array[Block],
+  targs : ArrayView[ValueType],
+  vargs : ArrayView[Expr],
+  bargs : ArrayView[Block],
 ) -> Doc {
   let targs_doc = if targs.is_empty() {
     empty_doc()
@@ -595,7 +595,7 @@ fn d_block_lit(lit : BlockLit) -> Doc {
 }
 
 ///|
-fn d_match_clauses(clauses : Array[Clause]) -> Doc {
+fn d_match_clauses(clauses : ArrayView[Clause]) -> Doc {
   if clauses.is_empty() {
     text("{}")
   } else {
@@ -634,8 +634,8 @@ fn d_declaration(d : Declaration) -> Doc {
 fn d_type_template(
   kind : Doc,
   id : Sym,
-  tparams : Array[Sym],
-  decls : Array[Doc],
+  tparams : ArrayView[Sym],
+  decls : ArrayView[Doc],
 ) -> Doc {
   let tps = d_type_params(tparams)
   let body = if decls.is_empty() {
@@ -802,7 +802,7 @@ fn d_toplevel(d : Toplevel) -> Doc {
 }
 
 ///|
-fn d_toplevels(definitions : Array[Toplevel]) -> Doc {
+fn d_toplevels(definitions : ArrayView[Toplevel]) -> Doc {
   vsep(definitions.map(d_toplevel))
 }
 

@@ -151,12 +151,19 @@ You can browse and install extra skills here:
 - **Take `ArrayView[T]` when a function only reads a sequence.** An `Array`
   coerces to an `ArrayView` at a call site, so a reader accepts arrays, slices
   and views without copying (`fn in_bindings(bindings, path : ArrayView[String],
-  select)`); the core library has 364 such parameters and this port had none,
-  which showed up as `path[1:].to_owned()` in every recursive step of the
-  namer's path walk (now `path[1:]`). Keep `Array[T]` for a parameter that is
-  mutated, stored in a field or returned, and for results. `Array::append` is
-  the counterpart, and a loop that only copies one array into another is
-  `out.append(xs)` — not `for x in xs { out.push(x) }`; `xs[1:].to_owned()` is
+  select)`); the core library has 364 such parameters and this port now has 259
+  (it had 8 before the sweep). Keep `Array[T]` for a parameter that is mutated,
+  stored in a field, constructor or `assign_*` setter, returned, or handed to a
+  callee that needs the array itself — that is why `IdRef::qualified(path :
+  Array[String], …)`, `PMClause(conditions, …, targs, args)` and
+  `Unification::link(…, filter : Array[Sym])` keep theirs while the readers
+  around them take views. Where the body copies the sequence, the view makes
+  that explicit: `let sorted = messages.to_owned()` (not `messages.copy()`),
+  and `for i in n..<xs.length()` becomes `xs[n:].to_owned()` in `array_drop`
+  (a slice's start clamps, so a negative `n` still yields the whole array).
+  `Array::append` is the counterpart, and a loop that only copies one array into
+  another is `out.append(xs)` — not `for x in xs { out.push(x) }` (a view
+  appends without conversion); `xs[1:].to_owned()` is
   "everything but the first", and `[x] + xs` prepends one element. To take the
   last element off *and* keep the rest, destructure instead of indexing twice:
   `match ids { [.. init, last] => … }`. The rest binding is an `ArrayView`, so

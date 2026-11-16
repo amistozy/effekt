@@ -75,7 +75,7 @@ pub fn Binding::to_toplevel(self : Binding) -> Toplevel raise EffektError {
 
 ///|
 /// Prefixes `body` with the given bindings.
-pub fn bindings_to_stmt(bindings : Array[Binding], body : Stmt) -> Stmt {
+pub fn bindings_to_stmt(bindings : ArrayView[Binding], body : Stmt) -> Stmt {
   bindings.rev_fold(init=body, (acc, b) => b.to_stmt(acc))
 }
 
@@ -165,7 +165,10 @@ pub fn Bind::bind_block(block : Block) -> Bind[Block] {
 }
 
 ///|
-pub fn[S, T] Bind::traverse(l : Array[S], f : (S) -> Bind[T]) -> Bind[Array[T]] {
+pub fn[S, T] Bind::traverse(
+  l : ArrayView[S],
+  f : (S) -> Bind[T],
+) -> Bind[Array[T]] {
   let values : Array[T] = []
   let bindings : Array[Binding] = []
   for x in l {

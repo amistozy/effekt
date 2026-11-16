@@ -169,7 +169,7 @@ pub fn PMClause::PMClause(
 // ---------------------------------------------------------------------------
 
 ///|
-fn[T] pm_drop_first(xs : Array[T]) -> Array[T] {
+fn[T] pm_drop_first(xs : ArrayView[T]) -> Array[T] {
   xs[1:].to_owned()
 }
 
@@ -223,7 +223,7 @@ fn pm_finite_literals(tpe : ValueType) -> Array[LiteralValue]? {
 /// Compiles the given clauses to a (nested) pattern match producing a value of
 /// type `motif`.
 pub fn pm_compile(
-  clauses : Array[PMClause],
+  clauses : ArrayView[PMClause],
   motif : ValueType,
 ) -> Stmt raise EffektError {
   // This shouldn't be reachable anymore since we specialize matching on void
@@ -342,7 +342,7 @@ fn pm_split_on_literal(
   _lit_value : LiteralValue,
   lit_tpe : ValueType,
   eq : PMEquals?,
-  normalized : Array[PMClause],
+  normalized : ArrayView[PMClause],
   motif : ValueType,
 ) -> Stmt raise EffektError {
   // the different literal values that we match on
@@ -443,8 +443,8 @@ fn pm_constructor_field_names(
 fn pm_split_on_tag(
   scrutinee : PMVar,
   _id : Sym,
-  all_variants : Array[Sym],
-  normalized : Array[PMClause],
+  all_variants : ArrayView[Sym],
+  normalized : ArrayView[PMClause],
   motif : ValueType,
 ) -> Stmt raise EffektError {
   // collect all variants that are mentioned in the clauses
@@ -584,7 +584,7 @@ fn pm_split_on_tag(
 /// false. We implement the intended heuristic.
 fn pm_branching_heuristic(
   patterns : Map[Int32, PMVarPattern],
-  clauses : Array[PMClause],
+  clauses : ArrayView[PMClause],
 ) -> PMVar raise EffektError {
   let mut best : PMVar? = None
   let mut best_count = -1
@@ -648,7 +648,7 @@ pub fn pm_normalize(clause : PMClause) -> PMClause raise EffektError {
 ///     case a is Cons => f(a, a)
 fn pm_normalize_conditions(
   patterns : Map[Int32, PMVarPattern],
-  conditions : Array[PMCondition],
+  conditions : ArrayView[PMCondition],
   substitution : Map[Int32, PMVar],
 ) -> (Array[PMCondition], Map[Int32, PMVar]) raise EffektError {
   if conditions.is_empty() {

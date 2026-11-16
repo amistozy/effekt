@@ -60,7 +60,7 @@ fn block_lit_any(lit : BlockLit, p : (Stmt) -> Bool) -> Bool {
 }
 
 ///|
-fn blocks_any(blocks : Array[Block], p : (Stmt) -> Bool) -> Bool {
+fn blocks_any(blocks : ArrayView[Block], p : (Stmt) -> Bool) -> Bool {
   blocks.any(b => block_any(b, p))
 }
 
@@ -76,7 +76,7 @@ fn expr_any(e : Expr, p : (Stmt) -> Bool) -> Bool {
 }
 
 ///|
-fn exprs_any(exprs : Array[Expr], p : (Stmt) -> Bool) -> Bool {
+fn exprs_any(exprs : ArrayView[Expr], p : (Stmt) -> Bool) -> Bool {
   exprs.any(e => expr_any(e, p))
 }
 

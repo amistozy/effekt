@@ -389,7 +389,7 @@ fn and_return(s : Stmt, current : Expr) -> Stmt raise EffektError {
 
 ///|
 /// `val r, state = s; return r` where `tpe` are the types of `r`.
-fn drop_state(s : Stmt, tpe : Array[ValueType], ref : Sym) -> Stmt {
+fn drop_state(s : Stmt, tpe : ArrayView[ValueType], ref : Sym) -> Stmt {
   let results : Array[Sym] = tpe.map(_ => Sym::id(Name::local("r")))
   let returns : Array[Expr] = []
   for i in 0..<results.length() {

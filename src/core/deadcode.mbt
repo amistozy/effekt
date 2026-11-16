@@ -141,7 +141,7 @@ priv struct Reachable {
 ///
 /// Note that a `Property` is registered under its own id and that using it also
 /// marks the enclosing interface as used (`process_definition`).
-fn reachable_new(entrypoints : Array[Sym], m : ModuleDecl) -> Reachable {
+fn reachable_new(entrypoints : ArrayView[Sym], m : ModuleDecl) -> Reachable {
   let defs : Map[Int32, Definition] = Map([])
   for d in m.definitions {
     match d {
@@ -851,7 +851,7 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
 /// `Reachable(entrypoints, m)`).
 fn reachable_usage(
   module : ModuleDecl,
-  entrypoints : Array[Sym],
+  entrypoints : ArrayView[Sym],
 ) -> Map[Int32, Usage] {
   let analysis = reachable_new(entrypoints, module)
   for id in entrypoints {
@@ -867,7 +867,10 @@ fn reachable_usage(
 /// The entry points themselves are always kept, and their usage is `Recursive`
 /// from the start (Reachable.scala:202); pass `core.required_names` alongside
 /// the entry point of the module to keep the names that `core.Show` needs.
-pub fn deadcode(module : ModuleDecl, entrypoints : Array[Sym]) -> ModuleDecl {
+pub fn deadcode(
+  module : ModuleDecl,
+  entrypoints : ArrayView[Sym],
+) -> ModuleDecl {
   let analysis = reachable_new(entrypoints, module)
   for id in entrypoints {
     analysis.process_id(id)

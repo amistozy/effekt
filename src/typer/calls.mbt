@@ -36,8 +36,8 @@ fn indent_message(text : String) -> String {
 fn Typer::tuple_call_hints(
   self : Typer,
   call : CallLike,
-  fun_vps : Array[ValueType],
-  vargs : Array[ValueArg],
+  fun_vps : ArrayView[ValueType],
+  vargs : ArrayView[ValueArg],
 ) -> Array[String] {
   let hints : Array[String] = []
   if fun_vps.length() == 1 && vargs.length() > 1 {
@@ -70,12 +70,12 @@ fn Typer::tuple_call_hints(
 pub fn Typer::check_call_to(
   self : Typer,
   call : CallLike,
-  known_vps : Array[Sym],
-  known_bps : Array[Sym],
+  known_vps : ArrayView[Sym],
+  known_bps : ArrayView[Sym],
   fun_tpe : BlockType,
-  targs : Array[ValueType],
-  vargs : Array[ValueArg],
-  bargs : Array[Term],
+  targs : ArrayView[ValueType],
+  vargs : ArrayView[ValueArg],
+  bargs : ArrayView[Term],
   expected : ValueType?,
   scope : CapScope?,
 ) -> TyRes[ValueType] raise EffektError {
@@ -342,7 +342,9 @@ pub fn Typer::check_call_to(
 /// expected type carries an effect with type arguments go last (upstream
 /// `checkCallTo`). Their capabilities can only be bound once those type
 /// arguments are solved, and the earlier arguments are what solves them.
-fn block_argument_order(bps : Array[BlockType]) -> (Array[Int32], Array[Int32]) {
+fn block_argument_order(
+  bps : ArrayView[BlockType],
+) -> (Array[Int32], Array[Int32]) {
   let without : Array[Int32] = []
   let with_effects : Array[Int32] = []
   for i in 0..<bps.length() {
@@ -379,7 +381,7 @@ fn pluralized(n : Int32, singular : String) -> String {
 /// The arguments of a call, as in "expected 0 value arguments and 1 block
 /// argument" (upstream `assertArgsParamsAlign`'s `formatArgs`). The parts are
 /// already pluralized; the caller passes one per misaligned kind.
-fn format_args(parts : Array[String]) -> String {
+fn format_args(parts : ArrayView[String]) -> String {
   if parts.is_empty() {
     "no arguments"
   } else if parts.length() == 1 {
@@ -429,7 +431,7 @@ fn describe_args(types : Int32, values : Int32, blocks : Int32) -> String {
 /// per attempt and restores the outer one afterwards.
 fn Typer::try_candidates(
   self : Typer,
-  candidates : Array[Sym],
+  candidates : ArrayView[Sym],
   /// Whether this is the only way to type check the call (one scope, one
   /// candidate). Upstream then calls checkCallTo directly instead of inside
   /// Try, so the hints of that candidate are reported even when it fails.
@@ -506,7 +508,7 @@ fn Typer::try_candidates(
 
 ///|
 /// Reports the hints of the overload candidate that was chosen.
-fn Typer::replay_infos(self : Typer, infos : Array[(Span, String)]) -> Unit {
+fn Typer::replay_infos(self : Typer, infos : ArrayView[(Span, String)]) -> Unit {
   for (span, msg) in infos {
     self.ctx.info_at(span, msg)
   }
@@ -519,7 +521,7 @@ fn Typer::replay_infos(self : Typer, infos : Array[(Span, String)]) -> Unit {
 fn implicit_tail_matches(
   provided : Int32,
   total : Int32,
-  params : Array[Sym],
+  params : ArrayView[Sym],
 ) -> Bool {
   if provided > total {
     return false
@@ -546,11 +548,11 @@ fn implicit_tail_matches(
 /// they were defined.
 fn Typer::candidates_in_order(
   self : Typer,
-  candidates : Array[Sym],
+  candidates : ArrayView[Sym],
 ) -> Array[Sym] {
   ignore(self)
   let keys = candidates.map(s => s.name().qualified_name())
-  let sorted = candidates.copy()
+  let sorted = candidates.to_owned()
   let sorted_keys = keys.copy()
   // insertion sort: the lists are short and it is stable
   for i in 1..<sorted.length() {
@@ -590,9 +592,9 @@ pub fn Typer::check_overloaded_function_call(
   self : Typer,
   call : CallLike,
   id : IdRef,
-  targs : Array[ValueType],
-  vargs : Array[ValueArg],
-  bargs : Array[Term],
+  targs : ArrayView[ValueType],
+  vargs : ArrayView[ValueArg],
+  bargs : ArrayView[Term],
   expected : ValueType?,
 ) -> TyRes[ValueType] raise EffektError {
   let sym = self.symbol_of_id(id)
@@ -718,7 +720,9 @@ pub fn Typer::check_overloaded_function_call(
 /// the names padded to the longest one.
 fn Typer::ambiguous_overload_message(
   self : Typer,
-  successes : Array[(Sym, TyRes[ValueType], TyperState, Array[(Span, String)])],
+  successes : ArrayView[
+    (Sym, TyRes[ValueType], TyperState, Array[(Span, String)]),
+  ],
 ) -> String raise EffektError {
   let names : Array[String] = successes.map(s => {
     let (sym, _, _, _) = s
@@ -777,9 +781,9 @@ pub fn Typer::check_overloaded_method_call(
   call_node : Term,
   receiver : Term,
   id : IdRef,
-  targs : Array[ValueType],
-  vargs : Array[ValueArg],
-  bargs : Array[Term],
+  targs : ArrayView[ValueType],
+  vargs : ArrayView[ValueArg],
+  bargs : ArrayView[Term],
   expected : ValueType?,
 ) -> TyRes[ValueType] raise EffektError {
   match receiver.kind {
@@ -913,8 +917,8 @@ pub fn Typer::check_overloaded_method_call(
 /// The first type arguments of a method come from the receiver's interface.
 fn Typer::fill_in_type_arguments(
   self : Typer,
-  tparams : Array[Sym],
-  interface_args : Array[ValueType],
+  tparams : ArrayView[Sym],
+  interface_args : ArrayView[ValueType],
 ) -> Array[ValueType] {
   let out : Array[ValueType] = []
   for i in 0..<tparams.length() {

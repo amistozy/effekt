@@ -32,7 +32,7 @@ fn TypeSubst::lookup(self : TypeSubst, key : Sym) -> ValueType? {
 
 ///|
 /// The substitution without the given (shadowed) type parameters.
-fn TypeSubst::without(self : TypeSubst, shadowed : Array[Sym]) -> TypeSubst {
+fn TypeSubst::without(self : TypeSubst, shadowed : ArrayView[Sym]) -> TypeSubst {
   let keys : Array[Sym] = []
   let values : Array[ValueType] = []
   for i in 0..<self.keys.length() {

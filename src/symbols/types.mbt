@@ -130,7 +130,7 @@ pub fn Effects::distinct(self : Effects) -> Effects {
 }
 
 ///|
-fn dedup_blocks(xs : Array[BlockType]) -> Array[BlockType] {
+fn dedup_blocks(xs : ArrayView[BlockType]) -> Array[BlockType] {
   let out : Array[BlockType] = []
   for x in xs {
     if !out.any(y => interface_type_equal(x, y)) {
@@ -156,7 +156,10 @@ pub fn interface_type_equal(a : BlockType, b : BlockType) -> Bool {
 }
 
 ///|
-pub fn value_types_equal(a : Array[ValueType], b : Array[ValueType]) -> Bool {
+pub fn value_types_equal(
+  a : ArrayView[ValueType],
+  b : ArrayView[ValueType],
+) -> Bool {
   guard a.length() == b.length() else { return false }
   for i in 0..<a.length() {
     guard value_type_equal(a[i], b[i]) else { return false }
@@ -182,8 +185,8 @@ pub fn value_type_equal(a : ValueType, b : ValueType) -> Bool {
 /// The canonical ordering of effects. This must be stable and total on
 /// concrete (unification-variable free) types, otherwise capability passing
 /// gets out of sync — see upstream issue #108.
-pub fn canonical_order(effs : Array[BlockType]) -> Array[BlockType] {
-  let sorted = effs.copy()
+pub fn canonical_order(effs : ArrayView[BlockType]) -> Array[BlockType] {
+  let sorted = effs.to_owned()
   sorted.sort_by((a, b) => canonical_compare(a, b))
   sorted
 }
@@ -205,8 +208,8 @@ pub fn canonical_compare(a : BlockType, b : BlockType) -> Int32 {
 
 ///|
 fn canonical_compare_value_lists(
-  a : Array[ValueType],
-  b : Array[ValueType],
+  a : ArrayView[ValueType],
+  b : ArrayView[ValueType],
 ) -> Int32 {
   let n = if a.length() < b.length() { a.length() } else { b.length() }
   for i in 0..<n {
@@ -260,7 +263,7 @@ pub impl Eq for Effects with fn equal(self, other) {
 /// Type constructors print their *local* name: a `QualifiedName` only matters
 /// where a bare `Name` is interpolated (e.g. "Possible overload:
 /// effekt::infixPlus …"), not inside a type.
-fn show_type_application(name : Name, args : Array[ValueType]) -> String {
+fn show_type_application(name : Name, args : ArrayView[ValueType]) -> String {
   if args.is_empty() {
     name.name
   } else {

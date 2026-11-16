@@ -298,8 +298,8 @@ fn showable_builtins() -> Array[String] {
 /// value parameter of that very type, the type is recovered from the argument.
 fn show_type_argument(
   dctx : DeclarationContext,
-  targs : Array[ValueType],
-  vargs : Array[Expr],
+  targs : ArrayView[ValueType],
+  vargs : ArrayView[Expr],
 ) -> ValueType? raise EffektError {
   if targs.length() == 1 {
     return showable_type(dctx, targs[0])
@@ -589,7 +589,7 @@ fn ShowContext::generate_data_instance(
   dctx : DeclarationContext,
   decl : Declaration,
   id : Sym,
-  targs : Array[ValueType],
+  targs : ArrayView[ValueType],
 ) -> Toplevel raise EffektError {
   let (data_id, data_tparams, constructors) = match decl {
     DeclarationData(id, tparams, constructors) => (id, tparams, constructors)
@@ -737,7 +737,7 @@ fn ShowContext::constructor_stmt(
 ///       PureApp(concat, List(Literal(", "), ...))))))
 fn concat_pure(
   dctx : DeclarationContext,
-  pures : Array[(Sym, Stmt)],
+  pures : ArrayView[(Sym, Stmt)],
 ) -> Expr raise EffektError {
   let infix_concat = find_extern_def(dctx, show_string_concat_name, [
     t_string(),
@@ -764,7 +764,7 @@ fn concat_pure(
 ///|
 /// Binds every shown field with a `Val` and returns the concatenation.
 fn field_val_stmts(
-  pure_fields : Array[(Sym, Stmt)],
+  pure_fields : ArrayView[(Sym, Stmt)],
   concatenated : Expr,
 ) -> Stmt {
   if pure_fields.is_empty() {

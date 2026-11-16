@@ -123,7 +123,7 @@ pub fn FeatureFlag::matches(self : FeatureFlag, name : String) -> Bool {
 ///|
 pub fn FeatureFlag::matches_any(
   self : FeatureFlag,
-  names : Array[String],
+  names : ArrayView[String],
 ) -> Bool {
   match self {
     NamedFeatureFlag(n) => names.any(x => x == n)

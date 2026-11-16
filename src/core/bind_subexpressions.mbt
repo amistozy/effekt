@@ -65,7 +65,7 @@ pub fn bind_subexpressions(module : ModuleDecl) -> ModuleDecl raise EffektError 
 
 ///|
 fn transform_toplevels(
-  definitions : Array[Toplevel],
+  definitions : ArrayView[Toplevel],
   env : Aliases,
 ) -> Array[Toplevel] raise EffektError {
   let out : Array[Toplevel] = []
@@ -272,7 +272,7 @@ fn transform_expr(e : Expr, env : Aliases) -> Bind[Expr] {
 }
 
 ///|
-fn transform_exprs(exprs : Array[Expr], env : Aliases) -> Bind[Array[Expr]] {
+fn transform_exprs(exprs : ArrayView[Expr], env : Aliases) -> Bind[Array[Expr]] {
   Bind::traverse(exprs, e => transform_expr(e, env))
 }
 
@@ -289,7 +289,10 @@ fn transform_block(b : Block, env : Aliases) -> Bind[Block] {
 }
 
 ///|
-fn transform_blocks(blocks : Array[Block], env : Aliases) -> Bind[Array[Block]] {
+fn transform_blocks(
+  blocks : ArrayView[Block],
+  env : Aliases,
+) -> Bind[Array[Block]] {
   Bind::traverse(blocks, b => transform_block(b, env))
 }
 

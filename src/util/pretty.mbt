@@ -78,12 +78,12 @@ pub fn doc_spacecat(a : Doc, b : Doc) -> Doc {
 }
 
 ///|
-pub fn hcat(docs : Array[Doc]) -> Doc {
+pub fn hcat(docs : ArrayView[Doc]) -> Doc {
   docs.fold(init=Empty, doc_cat)
 }
 
 ///|
-pub fn vcat(docs : Array[Doc]) -> Doc {
+pub fn vcat(docs : ArrayView[Doc]) -> Doc {
   match docs.length() {
     0 => Empty
     _ =>
@@ -94,7 +94,7 @@ pub fn vcat(docs : Array[Doc]) -> Doc {
 ///|
 /// Vertical separation: line breaks that become spaces when the enclosing
 /// group fits on one line.
-pub fn vsep(docs : Array[Doc]) -> Doc {
+pub fn vsep(docs : ArrayView[Doc]) -> Doc {
   match docs.length() {
     0 => Empty
     _ => docs[1:].fold(init=docs[0], (acc, d) => doc_cat(acc, doc_cat(Line, d)))
@@ -102,7 +102,7 @@ pub fn vsep(docs : Array[Doc]) -> Doc {
 }
 
 ///|
-pub fn hsep(docs : Array[Doc]) -> Doc {
+pub fn hsep(docs : ArrayView[Doc]) -> Doc {
   match docs.length() {
     0 => Empty
     _ =>
@@ -114,12 +114,12 @@ pub fn hsep(docs : Array[Doc]) -> Doc {
 
 ///|
 /// Like `vsep`, but each separator is a single space when flat.
-pub fn fill_sep(docs : Array[Doc]) -> Doc {
+pub fn fill_sep(docs : ArrayView[Doc]) -> Doc {
   vsep(docs)
 }
 
 ///|
-pub fn punctuate(docs : Array[Doc], sep : Doc) -> Doc {
+pub fn punctuate(docs : ArrayView[Doc], sep : Doc) -> Doc {
   match docs.length() {
     0 => Empty
     _ => docs[1:].fold(init=docs[0], (acc, d) => doc_cat(acc, doc_cat(sep, d)))
@@ -127,7 +127,10 @@ pub fn punctuate(docs : Array[Doc], sep : Doc) -> Doc {
 }
 
 ///|
-pub fn intercalate(seps : Array[String], docs : Array[Doc]) -> Array[Doc] {
+pub fn intercalate(
+  seps : ArrayView[String],
+  docs : ArrayView[Doc],
+) -> Array[Doc] {
   let out : Array[Doc] = []
   for i in 0..<docs.length() {
     if i > 0 && i - 1 < seps.length() {

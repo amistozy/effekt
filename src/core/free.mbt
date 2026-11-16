@@ -96,7 +96,7 @@ pub fn Free::free_blocks(self : Free) -> Array[FreeBlock] {
 
 ///|
 /// Removes the given value variables from the free set.
-pub fn Free::without_values(self : Free, ids : Array[Sym]) -> Free {
+pub fn Free::without_values(self : Free, ids : ArrayView[Sym]) -> Free {
   let values = self.values.copy()
   for id in ids {
     values.remove(id.uid())
@@ -106,7 +106,7 @@ pub fn Free::without_values(self : Free, ids : Array[Sym]) -> Free {
 
 ///|
 /// Removes the given block variables from the free set.
-pub fn Free::without_blocks(self : Free, ids : Array[Sym]) -> Free {
+pub fn Free::without_blocks(self : Free, ids : ArrayView[Sym]) -> Free {
   let blocks = self.blocks.copy()
   for id in ids {
     blocks.remove(id.uid())
@@ -131,8 +131,8 @@ pub fn Free::remove_block(self : Free, id : Sym) -> Free {
 ///|
 pub fn Free::without(
   self : Free,
-  bound_values : Array[ValueParam],
-  bound_blocks : Array[BlockParam],
+  bound_values : ArrayView[ValueParam],
+  bound_blocks : ArrayView[BlockParam],
 ) -> Free {
   self
   .without_values(bound_values.map(p => p.id))
@@ -165,7 +165,7 @@ pub fn capture_set(c : Sym) -> Captures {
 // ---------------------------------------------------------------------------
 
 ///|
-fn[T] free_all(xs : Array[T], f : (T) -> Free) -> Free {
+fn[T] free_all(xs : ArrayView[T], f : (T) -> Free) -> Free {
   let mut acc = Free::empty()
   for x in xs {
     acc = acc.union(f(x))

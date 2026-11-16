@@ -123,7 +123,7 @@ fn option_values(matches : @argparse.Matches, name : String) -> Array[String] {
 /// Parses command line arguments. Diagnostics about malformed arguments are
 /// returned as strings so that the caller can decide how to report them;
 /// argparse renders them with the full usage text already.
-pub fn parse_args(args : Array[String]) -> (Options, Array[String]) {
+pub fn parse_args(args : ArrayView[String]) -> (Options, Array[String]) {
   let opts = Options::default()
   // Everything after the program name is handed to argparse; `env` is empty so
   // that the environment cannot silently provide values.

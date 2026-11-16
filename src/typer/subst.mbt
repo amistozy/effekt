@@ -17,8 +17,8 @@ pub fn Substitutions::empty() -> Substitutions {
 
 ///|
 pub fn Substitutions::types(
-  keys : Array[Sym],
-  values : Array[ValueType],
+  keys : ArrayView[Sym],
+  values : ArrayView[ValueType],
 ) -> Substitutions {
   let m : Map[Int32, ValueType] = Map([])
   for i in 0..<keys.length().min(values.length()) {
@@ -29,8 +29,8 @@ pub fn Substitutions::types(
 
 ///|
 pub fn Substitutions::captures(
-  keys : Array[Sym],
-  values : Array[Captures],
+  keys : ArrayView[Sym],
+  values : ArrayView[Captures],
 ) -> Substitutions {
   let m : Map[Int32, Captures] = Map([])
   for i in 0..<keys.length().min(values.length()) {
@@ -83,8 +83,8 @@ pub fn Substitutions::bind_captures(
 /// Removes the given type and capture parameters (shadowing).
 pub fn Substitutions::without(
   self : Substitutions,
-  tps : Array[Sym],
-  cps : Array[Sym],
+  tps : ArrayView[Sym],
+  cps : ArrayView[Sym],
 ) -> Substitutions {
   let values : Map[Int32, ValueType] = Map([])
   for k, v in self.values {

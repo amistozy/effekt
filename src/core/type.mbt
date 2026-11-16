@@ -32,8 +32,8 @@ fn result_of(tpe : BlockType) -> Array[ValueType] raise EffektError {
 /// placeholder `unknown_block_type()` yields the unknown value type.
 fn instantiated_results(
   tpe : BlockType,
-  targs : Array[ValueType],
-  cargs : Array[Captures],
+  targs : ArrayView[ValueType],
+  cargs : ArrayView[Captures],
 ) -> Array[ValueType] raise EffektError {
   if is_unknown_block_type(tpe) {
     return [unknown_value_type()]
@@ -64,7 +64,7 @@ pub fn Block::infer_capt_or_empty(self : Block) -> Captures {
 ///|
 /// Unions the captures of the given items, as upstream's `allCapt`.
 fn[T] union_captures(
-  xs : Array[T],
+  xs : ArrayView[T],
   f : (T) -> Captures raise EffektError,
 ) -> Captures raise EffektError {
   let mut out = Captures::empty()

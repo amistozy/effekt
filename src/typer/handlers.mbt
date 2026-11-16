@@ -222,8 +222,8 @@ fn Typer::match_declared_value(
 /// They are attached to the arity error that follows them.
 fn Typer::lambda_case_hints(
   self : Typer,
-  vps : Array[ValueType],
-  vparams : Array[@source.ValueParam],
+  vps : ArrayView[ValueType],
+  vparams : ArrayView[@source.ValueParam],
 ) -> Array[String] {
   let hints : Array[String] = []
   if vparams.length() == 1 && vps.length() > 1 {
@@ -809,7 +809,7 @@ pub fn Typer::check_try_handle(
   self : Typer,
   node : Term,
   prog : Stmt,
-  handlers : Array[Handler],
+  handlers : ArrayView[Handler],
   expected : ValueType?,
 ) -> TyRes[ValueType] raise EffektError {
   // (1) extract all handled effects and capabilities
@@ -900,9 +900,9 @@ pub fn Typer::check_try_handle(
 fn Typer::warn_about_handlers(
   self : Typer,
   span : Span,
-  handlers : Array[Handler],
-  capabilities : Array[Sym],
-  effects : Array[BlockType],
+  handlers : ArrayView[Handler],
+  capabilities : ArrayView[Sym],
+  effects : ArrayView[BlockType],
   used : Effects,
 ) -> Unit {
   let explicit : Array[Sym] = []

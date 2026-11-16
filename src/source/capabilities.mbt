@@ -198,8 +198,8 @@ fn with_clause_capabilities(
 fn is_field_call(
   ctx : Context,
   fun : IdRef,
-  vargs : Array[ValueArg],
-  bargs : Array[Term],
+  vargs : ArrayView[ValueArg],
+  bargs : ArrayView[Term],
 ) -> Bool {
   if vargs.length() != 1 || !bargs.is_empty() {
     return false

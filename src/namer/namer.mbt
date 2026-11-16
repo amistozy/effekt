@@ -274,7 +274,7 @@ fn Namer::import_dependency(
 fn Namer::import_as(
   self : Namer,
   bindings : Bindings,
-  path : Array[String],
+  path : ArrayView[String],
 ) -> Unit {
   let mut target = self.imports
   for segment in path {
@@ -435,7 +435,7 @@ fn Namer::lookup_capture(
 /// the imports (upstream: `Scoping.lookupOverloaded`).
 fn Namer::lookup_overloaded_at(
   self : Namer,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
   filter : (Sym) -> Bool,
 ) -> Array[Array[Sym]] raise EffektError {
@@ -667,7 +667,7 @@ fn Namer::bind_block(self : Namer, sym : Sym) -> Unit raise EffektError {
 ///|
 fn Namer::bind_values(
   self : Namer,
-  params : Array[Sym],
+  params : ArrayView[Sym],
 ) -> Unit raise EffektError {
   for p in params {
     self.bind_term(p)
@@ -677,7 +677,7 @@ fn Namer::bind_values(
 ///|
 fn Namer::bind_blocks(
   self : Namer,
-  params : Array[Sym],
+  params : ArrayView[Sym],
 ) -> Unit raise EffektError {
   for p in params {
     self.bind_block(p)
@@ -1072,7 +1072,7 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
 /// through the constructor), for records they are also defined as accessors.
 fn Namer::resolve_fields(
   self : Namer,
-  params : Array[ValueParam],
+  params : ArrayView[ValueParam],
   ctor : Sym,
   define_accessors : Bool,
 ) -> Array[Sym] raise EffektError {
@@ -1649,7 +1649,7 @@ priv enum RequirementLevel {
 /// after implicit ones. Mirrors upstream's `checkImplicitParams`.
 fn Namer::check_implicit_flags(
   self : Namer,
-  flags : Array[(Bool, String, Span)],
+  flags : ArrayView[(Bool, String, Span)],
   level : RequirementLevel,
 ) -> Unit {
   let mut current = level
@@ -1681,7 +1681,7 @@ fn Namer::check_implicit_flags(
 ///|
 fn Namer::check_implicit_value_params(
   self : Namer,
-  params : Array[ValueParam],
+  params : ArrayView[ValueParam],
   level : RequirementLevel,
 ) -> Unit {
   self.check_implicit_flags(
@@ -1693,7 +1693,7 @@ fn Namer::check_implicit_value_params(
 ///|
 fn Namer::check_implicit_block_params(
   self : Namer,
-  params : Array[BlockParam],
+  params : ArrayView[BlockParam],
   level : RequirementLevel,
 ) -> Unit {
   self.check_implicit_flags(
@@ -1881,7 +1881,7 @@ priv enum TargetResolution {
 fn Namer::resolve_target_candidates(
   self : Namer,
   id : IdRef,
-  candidates : Array[Array[Sym]],
+  candidates : ArrayView[Array[Sym]],
 ) -> TargetResolution raise EffektError {
   for terms in candidates {
     // Should not occur by construction.
@@ -2429,7 +2429,7 @@ fn describe_type(t : TypeTree) -> String {
 }
 
 ///|
-fn pretty_source_effect_set(effects : Array[TypeTree]) -> String {
+fn pretty_source_effect_set(effects : ArrayView[TypeTree]) -> String {
   let texts = effects.map(e => tree_text(e))
   if texts.is_empty() {
     "{}"

@@ -107,7 +107,7 @@ pub fn capture_param_of(c : Captures) -> Sym? {
 }
 
 ///|
-pub fn capture_params_of(capts : Array[Captures]) -> Array[Sym] {
+pub fn capture_params_of(capts : ArrayView[Captures]) -> Array[Sym] {
   let out : Array[Sym] = []
   for c in capts {
     if capture_param_of(c) is Some(x) {
@@ -118,7 +118,7 @@ pub fn capture_params_of(capts : Array[Captures]) -> Array[Sym] {
 }
 
 ///|
-pub fn captures_of_params(params : Array[Sym]) -> Array[Captures] {
+pub fn captures_of_params(params : ArrayView[Sym]) -> Array[Captures] {
   params.map(p => @symbols.Captures::CaptureSetOf([p]))
 }
 
@@ -138,7 +138,7 @@ pub fn eff_union(a : Effects, b : Effects) -> Effects {
 }
 
 ///|
-pub fn eff_union_of(effs : Array[Effects]) -> Effects {
+pub fn eff_union_of(effs : ArrayView[Effects]) -> Effects {
   let out : Array[BlockType] = []
   for e in effs {
     for x in e.effects {

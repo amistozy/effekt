@@ -62,7 +62,7 @@ fn trace_equal(a : Trace, b : Trace) -> Bool {
 }
 
 ///|
-fn pattern_under(patterns : Array[(Trace, Pat)], t : Trace) -> Pat? {
+fn pattern_under(patterns : ArrayView[(Trace, Pat)], t : Trace) -> Pat? {
   for entry in patterns {
     if trace_equal(entry.0, t) {
       return Some(entry.1)
@@ -73,7 +73,7 @@ fn pattern_under(patterns : Array[(Trace, Pat)], t : Trace) -> Pat? {
 
 ///|
 fn without_trace(
-  patterns : Array[(Trace, Pat)],
+  patterns : ArrayView[(Trace, Pat)],
   t : Trace,
 ) -> Array[(Trace, Pat)] {
   let out : Array[(Trace, Pat)] = []
@@ -89,7 +89,9 @@ fn without_trace(
 /// Wildcards cover everything, so matching on them is not a condition the
 /// checker has to satisfy: they are dropped, exactly like upstream's
 /// `Clause.normalized`.
-fn normalize_patterns(patterns : Array[(Trace, Pat)]) -> Array[(Trace, Pat)] {
+fn normalize_patterns(
+  patterns : ArrayView[(Trace, Pat)],
+) -> Array[(Trace, Pat)] {
   let out : Array[(Trace, Pat)] = []
   for entry in patterns {
     match entry.1 {
@@ -101,7 +103,7 @@ fn normalize_patterns(patterns : Array[(Trace, Pat)]) -> Array[(Trace, Pat)] {
 }
 
 ///|
-fn normalize_conds(conds : Array[Cond], index : Int32) -> Clause {
+fn normalize_conds(conds : ArrayView[Cond], index : Int32) -> Clause {
   let out : Array[Cond] = []
   for c in conds {
     match c {
@@ -358,9 +360,9 @@ fn Exhaustivity::preprocess(
 ///|
 fn Exhaustivity::check_scrutinees(
   self : Exhaustivity,
-  traces : Array[Trace],
-  tpes : Array[ValueType],
-  clauses : Array[Clause],
+  traces : ArrayView[Trace],
+  tpes : ArrayView[ValueType],
+  clauses : ArrayView[Clause],
 ) -> Unit {
   if traces.length() == 1 {
     self.check_scrutinee(traces[0], tpes[0], clauses)
@@ -380,7 +382,7 @@ fn Exhaustivity::check_scrutinee(
   self : Exhaustivity,
   trace : Trace,
   tpe : ValueType,
-  clauses : Array[Clause],
+  clauses : ArrayView[Clause],
 ) -> Unit {
   let tpe = self.typer.st.u.prune_value(tpe)
   if tpe == @symbols.t_top() {
@@ -416,7 +418,7 @@ fn Exhaustivity::check_other(
   self : Exhaustivity,
   trace : Trace,
   tpe : ValueType,
-  clauses : Array[Clause],
+  clauses : ArrayView[Clause],
 ) -> Unit {
   if clauses.is_empty() {
     self.missing_default(tpe, trace)
@@ -429,8 +431,8 @@ fn Exhaustivity::check_other(
 fn Exhaustivity::check_datatype(
   self : Exhaustivity,
   trace : Trace,
-  constructors : Array[Sym],
-  clauses : Array[Clause],
+  constructors : ArrayView[Sym],
+  clauses : ArrayView[Clause],
 ) -> Unit {
   for ctor in constructors {
     let covered : Array[Clause] = []
@@ -479,7 +481,7 @@ fn push_covered(
 
 ///|
 fn covered_by(
-  table : Array[(@source.LiteralValue, Array[Clause])],
+  table : ArrayView[(@source.LiteralValue, Array[Clause])],
   value : @source.LiteralValue,
 ) -> Array[Clause]? {
   for entry in table {
@@ -495,7 +497,7 @@ fn Exhaustivity::check_literal(
   self : Exhaustivity,
   trace : Trace,
   tpe : ValueType,
-  clauses : Array[Clause],
+  clauses : ArrayView[Clause],
 ) -> Unit {
   let all_literals : Array[@source.LiteralValue] = []
   for cl in clauses {

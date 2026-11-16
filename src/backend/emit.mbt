@@ -25,7 +25,7 @@ pub fn main_name() -> String {
 /// This is what `--show-core` prints and what CPS conversion consumes, together
 /// with the entry point's symbol.
 pub fn middle_end(
-  modules : Array[@namer.ResolvedModule],
+  modules : ArrayView[@namer.ResolvedModule],
   ctx : Context,
 ) -> (@core.ModuleDecl, Sym) raise EffektError {
   if modules.is_empty() {
@@ -124,7 +124,7 @@ fn optimize(
 /// One round of the optimizer's normalization (upstream `Optimizer.normalize`).
 fn normalize_round(
   module : @core.ModuleDecl,
-  roots : Array[Sym],
+  roots : ArrayView[Sym],
   policy : @core.InliningPolicy,
 ) -> @core.ModuleDecl raise EffektError {
   let module = @core.bind_subexpressions(module)
@@ -138,7 +138,7 @@ fn normalize_round(
 ///|
 /// The core program of `modules`, for `--show-core`.
 pub fn show_core(
-  modules : Array[@namer.ResolvedModule],
+  modules : ArrayView[@namer.ResolvedModule],
   ctx : Context,
 ) -> String raise EffektError {
   let (aggregated, _) = middle_end(modules, ctx)
@@ -149,7 +149,7 @@ pub fn show_core(
 /// Compiles the already typechecked modules (dependencies first, main module
 /// last) into a single JavaScript source file.
 pub fn emit(
-  modules : Array[@namer.ResolvedModule],
+  modules : ArrayView[@namer.ResolvedModule],
   ctx : Context,
 ) -> String raise EffektError {
   let (aggregated, main_sym) = middle_end(modules, ctx)
@@ -207,7 +207,10 @@ pub fn find_exported(module : @symbols.Module, name : String) -> Sym? {
 /// with several of them. Namespaced definitions are not part of a module's
 /// exported bindings (the namer opens a scope for a namespace), so the tree is
 /// walked, exactly like `Typer.check_main` does.
-pub fn find_main(modules : Array[@namer.ResolvedModule], ctx : Context) -> Sym? {
+pub fn find_main(
+  modules : ArrayView[@namer.ResolvedModule],
+  ctx : Context,
+) -> Sym? {
   if modules.is_empty() {
     return None
   }
@@ -228,7 +231,7 @@ pub fn find_main(modules : Array[@namer.ResolvedModule], ctx : Context) -> Sym? 
 /// namespaces, in declaration order (the same walk as `Typer.check_main`).
 fn collect_mains(
   ctx : Context,
-  defs : Array[@source.Def],
+  defs : ArrayView[@source.Def],
   out : Array[Sym],
 ) -> Unit {
   for d in defs {
@@ -254,7 +257,7 @@ fn collect_mains(
 
 ///|
 /// The prelude's `infixEq` overloads, used to compile literal patterns.
-pub fn find_infix_eqs(modules : Array[@namer.ResolvedModule]) -> Array[Sym] {
+pub fn find_infix_eqs(modules : ArrayView[@namer.ResolvedModule]) -> Array[Sym] {
   for m in modules {
     if m.module.exports.terms.get("infixEq") is Some(syms) && !syms.is_empty() {
       return syms
@@ -267,7 +270,7 @@ pub fn find_infix_eqs(modules : Array[@namer.ResolvedModule]) -> Array[Sym] {
 /// Concatenates core modules (dependencies first) into one, mirroring
 /// `Compiler.Aggregate`.
 pub fn aggregate(
-  cores : Array[@core.ModuleDecl],
+  cores : ArrayView[@core.ModuleDecl],
   main_path : String,
 ) -> @core.ModuleDecl {
   let declarations : Array[@core.Declaration] = []

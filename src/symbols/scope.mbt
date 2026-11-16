@@ -144,7 +144,7 @@ pub fn Scoping::import_all(self : Scoping, imports : Bindings) -> Unit {
 pub fn Scoping::import_as(
   self : Scoping,
   bindings : Bindings,
-  path : Array[String],
+  path : ArrayView[String],
 ) -> Unit {
   let mut ns = self.scope.bindings()
   for seg in path {
@@ -226,7 +226,7 @@ fn[T] all(
 /// Searches the nested scopes for the first term with the given name.
 pub fn Scoping::lookup_first_term_option(
   self : Scoping,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
 ) -> Sym? raise EffektError {
   first(path, self.scope, b => {
@@ -247,7 +247,7 @@ pub fn Scoping::lookup_first_term_option(
 ///|
 pub fn Scoping::lookup_type_option(
   self : Scoping,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
 ) -> Sym? raise EffektError {
   first(path, self.scope, b => b.types.get(name))
@@ -256,7 +256,7 @@ pub fn Scoping::lookup_type_option(
 ///|
 pub fn Scoping::lookup_capture(
   self : Scoping,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
 ) -> Sym? raise EffektError {
   first(path, self.scope, b => b.captures.get(name))
@@ -265,7 +265,7 @@ pub fn Scoping::lookup_capture(
 ///|
 pub fn Scoping::lookup_overloaded(
   self : Scoping,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
   filter : (Sym) -> Bool,
 ) -> Array[Array[Sym]] {
@@ -275,7 +275,7 @@ pub fn Scoping::lookup_overloaded(
 ///|
 pub fn Scoping::lookup_overloaded_method(
   self : Scoping,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
 ) -> Array[Array[Sym]] {
   all(path, self.scope, b => {
@@ -289,7 +289,7 @@ pub fn Scoping::lookup_overloaded_method(
 /// callee's parameter list is, which is after the namer has run.
 pub fn Scope::lookup_term_option(
   self : Scope,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
 ) -> Sym? raise EffektError {
   first(path, self, b => {
@@ -408,7 +408,7 @@ pub fn lookup_functions_in_scope(
 ///|
 pub fn Scoping::lookup_operation(
   self : Scoping,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
 ) -> Array[Array[Sym]] {
   all(path, self.scope, b => {
@@ -419,7 +419,7 @@ pub fn Scoping::lookup_operation(
 ///|
 pub fn Scoping::lookup_function(
   self : Scoping,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
 ) -> Array[Array[Sym]] {
   all(path, self.scope, b => {
@@ -433,7 +433,7 @@ pub fn Scoping::lookup_function(
 ///|
 pub fn Scoping::lookup_first_block_param(
   self : Scoping,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
 ) -> Array[Sym] raise EffektError {
   first(path, self.scope, b => {
@@ -460,7 +460,7 @@ pub fn Scoping::lookup_first_block_param(
 /// Looks up either a term or a type symbol, disambiguating the two.
 pub fn Scoping::lookup_first_option(
   self : Scoping,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
 ) -> Sym? raise EffektError {
   first(path, self.scope, b => {
@@ -493,7 +493,7 @@ pub fn Scoping::lookup_first_option(
 ///|
 pub fn Scoping::lookup_first(
   self : Scoping,
-  path : Array[String],
+  path : ArrayView[String],
   name : String,
 ) -> Sym raise EffektError {
   guard self.lookup_first_option(path, name) is Some(s) else {

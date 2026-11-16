@@ -37,13 +37,13 @@ pub fn module_path_of(String) -> String
 
 pub fn normalize_separators(String) -> String
 
-pub fn parse_args(Array[String]) -> (Options, Array[String])
+pub fn parse_args(ArrayView[String]) -> (Options, Array[String])
 
 pub fn prelude_paths() -> Array[String]
 
 pub fn read_file(String) -> String?
 
-pub fn render_messages(Array[@util.Message]) -> String
+pub fn render_messages(ArrayView[@util.Message]) -> String
 
 pub fn resolve_includes(@source.ModuleDecl, @util.Source, @source.Context) -> @source.ModuleDecl
 

@@ -893,7 +893,7 @@ fn Typer::using_capture(self : Typer, c : Captures) -> Unit {
 fn Typer::using_capture_without(
   self : Typer,
   c : Captures,
-  filter : Array[Sym],
+  filter : ArrayView[Sym],
 ) -> Unit {
   self.flows_into_without(c, self.st.current, filter, self.focus)
 }
@@ -913,7 +913,7 @@ fn Typer::flows_into_without(
   self : Typer,
   from : Captures,
   to : Captures,
-  filter : Array[Sym],
+  filter : ArrayView[Sym],
   span : Span,
 ) -> Unit {
   let from = self.without(from, filter)
@@ -925,7 +925,7 @@ fn Typer::flows_into_without(
 fn Typer::without(
   self : Typer,
   caps : Captures,
-  others : Array[Sym],
+  others : ArrayView[Sym],
 ) -> Captures {
   if others.is_empty() {
     return caps
@@ -935,7 +935,7 @@ fn Typer::without(
       @symbols.Captures::CaptureSetOf(cs.filter(c => !others.contains(c)))
     @symbols.Captures::CaptVar(x) => {
       let y = self.fresh_capt_var("without")
-      self.st.u.link(y.uid(), x.uid(), others.copy())
+      self.st.u.link(y.uid(), x.uid(), others.to_owned())
       let _ = self.st.u.propagate()
       @symbols.Captures::CaptVar(y)
     }
@@ -1149,7 +1149,7 @@ fn Typer::unknowns_block(self : Typer, t : BlockType) -> Array[String] {
 }
 
 ///|
-fn dedup_syms_strings(xs : Array[String]) -> Array[String] {
+fn dedup_syms_strings(xs : ArrayView[String]) -> Array[String] {
   let out : Array[String] = []
   for x in xs {
     if !out.any(y => y == x) {
@@ -1307,7 +1307,11 @@ pub fn Typer::commit(self : Typer) -> Unit {
 /// Upstream `Context.findMain` walks the exported bindings: the terms of the
 /// module itself first, then its namespaces — the order shows up in the
 /// "Multiple main functions defined" message.
-fn collect_mains(ctx : Context, defs : Array[Def], out : Array[Sym]) -> Unit {
+fn collect_mains(
+  ctx : Context,
+  defs : ArrayView[Def],
+  out : Array[Sym],
+) -> Unit {
   for d in defs {
     match d.kind {
       @source.DefKind::FunDef(id, _, _, _, _, _, _) =>
@@ -1817,7 +1821,7 @@ fn Typer::user_function_type(
   sym : Sym,
   result : ValueType,
   effs : Effects,
-  capabilities : Array[Sym],
+  capabilities : ArrayView[Sym],
 ) -> BlockType {
   let view = sym.as_callable()
   match view {
@@ -2295,7 +2299,7 @@ fn applied_interface(op : Sym) -> BlockType {
 ///|
 pub fn Typer::check_guards(
   self : Typer,
-  guards : Array[MatchGuard],
+  guards : ArrayView[MatchGuard],
 ) -> Effects raise EffektError {
   let mut effs = Effects::empty()
   for g in guards {
@@ -2324,7 +2328,10 @@ fn Typer::check_guard(
 }
 
 ///|
-fn Typer::bind_all(self : Typer, bindings : Array[(Sym, ValueType)]) -> Unit {
+fn Typer::bind_all(
+  self : Typer,
+  bindings : ArrayView[(Sym, ValueType)],
+) -> Unit {
   for (sym, tpe) in bindings {
     self.bind_value(sym, tpe)
   }
@@ -2671,7 +2678,7 @@ fn failure_notes(
 
 ///|
 /// A message with the given notes attached, in order.
-fn with_notes(msg : Message, notes : Array[@util.Subdiagnostic]) -> Message {
+fn with_notes(msg : Message, notes : ArrayView[@util.Subdiagnostic]) -> Message {
   let mut out = msg
   for note in notes {
     out = match note {
@@ -3090,7 +3097,7 @@ fn same_interface_type(a : BlockType, b : BlockType) -> Bool {
 
 ///|
 /// Do two effect sets contain the same interface types (in the same order)?
-fn same_effects(a : Array[BlockType], b : Array[BlockType]) -> Bool {
+fn same_effects(a : ArrayView[BlockType], b : ArrayView[BlockType]) -> Bool {
   guard a.length() == b.length() else { return false }
   for i in 0..<a.length() {
     guard same_interface_type(a[i], b[i]) else { return false }
@@ -3273,7 +3280,7 @@ pub fn Typer::join(
   self : Typer,
   expected : ValueType?,
   kind : JoinKind,
-  tpes_and_terms : Array[(ValueType, Span?)],
+  tpes_and_terms : ArrayView[(ValueType, Span?)],
 ) -> ValueType raise EffektError {
   let mut result : ValueType? = None
   let mut first_span : Span? = None
@@ -3452,8 +3459,8 @@ priv struct Instantiation {
 /// `TypeInstantiator.without`).
 fn Instantiation::without(
   self : Instantiation,
-  tparams : Array[Sym],
-  cparams : Array[Sym],
+  tparams : ArrayView[Sym],
+  cparams : ArrayView[Sym],
 ) -> Instantiation {
   let ts : Array[Sym] = []
   let ta : Array[ValueType] = []
@@ -3487,7 +3494,7 @@ fn Instantiation::without(
 /// though upstream simply widens the variable.
 fn Typer::merge_captures(
   self : Typer,
-  sets : Array[Captures],
+  sets : ArrayView[Captures],
   concrete : Array[Sym],
 ) -> Captures {
   let concrete = concrete.copy()
@@ -3863,7 +3870,7 @@ pub fn Typer::resolve_captures(self : Typer, c : CaptureSetTree) -> Captures {
 }
 
 ///|
-fn dedup_block_types(xs : Array[BlockType]) -> Array[BlockType] {
+fn dedup_block_types(xs : ArrayView[BlockType]) -> Array[BlockType] {
   let out : Array[BlockType] = []
   for x in xs {
     if !out.any(y => interface_type_equal(x, y)) {

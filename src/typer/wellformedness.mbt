@@ -89,7 +89,7 @@ pub fn free_captures_block(t : BlockType) -> Array[Sym] {
 
 ///|
 /// The free type parameters of a value type.
-pub fn free_types_value(t : ValueType, bound : Array[Sym]) -> Array[Sym] {
+pub fn free_types_value(t : ValueType, bound : ArrayView[Sym]) -> Array[Sym] {
   match t {
     @symbols.ValueType::ValueTypeRef(x) =>
       if bound.contains(x) {
@@ -112,7 +112,7 @@ pub fn free_types_value(t : ValueType, bound : Array[Sym]) -> Array[Sym] {
 }
 
 ///|
-pub fn free_types_block(t : BlockType, bound : Array[Sym]) -> Array[Sym] {
+pub fn free_types_block(t : BlockType, bound : ArrayView[Sym]) -> Array[Sym] {
   match t {
     @symbols.BlockType::InterfaceType(_, args) => {
       let out : Array[Sym] = []
@@ -140,7 +140,7 @@ pub fn free_types_block(t : BlockType, bound : Array[Sym]) -> Array[Sym] {
 }
 
 ///|
-fn push_new(out : Array[Sym], xs : Array[Sym]) -> Unit {
+fn push_new(out : Array[Sym], xs : ArrayView[Sym]) -> Unit {
   for x in xs {
     if !out.contains(x) {
       out.push(x)
@@ -153,8 +153,8 @@ fn push_new(out : Array[Sym], xs : Array[Sym]) -> Unit {
 /// escape through an inferred type.
 pub fn Typer::check_no_capture_escape(
   self : Typer,
-  bound : Array[Sym],
-  free : Array[Sym],
+  bound : ArrayView[Sym],
+  free : ArrayView[Sym],
   span : Span,
   msg : String,
 ) -> Unit {
@@ -198,7 +198,7 @@ fn WFScope::empty() -> WFScope {
 
 ///|
 /// Extends the scope by the given captures.
-fn WFScope::bind(self : WFScope, captures : Array[Sym]) -> WFScope {
+fn WFScope::bind(self : WFScope, captures : ArrayView[Sym]) -> WFScope {
   let cs = self.captures.copy()
   for c in captures {
     if !cs.contains(c) {
@@ -210,7 +210,7 @@ fn WFScope::bind(self : WFScope, captures : Array[Sym]) -> WFScope {
 
 ///|
 /// Extends the scope by the given type parameters.
-fn WFScope::bind_types(self : WFScope, types : Array[Sym]) -> WFScope {
+fn WFScope::bind_types(self : WFScope, types : ArrayView[Sym]) -> WFScope {
   let ts = self.types.copy()
   for t in types {
     if !ts.contains(t) {
@@ -255,7 +255,7 @@ fn Typer::wf_capability_captures(self : Typer, uid : Int32) -> Array[Sym] {
 /// tree that a test built by hand may not have a symbol for every parameter.
 fn Typer::wf_param_captures(
   self : Typer,
-  bparams : Array[@source.BlockParam],
+  bparams : ArrayView[@source.BlockParam],
 ) -> Array[Sym] {
   let out : Array[Sym] = []
   for bp in bparams {
@@ -362,7 +362,7 @@ fn Typer::wf_check_types(
 /// The type parameters an `Array[IdDef]` binds, as symbols.
 fn Typer::wf_type_param_symbols(
   self : Typer,
-  tparams : Array[IdDef],
+  tparams : ArrayView[IdDef],
 ) -> Array[Sym] {
   let out : Array[Sym] = []
   for tp in tparams {
@@ -430,7 +430,7 @@ fn Typer::wf_check_handled(
   tpe : ValueType,
   span : Span,
   scope : WFScope,
-  bound : Array[Sym],
+  bound : ArrayView[Sym],
 ) -> Unit {
   if self.wf_aborted {
     return
@@ -772,8 +772,8 @@ fn Typer::wf_type_arguments(
 ///|
 fn Typer::wf_args(
   self : Typer,
-  vargs : Array[ValueArg],
-  bargs : Array[Term],
+  vargs : ArrayView[ValueArg],
+  bargs : ArrayView[Term],
   scope : WFScope,
 ) -> Unit {
   for a in vargs {
@@ -787,7 +787,7 @@ fn Typer::wf_args(
 ///|
 fn Typer::wf_guards(
   self : Typer,
-  guards : Array[MatchGuard],
+  guards : ArrayView[MatchGuard],
   scope : WFScope,
 ) -> Unit {
   for g in guards {

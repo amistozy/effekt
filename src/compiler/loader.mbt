@@ -121,7 +121,7 @@ pub fn Loader::set_prelude_roots(self : Loader, roots : Array[String]) -> Unit {
 }
 
 ///|
-fn locate_in(roots : Array[String], path : String) -> String? {
+fn locate_in(roots : ArrayView[String], path : String) -> String? {
   for root in roots {
     let candidate = join_path(root, "\{path}.effekt")
     if file_exists(candidate) {

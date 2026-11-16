@@ -39,7 +39,7 @@ fn IsStatic::allows_the_translation(self : IsStatic) -> Bool {
 ///|
 /// The arguments whose parameter is not static (upstream `dropStatic`). `zip`
 /// truncates, as upstream's does.
-fn[T] drop_static(static : Array[Bool], args : Array[T]) -> Array[T] {
+fn[T] drop_static(static : ArrayView[Bool], args : ArrayView[T]) -> Array[T] {
   let out : Array[T] = []
   let n = if static.length() < args.length() {
     static.length()
@@ -56,7 +56,7 @@ fn[T] drop_static(static : Array[Bool], args : Array[T]) -> Array[T] {
 
 ///|
 /// The arguments whose parameter is static (upstream `selectStatic`).
-fn[T] select_static(static : Array[Bool], args : Array[T]) -> Array[T] {
+fn[T] select_static(static : ArrayView[Bool], args : ArrayView[T]) -> Array[T] {
   let out : Array[T] = []
   let n = if static.length() < args.length() {
     static.length()

@@ -105,7 +105,7 @@ fn equal_ignoring_case(a : String, b : String) -> Bool {
 /// hard-coded heuristic for names that are common in other languages.
 pub fn did_you_mean(
   name : String,
-  candidates : Array[String],
+  candidates : ArrayView[String],
   specific : (String) -> String?,
 ) -> String? {
   match specific(name) {

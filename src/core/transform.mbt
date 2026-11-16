@@ -161,14 +161,8 @@ fn Transformer::calling_convention(
 // ---------------------------------------------------------------------------
 
 ///|
-fn[T] array_drop(xs : Array[T], n : Int32) -> Array[T] {
-  let out : Array[T] = []
-  for i in n..<xs.length() {
-    if i >= 0 {
-      out.push(xs[i])
-    }
-  }
-  out
+fn[T] array_drop(xs : ArrayView[T], n : Int32) -> Array[T] {
+  xs[n:].to_owned()
 }
 
 // ---------------------------------------------------------------------------
@@ -1041,7 +1035,7 @@ fn interface_operations(sym : Sym) -> Array[Sym] {
 fn Transformer::type_constructor_tparams_of(
   self : Transformer,
   sym : Sym,
-  from_source : Array[@source.IdDef],
+  from_source : ArrayView[@source.IdDef],
 ) -> Array[Sym] {
   let tparams = type_constructor_tparams(sym)
   guard tparams.is_empty() else { return tparams }
@@ -1083,7 +1077,7 @@ fn Transformer::transform_constructor(
 /// Transforms the resolved extern bodies of an `ExternType` or `ExternDef`.
 fn Transformer::transform_extern_bodies(
   self : Transformer,
-  bodies : Array[@source.ExternBody],
+  bodies : ArrayView[@source.ExternBody],
   what : String,
 ) -> ExternBody[Expr] raise EffektError {
   if bodies.length() != 1 {
@@ -1529,7 +1523,9 @@ fn Transformer::transform_as_expr(
 
 ///|
 /// If the guard list is exactly one boolean guard, return its condition.
-fn single_boolean_guard(guards : Array[@source.MatchGuard]) -> @source.Term? {
+fn single_boolean_guard(
+  guards : ArrayView[@source.MatchGuard],
+) -> @source.Term? {
   if guards.length() != 1 {
     return None
   }
@@ -1827,8 +1823,8 @@ fn Transformer::transform_as_stmt(
 fn Transformer::transform_match(
   self : Transformer,
   tree : @source.Term,
-  scs : Array[@source.Term],
-  cs : Array[@source.MatchClause],
+  scs : ArrayView[@source.Term],
+  cs : ArrayView[@source.MatchClause],
   default : @source.Stmt?,
 ) -> Stmt raise EffektError {
   // (1) Bind scrutinee and all clauses so we do not have to deal with sharing
@@ -1877,8 +1873,8 @@ fn Transformer::make_function_call(
   self : Transformer,
   call : @source.Term,
   sym : Sym,
-  vargs : Array[@source.ValueArg],
-  bargs : Array[@source.Term],
+  vargs : ArrayView[@source.ValueArg],
+  bargs : ArrayView[@source.Term],
 ) -> Stmt raise EffektError {
   let targs = self
     .type_arguments_of(call)
@@ -2251,7 +2247,7 @@ fn Transformer::operation_at_callsite(
 /// interface.
 fn Transformer::operation_at_declaration(
   self : Transformer,
-  tparams_interface : Array[Sym],
+  tparams_interface : ArrayView[Sym],
   op : Sym,
 ) -> BlockType raise EffektError {
   match op {
@@ -2320,7 +2316,7 @@ pub(all) struct ScrutineePattern {
 fn Transformer::preprocess(
   self : Transformer,
   label : String,
-  scs : Array[Expr],
+  scs : ArrayView[Expr],
   clause : @source.MatchClause,
 ) -> PMClause raise EffektError {
   let patterns : Array[ScrutineePattern] = []
@@ -2344,8 +2340,8 @@ fn Transformer::preprocess(
 fn Transformer::preprocess_patterns(
   self : Transformer,
   label : String,
-  patterns : Array[ScrutineePattern],
-  guards : Array[@source.MatchGuard],
+  patterns : ArrayView[ScrutineePattern],
+  guards : ArrayView[@source.MatchGuard],
   body : Stmt,
 ) -> PMClause raise EffektError {
   // create joinpoint
