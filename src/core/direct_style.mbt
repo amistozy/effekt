@@ -46,10 +46,10 @@ fn stmt_can_be_direct(s : Stmt) -> Bool {
 /// Some rewrites change the answer type of a `match` or a hole to the type the
 /// join point is called with, which is its result.
 fn joinpoint_results(label : BlockVar) -> Array[ValueType] raise EffektError {
-  match label.annotated_tpe {
-    FunctionType(_, _, _, _, result) => result
-    _ => raise EffektError::Internal("Join points need to have a function type")
+  guard label.annotated_tpe is FunctionType(_, _, _, _, result) else {
+    raise EffektError::Internal("Join points need to have a function type")
   }
+  result
 }
 
 ///|

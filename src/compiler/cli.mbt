@@ -101,10 +101,7 @@ fn flag(matches : @argparse.Matches, name : String) -> Bool {
 ///|
 /// The first value of an option, if it was given.
 fn option(matches : @argparse.Matches, name : String) -> String? {
-  match matches.values.get(name) {
-    Some(values) => if !values.is_empty() { Some(values[0]) } else { None }
-    None => None
-  }
+  matches.values.get(name).bind(values => values.get(0))
 }
 
 ///|

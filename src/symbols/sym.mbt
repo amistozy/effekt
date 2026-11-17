@@ -748,43 +748,33 @@ pub fn field_return_type(f : Sym) -> ValueType {
 /// The type of a callable: `annotatedType` upstream. Only defined when the
 /// callable has both a result type and an effect annotation.
 pub fn Sym::annotated_type(self : Sym) -> BlockType? {
-  let c = self.as_callable()
-  match c {
-    None => None
-    Some(c) =>
-      match (c.annotated_result, c.annotated_effects) {
-        (Some(ret), Some(effs)) => {
-          let vps : Array[ValueType] = []
-          for v in c.vparams {
-            match v {
-              ValueParam(p) => if p.tpe is Some(t) { vps.push(t) }
-              _ => ()
-            }
-          }
-          let bcapt : Array[Captures] = []
-          let bps : Array[BlockType] = []
-          for b in c.bparams {
-            match b {
-              BlockParam(bp) => {
-                bcapt.push(CaptureSetOf([bp.capture]))
-                if bp.tpe is Some(t) {
-                  bps.push(t)
-                }
-              }
-              _ => ()
-            }
-          }
-          let distinct = effs.distinct()
-          let capt : Array[Captures] = canonical_order(distinct.effects).map(e => {
-            CaptureSetOf([
-              Sym::capture_param(e.interface_name().unwrap_or(Name::anon())),
-            ])
-          })
-          Some(FunctionType(c.tparams, bcapt + capt, vps, bps, ret, distinct))
-        }
-        (_, _) => None
-      }
+  guard self.as_callable() is Some(c) else { return None }
+  guard (c.annotated_result, c.annotated_effects) is (Some(ret), Some(effs)) else {
+    return None
   }
+  let vps : Array[ValueType] = []
+  for v in c.vparams {
+    if v is ValueParam(p) && p.tpe is Some(t) {
+      vps.push(t)
+    }
+  }
+  let bcapt : Array[Captures] = []
+  let bps : Array[BlockType] = []
+  for b in c.bparams {
+    if b is BlockParam(bp) {
+      bcapt.push(CaptureSetOf([bp.capture]))
+      if bp.tpe is Some(t) {
+        bps.push(t)
+      }
+    }
+  }
+  let distinct = effs.distinct()
+  let capt : Array[Captures] = canonical_order(distinct.effects).map(e => {
+    CaptureSetOf([
+      Sym::capture_param(e.interface_name().unwrap_or(Name::anon())),
+    ])
+  })
+  Some(FunctionType(c.tparams, bcapt + capt, vps, bps, ret, distinct))
 }
 
 // ---------------------------------------------------------------------------

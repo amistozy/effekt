@@ -763,11 +763,7 @@ fn Typer::check_pending_matches(self : Typer) -> Unit {
     // the committed annotations hold the final types
     let types : Array[ValueType] = []
     for i in 0..<pending.scrutinees.length() {
-      let from_annotation = match
-        self.ctx.value_type_of(pending.scrutinees[i].uid) {
-        Some(t) => Some(t)
-        None => None
-      }
+      let from_annotation = self.ctx.value_type_of(pending.scrutinees[i].uid)
       let t = match from_annotation {
         Some(t) => t
         None =>

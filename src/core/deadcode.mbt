@@ -151,19 +151,16 @@ fn reachable_new(entrypoints : ArrayView[Sym], m : ModuleDecl) -> Reachable {
   }
   for d in m.declarations {
     defs.set(d.id().uid(), DefDeclaration(d))
-    match d {
-      DeclarationData(_, _, _) => ()
-      DeclarationInterface(_, _, properties) =>
-        for p in properties {
-          defs.set(p.id.uid(), DefProperty(p, d))
-        }
+    if d is DeclarationInterface(_, _, properties) {
+      for p in properties {
+        defs.set(p.id.uid(), DefProperty(p, d))
+      }
     }
   }
   for e in m.externs {
-    match e {
-      // only extern *definitions* have a body that can be reached
-      ExternDef(id, _, _, _, _, _, _, _, _) => defs.set(id.uid(), DefExtern(e))
-      _ => ()
+    // only extern *definitions* have a body that can be reached
+    if e is ExternDef(id, _, _, _, _, _, _, _, _) {
+      defs.set(id.uid(), DefExtern(e))
     }
   }
   let reachable : Map[Int32, Usage] = Map([])
@@ -293,24 +290,19 @@ fn Reachable::process_block_tpe(self : Reachable, b : Block) -> Unit {
 /// `process(e: Extern.Def)` (Reachable.scala:67): the type and capture
 /// parameters are not processed.
 fn Reachable::process_extern(self : Reachable, e : Extern) -> Unit {
-  match e {
-    ExternDef(_, _, _, _, vparams, bparams, ret, _, body) => {
-      for p in vparams {
-        self.process_value_type(p.tpe)
-      }
-      for p in bparams {
-        self.process_block_type(p.tpe)
-      }
-      self.process_value_type(ret)
-      match body {
-        StringExternBody(_, contents) =>
-          for arg in contents.args {
-            self.process_expr(arg)
-          }
-        Unsupported(_) => ()
+  if e is ExternDef(_, _, _, _, vparams, bparams, ret, _, body) {
+    for p in vparams {
+      self.process_value_type(p.tpe)
+    }
+    for p in bparams {
+      self.process_block_type(p.tpe)
+    }
+    self.process_value_type(ret)
+    if body is StringExternBody(_, contents) {
+      for arg in contents.args {
+        self.process_expr(arg)
       }
     }
-    _ => ()
   }
 }
 
@@ -778,10 +770,7 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
           clauses2.push(Clause(clause.tag, self.rewrite_block_lit(clause.body)))
         }
       }
-      let default2 = match default {
-        Some(body) => Some(self.rewrite_stmt(body))
-        None => None
-      }
+      let default2 = default.map(body => self.rewrite_stmt(body))
       Match(self.rewrite_expr(scrutinee), annotated, clauses2, default2)
     }
 

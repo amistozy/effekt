@@ -550,13 +550,11 @@ fn Namer::name_for(self : Namer, id : IdDef) -> Name {
 
 ///|
 fn Namer::require_toplevel(self : Namer, kind : String, span : Span) -> Unit {
-  match self.path() {
-    None =>
-      self.context.error(
-        span,
-        "\{kind} declarations are only allowed on the toplevel of a module or in a namespace.",
-      )
-    Some(_) => ()
+  if self.path() is None {
+    self.context.error(
+      span,
+      "\{kind} declarations are only allowed on the toplevel of a module or in a namespace.",
+    )
   }
 }
 
@@ -717,10 +715,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       match binding.kind {
         @source.New(implementation) => {
           let tpe = self.resolve_block_ref(implementation.interface)
-          let caps = match captures {
-            Some(cs) => Some(self.resolve_capture_set(cs).to_array())
-            None => None
-          }
+          let caps = captures.map(cs => self.resolve_capture_set(cs).to_array())
           self.define_def(
             d,
             id,
@@ -731,10 +726,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
       }
     @source.FunDef(id, tparams, vparams, bparams, captures, annot, _) => {
       let unique = self.name_for(id)
-      let caps = match captures {
-        Some(cs) => Some(self.resolve_capture_set(cs).to_array())
-        None => None
-      }
+      let caps = captures.map(cs => self.resolve_capture_set(cs).to_array())
       // We create a new scope, since resolving type params introduces them.
       let sym = self.in_local_scope(() => {
         let tps = tparams.map(t => self.resolve_type_param(t))
@@ -895,19 +887,13 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
   self.with_definition(d, () => {
     match d.kind {
       @source.ValDef(id, annot, binding) => {
-        let tpe = match annot {
-          Some(t) => Some(self.resolve_value_type(t, false))
-          None => None
-        }
+        let tpe = annot.map(t => self.resolve_value_type(t, false))
         self.resolve_stmt(binding)
         self.define_def(d, id, mk_val_binder(self.name_for(id), tpe, d.span))
       }
       // Local mutable state
       @source.VarDef(id, annot, binding) => {
-        let tpe = match annot {
-          Some(t) => Some(self.resolve_value_type(t, false))
-          None => None
-        }
+        let tpe = annot.map(t => self.resolve_value_type(t, false))
         self.resolve_stmt(binding)
         let name = self.name_for(id)
         let sym = mk_var_binder(
@@ -921,10 +907,7 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
       }
       // Allocation into a region
       @source.RegDef(id, annot, region, binding) => {
-        let tpe = match annot {
-          Some(t) => Some(self.resolve_value_type(t, false))
-          None => None
-        }
+        let tpe = annot.map(t => self.resolve_value_type(t, false))
         let reg = self.resolve_id_ref(region)
         if !reg.is_block_symbol() {
           self.context.abort(region.span, "Region needs to be a block.")
@@ -942,15 +925,11 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
           @source.New(implementation) =>
             self.resolve_implementation(implementation)
           _ => {
-            let tpe = match annot {
-              Some(t) => Some(self.resolve_block_type(t, false))
-              None => None
-            }
+            let tpe = annot.map(t => self.resolve_block_type(t, false))
             self.resolve_term(binding)
-            let caps = match captures {
-              Some(cs) => Some(self.resolve_capture_set(cs).to_array())
-              None => None
-            }
+            let caps = captures.map(cs => {
+              self.resolve_capture_set(cs).to_array()
+            })
             self.define_def(
               d,
               id,
@@ -1566,10 +1545,7 @@ fn Namer::resolve_value_param(
   param : ValueParam,
   is_param : Bool,
 ) -> Sym raise EffektError {
-  let tpe = match param.tpe {
-    Some(t) => Some(self.resolve_value_type(t, is_param))
-    None => None
-  }
+  let tpe = param.tpe.map(t => self.resolve_value_type(t, is_param))
   let sym = mk_value_param(
     name_of_id(param.id),
     tpe,
@@ -1595,10 +1571,7 @@ fn Namer::resolve_block_param(
   param : BlockParam,
 ) -> Sym raise EffektError {
   let name = name_of_id(param.id)
-  let tpe = match param.tpe {
-    Some(t) => Some(self.resolve_block_type(t, true))
-    None => None
-  }
+  let tpe = param.tpe.map(t => self.resolve_block_type(t, true))
   let sym = mk_block_param(
     name,
     tpe,

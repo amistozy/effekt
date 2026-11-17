@@ -192,10 +192,7 @@ pub fn exports_of(module : @symbols.Module) -> Array[Sym] {
 ///|
 /// Finds a term by name among the exported terms of a module.
 pub fn find_exported(module : @symbols.Module, name : String) -> Sym? {
-  match module.exports.terms.get(name) {
-    Some(syms) => if syms.is_empty() { None } else { Some(syms[0]) }
-    None => None
-  }
+  module.exports.terms.get(name).bind(syms => syms.get(0))
 }
 
 ///|

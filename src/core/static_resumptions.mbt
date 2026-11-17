@@ -480,10 +480,7 @@ fn tail_positions(s : Stmt) -> TailPositions? raise EffektError {
           let rewritten = clauses.map(clause => {
             Clause(clause.tag, { ..clause.body, body: f(clause.body.body), })
           })
-          let default = match default {
-            Some(body) => Some(f(body))
-            None => None
-          }
+          let default = default.map(f)
           Match(scrutinee, tpe, rewritten, default)
         },
         before: scrutinee.free(),
@@ -787,14 +784,10 @@ fn blocks_escape(
 fn blocked_prompts(module : ModuleDecl) -> Map[Int32, Sym] raise EffektError {
   let out : Map[Int32, Sym] = Map([])
   let on_stmt = (s : Stmt) => {
-    match s {
-      Shift(prompt, _, _) =>
-        if shift_info_of(s) is Some(shift) {
-          if !(shift.resumes_only() && !escapes(shift.k, shift.body())) {
-            out.set(prompt.id.uid(), prompt.id)
-          }
-        }
-      _ => ()
+    if s is Shift(prompt, _, _) &&
+      shift_info_of(s) is Some(shift) &&
+      !(shift.resumes_only() && !escapes(shift.k, shift.body())) {
+      out.set(prompt.id.uid(), prompt.id)
     }
   }
   let rewrite = Rewrite(
@@ -807,15 +800,13 @@ fn blocked_prompts(module : ModuleDecl) -> Map[Int32, Sym] raise EffektError {
     Some((_rewrite, b) => {
       match b {
         BlockVar(v) =>
-          match v.annotated_tpe {
-            PromptType(_) => out.set(v.id.uid(), v.id)
-            _ => ()
+          if v.annotated_tpe is PromptType(_) {
+            out.set(v.id.uid(), v.id)
           }
         BlockLit(lit) =>
           for param in lit.bparams {
-            match param.tpe {
-              PromptType(_) => out.set(param.id.uid(), param.id)
-              _ => ()
+            if param.tpe is PromptType(_) {
+              out.set(param.id.uid(), param.id)
             }
           }
         _ => ()

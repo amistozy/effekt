@@ -889,10 +889,7 @@ fn ShowContext::transform_default(
   dctx : DeclarationContext,
   default : Stmt?,
 ) -> Stmt? raise EffektError {
-  match default {
-    None => None
-    Some(value) => Some(self.transform_stmt(dctx, value))
-  }
+  default.map(value => self.transform_stmt(dctx, value))
 }
 
 ///|

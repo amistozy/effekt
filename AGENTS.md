@@ -316,6 +316,15 @@ You can browse and install extra skills here:
   `match` into one statement: `guard self.ctx.symbol_of(id.uid) is Some(s) else
   { raise … }` then `s`; the condition may combine it with `&&`
   (`guard expr is ValueVar(id, _) && id == ids[i] else { return false }`).
+  A `match` whose only job is to destructure one constructor and abort otherwise
+  is that statement too: `match e { ValueVar(id, tpe) => PMVar(id, tpe), _ =>
+  raise … }` is `guard e is ValueVar(id, tpe) else { raise … }` followed by the
+  body, and a check that only *tests* the shape returns the subject afterwards
+  (`guard t is FunctionType(…) else { return None }` then `t`). The `else` block
+  may even be a plain call when the abort is generic in its result:
+  `Typer::abort`/`abort_message` are `fn[T] … -> T raise`, so
+  `guard t is BlockType::InterfaceType(_, _) else { self.abort(span, msg) }`
+  type-checks in a function returning `BlockType`.
   Two limits come from the type checker and shape where a guard can go: a
   *value* `else` block is only accepted where the expected type is the
   function's result type, so inside an `if` or `for` body (expected `Unit`) it
@@ -327,9 +336,18 @@ You can browse and install extra skills here:
   Some(x) { … }` binds `x` in the condition and replaces
   `match e { Some(x) => …, None => () }` (a shape the core library writes 1489
   times); the same works for any constructor pattern
-  (`if phase is Failed(kind, message) { … }`). A `match` stays when both arms do
+  (`if phase is Failed(kind, message) { … }`). A no-op arm spelled with a
+  catch-all is the same thing and disappears with the `match`: `match d {
+  ToplevelDef(id, block) => …, ToplevelVal(_, _) => () }` is
+  `if d is ToplevelDef(id, block) { … }`, and `match p { Some(PMTag(cid, _, _,
+  _)) => …, _ => () }` is the pattern form. The condition chains a second `is`
+  and any number of ordinary tests, which is how a three-deep nest collapses:
+  `if cap is BlockParam(bp) && bp.tpe is Some(bt) { … }`,
+  `if s is Shift(prompt, _, _) && shift_info_of(s) is Some(shift) &&
+  !(shift.resumes_only() && …) { … }`. A `match` stays when two arms both do
   something, when the result is a value, or when the arms are themselves
-  patterns of a larger match.
+  patterns of a larger match (`match b { BlockVar(v) => …, BlockLit(lit) => …,
+  _ => () }` keeps its shape; only the inner nesting became an `if`).
 
 - **An `Option` that is mapped, defaulted or filtered is a combinator, not a
   `match`.** The transliterated forms are easy to spot and this port had 29 + 14
@@ -353,6 +371,15 @@ You can browse and install extra skills here:
   - `Some(v) => if keep(v) { Some(v) } else { None }` is `o.filter(keep)`, and a
     `match` whose `Some` arm only feeds another `Some`-taking lookup is
     `o.bind(v => …)` (`context.mbt`'s `find_*` lookups are all `map`s now).
+  - A lookup that can itself fail is `bind`, not a nested `match`:
+    `Some(syms) => if syms.is_empty() { None } else { Some(syms[0]) }` is
+    `.bind(syms => syms.get(0))` — there is no `Array::first` (only `last`), but
+    `Array::get(i)` returns `T?`, and `Option::map`'s callback is `raise?`, so a
+    resolving lookup (`captures.map(cs => self.resolve_capture_set(cs))`) stays
+    a `map`. Both `map` and `bind` are usable in a struct-literal field
+    (`capability: h.capability.map(p => rewrite_block_param(p, ctx, hooks))`) and
+    as a whole function body (`default.map(value => self.transform_stmt(dctx,
+    value))`).
 
 - **Update a record with `{ ..self, field: value }`, not a `with_*` helper.**
   MoonBit keeps the other fields, so a pass that rebuilds a node with one field

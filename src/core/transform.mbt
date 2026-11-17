@@ -95,22 +95,18 @@ fn find_equality_functions(module : @source.ModuleDecl) -> Array[Sym] {
   let out : Array[Sym] = pattern_equality_functions.val.copy()
   guard out.is_empty() else { return out }
   for d in module.defs {
-    match d.kind {
-      @source.ExternDef(id, _, _, _, _, _, _) =>
-        if id.name == "infixEq" {
-          out.push(
-            Sym::ExternFunction({
-              base: { uid: d.uid, name: Name::local(id.name), decl: d.span, },
-              tparams: [],
-              vparams: [],
-              bparams: [],
-              result: @symbols.t_bool(),
-              effects: @symbols.Effects::empty(),
-              capture: [],
-            }),
-          )
-        }
-      _ => ()
+    if d.kind is @source.ExternDef(id, _, _, _, _, _, _) && id.name == "infixEq" {
+      out.push(
+        Sym::ExternFunction({
+          base: { uid: d.uid, name: Name::local(id.name), decl: d.span, },
+          tparams: [],
+          vparams: [],
+          bparams: [],
+          result: @symbols.t_bool(),
+          effects: @symbols.Effects::empty(),
+          capture: [],
+        }),
+      )
     }
   }
   out
@@ -215,14 +211,8 @@ fn prompt_type(answer : ValueType) -> BlockType {
 /// capture substitution (mirrors `ContextOps.record`).
 fn Transformer::emit(self : Transformer, binding : Binding) -> Unit {
   self.bindings.push(binding)
-  match binding {
-    BindingDef(id, block) =>
-      match id {
-        BlockParam(p) =>
-          self.capture_substitution.set(p.capture.uid(), block_captures(block))
-        _ => ()
-      }
-    _ => ()
+  if binding is BindingDef(BlockParam(p), block) {
+    self.capture_substitution.set(p.capture.uid(), block_captures(block))
   }
 }
 
@@ -2261,10 +2251,8 @@ fn Transformer::preprocess_patterns(
   let tparams : Array[Sym] = []
   let params = patterns.map(p => self.bound_in_pattern(p.pattern)).flatten()
   for g in guards {
-    match g.kind {
-      @source.PatternGuard(_, pattern) =>
-        params.append(self.bound_in_pattern(pattern))
-      @source.BooleanGuard(_) => ()
+    if g.kind is @source.PatternGuard(_, pattern) {
+      params.append(self.bound_in_pattern(pattern))
     }
   }
   let joinpoint = self.bind_block(
@@ -2296,10 +2284,10 @@ fn Transformer::preprocess_patterns(
 
 ///|
 fn as_pm_var(e : Expr) -> PMVar raise EffektError {
-  match e {
-    ValueVar(id, tpe) => PMVar(id, tpe)
-    _ => raise EffektError::Internal("Expected a value variable.")
+  guard e is ValueVar(id, tpe) else {
+    raise EffektError::Internal("Expected a value variable.")
   }
+  PMVar(id, tpe)
 }
 
 ///|
@@ -2431,15 +2419,15 @@ fn Transformer::equals_for(
       // annotation: use the only candidate, as before.
       match self.eq_functions {
         [only] =>
-          match only.as_callable() {
-            Some(c) =>
-              if c.tparams.length() == 1 {
-                Some(PMEquals(only, [core_tpe]))
-              } else {
-                Some(PMEquals(only, []))
-              }
-            None => None
-          }
+          only
+          .as_callable()
+          .map(c => {
+            if c.tparams.length() == 1 {
+              PMEquals(only, [core_tpe])
+            } else {
+              PMEquals(only, [])
+            }
+          })
         _ => None
       }
   }

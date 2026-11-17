@@ -434,10 +434,10 @@ pub fn Typer::lookup_function_type(
   s : Sym,
 ) -> BlockType raise EffektError {
   let t = self.st.u.prune_block(self.lookup_block(s))
-  match t {
-    @symbols.BlockType::FunctionType(_, _, _, _, _, _) => t
-    _ => self.abort(s.decl(), "Expected function type, but got \{t}.")
+  guard t is @symbols.BlockType::FunctionType(_, _, _, _, _, _) else {
+    self.abort(s.decl(), "Expected function type, but got \{t}.")
   }
+  t
 }
 
 ///|
@@ -698,20 +698,19 @@ fn Typer::unify_capability_interface(
     @symbols.BlockType::InterfaceType(c, a) => (c, a)
     _ => return
   }
-  if capability_type(cap) is Some(cap_tpe) {
-    match self.st.u.prune_block(cap_tpe) {
-      @symbols.BlockType::InterfaceType(c2, args2) =>
-        if ctor == c2 && args.length() == args2.length() {
-          for i in 0..<args.length() {
-            self.unify_value_types(
-              args[i],
-              args2[i],
-              MergeTypes(self.st.u.prune_value(args[i]), args2[i], NoArms),
-            )
-          }
-        }
-      _ => ()
-    }
+  guard capability_type(cap) is Some(cap_tpe) else { return }
+  let cap_tpe = self.st.u.prune_block(cap_tpe)
+  guard cap_tpe is @symbols.BlockType::InterfaceType(c2, args2) &&
+    ctor == c2 &&
+    args.length() == args2.length() else {
+    return
+  }
+  for i in 0..<args.length() {
+    self.unify_value_types(
+      args[i],
+      args2[i],
+      MergeTypes(self.st.u.prune_value(args[i]), args2[i], NoArms),
+    )
   }
 }
 
@@ -1039,27 +1038,25 @@ pub fn Typer::assert_concrete_effect(
   span : Span,
 ) -> Unit raise EffektError {
   let eff = self.st.u.prune_block(eff)
-  match self.unknowns_block(eff) {
-    us if !us.is_empty() => {
-      let mut msg = Message::error(
-        span,
-        "Effects need to be fully known, but effect \{eff}'s type parameter(s) \{us.join(", ")} could not be inferred.",
-      )
-      msg = msg.help("Maybe try annotating them?")
-      // Upstream's `assertConcreteEffect` hints at the concrete interfaces of
-      // the same effect that *are* in scope (see
-      // `examples/neg/lexical_capability_selection_*`); an interface that still
-      // has unsolved type arguments is not a hint.
-      for hint in self.st.cap_scope.relevant_in_scope_for(eff) {
-        if self.unknowns_block(hint).is_empty() {
-          msg = msg.help(
-            "Did you mean to use an operation of the concrete interface \{hint}?",
-          )
-        }
+  let unknowns = self.unknowns_block(eff)
+  if !unknowns.is_empty() {
+    let mut msg = Message::error(
+      span,
+      "Effects need to be fully known, but effect \{eff}'s type parameter(s) \{unknowns.join(", ")} could not be inferred.",
+    )
+    msg = msg.help("Maybe try annotating them?")
+    // Upstream's `assertConcreteEffect` hints at the concrete interfaces of
+    // the same effect that *are* in scope (see
+    // `examples/neg/lexical_capability_selection_*`); an interface that still
+    // has unsolved type arguments is not a hint.
+    for hint in self.st.cap_scope.relevant_in_scope_for(eff) {
+      if self.unknowns_block(hint).is_empty() {
+        msg = msg.help(
+          "Did you mean to use an operation of the concrete interface \{hint}?",
+        )
       }
-      self.abort_message(msg)
     }
-    _ => ()
+    self.abort_message(msg)
   }
 }
 
@@ -1069,10 +1066,8 @@ fn Typer::assert_concrete_function(
   id : IdDef,
   tpe : BlockType,
 ) -> Unit raise EffektError {
-  match self.unknowns_block(tpe) {
-    us if !us.is_empty() =>
-      self.abort(id.span, "Cannot fully infer type for \{id.name}: \{tpe}")
-    _ => ()
+  if !self.unknowns_block(tpe).is_empty() {
+    self.abort(id.span, "Cannot fully infer type for \{id.name}: \{tpe}")
   }
 }
 
@@ -1408,15 +1403,12 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
             _ => []
           }
           self.bind_capture(fun, @symbols.Captures::CaptureSetOf(capture))
-          match tpe {
-            @symbols.BlockType::FunctionType(_, _, _, _, _, effs) =>
-              if effs.distinct().non_empty() {
-                self.abort(
-                  d.span,
-                  "Unhandled control effects on extern defs not allowed",
-                )
-              }
-            _ => ()
+          if tpe is @symbols.BlockType::FunctionType(_, _, _, _, _, effs) &&
+            effs.distinct().non_empty() {
+            self.abort(
+              d.span,
+              "Unhandled control effects on extern defs not allowed",
+            )
           }
         }
         None => self.abort(d.span, "Extern defs need a type annotation.")
@@ -1466,24 +1458,19 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
       }
     @source.DefKind::RecordDef(id, _, _) => {
       let rec = self.symbol_of_def(id)
-      match rec {
-        @symbols.Sym::Record(r) => {
-          let ctor = r.constructor
-          if ctor.annotated_type() is Some(tpe) {
-            self.bind_block(ctor, tpe)
-          }
-          self.bind_capture(ctor, Captures::empty())
-          if ctor.as_callable() is Some(c) {
-            for v in c.vparams {
-              match v {
-                @symbols.Sym::ValueParam(_p) =>
-                  self.bind_capture(v, Captures::empty())
-                _ => ()
-              }
+      if rec is @symbols.Sym::Record(r) {
+        let ctor = r.constructor
+        if ctor.annotated_type() is Some(tpe) {
+          self.bind_block(ctor, tpe)
+        }
+        self.bind_capture(ctor, Captures::empty())
+        if ctor.as_callable() is Some(c) {
+          for v in c.vparams {
+            if v is @symbols.Sym::ValueParam(_) {
+              self.bind_capture(v, Captures::empty())
             }
           }
         }
-        _ => ()
       }
     }
     @source.DefKind::NamespaceDef(_, defs) =>
@@ -2011,14 +1998,12 @@ fn Typer::check_expr_kind(
       // type of a polymorphic call is a unification variable that has been
       // solved by the other arguments (`opt.getOrElse { box { s => ... } }`),
       // so it has to be substituted before the boxed block is checked.
-      let expected_tpe = match expected {
-        Some(t) =>
-          match self.st.u.prune_value(t) {
-            @symbols.ValueType::BoxedType(t, _) => Some(t)
-            _ => None
-          }
-        None => None
-      }
+      let expected_tpe = expected.bind(t => {
+        match self.st.u.prune_value(t) {
+          @symbols.ValueType::BoxedType(t, _) => Some(t)
+          _ => None
+        }
+      })
       let inferred_cap = match annotated {
         Some(cst) => self.resolve_captures(cst)
         None => @symbols.Captures::CaptVar(self.fresh_capt_var("box"))
@@ -2091,14 +2076,10 @@ fn Typer::check_expr_kind(
           )
         }
         @source.CallTarget::ExprTarget(callee) => {
-          let hint : (Int32, ValueType)? = match expected {
-            Some(t) =>
-              if bargs.is_empty() {
-                Some((vargs.length(), t))
-              } else {
-                None
-              }
-            None => None
+          let hint : (Int32, ValueType)? = if bargs.is_empty() {
+            expected.map(t => (vargs.length(), t))
+          } else {
+            None
           }
           let callee_res = self.check_expr_as_block(callee, None, hint)
           match callee_res.tpe {
@@ -2215,19 +2196,17 @@ fn Typer::check_expr_kind(
     }
     @source.TermKind::Hole(id, template) => {
       let sym = self.symbol_of_def(id)
-      match sym {
-        @symbols.Sym::Hole(h) => {
-          let arg_types : Array[ValueType?] = []
-          for arg in template.args {
-            let r = self.check_stmt(arg, None)
-            arg_types.push(Some(r.tpe))
-          }
-          h.expected_type = expected
-          h.arg_types = arg_types
-          TyRes(expected.unwrap_or(t_bottom()), Effects::empty())
-        }
-        _ => self.abort(e.span, "Expected a hole.")
+      guard sym is @symbols.Sym::Hole(h) else {
+        self.abort(e.span, "Expected a hole.")
       }
+      let arg_types : Array[ValueType?] = []
+      for arg in template.args {
+        let r = self.check_stmt(arg, None)
+        arg_types.push(Some(r.tpe))
+      }
+      h.expected_type = expected
+      h.arg_types = arg_types
+      TyRes(expected.unwrap_or(t_bottom()), Effects::empty())
     }
     @source.TermKind::New(_) =>
       self.abort(
@@ -2845,21 +2824,13 @@ pub fn Typer::unify_value_types(
     return
   }
   // solve the unification variable, whichever side it is on
-  match tpe1 {
-    @symbols.ValueType::ValueTypeRef(x) =>
-      if self.st.u.is_type_var(x) {
-        self.learn(x, tpe2, ctx)
-        return
-      }
-    _ => ()
+  if tpe1 is @symbols.ValueType::ValueTypeRef(x) && self.st.u.is_type_var(x) {
+    self.learn(x, tpe2, ctx)
+    return
   }
-  match tpe2 {
-    @symbols.ValueType::ValueTypeRef(x) =>
-      if self.st.u.is_type_var(x) {
-        self.learn(x, tpe1, ctx)
-        return
-      }
-    _ => ()
+  if tpe2 is @symbols.ValueType::ValueTypeRef(x) && self.st.u.is_type_var(x) {
+    self.learn(x, tpe1, ctx)
+    return
   }
   // coercions: `Nothing <: T` and `T <: Any`. Upstream only admits these in
   // covariant positions and records a coercion; we accept them everywhere and
@@ -3780,10 +3751,10 @@ pub fn Typer::resolve_block_ref(
   t : TypeTree,
 ) -> BlockType raise EffektError {
   let b = self.resolve_block_type(t)
-  match b {
-    @symbols.BlockType::InterfaceType(_, _) => b
-    _ => self.abort(t.span, "Expected an interface type, but got \{b}.")
+  guard b is @symbols.BlockType::InterfaceType(_, _) else {
+    self.abort(t.span, "Expected an interface type, but got \{b}.")
   }
+  b
 }
 
 ///|

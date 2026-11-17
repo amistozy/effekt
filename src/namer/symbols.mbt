@@ -307,9 +307,8 @@ fn interface_operations(sym : Sym) -> Array[Sym] {
 
 ///|
 fn set_interface_operations(sym : Sym, ops : Array[Sym]) -> Unit {
-  match sym {
-    @symbols.Sym::Interface(i) => i.operations = ops
-    _ => ()
+  if sym is @symbols.Sym::Interface(i) {
+    i.operations = ops
   }
 }
 
@@ -324,25 +323,22 @@ fn data_tparams(sym : Sym) -> Array[Sym] {
 
 ///|
 fn set_data_constructors(sym : Sym, ctors : Array[Sym]) -> Unit {
-  match sym {
-    @symbols.Sym::DataType(d) => d.constructors = ctors
-    _ => ()
+  if sym is @symbols.Sym::DataType(d) {
+    d.constructors = ctors
   }
 }
 
 ///|
 fn set_constructor_fields(sym : Sym, fields : Array[Sym]) -> Unit {
-  match sym {
-    @symbols.Sym::Constructor(c) => c.fields = fields
-    _ => ()
+  if sym is @symbols.Sym::Constructor(c) {
+    c.fields = fields
   }
 }
 
 ///|
 fn set_record_constructor(sym : Sym, ctor : Sym) -> Unit {
-  match sym {
-    @symbols.Sym::Record(r) => r.constructor = ctor
-    _ => ()
+  if sym is @symbols.Sym::Record(r) {
+    r.constructor = ctor
   }
 }
 

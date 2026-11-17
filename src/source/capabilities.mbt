@@ -215,9 +215,8 @@ pub fn reference_to_capability(cap : Sym, ctx : Context) -> Term {
   let id = IdRef(cap.name().name, Span::missing())
   ctx.assign_symbol(id.uid, cap)
   let t = mk_term(Span::missing(), Var(id))
-  match cap {
-    BlockParam(bp) => if bp.tpe is Some(bt) { ctx.assign_block_type(t.uid, bt) }
-    _ => ()
+  if cap is BlockParam(bp) && bp.tpe is Some(bt) {
+    ctx.assign_block_type(t.uid, bt)
   }
   t
 }
@@ -233,10 +232,7 @@ pub fn definition_for_capability(cap : Sym, ctx : Context) -> BlockParam {
   }
   {
     id,
-    tpe: match tpe {
-      None => None
-      Some(t) => Some(mk_type(Span::missing(), BlockTypeTree(t)))
-    },
+    tpe: tpe.map(t => mk_type(Span::missing(), BlockTypeTree(t))),
     is_implicit: false,
   }
 }

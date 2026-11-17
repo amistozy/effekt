@@ -484,22 +484,19 @@ fn Typer::wf_def(self : Typer, d : Def, scope : WFScope) -> Unit {
       // of `k`'s type). The region's capture has to cover everything the
       // variable's type mentions; upstream reports this at the definition.
       if self.ctx.symbol_of(id.uid) is Some(sym) {
-        match self.ctx.value_type_of(sym.uid()) {
-          Some(tpe) => {
-            self.wf_check(
-              tpe,
-              d.span,
-              scope,
-              " inferred as type of region-allocated variable",
-            )
-            self.wf_check_types(
-              tpe,
-              d.span,
-              scope,
-              " inferred as type of region-allocated variable",
-            )
-          }
-          None => ()
+        if self.ctx.value_type_of(sym.uid()) is Some(tpe) {
+          self.wf_check(
+            tpe,
+            d.span,
+            scope,
+            " inferred as type of region-allocated variable",
+          )
+          self.wf_check_types(
+            tpe,
+            d.span,
+            scope,
+            " inferred as type of region-allocated variable",
+          )
         }
       }
       self.wf_stmt(init, scope)
@@ -609,9 +606,8 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
       self.wf_args(vargs, bargs, scope)
     }
     @source.TermKind::Call(target, _, vargs, bargs) => {
-      match target {
-        @source.CallTarget::ExprTarget(e) => self.wf_term(e, scope)
-        @source.CallTarget::IdTarget(_) => ()
+      if target is @source.CallTarget::ExprTarget(e) {
+        self.wf_term(e, scope)
       }
       self.wf_type_arguments(t.uid, t.span, scope)
       self.wf_args(vargs, bargs, scope)

@@ -271,9 +271,8 @@ pub fn compile_cps(
   ]
   let extern_defs : Map[Int32, @cps.Extern] = Map([])
   for e in module.externs {
-    match e {
-      @cps.ExternDef(id, _, _, _, _) => extern_defs.set(id.uid(), e)
-      _ => ()
+    if e is @cps.ExternDef(id, _, _, _, _) {
+      extern_defs.set(id.uid(), e)
     }
   }
   let ctx : TransformerContext = {
@@ -912,13 +911,10 @@ fn to_js_stmt(
           let scope_blocks : Array[Sym] = []
           let scope_conts : Array[Sym] = []
           for (_id, scoped_block) in ctx.scope {
-            match scoped_block {
-              @cps.Block::BlockLit(lit) => {
-                scope_values.append(lit.vparams)
-                scope_blocks.append(lit.bparams)
-                scope_conts.push(lit.k)
-              }
-              _ => ()
+            if scoped_block is @cps.Block::BlockLit(lit) {
+              scope_values.append(lit.vparams)
+              scope_blocks.append(lit.bparams)
+              scope_conts.push(lit.k)
             }
           }
 
@@ -1079,10 +1075,7 @@ fn to_js_stmt(
             SwitchBranch(tag, if terminated { stmts } else { stmts + [Break] }),
           )
         }
-        let default_stmts = match default {
-          Some(body) => Some(to_js_stmt(body, ctx).stmts())
-          None => None
-        }
+        let default_stmts = default.map(body => to_js_stmt(body, ctx).stmts())
         pure([
           Switch(Member(scrutinee_js, JSName("__tag")), branches, default_stmts),
         ])

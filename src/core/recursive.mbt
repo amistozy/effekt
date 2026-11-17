@@ -170,12 +170,8 @@ fn RecursiveAnalysis::process_stmt(
       for b in bargs {
         self.process_block(b)
       }
-      match callee {
-        BlockVar(bv) =>
-          if self.within(bv.id) {
-            self.record_call(bv.id, targs, vargs, bargs)
-          }
-        _ => ()
+      if callee is BlockVar(bv) && self.within(bv.id) {
+        self.record_call(bv.id, targs, vargs, bargs)
       }
     }
     Invoke(callee, _, _, _, vargs, bargs) => {

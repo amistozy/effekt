@@ -385,10 +385,9 @@ fn transform_stmt(
             let translated = clauses.map(clause => {
               transform_clause(clause, ks, k2, ctx)
             })
-            let translated_default = match default {
-              Some(body) => Some(transform_stmt(body, ks, k2, ctx))
-              None => None
-            }
+            let translated_default = default.map(body => {
+              transform_stmt(body, ks, k2, ctx)
+            })
             Match(
               transform_expr(scrutinee, ctx),
               translated,

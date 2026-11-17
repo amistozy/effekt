@@ -128,10 +128,7 @@ pub fn did_you_mean(
           }
         }
       }
-      match best {
-        Some((_, c)) => Some("Did you mean \{c}?")
-        None => None
-      }
+      best.map(pair => "Did you mean \{pair.1}?")
     }
   }
 }

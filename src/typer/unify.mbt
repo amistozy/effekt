@@ -453,17 +453,15 @@ pub fn UnifScope::is_global(self : UnifScope) -> Bool {
 ///|
 /// Registers a fresh type variable in the current scope.
 pub fn UnifScope::register_type_var(self : UnifScope, x : Sym) -> Unit {
-  match self {
-    GlobalScope => ()
-    LocalScope(ts, _, _) => ts.push(x)
+  if self is LocalScope(ts, _, _) {
+    ts.push(x)
   }
 }
 
 ///|
 /// Registers a fresh capture variable in the current scope.
 pub fn UnifScope::register_capt_var(self : UnifScope, x : Sym) -> Unit {
-  match self {
-    GlobalScope => ()
-    LocalScope(_, cs, _) => cs.push(x)
+  if self is LocalScope(_, cs, _) {
+    cs.push(x)
   }
 }

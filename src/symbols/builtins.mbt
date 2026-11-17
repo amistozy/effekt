@@ -292,9 +292,8 @@ fn make_state_interface() -> Sym {
     effects: Effects::empty(),
     interface: iface,
   })
-  match iface {
-    Interface(i) => i.operations = [get, put]
-    _ => ()
+  if iface is Interface(i) {
+    i.operations = [get, put]
   }
   iface
 }
@@ -314,11 +313,12 @@ pub fn state_effect_sym() -> Sym {
 
 ///|
 pub fn t_state_extract(s : BlockType) -> ValueType raise EffektError {
-  match s {
-    InterfaceType(i, args) if i.uid() == state_interface.uid() &&
-      args.length() == 1 => args[0]
-    tpe => raise EffektError::Internal("Expected builtin state, but got \{tpe}")
+  guard s is InterfaceType(i, args) &&
+    i.uid() == state_interface.uid() &&
+    args.length() == 1 else {
+    raise EffektError::Internal("Expected builtin state, but got \{s}")
   }
+  args[0]
 }
 
 ///|

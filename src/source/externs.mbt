@@ -172,13 +172,11 @@ fn resolve_extern_def(d : Def, ctx : Context) -> Array[Def] raise EffektError {
       }
     ExternInclude(flag, _path, _contents) =>
       if flag.matches_any(supported_flags(ctx)) {
-        match flag {
-          Default =>
-            ctx.warning(
-              d.span,
-              "Found extern include without feature flag. It is likely that this will fail in other backends, please annotate it with a feature flag (Supported in current backend: \{supported_flags(ctx).join(", ")})",
-            )
-          _ => ()
+        if flag is Default {
+          ctx.warning(
+            d.span,
+            "Found extern include without feature flag. It is likely that this will fail in other backends, please annotate it with a feature flag (Supported in current backend: \{supported_flags(ctx).join(", ")})",
+          )
         }
         [d]
       } else {
@@ -201,12 +199,10 @@ fn copy_def(from : Def, kind : DefKind, ctx : Context) -> Def {
 
 ///|
 fn warn_default_flag(flag : FeatureFlag, id : IdDef, ctx : Context) -> Unit {
-  match flag {
-    Default =>
-      ctx.warning(
-        id.span,
-        "Extern definition \{id.name} contains extern string without feature flag. This will likely not work in other backends, please annotate it with a feature flag (Supported by the current backend: \{supported_flags(ctx).join(", ")})",
-      )
-    _ => ()
+  if flag is Default {
+    ctx.warning(
+      id.span,
+      "Extern definition \{id.name} contains extern string without feature flag. This will likely not work in other backends, please annotate it with a feature flag (Supported by the current backend: \{supported_flags(ctx).join(", ")})",
+    )
   }
 }

@@ -178,12 +178,10 @@ pub fn CapScope::relevant_in_scope_for(
         | BindSome(caps, parent)
         | BindAll(caps, parent) => {
           for _, cap in caps {
-            match cap_type(cap) {
-              Some(@symbols.BlockType::InterfaceType(other, _) as tpe) =>
-                if other == c {
-                  out.push(tpe)
-                }
-              _ => ()
+            if cap_type(cap)
+              is Some(@symbols.BlockType::InterfaceType(other, _) as tpe) &&
+              other == c {
+              out.push(tpe)
             }
           }
           scope = parent

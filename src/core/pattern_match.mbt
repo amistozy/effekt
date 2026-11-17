@@ -319,14 +319,13 @@ fn pm_split_clause(
   }
   match c.conditions[0] {
     PMPatterns(patterns) =>
-      match patterns.get(scrutinee.id.uid()) {
-        Some(vp) => {
-          let rest = patterns.copy()
-          rest.remove(scrutinee.id.uid())
-          Some((vp.pattern, rest, pm_drop_first(c.conditions)))
-        }
-        None => None
-      }
+      patterns
+      .get(scrutinee.id.uid())
+      .map(vp => {
+        let rest = patterns.copy()
+        rest.remove(scrutinee.id.uid())
+        (vp.pattern, rest, pm_drop_first(c.conditions))
+      })
     _ => None
   }
 }
@@ -447,12 +446,10 @@ fn pm_split_on_tag(
   // collect all variants that are mentioned in the clauses
   let variants : Array[Sym] = []
   for c in normalized {
-    match pm_split_clause(c, scrutinee) {
-      Some((PMTag(cid, _, _, _), _, _)) =>
-        if !variants.contains(cid) {
-          variants.push(cid)
-        }
-      _ => ()
+    if pm_split_clause(c, scrutinee) is Some((PMTag(cid, _, _, _), _, _)) {
+      if !variants.contains(cid) {
+        variants.push(cid)
+      }
     }
   }
 
@@ -589,12 +586,8 @@ fn pm_branching_heuristic(
     let mut count = 0
     for c in clauses {
       for cond in c.conditions {
-        match cond {
-          PMPatterns(m) =>
-            if m.contains(vp.variable.id.uid()) {
-              count = count + 1
-            }
-          _ => ()
+        if cond is PMPatterns(m) && m.contains(vp.variable.id.uid()) {
+          count = count + 1
         }
       }
     }

@@ -204,9 +204,8 @@ pub fn build_precedence_table() -> PrecedenceTable {
     matrix.push(Array::make(n, false))
   }
   for (l, t) in relations {
-    match (ops.search(l), ops.search(t)) {
-      (Some(i), Some(j)) => matrix[i][j] = true
-      _ => ()
+    if (ops.search(l), ops.search(t)) is (Some(i), Some(j)) {
+      matrix[i][j] = true
     }
   }
   // Transitive closure (Floyd-Warshall; the table is tiny).
@@ -2265,11 +2264,11 @@ fn Parser::handler(self : Parser) -> Handler raise EffektError {
       id
     })
     let implementation = self.implementation()
-    let capability : BlockParam? = match name.value {
-      Some(n) =>
-        Some({ id: n, tpe: Some(implementation.interface), is_implicit: false, })
-      None => None
-    }
+    let capability : BlockParam? = name.value.map(n => {
+      id: n,
+      tpe: Some(implementation.interface),
+      is_implicit: false,
+    })
     { uid: fresh_uid(), span: self.span(), capability, implementation, }
   })
 }

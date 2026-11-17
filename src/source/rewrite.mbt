@@ -302,19 +302,13 @@ pub fn rewrite_term(
       While(
         guards.map(g => rewrite_guard(g, ctx, hooks)),
         rewrite_stmt(body, ctx, hooks),
-        match default {
-          None => None
-          Some(d) => Some(rewrite_stmt(d, ctx, hooks))
-        },
+        default.map(d => rewrite_stmt(d, ctx, hooks)),
       )
     Match(scrutinees, clauses, default) =>
       Match(
         scrutinees.map(x => rewrite_term(x, ctx, hooks)),
         clauses.map(c => rewrite_clause(c, ctx, hooks)),
-        match default {
-          None => None
-          Some(d) => Some(rewrite_stmt(d, ctx, hooks))
-        },
+        default.map(d => rewrite_stmt(d, ctx, hooks)),
       )
     TryHandle(prog, handlers) =>
       TryHandle(
@@ -410,10 +404,7 @@ pub fn rewrite_handler(
 ) -> Handler raise EffektError {
   {
     ..h,
-    capability: match h.capability {
-      None => None
-      Some(p) => Some(rewrite_block_param(p, ctx, hooks))
-    },
+    capability: h.capability.map(p => rewrite_block_param(p, ctx, hooks)),
     implementation: rewrite_implementation(h.implementation, ctx, hooks),
   }
 }
@@ -441,10 +432,7 @@ pub fn rewrite_op_clause(
     ..c,
     vparams: c.vparams.map(p => rewrite_value_param(p, ctx, hooks)),
     bparams: c.bparams.map(p => rewrite_block_param(p, ctx, hooks)),
-    ret: match c.ret {
-      None => None
-      Some(t) => Some(rewrite_type(t, ctx, hooks))
-    },
+    ret: c.ret.map(t => rewrite_type(t, ctx, hooks)),
     body: rewrite_stmt(c.body, ctx, hooks),
   }
 }

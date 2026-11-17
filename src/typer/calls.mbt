@@ -41,24 +41,22 @@ fn Typer::tuple_call_hints(
 ) -> Array[String] {
   let hints : Array[String] = []
   if fun_vps.length() == 1 && vargs.length() > 1 {
-    match self.st.u.prune_value(fun_vps[0]) {
-      @symbols.ValueType::ValueTypeApp(ctor, args) =>
-        if is_tuple_name(ctor.name().name) && args.length() == vargs.length() {
-          hints.push(
-            "Did you mean to call \{call.name} with a single tuple argument instead of separate arguments?",
-          )
-        }
-      _ => ()
+    if self.st.u.prune_value(fun_vps[0])
+      is @symbols.ValueType::ValueTypeApp(ctor, args) &&
+      is_tuple_name(ctor.name().name) &&
+      args.length() == vargs.length() {
+      hints.push(
+        "Did you mean to call \{call.name} with a single tuple argument instead of separate arguments?",
+      )
     }
   } else if vargs.length() == 1 && fun_vps.length() > 1 {
-    match vargs[0].value.kind {
-      @source.TermKind::Call(@source.CallTarget::IdTarget(id), _, args, _) =>
-        if is_tuple_name(id.name) && args.length() == fun_vps.length() {
-          hints.push(
-            "Did you mean to call \{call.name} with \{args.length()} separate arguments instead of a tuple?",
-          )
-        }
-      _ => ()
+    if vargs[0].value.kind
+      is @source.TermKind::Call(@source.CallTarget::IdTarget(id), _, args, _) &&
+      is_tuple_name(id.name) &&
+      args.length() == fun_vps.length() {
+      hints.push(
+        "Did you mean to call \{call.name} with \{args.length()} separate arguments instead of a tuple?",
+      )
     }
   }
   hints
@@ -259,15 +257,13 @@ pub fn Typer::check_call_to(
       )
       (term, res)
     })
-    match tpe {
-      @symbols.ValueType::BoxedType(_, capt) =>
-        if capt.is_pure() && res.effs.non_empty() {
-          self.abort(
-            call.span,
-            "Cannot instantiate the implicit argument \{call.name}: its type is pure, but the block that would be instantiated performs \{res.effs}.",
-          )
-        }
-      _ => ()
+    if tpe is @symbols.ValueType::BoxedType(_, capt) &&
+      capt.is_pure() &&
+      res.effs.non_empty() {
+      self.abort(
+        call.span,
+        "Cannot instantiate the implicit argument \{call.name}: its type is pure, but the block that would be instantiated performs \{res.effs}.",
+      )
     }
     effs = eff_union(effs, res.effs)
     implicit_vargs.push(term)
@@ -742,17 +738,13 @@ pub fn Typer::check_overloaded_method_call(
   bargs : ArrayView[Term],
   expected : ValueType?,
 ) -> TyRes[ValueType] raise EffektError {
-  match receiver.kind {
-    @source.TermKind::Var(recv_id) =>
-      if self.symbol_of_id_opt(recv_id) is Some(s) {
-        if s.is_value_symbol() || s.is_ref_binder() {
-          self.abort(
-            receiver.span,
-            "`\{recv_id.name}.\{id.name}` is uniform function call syntax on a value, which has to be desugared by `unbox_inference` before type checking (did the pipeline type check the tree returned by `unbox_inference`?).",
-          )
-        }
-      }
-    _ => ()
+  if receiver.kind is @source.TermKind::Var(recv_id) &&
+    self.symbol_of_id_opt(recv_id) is Some(s) &&
+    (s.is_value_symbol() || s.is_ref_binder()) {
+    self.abort(
+      receiver.span,
+      "`\{recv_id.name}.\{id.name}` is uniform function call syntax on a value, which has to be desugared by `unbox_inference` before type checking (did the pipeline type check the tree returned by `unbox_inference`?).",
+    )
   }
   let sym = self.symbol_of_id(id)
   let methods : Array[Sym] = match sym {

@@ -173,9 +173,8 @@ pub fn normalize(
   let usage = reachable_usage(module, entrypoints)
   let blocks : Map[Int32, Block] = Map([])
   for d in module.definitions {
-    match d {
-      ToplevelDef(id, block) => blocks.set(id.uid(), block)
-      ToplevelVal(_, _) => ()
+    if d is ToplevelDef(id, block) {
+      blocks.set(id.uid(), block)
     }
   }
   let normal : Normalizer = { usage, policy, }
@@ -190,10 +189,9 @@ pub fn normalize(
       }
       ToplevelVal(id, binding) => {
         let normalized = normal.rewrite_stmt(binding, ctx)
-        match normalized {
-          // a toplevel `val` that is just a value is an alias
-          Return([expr]) => ctx = ctx.with_expr(id, expr)
-          _ => ()
+        // a toplevel `val` that is just a value is an alias
+        if normalized is Return([expr]) {
+          ctx = ctx.with_expr(id, expr)
         }
         definitions.push(ToplevelVal(id, normalized))
       }

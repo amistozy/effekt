@@ -42,17 +42,11 @@ pub fn DeclarationContext::DeclarationContext(
   let datas : Map[Int32, Int32] = Map([])
   let constructors : Map[Int32, ConstructorRef] = Map([])
   for i in 0..<declarations.length() {
-    match declarations[i] {
-      DeclarationData(id, _, ctors) => {
-        datas.set(id.uid(), i)
-        for c in ctors {
-          constructors.set(c.id.uid(), {
-            data: declarations[i],
-            constructor: c,
-          })
-        }
+    if declarations[i] is DeclarationData(id, _, ctors) {
+      datas.set(id.uid(), i)
+      for c in ctors {
+        constructors.set(c.id.uid(), { data: declarations[i], constructor: c, })
       }
-      DeclarationInterface(_, _, _) => ()
     }
   }
   let extern_defs : Map[Int32, Int32] = Map([])
@@ -110,15 +104,15 @@ pub fn DeclarationContext::find_constructor_tag(
   self : DeclarationContext,
   id : Sym,
 ) -> Int32? {
-  match self.constructors.get(id.uid()) {
-    Some(ref) =>
-      match ref.data {
-        DeclarationData(_, _, ctors) =>
-          ctors.search_by(c => c.id.uid() == ref.constructor.id.uid())
-        _ => None
-      }
-    None => None
-  }
+  self.constructors
+  .get(id.uid())
+  .bind(ref => {
+    match ref.data {
+      DeclarationData(_, _, ctors) =>
+        ctors.search_by(c => c.id.uid() == ref.constructor.id.uid())
+      _ => None
+    }
+  })
 }
 
 ///|
