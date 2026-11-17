@@ -260,31 +260,6 @@ pub fn Span::range_text(self : Span) -> String {
 }
 
 ///|
-/// Ordering used for sorting diagnostics. Spans in different files are
-/// ordered by file name.
-pub fn Span::compare(self : Span, other : Span) -> Int32 {
-  let nc = compare_string(self.source.name, other.source.name)
-  if nc != 0 {
-    return nc
-  }
-  if self.start != other.start {
-    return self.start - other.start
-  }
-  self.end - other.end
-}
-
-///|
-pub fn compare_string(a : String, b : String) -> Int32 {
-  if a < b {
-    -1
-  } else if a > b {
-    1
-  } else {
-    0
-  }
-}
-
-///|
 pub impl Show for Span with fn output(self, logger) {
   let pos = self.position()
   logger.write_string("\{self.source.name}:\{pos.line}:\{pos.column}")

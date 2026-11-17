@@ -158,11 +158,20 @@ You can browse and install extra skills here:
   latter), `a.min(b)`/`a.max(b)`, `xs.last()`, `xs.rev()`, `xs.contains(x)`,
   `xs.search(x)` (returns `Int32?`; `search_by(p)` for a predicate),
   `xs.sort_by(cmp)` / `xs.mut_view().stable_sort_by(cmp)` (the plain one is an
-  unstable quicksort, so a diagnostic that must keep equal keys in insertion
-  order needs the stable one), `xs.any/all/fold`, `xs[m..n]` views with
-  `.to_owned()` (the `ArrayView::to_array` of older compilers is deprecated;
-  `String::to_array` is the unrelated string → `Array[Char]` conversion and is
-  fine).
+  unstable quicksort: a hand-rolled insertion sort is `stable_sort_by`, and both
+  of this port's — `candidates_in_order` and `render_messages`, each with an
+  `// insertion sort` comment — were exactly that), `xs.any/all/fold`,
+  `xs[m..n]` views with `.to_owned()` (the `ArrayView::to_array` of older
+  compilers is deprecated; `String::to_array` is the unrelated string →
+  `Array[Char]` conversion and is fine).
+  The `Char` predicates are methods too: `c.is_ascii_digit()` (U+0030..U+0039,
+  the same test as `'0' <= c && c <= '9'`), `c.is_whitespace()`,
+  `c.is_ascii_alphabetic()`, `c.is_ascii_hexdigit()` — the lexer's `is_digit` /
+  `is_whitespace` wrappers only renamed them and are gone. Watch the receiver:
+  `s[i]` is a **`UInt16` code unit, not a `Char`** (that is why the type checker
+  rejects `s[i].is_ascii_digit()`), so a digit test on an indexed code unit
+  stays `u < '0' || u > '9'`, while `for c in s` and `self.current_char` are
+  `Char`s.
   A helper that only renames one of those is deleted (`min2`, `array_index_of`,
   the `length() == 0`/`length() > 0` comparisons are all gone that way). An
   accumulator loop that only maps is `xs.map(f)` (`xs.mapi((i, x) => …)` when the
@@ -183,16 +192,26 @@ You can browse and install extra skills here:
   **String ordering is `String::lexical_compare`, not home-made.** `String`'s own
   `Compare` orders by *length first* (`"b" < "az"`, because 1 < 2), which is not
   the order a diagnostic listing overloads needs; `a.lexical_compare(b)` is the
-  code-unit-lexicographic one (`"az" < "b"`, `"ab" < "abc"`). A fifteen-line
-  `string_less` that walked both strings char by char and then compared lengths
-  was exactly that function, and the stable sort of the overload candidates is
-  two lines on top of it (note the annotation: a bare `s => s.name()` has no
-  type to resolve `name` against):
+  code-unit-lexicographic one (`"az" < "b"`, `"ab" < "abc"`). So **`a < b` on
+  two strings is *not* the lexicographic order**, and a comparator written
+  `if a < b { -1 } else if a > b { 1 } else { 0 }` means length-first — that is
+  also why `compare_string`/`Span::compare` could be deleted outright (nothing
+  read them; `render_messages` sorts by the message *positions*, not by file
+  name). A fifteen-line `string_less` that walked both strings char by char and
+  then compared lengths was exactly the lexicographic comparator, and the stable
+  sort of the overload candidates is two lines on top of it (note the
+  annotation: a bare `s => s.name()` has no type to resolve `name` against):
 
   ```moonbit
   let key = (s : Sym) => s.name().qualified_name()
   sorted.mut_view().stable_sort_by((a, b) => key(a).lexical_compare(key(b)))
   ```
+
+  The same ordering question decides capture-set rendering: upstream's
+  `PrettyPrinter.toDoc(capt)` is `capt.list.sortBy(_.name.name)`, and Scala's
+  `Ordering[String]` is lexicographic, so `d_captures` sorts with
+  `lexical_compare` too — with `<` it would print `{x, y, io}` where upstream
+  prints `{io, x, y}`.
 
 - **`Map` is `@builtin`'s linked hash map, and it has combinators too.** Build
   one from pairs with the constructor — `Map(ids.map(id => (id.uid(), id)))`, not
@@ -495,6 +514,24 @@ You can browse and install extra skills here:
   by the roots: `show_core_stmt_hint` existed only for one deleted panic
   message, and `moon check -d` reports it the moment its last caller goes.
   `moon info` then shrinks `.mbti` to match.
+
+  **A struct field nothing reads is dead too**, and the checker cannot see it
+  either: a field that is only *written* (by its constructor) is invisible to
+  every warning. Grep for `.field` and delete the field together with its
+  initialization when there is no read — that is how `DeclarationContext` lost
+  four maps and the `FieldRef`/`PropertyRef` structs (deleting `find_field` /
+  `find_property` / `find_interface` / `find_extern_data` left their maps
+  unread, so the *lookup family* and the *state behind it* go together), how
+  `Config` lost `debug` and `optimize` (only `feature_flags` is read), how
+  `Context.types` went (its own comment said "unused placeholder, kept for
+  symmetry"), and how `StateEffect` collapsed into the single `Sym` it kept —
+  `make_state_interface() -> Sym`, since `get` / `put` are reachable through
+  `Interface.operations` of the same symbol. `Loader.modules` and a test
+  fixture's `cap_sym` were the same shape. Two follow-ups to expect: an
+  `unused_package` error for the import that only the field needed
+  (`src/compiler/moon.pkg` loses `src/symbols` that way — fix the `moon.pkg`,
+  do not silence the warning), and a `_ => ()` match arm that becomes
+  `DeclarationInterface(_, _, _) => ()` once the map it filled is gone.
 
 - **A refactoring must keep the order of the checks that abort.** Diagnostics
   come from the *first* `abort`, so hoisting a shared prologue above an

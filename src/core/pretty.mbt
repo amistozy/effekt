@@ -205,20 +205,13 @@ fn d_block_type(t : BlockType) -> Doc {
 
 ///|
 fn d_captures(capt : Captures) -> Doc {
+  // Upstream `PrettyPrinter.toDoc(capt)` sorts by `_.name.name`, i.e. with
+  // Scala's lexicographic `Ordering[String]`; `String`'s own `Compare` here
+  // orders by length first, so `lexical_compare` is the matching ordering.
   let syms = dedup_syms(capt.to_array())
-  let sorted = syms.copy()
-  sorted.sort_by((a, b) => {
-    let an = a.name().name
-    let bn = b.name().name
-    if an < bn {
-      -1
-    } else if an > bn {
-      1
-    } else {
-      0
-    }
-  })
-  braces_list(sorted.map(d_id))
+  let key = (s : Sym) => s.name().name
+  syms.mut_view().stable_sort_by((a, b) => key(a).lexical_compare(key(b)))
+  braces_list(syms.map(d_id))
 }
 
 ///|

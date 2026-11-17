@@ -6,18 +6,17 @@
 // `uid`, so plain maps do the job.
 
 ///|
+/// The compiler configuration. Only the feature flags are read (by
+/// `Context::supports` and `src/source/externs.mbt`); upstream's JS driver also
+/// has `--debug` and `--optimize` switches, but this port has neither.
 pub(all) struct Config {
   /// Feature flags enabled for the current backend, e.g. ["js", "jsNode"].
   feature_flags : Array[String]
-  /// Emit debug information into the generated code.
-  debug : Bool
-  /// Whether the optimizer runs.
-  optimize : Bool
 }
 
 ///|
 pub fn Config::default() -> Config {
-  { feature_flags: ["js", "jsNode"], debug: false, optimize: true, }
+  { feature_flags: ["js", "jsNode"], }
 }
 
 ///|
@@ -29,8 +28,6 @@ pub(all) struct Context {
   value_types : Map[Int32, ValueType]
   /// Inferred / resolved block types.
   block_types : Map[Int32, BlockType]
-  /// Types of nodes that can be either (e.g. `FunctionType` trees).
-  types : Map[Int32, Sym] // unused placeholder, kept for symmetry
   /// Resolved capture sets.
   captures : Map[Int32, Captures]
   /// Effect annotations on function types and effectful trees.
@@ -93,7 +90,6 @@ pub fn Context::Context(config : Config) -> Context {
     symbols: Map([]),
     value_types: Map([]),
     block_types: Map([]),
-    types: Map([]),
     captures: Map([]),
     effects: Map([]),
     bound_capabilities: Map([]),

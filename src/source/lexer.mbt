@@ -112,16 +112,6 @@ fn is_hex_digit(c : Char) -> Bool {
 }
 
 ///|
-fn is_digit(c : Char) -> Bool {
-  c >= '0' && c <= '9'
-}
-
-///|
-fn is_whitespace(c : Char) -> Bool {
-  c.is_whitespace()
-}
-
-///|
 fn hex_value(c : Char) -> Int32 {
   if c >= '0' && c <= '9' {
     c.to_int() - '0'.to_int()
@@ -140,13 +130,9 @@ fn parse_int_lit(s : String) -> Int64? {
   if s.is_empty() {
     return None
   }
-  let mut i = 0
-  let mut neg = false
-  if s[0] == '-' {
-    neg = true
-    i = 1
-  }
-  if i >= s.length() {
+  let neg = s[0] == '-'
+  let start = if neg { 1 } else { 0 }
+  if start >= s.length() {
     return None
   }
   // The Java `Long.parseLong` algorithm: accumulate negatively so that
@@ -159,12 +145,12 @@ fn parse_int_lit(s : String) -> Int64? {
   let multmin = limit / 10L
   let mut result : Int64 = 0L
   let mut started = false
-  while i < s.length() {
+  for i in start..<s.length() {
     let u = s[i]
     if u < '0' || u > '9' {
       return None
     }
-    let digit = (u.to_int() - 48).to_int64()
+    let digit = (u.to_int() - '0'.to_int()).to_int64()
     if result < multmin {
       return None
     }
@@ -174,7 +160,6 @@ fn parse_int_lit(s : String) -> Int64? {
     }
     result = result - digit
     started = true
-    i = i + 1
   }
   guard started else { return None }
   let value = if neg { result } else { -result }
@@ -381,7 +366,7 @@ fn Lexer::advance_spaces(self : Lexer) -> TokenKind {
     } else if curr == '\n' {
       false
     } else {
-      is_whitespace(curr)
+      curr.is_whitespace()
     }
   })
   TSpace
@@ -419,13 +404,13 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
     // Whitespace: first try matching newlines, then whitespace-like
     ('\n', _) => self.advance_with(1, TNewline)
     ('\r', '\n') => self.advance_with(2, TNewline)
-    (c, _) if is_whitespace(c) => self.advance_spaces()
+    (c, _) if c.is_whitespace() => self.advance_spaces()
     // Numbers
     ('0', 'x') if is_hex_digit(self.peek_ahead(2)) => {
       self.advance_k(2)
       self.byte()
     }
-    (c, _) if is_digit(c) => self.number()
+    (c, _) if c.is_ascii_digit() => self.number()
     // Identifiers and keywords
     (c, _) if is_name_first(c) => self.identifier()
     // String literals, character literals, hole string literals
@@ -504,7 +489,7 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
     ('+', '+') => self.advance_with(2, TPlusPlus)
     ('+', '=') => self.advance_with(2, TPlusEq)
     ('+', _) => self.advance_with(1, TPlus)
-    ('-', c) if is_digit(c) => {
+    ('-', c) if c.is_ascii_digit() => {
       self.advance_k(1)
       self.number()
     }
@@ -580,12 +565,12 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
 ///|
 fn Lexer::number(self : Lexer) -> TokenKind {
   // Consume the integer part
-  self.advance_while((curr, _) => is_digit(curr))
+  self.advance_while((curr, _) => curr.is_ascii_digit())
 
-  if self.current_char == '.' && is_digit(self.next_char) {
+  if self.current_char == '.' && self.next_char.is_ascii_digit() {
     ignore(self.advance()) // consume '.'
     // Consume fractional part
-    self.advance_while((curr, _) => is_digit(curr))
+    self.advance_while((curr, _) => curr.is_ascii_digit())
     let float_string = self.get_current_slice(0, 0)
     match parse_double_lit(float_string) {
       Some(d) => TFloat(d)

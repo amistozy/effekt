@@ -15,36 +15,15 @@ pub(all) struct ConstructorRef {
 }
 
 ///|
-pub(all) struct FieldRef {
-  constructor_ref : ConstructorRef
-  field : Field
-}
-
-///|
-pub(all) struct PropertyRef {
-  /// The interface declaration this property belongs to.
-  interface : Declaration
-  property : Property
-}
-
-///|
 pub(all) struct DeclarationContext {
   declarations : Array[Declaration]
   externs : Array[Extern]
   /// uid -> index into `declarations`
   datas : Map[Int32, Int32]
-  /// uid -> index into `declarations`
-  interfaces : Map[Int32, Int32]
   /// uid -> constructor
   constructors : Map[Int32, ConstructorRef]
-  /// uid -> field
-  fields : Map[Int32, FieldRef]
-  /// uid -> property
-  properties : Map[Int32, PropertyRef]
   /// uid -> index into `externs`
   extern_defs : Map[Int32, Int32]
-  /// uid -> index into `externs`
-  extern_datas : Map[Int32, Int32]
   /// "name(t1, t2)" -> index into `externs`
   extern_defs_by_name : Map[String, Int32]
 }
@@ -61,35 +40,22 @@ pub fn DeclarationContext::DeclarationContext(
   externs : Array[Extern],
 ) -> DeclarationContext {
   let datas : Map[Int32, Int32] = Map([])
-  let interfaces : Map[Int32, Int32] = Map([])
   let constructors : Map[Int32, ConstructorRef] = Map([])
-  let fields : Map[Int32, FieldRef] = Map([])
-  let properties : Map[Int32, PropertyRef] = Map([])
   for i in 0..<declarations.length() {
     match declarations[i] {
       DeclarationData(id, _, ctors) => {
         datas.set(id.uid(), i)
         for c in ctors {
-          let ref = { data: declarations[i], constructor: c, }
-          constructors.set(c.id.uid(), ref)
-          for f in c.fields {
-            fields.set(f.id.uid(), { constructor_ref: ref, field: f, })
-          }
-        }
-      }
-      DeclarationInterface(id, _, props) => {
-        interfaces.set(id.uid(), i)
-        for p in props {
-          properties.set(p.id.uid(), {
-            interface: declarations[i],
-            property: p,
+          constructors.set(c.id.uid(), {
+            data: declarations[i],
+            constructor: c,
           })
         }
       }
+      DeclarationInterface(_, _, _) => ()
     }
   }
   let extern_defs : Map[Int32, Int32] = Map([])
-  let extern_datas : Map[Int32, Int32] = Map([])
   let extern_defs_by_name : Map[String, Int32] = Map([])
   for i in 0..<externs.length() {
     match externs[i] {
@@ -100,7 +66,6 @@ pub fn DeclarationContext::DeclarationContext(
           i,
         )
       }
-      ExternData(id, _, _) => extern_datas.set(id.uid(), i)
       _ => ()
     }
   }
@@ -108,12 +73,8 @@ pub fn DeclarationContext::DeclarationContext(
     declarations,
     externs,
     datas,
-    interfaces,
     constructors,
-    fields,
-    properties,
     extern_defs,
-    extern_datas,
     extern_defs_by_name,
   }
 }
@@ -129,32 +90,11 @@ fn[T] panic(msg : String) -> T raise EffektError {
 // -------
 
 ///|
-pub fn DeclarationContext::find_declaration(
-  self : DeclarationContext,
-  id : Sym,
-) -> Declaration? {
-  for d in self.declarations {
-    if d.id().uid() == id.uid() {
-      return Some(d)
-    }
-  }
-  None
-}
-
-///|
 pub fn DeclarationContext::find_data(
   self : DeclarationContext,
   id : Sym,
 ) -> Declaration? {
   self.datas.get(id.uid()).map(i => self.declarations[i])
-}
-
-///|
-pub fn DeclarationContext::find_interface(
-  self : DeclarationContext,
-  id : Sym,
-) -> Declaration? {
-  self.interfaces.get(id.uid()).map(i => self.declarations[i])
 }
 
 ///|
@@ -182,38 +122,6 @@ pub fn DeclarationContext::find_constructor_tag(
 }
 
 ///|
-pub fn DeclarationContext::find_field(
-  self : DeclarationContext,
-  id : Sym,
-) -> Field? {
-  self.fields.get(id.uid()).map(ref => ref.field)
-}
-
-///|
-pub fn DeclarationContext::find_property(
-  self : DeclarationContext,
-  id : Sym,
-) -> Property? {
-  self.properties.get(id.uid()).map(ref => ref.property)
-}
-
-///|
-pub fn DeclarationContext::find_property_tag(
-  self : DeclarationContext,
-  id : Sym,
-) -> Int32? {
-  match self.properties.get(id.uid()) {
-    Some(ref) =>
-      match ref.interface {
-        DeclarationInterface(_, _, props) =>
-          props.search_by(p => p.id.uid() == ref.property.id.uid())
-        _ => None
-      }
-    None => None
-  }
-}
-
-///|
 pub fn DeclarationContext::find_extern_def(
   self : DeclarationContext,
   id : Sym,
@@ -230,14 +138,6 @@ pub fn DeclarationContext::find_extern_def_by_name(
   self.extern_defs_by_name
   .get(extern_def_key(name, params))
   .map(i => self.externs[i])
-}
-
-///|
-pub fn DeclarationContext::find_extern_data(
-  self : DeclarationContext,
-  id : Sym,
-) -> Extern? {
-  self.extern_datas.get(id.uid()).map(i => self.externs[i])
 }
 
 // Panicking lookups

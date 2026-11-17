@@ -684,7 +684,6 @@ test "try/handle becomes Reset/Shift" {
 pub(all) struct HandlerFixture {
   term : @source.Term
   op_sym : @symbols.Sym
-  cap_sym : @symbols.Sym
   implementation : @source.Implementation
 }
 
@@ -801,7 +800,6 @@ fn handler_fixture(
   {
     term: @source.mk_term(missing(), @source.TryHandle(prog, [handler])),
     op_sym,
-    cap_sym,
     implementation,
   }
 }

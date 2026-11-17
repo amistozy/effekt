@@ -254,16 +254,10 @@ pub fn global_capture() -> Sym {
 }
 
 ///|
-/// The built-in mutable reference effect `Ref[S]`.
-pub(all) struct StateEffect {
-  state_param : Sym
-  interface : Sym
-  get : Sym
-  put : Sym
-}
-
-///|
-fn make_state_effect() -> StateEffect {
+/// The built-in mutable reference effect `Ref[S]`: its interface symbol. The
+/// `get` / `put` operations are reachable through `Interface.operations` of the
+/// same symbol, so the interface is all that has to be kept.
+fn make_state_interface() -> Sym {
   let s = Sym::type_param(Name::local("S"), Span::missing())
   let iface = Interface({
     base: { uid: fresh_uid(), name: Name::local("Ref"), decl: Span::missing(), },
@@ -302,26 +296,26 @@ fn make_state_effect() -> StateEffect {
     Interface(i) => i.operations = [get, put]
     _ => ()
   }
-  { state_param: s, interface: iface, get, put, }
+  iface
 }
 
 ///|
-let state_effect : StateEffect = make_state_effect()
+let state_interface : Sym = make_state_interface()
 
 ///|
 pub fn t_state(state_type : ValueType) -> BlockType {
-  InterfaceType(state_effect.interface, [state_type])
+  InterfaceType(state_interface, [state_type])
 }
 
 ///|
 pub fn state_effect_sym() -> Sym {
-  state_effect.interface
+  state_interface
 }
 
 ///|
 pub fn t_state_extract(s : BlockType) -> ValueType raise EffektError {
   match s {
-    InterfaceType(i, args) if i.uid() == state_effect.interface.uid() &&
+    InterfaceType(i, args) if i.uid() == state_interface.uid() &&
       args.length() == 1 => args[0]
     tpe => raise EffektError::Internal("Expected builtin state, but got \{tpe}")
   }
@@ -381,7 +375,7 @@ pub fn core_builtins() -> Map[String, Sym] {
     "io": io_capture(),
     "async": async_capture(),
     "global": global_capture(),
-    "Ref": state_effect.interface,
+    "Ref": state_interface,
   }
 }
 

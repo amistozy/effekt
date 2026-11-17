@@ -4,7 +4,6 @@ package "amistozy/effekt/src/compiler"
 import {
   "amistozy/effekt/src/namer",
   "amistozy/effekt/src/source",
-  "amistozy/effekt/src/symbols",
   "amistozy/effekt/src/util",
 }
 
@@ -73,7 +72,6 @@ pub struct Loader {
   mut prelude_roots : Array[String]
   sources : Map[String, @util.Source]
   trees : Map[String, @source.ModuleDecl]
-  modules : Map[String, @symbols.Module]
 }
 pub fn Loader::Loader(Array[String]) -> Self
 pub fn Loader::closure(Self, String, @source.Context, (@util.Source, @source.Context) -> @source.ModuleDecl? raise @util.EffektError) -> Array[String] raise @util.EffektError

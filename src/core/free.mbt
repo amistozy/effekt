@@ -288,11 +288,3 @@ pub fn Toplevel::free(self : Toplevel) -> Free {
     ToplevelVal(_, binding) => binding.free()
   }
 }
-
-///|
-pub fn free_var_extern_body(body : ExternBody[Expr]) -> Free {
-  match body {
-    StringExternBody(_, contents) => free_all(contents.args, e => e.free())
-    Unsupported(_) => Free::empty()
-  }
-}

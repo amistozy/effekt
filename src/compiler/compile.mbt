@@ -417,17 +417,10 @@ pub fn module_path_of(file : String) -> String {
 /// next to the errors they belong to; they are what the negative corpus tests
 /// check for (`[info] path:line:col ...`), so they are rendered as well.
 pub fn render_messages(messages : ArrayView[Message]) -> String {
+  // upstream `messages.sortBy(...)` is a stable sort on the message positions,
+  // so the order diagnostics were reported in is kept where they coincide
   let sorted = messages.to_owned()
-  // insertion sort: the lists are short and it keeps the order stable
-  for i in 1..<sorted.length() {
-    let current = sorted[i]
-    let mut j = i - 1
-    while j >= 0 && compare_positions(sorted[j].span, current.span) > 0 {
-      sorted[j + 1] = sorted[j]
-      j = j - 1
-    }
-    sorted[j + 1] = current
-  }
+  sorted.mut_view().stable_sort_by((a, b) => compare_positions(a.span, b.span))
   let buf = StringBuilder()
   let mut previous = ""
   for m in sorted {

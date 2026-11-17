@@ -100,8 +100,6 @@ pub(all) struct CaptureSetTree {
 
 pub(all) struct Config {
   feature_flags : Array[String]
-  debug : Bool
-  optimize : Bool
 }
 pub fn Config::default() -> Self
 
@@ -119,7 +117,6 @@ pub(all) struct Context {
   symbols : Map[Int32, @symbols.Sym]
   value_types : Map[Int32, @symbols.ValueType]
   block_types : Map[Int32, @symbols.BlockType]
-  types : Map[Int32, @symbols.Sym]
   captures : Map[Int32, @symbols.Captures]
   effects : Map[Int32, @symbols.Effects]
   bound_capabilities : Map[Int32, Array[@symbols.Sym]]

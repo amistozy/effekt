@@ -92,18 +92,11 @@ pub struct Loader {
   mut prelude_roots : Array[String]
   sources : Map[String, Source]
   trees : Map[String, ModuleDecl]
-  modules : Map[String, @symbols.Module]
 }
 
 ///|
 pub fn Loader::Loader(roots : Array[String]) -> Loader {
-  {
-    roots,
-    prelude_roots: roots.copy(),
-    sources: Map([]),
-    trees: Map([]),
-    modules: Map([]),
-  }
+  { roots, prelude_roots: roots.copy(), sources: Map([]), trees: Map([]), }
 }
 
 ///|

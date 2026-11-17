@@ -12,8 +12,6 @@ pub fn brackets_inner(Doc) -> Doc
 
 pub fn comma() -> Doc
 
-pub fn compare_string(String, String) -> Int32
-
 pub fn did_you_mean(String, ArrayView[String], (String) -> String?) -> String?
 
 pub fn did_you_mean_type(String) -> String?
@@ -145,7 +143,6 @@ pub(all) struct Span {
   origin : Origin
 }
 pub fn Span::Span(Source, Int32, Int32) -> Self
-pub fn Span::compare(Self, Self) -> Int32
 pub fn Span::empty_after(Self) -> Self
 pub fn Span::is_missing(Self) -> Bool
 pub fn Span::merge(Self, Self) -> Self

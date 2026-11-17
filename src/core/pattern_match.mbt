@@ -429,7 +429,7 @@ fn pm_constructor_field_names(
     Constructor(c) => c.fields.map(f => f.name().name)
     _ => []
   }
-  while names.length() < arity {
+  for _ in names.length()..<arity {
     names.push("y")
   }
   names

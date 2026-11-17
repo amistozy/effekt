@@ -432,40 +432,6 @@ pub fn Scoping::lookup_first_block_param(
 }
 
 ///|
-/// Looks up either a term or a type symbol, disambiguating the two.
-pub fn Scoping::lookup_first_option(
-  self : Scoping,
-  path : ArrayView[String],
-  name : String,
-) -> Sym? raise EffektError {
-  first(path, self.scope, b => {
-    let terms = b.terms.get(name)
-    let tpe = b.types.get(name)
-    match (terms, tpe) {
-      (Some(ts), None) =>
-        if ts.length() == 1 {
-          Some(ts[0])
-        } else {
-          raise EffektError::Fatal("Ambiguous reference to \{name}")
-        }
-      (None, Some(t)) => Some(t)
-      (Some(ts), Some(t)) =>
-        if ts.length() == 1 && ts[0].is_operation() {
-          match t {
-            Interface(_) => Some(t)
-            _ => raise EffektError::Fatal("Ambiguous reference to \{name}")
-          }
-        } else {
-          raise EffektError::Fatal(
-            "Ambiguous reference to \{name}. Can refer to a term or a type.",
-          )
-        }
-      (None, None) => None
-    }
-  })
-}
-
-///|
 pub fn Scoping::current_terms_for(self : Scoping, name : String) -> Array[Sym] {
   self.scope.bindings().terms.get(name).unwrap_or([])
 }
