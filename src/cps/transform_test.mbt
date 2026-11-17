@@ -48,17 +48,17 @@ test "cps.transform: dealiases a let-bound variable" {
     @cps.ToplevelVal(_id, _ks, _k, binding) =>
       match binding {
         @cps.Jump(_k2, vargs, _ks2) => {
-          assert_true(vargs.length() == 1, msg="expected exactly one argument")
+          assert_eq(vargs.length(), 1, msg="expected exactly one argument")
           match vargs[0] {
             @cps.ValueVar(id) =>
               // the dealiased `y`, not the let-bound `x`
-              assert_true(id.uid() == y.uid(), msg="expected the dealiased `y`")
-            _ => assert_true(false, msg="expected a value variable")
+              assert_eq(id.uid(), y.uid(), msg="expected the dealiased `y`")
+            _ => fail("expected a value variable")
           }
         }
-        _ => assert_true(false, msg="expected a jump")
+        _ => fail("expected a jump")
       }
-    _ => assert_true(false, msg="expected a toplevel val")
+    _ => fail("expected a toplevel val")
   }
 }
 
@@ -77,16 +77,15 @@ test "cps.transform: inlines a value binding (static continuation)" {
     @cps.ToplevelVal(_id, _ks, _k, binding) =>
       match binding {
         @cps.Jump(_k2, vargs, _ks2) => {
-          assert_true(vargs.length() == 1, msg="expected exactly one argument")
+          assert_eq(vargs.length(), 1, msg="expected exactly one argument")
           match vargs[0] {
-            @cps.Literal(@source.LInt(42), _) =>
-              assert_true(true, msg="the value is inlined")
-            _ => assert_true(false, msg="expected the literal 42")
+            @cps.Literal(@source.LInt(42), _) => ()
+            _ => fail("expected the literal 42")
           }
         }
-        _ => assert_true(false, msg="expected a jump")
+        _ => fail("expected a jump")
       }
-    _ => assert_true(false, msg="expected a toplevel val")
+    _ => fail("expected a toplevel val")
   }
 }
 
@@ -119,7 +118,7 @@ test "cps.transform: an application passes metacont and continuation" {
     @cps.ToplevelVal(_id, ks, k, binding) =>
       match binding {
         @cps.LetDef(id, _block, body) => {
-          assert_true(id.uid() == f.uid(), msg="expected the definition of `f`")
+          assert_eq(id.uid(), f.uid(), msg="expected the definition of `f`")
           match body {
             @cps.App(callee, vargs, bargs, meta, cont) => {
               assert_true(vargs.is_empty() && bargs.is_empty())
@@ -137,15 +136,15 @@ test "cps.transform: an application passes metacont and continuation" {
                     k2.uid() == k.uid(),
                     msg="the continuation is the enclosing one",
                   )
-                _ => assert_true(false, msg="expected a continuation variable")
+                _ => fail("expected a continuation variable")
               }
             }
-            _ => assert_true(false, msg="expected an application")
+            _ => fail("expected an application")
           }
         }
-        _ => assert_true(false, msg="expected a let definition")
+        _ => fail("expected a let definition")
       }
-    _ => assert_true(false, msg="expected a toplevel val")
+    _ => fail("expected a toplevel val")
   }
 }
 
@@ -207,7 +206,7 @@ test "cps.contify: a block that always returns to the same continuation becomes 
                 k3.uid() == k2.uid(),
                 msg="the continuation of the block is substituted",
               )
-            _ => assert_true(false, msg="expected a jump")
+            _ => fail("expected a jump")
           }
           // and the call site is contified into a jump
           match body {
@@ -218,12 +217,12 @@ test "cps.contify: a block that always returns to the same continuation becomes 
               )
               assert_true(vargs.is_empty())
             }
-            _ => assert_true(false, msg="expected a jump")
+            _ => fail("expected a jump")
           }
         }
-        _ => assert_true(false, msg="expected a let continuation")
+        _ => fail("expected a let continuation")
       }
-    _ => assert_true(false, msg="expected a toplevel val")
+    _ => fail("expected a toplevel val")
   }
 }
 
@@ -273,8 +272,8 @@ test "cps.contify: a block used as a value is not contified" {
             id.uid() == f.uid(),
             msg="the definition is left alone since the block escapes",
           )
-        _ => assert_true(false, msg="expected a let definition")
+        _ => fail("expected a let definition")
       }
-    _ => assert_true(false, msg="expected a toplevel val")
+    _ => fail("expected a toplevel val")
   }
 }

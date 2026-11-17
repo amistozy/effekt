@@ -866,7 +866,7 @@ test "unidirectional resume of an operation with a value parameter" {
       assert_eq(implementation.operations[0].cparams.length(), 0)
       assert_eq(implementation.operations[0].bparams.length(), 0)
       // the prompt and the continuation are distinct binders
-      assert_true(prompt.id.uid() != k.id.uid())
+      assert_not_eq(prompt.id.uid(), k.id.uid())
       // [[ def resume(a) = resume(k) { return a } ]]
       match shared {
         @core.Def(resume, @core.BlockLit(resume_lit), body) => {

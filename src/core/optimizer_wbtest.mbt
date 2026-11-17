@@ -70,7 +70,7 @@ test "direct style: a binding that returns becomes a join point" {
         Def(_, BlockLit(joinpoint), App(BlockVar(callee), _, [arg], _)) => {
           assert_eq(joinpoint.vparams.length(), 1)
           assert_eq(joinpoint.vparams[0].id.uid(), x.uid())
-          assert_true(callee.id.uid() != x.uid())
+          assert_not_eq(callee.id.uid(), x.uid())
           assert_true(arg is Literal(_, _))
         }
         other => abort("expected a join point, got \{show_core_stmt(other)}")

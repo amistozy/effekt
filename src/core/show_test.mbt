@@ -388,7 +388,7 @@ test "show phase: generates a structural instance and rewrites the call" {
     _ => abort("expected a toplevel block definition")
   }
   // ... and the callee is the generated instance, not the extern
-  assert_true(callee.uid() != f.show.uid())
+  assert_not_eq(callee.uid(), f.show.uid())
   assert_eq(callee.uid(), tree_id.uid())
 }
 

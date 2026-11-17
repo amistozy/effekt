@@ -488,3 +488,27 @@ You can browse and install extra skills here:
   scientific computations), prefer assertion tests. You can use
   `moon coverage analyze > uncovered.log` to see which parts of your code are
   not covered by tests.
+
+- **Three assertion spellings, chosen by what the test means.** The suite has
+  392 `assert_eq`, 257 `assert_true`, 84 `fail` and 43 `assert_false`.
+
+  - Comparing two values is `assert_eq(a, b)` / `assert_not_eq(a, b)`, not
+    `assert_true(a == b)`: the assertion printers show both sides, while
+    `assert_true` only says "false". This round converted 17 of them.
+    The catch is the bound: `assert_eq` wants `Eq + @debug.Debug`, and `Name`,
+    `ValueType`, `BlockType`, `Captures` and `Sym` implement `Eq` (plus `Show`)
+    but not `Debug`, so comparing those keeps `assert_true(a == b)`; compare a
+    field instead (`assert_eq(x.uid(), y.uid())`) and the bound is satisfied.
+    Do not add `#derive(Debug)` to a core type just to get a nicer failure
+    message — derived `Debug` on a `Sym` prints the whole symbol tree.
+  - An arm that must not be reached is `fail("what was expected instead")`,
+    never `assert_true(false)` (core writes 423 `fail` to 2 `assert_true(false)`
+    — ours had 50 of the latter, all converted): `None =>
+    fail("expected the symbol to resolve")` in a lookup match, `_ =>
+    fail("expected a jump")` in an AST match. A match arm that *is* the
+    assertion needs no statement at all — `@cps.Literal(@source.LInt(42), _) =>
+    ()`, not `assert_true(true, msg="the value is inlined")`, which can never
+    fail and therefore asserts nothing.
+  - Everything else (`assert_true(xs.any(...))`, `assert_true(x is
+    Some(y))`, `assert_false(a == b)` for a type without `Debug`) stays as it
+    is.

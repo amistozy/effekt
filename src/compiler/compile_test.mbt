@@ -284,7 +284,7 @@ test "an unused handler is still reported" {
   if warnings.length() != 1 {
     println(@compiler.render_messages(warnings))
   }
-  assert_true(warnings.length() == 1)
+  assert_eq(warnings.length(), 1)
 }
 
 ///|

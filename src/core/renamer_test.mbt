@@ -14,18 +14,18 @@ test "renamer: freshens a binder and its references" {
   )
   let (renamed, renamings) = @core.rename_block_lit(lit)
   let x2 = renamed.vparams[0].id
-  assert_true(x2.uid() != x.uid(), msg="the binder is fresh")
+  assert_not_eq(x2.uid(), x.uid(), msg="the binder is fresh")
   assert_true(x2.name() == x.name(), msg="but keeps its name")
   // the reference in the body was renamed to the fresh binder
   match renamed.body {
     @core.Return([@core.ValueVar(id, _)]) =>
-      assert_true(id.uid() == x2.uid(), msg="the reference follows the binder")
+      assert_eq(id.uid(), x2.uid(), msg="the reference follows the binder")
     _ => abort("expected a single returned variable")
   }
   // and the renaming is recorded
   match renamings.get(x2.uid()) {
     Some(original) =>
-      assert_true(original.uid() == x.uid(), msg="the fresh symbol maps back")
+      assert_eq(original.uid(), x.uid(), msg="the fresh symbol maps back")
     None => abort("expected the fresh symbol to be recorded")
   }
 }
@@ -44,7 +44,7 @@ test "renamer: leaves free variables untouched" {
   let (renamed, _) = @core.rename_block_lit(lit)
   match renamed.body {
     @core.Return([@core.ValueVar(id, _)]) =>
-      assert_true(id.uid() == y.uid(), msg="y is free, so it is not renamed")
+      assert_eq(id.uid(), y.uid(), msg="y is free, so it is not renamed")
     _ => abort("expected a single returned variable")
   }
 }
@@ -108,10 +108,10 @@ test "renamer: two siblings do not see each other's binders" {
   let (renamed, _) = @core.rename_block_lit(lit)
   match renamed.body {
     @core.Def(f2, _, @core.Def(g2, _, @core.Return([@core.ValueVar(id, _)]))) => {
-      assert_true(f2.uid() != f.uid(), msg="f is freshened")
-      assert_true(g2.uid() != g.uid(), msg="g is freshened")
-      assert_true(f2.uid() != g2.uid(), msg="and they are distinct")
-      assert_true(id.uid() == x.uid(), msg="x stays free")
+      assert_not_eq(f2.uid(), f.uid(), msg="f is freshened")
+      assert_not_eq(g2.uid(), g.uid(), msg="g is freshened")
+      assert_not_eq(f2.uid(), g2.uid(), msg="and they are distinct")
+      assert_eq(id.uid(), x.uid(), msg="x stays free")
     }
     _ => abort("expected two nested definitions")
   }

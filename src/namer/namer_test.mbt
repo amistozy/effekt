@@ -352,7 +352,7 @@ test "resolves a function definition and a forward call" {
       match context.symbol_of(foo_id.uid) {
         Some(foo_sym) =>
           assert_true(call_target_contains(context, the_call.uid, foo_sym))
-        None => assert_true(false)
+        None => fail("expected the symbol to resolve")
       }
       // the return annotation was resolved (as upstream, on the inner value
       // type tree of the `Effectful` annotation)
@@ -360,7 +360,7 @@ test "resolves a function definition and a forward call" {
     }
     None => {
       println(messages(context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
   }
 }
@@ -395,7 +395,7 @@ test "a local val shadows a toplevel val" {
     }
     None => {
       println(messages(context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
   }
 }
@@ -475,22 +475,22 @@ test "resolves type and data declarations and type references" {
                           None => false
                         },
                       )
-                    _ => assert_true(false)
+                    _ => fail("unexpected shape")
                   }
-                _ => assert_true(false)
+                _ => fail("unexpected shape")
               }
             }
-            _ => assert_true(false)
+            _ => fail("unexpected shape")
           }
         }
-        _ => assert_true(false)
+        _ => fail("unexpected shape")
       }
       // ... and the parameter id of the constructor field is a value param
       assert_eq(symbol_kind(context, head_id.uid), "ValueParam")
     }
     None => {
       println(messages(context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
   }
 }
@@ -561,7 +561,7 @@ test "resolves an effect declaration, its operations and a handler with resume" 
           assert_true(same_symbol(context, exc_id.uid, exc_id.uid))
           match context.symbol_of(exc_id.uid) {
             Some(exc_sym) => assert_true(op.interface.uid() == exc_sym.uid())
-            None => assert_true(false)
+            None => fail("expected the symbol to resolve")
           }
           // ... and `do raise(...)` resolves to a call target containing it
           assert_true(
@@ -572,7 +572,7 @@ test "resolves an effect declaration, its operations and a handler with resume" 
             ),
           )
         }
-        _ => assert_true(false)
+        _ => fail("unexpected symbol")
       }
       // the clause resolves the operation ...
       assert_true(same_symbol(context, clause.id.uid, op_id.uid))
@@ -583,14 +583,14 @@ test "resolves an effect declaration, its operations and a handler with resume" 
           assert_true(
             call_target_contains(context, resume_call.uid, resume_sym),
           )
-        None => assert_true(false)
+        None => fail("expected the symbol to resolve")
       }
       // the handled interface is recorded on the implementation
       assert_true(same_symbol(context, handler.implementation.uid, exc_id.uid))
     }
     None => {
       println(messages(context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
   }
 }
@@ -626,12 +626,12 @@ test "resolves dotted references into a namespace" {
           assert_true(call_target_contains(context, dotted.uid, bar_sym))
           assert_true(call_target_contains(context, fully_dotted.uid, bar_sym))
         }
-        None => assert_true(false)
+        None => fail("expected the symbol to resolve")
       }
     }
     None => {
       println(messages(context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
   }
 }
@@ -652,7 +652,7 @@ test "imports an included module's exports" {
   match resolve_ok(lib_module, lib_context) {
     None => {
       println(messages(lib_context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
     Some(lib) => {
       // module `app`: include "lib"; call `inc(1)` (opened) and `lib::inc(1)`
@@ -680,17 +680,17 @@ test "imports an included module's exports" {
               assert_true(call_target_contains(context, opened.uid, inc_sym))
               assert_true(call_target_contains(context, qualified.uid, inc_sym))
             }
-            None => assert_true(false)
+            None => fail("expected the symbol to resolve")
           }
           // the module does not re-export what it imports
           match resolved.module.exports.terms.get("inc") {
-            Some(_) => assert_true(false)
-            None => assert_true(true)
+            Some(_) => fail("imported names must not be re-exported")
+            None => ()
           }
         }
         None => {
           println(messages(context))
-          assert_true(false)
+          fail("expected the module to resolve")
         }
       }
     }
@@ -708,7 +708,7 @@ test "a local definition shadows an imported name" {
   match resolve_ok(lib_module, lib_context) {
     None => {
       println(messages(lib_context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
     Some(lib) => {
       // module `app` defines its own `answer` and uses it
@@ -732,12 +732,12 @@ test "a local definition shadows an imported name" {
           match lib_context.symbol_of(lib_answer_id.uid) {
             Some(imported) =>
               assert_false(same_symbol(context, use.uid, imported.uid()))
-            None => assert_true(false)
+            None => fail("expected the symbol to resolve")
           }
         }
         None => {
           println(messages(context))
-          assert_true(false)
+          fail("expected the module to resolve")
         }
       }
     }
@@ -777,7 +777,7 @@ test "resolves a record, its constructor and field selectors" {
     }
     None => {
       println(messages(context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
   }
 }
@@ -809,12 +809,12 @@ test "resolves a def (block) definition and a call to it" {
       match context.symbol_of(bar_id.uid) {
         Some(bar_sym) =>
           assert_true(call_target_contains(context, the_call.uid, bar_sym))
-        None => assert_true(false)
+        None => fail("expected the symbol to resolve")
       }
     }
     None => {
       println(messages(context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
   }
 }
@@ -838,13 +838,13 @@ test "resolves a hole and numbers it after the enclosing definition" {
       match context.symbol_of(hole_id.uid) {
         // the hole is named after the enclosing definition plus a counter
         Some(hole_sym) => assert_eq(hole_sym.name().name, "main0")
-        None => assert_true(false)
+        None => fail("expected the symbol to resolve")
       }
       assert_eq(resolved.holes.length(), 1)
     }
     None => {
       println(messages(context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
   }
 }
@@ -862,7 +862,7 @@ test "a missing include is reported and skipped" {
       assert_eq(resolved.module.includes.length(), 0)
       assert_true(context.has_errors())
     }
-    None => assert_true(false)
+    None => fail("expected the module to resolve")
   }
 }
 
@@ -876,7 +876,7 @@ test "the `resolve` entry point publishes the module in the context" {
   @namer.resolve(module, context) catch {
     _ => {
       println(messages(context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
   }
   match context.resolved_module() {
@@ -885,10 +885,10 @@ test "the `resolve` entry point publishes the module in the context" {
       // the exports of the module are the toplevel definitions
       match resolved.exports.terms.get("main") {
         Some(syms) => assert_eq(syms.length(), 1)
-        None => assert_true(false)
+        None => fail("expected the name to be exported")
       }
     }
-    None => assert_true(false)
+    None => fail("expected the module to resolve")
   }
   assert_false(context.has_errors())
 }
@@ -951,7 +951,7 @@ test "an importer resolved after its dependency sees its terms and types" {
   match resolve_ok(lib_module, context) {
     None => {
       println(messages(context))
-      assert_true(false)
+      fail("expected the module to resolve")
     }
     Some(lib) => {
       // the dependency itself exports its interface and its function
@@ -1025,7 +1025,7 @@ test "an importer resolved after its dependency sees its terms and types" {
           // the *type* `Box[Int]` of the dependency resolves to the same symbol
           match context.symbol_of(box_int.uid) {
             Some(sym) => assert_eq(sym.uid(), box_uid)
-            None => assert_true(false)
+            None => fail("expected the symbol to resolve")
           }
           // the operation `put` of the dependency resolves
           match context.symbol_of(put_id.uid) {
@@ -1033,7 +1033,7 @@ test "an importer resolved after its dependency sees its terms and types" {
               assert_eq(put_sym.uid(), put_uid)
               assert_true(call_target_contains(context, do_put.uid, put_sym))
             }
-            None => assert_true(false)
+            None => fail("expected the symbol to resolve")
           }
           // the *term* `make` of the dependency resolves
           match context.symbol_of(make_id.uid) {
@@ -1041,7 +1041,7 @@ test "an importer resolved after its dependency sees its terms and types" {
               assert_true(
                 call_target_contains(context, make_call.uid, make_sym),
               )
-            None => assert_true(false)
+            None => fail("expected the symbol to resolve")
           }
           // resolving the importer did not corrupt the dependency's exports
           assert_true(has_type(lib.module.exports, "Box"))
@@ -1050,7 +1050,7 @@ test "an importer resolved after its dependency sees its terms and types" {
         }
         None => {
           println(messages(context))
-          assert_true(false)
+          fail("expected the module to resolve")
         }
       }
     }

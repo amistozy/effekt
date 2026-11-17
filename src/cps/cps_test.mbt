@@ -61,7 +61,7 @@ test "cps: substitute as block var" {
   let blocks : Map[Int32, @cps.Block] = Map([])
   blocks.set(r.uid(), @cps.BlockVar(r2))
   let subst = @cps.Substitution(Map([]), blocks, Map([]), Map([]))
-  assert_true(@cps.substitute_as_block_var(r, subst).uid() == r2.uid())
+  assert_eq(@cps.substitute_as_block_var(r, subst).uid(), r2.uid())
   assert_true(
     @cps.substitute_as_block_var(bsym("other"), subst).uid() != r2.uid(),
   )
