@@ -284,10 +284,8 @@ fn Transformer::bind_block(
 /// Runs `f` with a fresh binding list and returns the bindings it emitted
 /// together with the result.
 ///
-/// NOTE: upstream restores the state in a `finally`; MoonBit has no
-/// `try`/`finally`, so a raising `f` leaves the transformer in the nested
-/// state. This is harmless: a raise aborts the whole translation, and the
-/// transformer is discarded.
+/// Upstream restores the state in a `finally`; `defer` runs on the raising path
+/// too, so a failed `f` leaves the transformer as it found it either way.
 fn[T] Transformer::with_bindings(
   self : Transformer,
   f : () -> T raise EffektError,
@@ -295,12 +293,13 @@ fn[T] Transformer::with_bindings(
   let before = self.bindings
   let substitution_before = self.capture_substitution
   let collected : Array[Binding] = []
+  defer {
+    self.bindings = before
+    self.capture_substitution = substitution_before
+  }
   self.bindings = collected
   self.capture_substitution = Map([])
-  let result = f()
-  self.bindings = before
-  self.capture_substitution = substitution_before
-  (result, collected)
+  (f(), collected)
 }
 
 ///|

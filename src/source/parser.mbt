@@ -653,19 +653,11 @@ fn[T] Parser::nonterminal(
   p : () -> T raise EffektError,
 ) -> T raise EffektError {
   let saved = self.start
-  self.start = self.peek_token().start
-  let res = p() catch {
-    Fatal(m) => {
-      self.start = saved
-      raise EffektError::Fatal(m)
-    }
-    Internal(m) => {
-      self.start = saved
-      raise EffektError::Internal(m)
-    }
+  defer {
+    self.start = saved
   }
-  self.start = saved
-  res
+  self.start = self.peek_token().start
+  p()
 }
 
 ///|
@@ -675,19 +667,11 @@ fn[T] Parser::nonterminal_at(
   p : () -> T raise EffektError,
 ) -> T raise EffektError {
   let saved = self.start
-  self.start = span.start
-  let res = p() catch {
-    Fatal(m) => {
-      self.start = saved
-      raise EffektError::Fatal(m)
-    }
-    Internal(m) => {
-      self.start = saved
-      raise EffektError::Internal(m)
-    }
+  defer {
+    self.start = saved
   }
-  self.start = saved
-  res
+  self.start = span.start
+  p()
 }
 
 // Combinators
@@ -756,12 +740,13 @@ fn[T] Parser::labelled(
   p : () -> T raise EffektError,
 ) -> T raise EffektError {
   let label_before = self.current_label
+  defer {
+    self.current_label = label_before
+  }
   if self.current_label is None {
     self.current_label = Some(label)
   }
-  let res = p()
-  self.current_label = label_before
-  res
+  p()
 }
 
 ///|

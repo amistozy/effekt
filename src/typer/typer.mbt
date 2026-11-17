@@ -613,6 +613,13 @@ fn Typer::types_compatible(
   let error_before = self.muted_error
   let messages_before = self.muted_messages
   let infos_before = self.muted_infos
+  defer {
+    self.st = before
+    self.muting = muting_before
+    self.muted_error = error_before
+    self.muted_messages = messages_before
+    self.muted_infos = infos_before
+  }
   self.muting = true
   self.muted_error = false
   self.muted_messages = []
@@ -628,11 +635,6 @@ fn Typer::types_compatible(
   if self.muted_error {
     ok = false
   }
-  self.st = before
-  self.muting = muting_before
-  self.muted_error = error_before
-  self.muted_messages = messages_before
-  self.muted_infos = infos_before
   ok
 }
 

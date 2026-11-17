@@ -366,6 +366,25 @@ You can browse and install extra skills here:
   Keep `errdefer` only when the error path must do *something else* than the
   success path.
 
+  A hand-written restore is worse than it looks: it has to be repeated three
+  times — in each `catch` arm *and* on the success path — and the arms are the
+  easy ones to forget. `Parser::nonterminal`/`nonterminal_at` carried the same
+  three-line restore in both arms plus one after the `catch`; they are four-line
+  bodies now (`let saved = self.start; defer { self.start = saved }`), along with
+  `Parser::labelled`, `Scoping::scoped`/`scoped_named`/`namespace`,
+  `Transformer::with_bindings` and `Typer::types_compatible` — seventeen `defer`
+  sites, up from nine. `with_bindings` even documented the workaround as a
+  limitation ("MoonBit has no `try`/`finally`, so a raising `f` leaves the
+  transformer in the nested state") — it has `defer`, which is the same thing,
+  so the note is gone rather than kept as a lie.
+
+  Two shapes are *not* `defer`-able, and both are worth recognising:
+  `Typer::check_implicit` must restore the mute flags *before* it records the
+  buffered infos (a `defer` would run after them, so they would be swallowed by
+  the restored mute state), and the overload attempts in `calls.mbt` restore once
+  per loop iteration while `defer` is function-scoped. In both cases the explicit
+  save/restore stays and the comment says why.
+
 ## Host access: prefer the standard library over `extern`
 
 - **Do not hand-write JavaScript when `moonbitlang/core` or `moonbitlang/x` has

@@ -523,10 +523,11 @@ pub fn Scoping::exports(self : Scoping) -> Bindings {
 /// Runs `f` in a fresh local scope.
 pub fn[T] Scoping::scoped(self : Scoping, f : () -> T) -> T {
   let before = self.scope
+  defer {
+    self.scope = before
+  }
   self.scope = Local(None, Bindings::empty(), before)
-  let result = f()
-  self.scope = before
-  result
+  f()
 }
 
 ///|
@@ -537,21 +538,23 @@ pub fn[T] Scoping::scoped_named(
   f : () -> T,
 ) -> T {
   let before = self.scope
+  defer {
+    self.scope = before
+  }
   self.scope = Local(Some(name), Bindings::empty(), before)
-  let result = f()
-  self.scope = before
-  result
+  f()
 }
 
 ///|
 /// Re-enters a namespace, making previously defined members visible again.
 pub fn[T] Scoping::namespace(self : Scoping, name : String, f : () -> T) -> T {
   let before = self.scope
+  defer {
+    self.scope = before
+  }
   let child = before.bindings().namespace(name)
   self.scope = Named(name, child, before)
-  let result = f()
-  self.scope = before
-  result
+  f()
 }
 
 ///|
