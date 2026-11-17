@@ -279,7 +279,7 @@ fn capture_ids(cs : ArrayView[Captures]) -> Array[Sym] {
 
 ///|
 /// Upstream `Type.substitute` on value types.
-pub fn substitute_value_type_with(
+fn substitute_value_type_with(
   tpe : ValueType,
   vsubst : Map[Int32, ValueType],
   csubst : Map[Int32, Captures],
@@ -301,7 +301,7 @@ pub fn substitute_value_type_with(
 
 ///|
 /// Upstream `Type.substitute` on block types.
-pub fn substitute_block_type_with(
+fn substitute_block_type_with(
   tpe : BlockType,
   vsubst : Map[Int32, ValueType],
   csubst : Map[Int32, Captures],

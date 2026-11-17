@@ -139,7 +139,7 @@ pub fn interface_type_equal(a : BlockType, b : BlockType) -> Bool {
 }
 
 ///|
-pub fn value_types_equal(
+fn value_types_equal(
   a : ArrayView[ValueType],
   b : ArrayView[ValueType],
 ) -> Bool {
@@ -175,7 +175,7 @@ pub fn canonical_order(effs : ArrayView[BlockType]) -> Array[BlockType] {
 }
 
 ///|
-pub fn canonical_compare(a : BlockType, b : BlockType) -> Int32 {
+fn canonical_compare(a : BlockType, b : BlockType) -> Int32 {
   match (a, b) {
     (InterfaceType(c1, args1), InterfaceType(c2, args2)) =>
       if c1.uid() != c2.uid() {
@@ -203,7 +203,7 @@ fn canonical_compare_value_lists(
 }
 
 ///|
-pub fn canonical_compare_value(a : ValueType, b : ValueType) -> Int32 {
+fn canonical_compare_value(a : ValueType, b : ValueType) -> Int32 {
   match (a, b) {
     (ValueTypeRef(s1), ValueTypeRef(s2)) => s1.uid() - s2.uid()
     (ValueTypeRef(_), _) => -1

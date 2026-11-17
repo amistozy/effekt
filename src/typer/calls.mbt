@@ -65,7 +65,7 @@ fn Typer::tuple_call_hints(
 ///|
 /// Checks a call against a function type. This is the workhorse behind `Call`,
 /// `Do` and `MethodCall`.
-pub fn Typer::check_call_to(
+fn Typer::check_call_to(
   self : Typer,
   call : CallLike,
   known_vps : ArrayView[Sym],
@@ -548,7 +548,7 @@ fn candidates_in_order(candidates : ArrayView[Sym]) -> Array[Sym] {
 
 ///|
 /// Checks a (potentially overloaded) function call.
-pub fn Typer::check_overloaded_function_call(
+fn Typer::check_overloaded_function_call(
   self : Typer,
   call : CallLike,
   id : IdRef,
@@ -703,7 +703,7 @@ fn Typer::ambiguous_overload_message(
 ///|
 /// The function type of a callable symbol, together with its type and block
 /// parameters (which are needed to check named arguments).
-pub fn Typer::find_function_type_for(
+fn Typer::find_function_type_for(
   self : Typer,
   sym : Sym,
 ) -> (BlockType, Array[Sym], Array[Sym], Array[Sym]) raise EffektError {
@@ -728,7 +728,7 @@ pub fn Typer::find_function_type_for(
 /// was not desugared: the driver must type check the tree returned by
 /// `unbox_inference` (upstream runs `Parser andThen Namer andThen
 /// UnboxInference andThen Typer`).
-pub fn Typer::check_overloaded_method_call(
+fn Typer::check_overloaded_method_call(
   self : Typer,
   call_node : Term,
   receiver : Term,

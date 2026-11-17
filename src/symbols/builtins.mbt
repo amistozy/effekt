@@ -246,7 +246,7 @@ pub fn async_capture() -> Sym {
 }
 
 ///|
-pub fn global_capture() -> Sym {
+fn global_capture() -> Sym {
   match global_capability {
     ExternResource(r) => r.capture
     _ => Sym::resource(Name::local("global"))
@@ -359,7 +359,7 @@ pub fn root_bindings() -> Bindings {
 
 ///|
 /// The names that are also available at the core level.
-pub fn core_builtins() -> Map[String, Sym] {
+fn core_builtins() -> Map[String, Sym] {
   {
     "Unit": unit_symbol,
     "Bool": boolean_symbol,
@@ -380,7 +380,7 @@ pub fn core_builtins() -> Map[String, Sym] {
 }
 
 ///|
-pub fn is_core_builtin(s : Sym) -> Bool {
+fn is_core_builtin(s : Sym) -> Bool {
   match core_builtins().get(s.name().name) {
     Some(other) => other.uid() == s.uid()
     None => false

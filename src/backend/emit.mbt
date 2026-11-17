@@ -13,7 +13,7 @@
 
 ///|
 /// The name of the entry point.
-pub fn main_name() -> String {
+fn main_name() -> String {
   "main"
 }
 
@@ -24,7 +24,7 @@ pub fn main_name() -> String {
 ///
 /// This is what `--show-core` prints and what CPS conversion consumes, together
 /// with the entry point's symbol.
-pub fn middle_end(
+fn middle_end(
   modules : ArrayView[@namer.ResolvedModule],
   ctx : Context,
 ) -> (@core.ModuleDecl, Sym) raise EffektError {
@@ -177,7 +177,7 @@ pub fn emit(
 
 ///|
 /// All term symbols exported by a module.
-pub fn exports_of(module : @symbols.Module) -> Array[Sym] {
+fn exports_of(module : @symbols.Module) -> Array[Sym] {
   let out : Array[Sym] = []
   for _name, syms in module.exports.terms {
     for s in syms {
@@ -191,7 +191,7 @@ pub fn exports_of(module : @symbols.Module) -> Array[Sym] {
 
 ///|
 /// Finds a term by name among the exported terms of a module.
-pub fn find_exported(module : @symbols.Module, name : String) -> Sym? {
+fn find_exported(module : @symbols.Module, name : String) -> Sym? {
   module.exports.terms.get(name).bind(syms => syms.get(0))
 }
 
@@ -204,10 +204,7 @@ pub fn find_exported(module : @symbols.Module, name : String) -> Sym? {
 /// with several of them. Namespaced definitions are not part of a module's
 /// exported bindings (the namer opens a scope for a namespace), so the tree is
 /// walked, exactly like `Typer.check_main` does.
-pub fn find_main(
-  modules : ArrayView[@namer.ResolvedModule],
-  ctx : Context,
-) -> Sym? {
+fn find_main(modules : ArrayView[@namer.ResolvedModule], ctx : Context) -> Sym? {
   if modules.is_empty() {
     return None
   }
@@ -254,7 +251,7 @@ fn collect_mains(
 
 ///|
 /// The prelude's `infixEq` overloads, used to compile literal patterns.
-pub fn find_infix_eqs(modules : ArrayView[@namer.ResolvedModule]) -> Array[Sym] {
+fn find_infix_eqs(modules : ArrayView[@namer.ResolvedModule]) -> Array[Sym] {
   for m in modules {
     if m.module.exports.terms.get("infixEq") is Some(syms) && !syms.is_empty() {
       return syms

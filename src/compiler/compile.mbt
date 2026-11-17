@@ -38,7 +38,7 @@ pub(all) struct CompileResult {
 /// subdirectories, mirroring upstream's JS `EffektConfig.includes()`
 /// (`List("common", "js", ".")`, relative to the library path). The implicit
 /// prelude is looked up here only.
-pub fn library_roots(opts : Options) -> Array[String] {
+fn library_roots(opts : Options) -> Array[String] {
   let lib = resolve_path(opts.lib_path)
   let roots : Array[String] = [lib]
   roots.push(join_path(lib, "common"))

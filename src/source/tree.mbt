@@ -536,7 +536,7 @@ pub fn mk_guard(span : Span, kind : GuardKind) -> MatchGuard {
 
 ///|
 /// The value type of a literal.
-pub fn literal_type(v : LiteralValue) -> ValueType {
+fn literal_type(v : LiteralValue) -> ValueType {
   match v {
     LUnit => t_unit()
     LBool(_) => t_bool()

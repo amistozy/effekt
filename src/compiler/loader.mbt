@@ -7,7 +7,7 @@
 ///|
 /// The prelude, in the order upstream's `Runner.prelude` lists it: dependencies
 /// first, so that every module can be resolved in include order.
-pub fn prelude_paths() -> Array[String] {
+fn prelude_paths() -> Array[String] {
   [
     "effekt", "option", "partial", "stream", "control", "list", "result", "exception",
     "array", "char", "bytearray", "stringbuffer", "string", "ref",
@@ -15,7 +15,7 @@ pub fn prelude_paths() -> Array[String] {
 }
 
 ///|
-pub fn is_prelude_path(path : String) -> Bool {
+fn is_prelude_path(path : String) -> Bool {
   prelude_paths().any(p => p == path)
 }
 
@@ -29,10 +29,7 @@ pub fn is_prelude_path(path : String) -> Bool {
 /// Modules the library does not provide are skipped: `examples/minilib` ships a
 /// reduced prelude (just `effekt`) on purpose, and the names of the modules it
 /// misses simply stay unresolvable.
-pub fn Loader::implicit_includes(
-  self : Loader,
-  path : String,
-) -> Array[Include] {
+fn Loader::implicit_includes(self : Loader, path : String) -> Array[Include] {
   if is_prelude_path(path) {
     return []
   }
@@ -41,7 +38,7 @@ pub fn Loader::implicit_includes(
 
 ///|
 /// The implicit includes themselves, regardless of the importing module.
-pub fn Loader::prelude_includes(self : Loader) -> Array[Include] {
+fn Loader::prelude_includes(self : Loader) -> Array[Include] {
   let out : Array[Include] = []
   for p in prelude_paths() {
     if locate_in(self.prelude_roots, p) is Some(_) {
@@ -58,7 +55,7 @@ pub fn Loader::prelude_includes(self : Loader) -> Array[Include] {
 /// take a *program* that declares `module exception` for the prelude module.
 /// Comparing the located file keeps this port's convenience that
 /// `examples/exception.effekt` still sees the prelude.
-pub fn Loader::is_library_prelude(
+fn Loader::is_library_prelude(
   self : Loader,
   path : String,
   input : String,
@@ -78,7 +75,7 @@ pub fn Loader::is_library_prelude(
 /// path would make it shadow the prelude module of the same name, so the main
 /// module gets a key that no include path can have (upstream does not add the
 /// main module to the module database at all).
-pub fn main_module_key(path : String) -> String {
+fn main_module_key(path : String) -> String {
   "main:\{path}"
 }
 
@@ -101,7 +98,7 @@ pub fn Loader::Loader(roots : Array[String]) -> Loader {
 
 ///|
 /// Restricts the directories the implicit prelude is searched in.
-pub fn Loader::set_prelude_roots(self : Loader, roots : Array[String]) -> Unit {
+fn Loader::set_prelude_roots(self : Loader, roots : Array[String]) -> Unit {
   self.prelude_roots = roots
 }
 
@@ -121,7 +118,7 @@ fn locate_in(roots : ArrayView[String], path : String) -> String? {
 ///
 /// Prelude modules are only searched in the library (see `prelude_roots`);
 /// everything else is searched in all roots, the input's directory last.
-pub fn Loader::locate(self : Loader, path : String) -> String? {
+fn Loader::locate(self : Loader, path : String) -> String? {
   if is_prelude_path(path) {
     locate_in(self.prelude_roots, path)
   } else {
@@ -209,11 +206,11 @@ fn Loader::visit(
 }
 
 ///|
-pub fn Loader::source_of(self : Loader, path : String) -> Source? {
+fn Loader::source_of(self : Loader, path : String) -> Source? {
   self.sources.get(path)
 }
 
 ///|
-pub fn Loader::tree_of(self : Loader, path : String) -> ModuleDecl? {
+fn Loader::tree_of(self : Loader, path : String) -> ModuleDecl? {
   self.trees.get(path)
 }

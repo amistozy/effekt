@@ -41,7 +41,7 @@ pub fn[T] internal_error(msg : String) -> T raise EffektError {
 /// Note that the tag is a constructor symbol, so it can never occur free in the
 /// clause body; `Clause::free`, `substitute_clause` and `Contify` are therefore
 /// unaffected by the extra entry.
-pub fn clause_with_tag(vparams : Array[Sym], tag : Sym, body : Stmt) -> Clause {
+fn clause_with_tag(vparams : Array[Sym], tag : Sym, body : Stmt) -> Clause {
   Clause(vparams + [tag], body)
 }
 

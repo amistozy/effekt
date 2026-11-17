@@ -105,7 +105,7 @@ pub(all) struct TyperState {
 }
 
 ///|
-pub fn TyperState::backup(self : TyperState) -> TyperState {
+fn TyperState::backup(self : TyperState) -> TyperState {
   {
     u: self.u.copy(),
     scope: self.scope.deep_copy(),
@@ -126,7 +126,7 @@ pub fn TyperState::backup(self : TyperState) -> TyperState {
 }
 
 ///|
-pub fn UnifScope::deep_copy(self : UnifScope) -> UnifScope {
+fn UnifScope::deep_copy(self : UnifScope) -> UnifScope {
   match self {
     GlobalScope => GlobalScope
     LocalScope(ts, cs, parent) =>
@@ -371,7 +371,7 @@ fn symbol_block_type(s : Sym) -> BlockType? {
 /// annotations committed by the module that *defined* it. The last step is what
 /// makes a definition without an explicit result type usable across modules:
 /// its inferred type was recorded by its own module's `commit`.
-pub fn Typer::lookup_first_value(self : Typer, s : Sym) -> ValueType? {
+fn Typer::lookup_first_value(self : Typer, s : Sym) -> ValueType? {
   match self.st.vt.get(s.uid()) {
     Some(t) => Some(t)
     None =>
@@ -429,7 +429,7 @@ pub fn Typer::lookup_block(
 }
 
 ///|
-pub fn Typer::lookup_function_type(
+fn Typer::lookup_function_type(
   self : Typer,
   s : Sym,
 ) -> BlockType raise EffektError {
@@ -478,22 +478,22 @@ pub fn Typer::lookup_capture(self : Typer, s : Sym) -> Captures {
 // ---------------------------------------------------------------------------
 
 ///|
-pub fn Typer::annotate_value(self : Typer, uid : Int32, t : ValueType) -> Unit {
+fn Typer::annotate_value(self : Typer, uid : Int32, t : ValueType) -> Unit {
   self.st.ann.value.set(uid, t)
 }
 
 ///|
-pub fn Typer::annotate_block(self : Typer, uid : Int32, t : BlockType) -> Unit {
+fn Typer::annotate_block(self : Typer, uid : Int32, t : BlockType) -> Unit {
   self.st.ann.block.set(uid, t)
 }
 
 ///|
-pub fn Typer::annotate_effects(self : Typer, uid : Int32, e : Effects) -> Unit {
+fn Typer::annotate_effects(self : Typer, uid : Int32, e : Effects) -> Unit {
   self.st.ann.effect.set(uid, e)
 }
 
 ///|
-pub fn Typer::annotate_capture(self : Typer, uid : Int32, c : Captures) -> Unit {
+fn Typer::annotate_capture(self : Typer, uid : Int32, c : Captures) -> Unit {
   self.st.ann.capt.set(uid, c)
 }
 
@@ -946,7 +946,7 @@ fn Typer::without(
 /// detects the conflict later, in the constraint solver, and upstream's
 /// `Constraints.checkConsistency` aborts with a diagnostic that has no context
 /// at all — `Not allowed {io}` at the current focus, not a note of a claim.
-pub fn Typer::require_subregion_ctx(
+fn Typer::require_subregion_ctx(
   self : Typer,
   from : Captures,
   to : Captures,
@@ -987,7 +987,7 @@ pub fn Typer::require_subregion_ctx(
 
 ///|
 /// `from <: to`, mirrored from `Unification.requireSubregion`.
-pub fn Typer::require_subregion(
+fn Typer::require_subregion(
   self : Typer,
   from : Captures,
   to : Captures,
@@ -1032,7 +1032,7 @@ pub fn Typer::require_subregion(
 
 ///|
 /// Effects need to be fully known before capabilities are passed for them.
-pub fn Typer::assert_concrete_effect(
+fn Typer::assert_concrete_effect(
   self : Typer,
   eff : BlockType,
   span : Span,
@@ -1182,7 +1182,7 @@ pub fn typecheck(
 }
 
 ///|
-pub fn Typer::check_module(
+fn Typer::check_module(
   self : Typer,
   module : ModuleDecl,
 ) -> Unit raise EffektError {
@@ -1223,7 +1223,7 @@ pub fn Typer::check_module(
 ///     `context.block_type_of(resume.uid())` in the core transformation.
 ///   - the inferred types / effects / captures of tree nodes, plus the
 ///     elaboration info consumed by `ExplicitCapabilities`.
-pub fn Typer::commit(self : Typer) -> Unit {
+fn Typer::commit(self : Typer) -> Unit {
   let u = self.st.u
   // the typing context (symbols)
   for uid, t in self.st.vt {
@@ -1363,7 +1363,7 @@ pub fn Typer::check_main(
 ///|
 /// Stores the annotated types of definitions (needed for mutual recursion).
 /// Does not check the bodies.
-pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
+fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
   match d.kind {
     @source.DefKind::FunDef(id, _, _, _, captures, _, _) => {
       let fun = self.symbol_of_def(id)
@@ -1484,7 +1484,7 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
 ///|
 /// Checks a definition. Returns the effects that are not handled by the
 /// definition itself.
-pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError {
+fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError {
   self.focus = d.span
   match d.kind {
     @source.DefKind::FunDef(id, _, _, _, _, _, body) => {
@@ -1822,7 +1822,7 @@ fn Typer::user_function_type(
 // ---------------------------------------------------------------------------
 
 ///|
-pub fn Typer::check_stmt(
+fn Typer::check_stmt(
   self : Typer,
   s : Stmt,
   expected : ValueType?,
@@ -1899,7 +1899,7 @@ fn Typer::check_stmt_kind(
 /// subexpression that happened to be checked. `usingCapture` of a call site is
 /// the case the corpus pins down (`examples/neg/issue362`: "Not allowed {arr}"
 /// belongs to `read {arr}`, not to its `{arr}` argument).
-pub fn Typer::check_expr(
+fn Typer::check_expr(
   self : Typer,
   e : Term,
   expected : ValueType?,
@@ -2243,7 +2243,7 @@ fn applied_interface(op : Sym) -> BlockType {
 // ---------------------------------------------------------------------------
 
 ///|
-pub fn Typer::check_guards(
+fn Typer::check_guards(
   self : Typer,
   guards : ArrayView[MatchGuard],
 ) -> Effects raise EffektError {
@@ -2289,7 +2289,7 @@ fn Typer::bind_all(
 /// Pattern-related diagnostics point at the pattern, not at the `match`
 /// expression that contains it (upstream wraps the check in `C.at(pattern)`);
 /// `focus` is the position every type error is reported at.
-pub fn Typer::check_pattern(
+fn Typer::check_pattern(
   self : Typer,
   sc : ValueType,
   pattern : MatchPattern,
@@ -2721,7 +2721,7 @@ fn[T] Typer::abort_issue_plain(
 ///|
 
 ///|
-pub fn Typer::require_subtype_value(
+fn Typer::require_subtype_value(
   self : Typer,
   got : ValueType,
   expected : ValueType,
@@ -2814,7 +2814,7 @@ fn Typer::match_pattern(
 /// the structural comparison, and a unification variable on the *other* side is
 /// solved instead. (Getting this wrong makes `f(x)` fail whenever the argument
 /// has a rigid type.)
-pub fn Typer::unify_value_types(
+fn Typer::unify_value_types(
   self : Typer,
   tpe1 : ValueType,
   tpe2 : ValueType,
@@ -2908,7 +2908,7 @@ fn Typer::learn(
 }
 
 ///|
-pub fn Typer::unify_block_types(
+fn Typer::unify_block_types(
   self : Typer,
   tpe1 : BlockType,
   tpe2 : BlockType,
@@ -3045,7 +3045,7 @@ fn same_effects(a : ArrayView[BlockType], b : ArrayView[BlockType]) -> Bool {
 /// `g(1) {act}` with `g[E] { act: Int => Int / Exception[E] }` learns `E` from
 /// `act` that way. Without this, the capability lookup guesses the effect
 /// argument from the closest handler and the core phase crashes.
-pub fn Typer::unify_effects(
+fn Typer::unify_effects(
   self : Typer,
   effs1 : Effects,
   effs2 : Effects,
@@ -3142,7 +3142,7 @@ pub fn Typer::unify_effects(
 }
 
 ///|
-pub fn Typer::unify_captures(
+fn Typer::unify_captures(
   self : Typer,
   c1 : Captures,
   c2 : Captures,
@@ -3276,7 +3276,7 @@ pub fn Typer::join(
 /// operand: `join` compares every arm against that result again with an
 /// `Expected` context that renders the arm and the join, and a substituted
 /// result would hide the type arguments the message is about.
-pub fn Typer::merge_value_types(
+fn Typer::merge_value_types(
   self : Typer,
   old : ValueType,
   new : ValueType,
@@ -3578,7 +3578,7 @@ pub fn Typer::instantiate(
 
 ///|
 /// Instantiation of a constructor type: type arguments only.
-pub fn Typer::instantiate_value(
+fn Typer::instantiate_value(
   self : Typer,
   tpe : BlockType,
   tparams : Array[Sym],
@@ -3591,7 +3591,7 @@ pub fn Typer::instantiate_value(
 
 ///|
 /// Instantiation with fresh unification variables and capture variables.
-pub fn Typer::instantiate_fresh(
+fn Typer::instantiate_fresh(
   self : Typer,
   tpe : BlockType,
   tparams : Array[Sym],
@@ -3758,7 +3758,7 @@ pub fn Typer::resolve_block_ref(
 }
 
 ///|
-pub fn Typer::resolve_captures(self : Typer, c : CaptureSetTree) -> Captures {
+fn Typer::resolve_captures(self : Typer, c : CaptureSetTree) -> Captures {
   let out : Array[Sym] = []
   for id in c.captures {
     if self.ctx.symbol_of(id.uid) is Some(s) {

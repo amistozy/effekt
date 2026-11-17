@@ -84,7 +84,7 @@ fn[T] panic(msg : String) -> T raise EffektError {
 // -------
 
 ///|
-pub fn DeclarationContext::find_data(
+fn DeclarationContext::find_data(
   self : DeclarationContext,
   id : Sym,
 ) -> Declaration? {
@@ -92,7 +92,7 @@ pub fn DeclarationContext::find_data(
 }
 
 ///|
-pub fn DeclarationContext::find_constructor(
+fn DeclarationContext::find_constructor(
   self : DeclarationContext,
   id : Sym,
 ) -> Constructor? {
@@ -100,7 +100,7 @@ pub fn DeclarationContext::find_constructor(
 }
 
 ///|
-pub fn DeclarationContext::find_constructor_tag(
+fn DeclarationContext::find_constructor_tag(
   self : DeclarationContext,
   id : Sym,
 ) -> Int32? {
@@ -116,15 +116,7 @@ pub fn DeclarationContext::find_constructor_tag(
 }
 
 ///|
-pub fn DeclarationContext::find_extern_def(
-  self : DeclarationContext,
-  id : Sym,
-) -> Extern? {
-  self.extern_defs.get(id.uid()).map(i => self.externs[i])
-}
-
-///|
-pub fn DeclarationContext::find_extern_def_by_name(
+fn DeclarationContext::find_extern_def_by_name(
   self : DeclarationContext,
   name : String,
   params : ArrayView[ValueType],
@@ -165,7 +157,7 @@ pub fn DeclarationContext::get_constructor_tag(
 ///|
 /// Builds the qualified signature of an extern function, e.g.
 /// `mymodule::externFun[Int](Int, String){Int}`.
-pub fn QualifiedSignature::from_extern_function(
+fn QualifiedSignature::from_extern_function(
   module_name : String,
   f : Sym,
 ) -> QualifiedSignature {

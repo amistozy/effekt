@@ -20,7 +20,7 @@ fn lower_code(c : Char) -> Int32 {
 ///
 /// The common prefix and suffix are stripped first (like upstream), which makes
 /// the dynamic program tiny for the typos that actually occur in practice.
-pub fn edit_distance(a : String, b : String, limit : Int32) -> Int32? {
+fn edit_distance(a : String, b : String, limit : Int32) -> Int32? {
   let left = a.to_array()
   let right = b.to_array()
   let n = left.length()

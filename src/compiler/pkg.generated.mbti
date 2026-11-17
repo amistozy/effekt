@@ -22,13 +22,7 @@ pub fn exit(Int32) -> Unit
 
 pub fn file_exists(String) -> Bool
 
-pub fn is_prelude_path(String) -> Bool
-
 pub fn join_path(String, String) -> String
-
-pub fn library_roots(Options) -> Array[String]
-
-pub fn main_module_key(String) -> String
 
 pub fn module_path_of(String) -> String
 
@@ -36,13 +30,9 @@ pub fn normalize_separators(String) -> String
 
 pub fn parse_args(ArrayView[String]) -> (Options, Array[String])
 
-pub fn prelude_paths() -> Array[String]
-
 pub fn read_file(String) -> String?
 
 pub fn render_messages(ArrayView[@util.Message]) -> String
-
-pub fn resolve_includes(@source.ModuleDecl, @util.Source, @source.Context) -> @source.ModuleDecl
 
 pub fn resolve_path(String) -> String
 
@@ -75,14 +65,7 @@ pub struct Loader {
 }
 pub fn Loader::Loader(Array[String]) -> Self
 pub fn Loader::closure(Self, String, @source.Context, (@util.Source, @source.Context) -> @source.ModuleDecl? raise @util.EffektError) -> Array[String] raise @util.EffektError
-pub fn Loader::implicit_includes(Self, String) -> Array[@source.Include]
-pub fn Loader::is_library_prelude(Self, String, String) -> Bool
 pub fn Loader::load_tree(Self, String, @source.Context, (@util.Source, @source.Context) -> @source.ModuleDecl? raise @util.EffektError) -> @source.ModuleDecl raise @util.EffektError
-pub fn Loader::locate(Self, String) -> String?
-pub fn Loader::prelude_includes(Self) -> Array[@source.Include]
-pub fn Loader::set_prelude_roots(Self, Array[String]) -> Unit
-pub fn Loader::source_of(Self, String) -> @util.Source?
-pub fn Loader::tree_of(Self, String) -> @source.ModuleDecl?
 
 pub(all) struct Options {
   mut input : String

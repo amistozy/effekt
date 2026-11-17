@@ -262,7 +262,7 @@ pub fn Scoping::lookup_overloaded(
 /// Looks a term up in a scope chain. The type checker needs this for
 /// name-based implicit arguments: the name only becomes known once the
 /// callee's parameter list is, which is after the namer has run.
-pub fn Scope::lookup_term_option(
+fn Scope::lookup_term_option(
   self : Scope,
   path : ArrayView[String],
   name : String,
@@ -285,10 +285,7 @@ pub fn Scope::lookup_term_option(
 ///|
 /// All scopes that bind `name` to a callable (non-operation) symbol,
 /// innermost first. Used to eta-expand an implicit block argument.
-pub fn Scope::lookup_functions(
-  self : Scope,
-  name : String,
-) -> Array[Array[Sym]] {
+fn Scope::lookup_functions(self : Scope, name : String) -> Array[Array[Sym]] {
   all([], self, b => {
     b.terms
     .get(name)
@@ -432,7 +429,7 @@ pub fn Scoping::lookup_first_block_param(
 }
 
 ///|
-pub fn Scoping::current_terms_for(self : Scoping, name : String) -> Array[Sym] {
+fn Scoping::current_terms_for(self : Scoping, name : String) -> Array[Sym] {
   self.scope.bindings().terms.get(name).unwrap_or([])
 }
 
@@ -493,21 +490,6 @@ pub fn[T] Scoping::scoped(self : Scoping, f : () -> T) -> T {
     self.scope = before
   }
   self.scope = Local(None, Bindings::empty(), before)
-  f()
-}
-
-///|
-/// Runs `f` in a fresh local scope with a name (for diagnostics).
-pub fn[T] Scoping::scoped_named(
-  self : Scoping,
-  name : String,
-  f : () -> T,
-) -> T {
-  let before = self.scope
-  defer {
-    self.scope = before
-  }
-  self.scope = Local(Some(name), Bindings::empty(), before)
   f()
 }
 

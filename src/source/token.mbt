@@ -339,7 +339,7 @@ pub fn TokenKind::is_keyword(self : TokenKind) -> Bool {
 ///|
 /// The mapping from words to keyword tokens. Everything not listed here is a
 /// plain identifier (`resume`, `in`, `at`, `_`, ... are "soft" keywords).
-pub fn keyword_kind(word : String) -> TokenKind? {
+fn keyword_kind(word : String) -> TokenKind? {
   match word {
     "let" => Some(KLet)
     "true" => Some(KTrue)
@@ -381,7 +381,7 @@ pub fn keyword_kind(word : String) -> TokenKind? {
 ///|
 /// Whitespace and comments are skipped by the parser, but are represented in
 /// the token stream (needed for "semicolon insertion" and for extern bodies).
-pub fn TokenKind::is_space(self : TokenKind) -> Bool {
+fn TokenKind::is_space(self : TokenKind) -> Bool {
   match self {
     TSpace | TComment(_) | TNewline => true
     _ => false
@@ -389,17 +389,17 @@ pub fn TokenKind::is_space(self : TokenKind) -> Bool {
 }
 
 ///|
-pub fn in_kind() -> TokenKind {
+fn in_kind() -> TokenKind {
   TIdent("in")
 }
 
 ///|
-pub fn at_kind() -> TokenKind {
+fn at_kind() -> TokenKind {
   TIdent("at")
 }
 
 ///|
-pub fn underscore_kind() -> TokenKind {
+fn underscore_kind() -> TokenKind {
   TIdent("_")
 }
 

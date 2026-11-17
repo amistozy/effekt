@@ -11,31 +11,21 @@ import {
 // Values
 pub fn clause_tag(Clause) -> @symbols.Sym
 
-pub fn clause_with_tag(Array[@symbols.Sym], @symbols.Sym, Stmt) -> Clause
-
 pub fn contify(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
 pub fn[T] internal_error(String) -> T raise @util.EffektError
 
 pub fn substitute_as_block_var(@symbols.Sym, Substitution) -> @symbols.Sym raise @util.EffektError
 
-pub fn substitute_as_cont_var(@symbols.Sym, Substitution) -> @symbols.Sym raise @util.EffektError
-
 pub fn substitute_block(Block, Substitution) -> Block raise @util.EffektError
 
 pub fn substitute_block_lit(BlockLit, Substitution) -> BlockLit raise @util.EffektError
 
-pub fn substitute_clause(Clause, Substitution) -> Clause raise @util.EffektError
-
 pub fn substitute_cont(Cont, Substitution) -> Cont raise @util.EffektError
-
-pub fn substitute_cont_lam(ContLam, Substitution) -> ContLam raise @util.EffektError
 
 pub fn substitute_expr(Expr, Substitution) -> Expr raise @util.EffektError
 
 pub fn substitute_implementation(Implementation, Substitution) -> Implementation raise @util.EffektError
-
-pub fn substitute_meta_cont(MetaCont, Substitution) -> MetaCont
 
 pub fn substitute_operation(Operation, Substitution) -> Operation raise @util.EffektError
 
@@ -204,8 +194,6 @@ pub(all) struct Substitution {
 pub fn Substitution::Substitution(Map[Int32, Expr], Map[Int32, Block], Map[Int32, Cont], Map[Int32, MetaCont]) -> Self
 pub fn Substitution::empty() -> Self
 pub fn Substitution::shadow_blocks(Self, Array[@symbols.Sym]) -> Self
-pub fn Substitution::shadow_conts(Self, Array[@symbols.Sym]) -> Self
-pub fn Substitution::shadow_metaconts(Self, Array[@symbols.Sym]) -> Self
 pub fn Substitution::shadow_params(Self, Array[@symbols.Sym], Array[@symbols.Sym]) -> Self
 pub fn Substitution::shadow_values(Self, Array[@symbols.Sym]) -> Self
 

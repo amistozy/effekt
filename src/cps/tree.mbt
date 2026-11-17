@@ -885,7 +885,7 @@ pub fn Substitution::shadow_blocks(
 }
 
 ///|
-pub fn Substitution::shadow_conts(
+fn Substitution::shadow_conts(
   self : Substitution,
   ids : Array[Sym],
 ) -> Substitution {
@@ -898,7 +898,7 @@ pub fn Substitution::shadow_conts(
 }
 
 ///|
-pub fn Substitution::shadow_metaconts(
+fn Substitution::shadow_metaconts(
   self : Substitution,
   ids : Array[Sym],
 ) -> Substitution {
@@ -932,7 +932,7 @@ pub fn substitute_as_block_var(
 }
 
 ///|
-pub fn substitute_as_cont_var(
+fn substitute_as_cont_var(
   id : Sym,
   subst : Substitution,
 ) -> Sym raise EffektError {
@@ -945,7 +945,7 @@ pub fn substitute_as_cont_var(
 }
 
 ///|
-pub fn substitute_meta_cont(ks : MetaCont, subst : Substitution) -> MetaCont {
+fn substitute_meta_cont(ks : MetaCont, subst : Substitution) -> MetaCont {
   subst.metaconts.get(ks.id.uid()).unwrap_or(ks)
 }
 
@@ -1167,7 +1167,7 @@ pub fn substitute_operation(
 }
 
 ///|
-pub fn substitute_clause(
+fn substitute_clause(
   clause : Clause,
   subst : Substitution,
 ) -> Clause raise EffektError {
@@ -1194,7 +1194,7 @@ pub fn substitute_cont(
 }
 
 ///|
-pub fn substitute_cont_lam(
+fn substitute_cont_lam(
   k : ContLam,
   subst : Substitution,
 ) -> ContLam raise EffektError {

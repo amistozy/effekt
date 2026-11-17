@@ -289,11 +289,7 @@ fn[V] copy_entry(
 /// the generic traversal) apply them twice, e.g. adding a capability parameter
 /// to a block literal twice and thus generating JavaScript with duplicate
 /// parameter names.
-pub fn Context::copy_annotations(
-  self : Context,
-  from : Int32,
-  to : Int32,
-) -> Unit {
+fn Context::copy_annotations(self : Context, from : Int32, to : Int32) -> Unit {
   if from == to {
     return
   }
@@ -303,11 +299,6 @@ pub fn Context::copy_annotations(
   copy_entry(self.captures, self.captures, from, to)
   copy_entry(self.effects, self.effects, from, to)
   copy_entry(self.type_arguments, self.type_arguments, from, to)
-}
-
-///|
-pub fn Context::feature_flags(self : Context) -> Array[String] {
-  self.config.feature_flags
 }
 
 ///|
@@ -363,10 +354,7 @@ pub fn Context::assign_implicit_value_args(
 }
 
 ///|
-pub fn Context::implicit_value_args_of(
-  self : Context,
-  uid : Int32,
-) -> Array[Term] {
+fn Context::implicit_value_args_of(self : Context, uid : Int32) -> Array[Term] {
   self.implicit_value_args.get(uid).unwrap_or([])
 }
 
@@ -380,10 +368,7 @@ pub fn Context::assign_implicit_block_args(
 }
 
 ///|
-pub fn Context::implicit_block_args_of(
-  self : Context,
-  uid : Int32,
-) -> Array[Term] {
+fn Context::implicit_block_args_of(self : Context, uid : Int32) -> Array[Term] {
   self.implicit_block_args.get(uid).unwrap_or([])
 }
 
@@ -419,7 +404,7 @@ pub fn Context::call_imports_of(
 }
 
 ///|
-pub fn Context::assign_effekt_extern(self : Context, uid : Int32) -> Unit {
+fn Context::assign_effekt_extern(self : Context, uid : Int32) -> Unit {
   self.effekt_externs.set(uid, true)
 }
 

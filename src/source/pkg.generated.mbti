@@ -7,21 +7,7 @@ import {
 }
 
 // Values
-pub fn at_kind() -> TokenKind
-
-pub fn build_precedence_table() -> PrecedenceTable
-
-pub fn definition_for_capability(@symbols.Sym, Context) -> BlockParam
-
 pub fn explicit_capabilities(ModuleDecl, Context) -> ModuleDecl raise @util.EffektError
-
-pub fn find_preferred(ArrayView[ExternBody], Context) -> ExternBody?
-
-pub fn in_kind() -> TokenKind
-
-pub fn keyword_kind(String) -> TokenKind?
-
-pub fn literal_type(LiteralValue) -> @symbols.ValueType
 
 pub fn mk_def(@util.Span, Info, DefKind) -> Def
 
@@ -39,15 +25,9 @@ pub fn parse_module_decl(@util.Source, Context) -> ModuleDecl? raise @util.Effek
 
 pub fn parse_term(@util.Source, Context) -> Term? raise @util.EffektError
 
-pub fn reference_to_capability(@symbols.Sym, Context) -> Term
-
 pub fn resolve_extern_defs(ModuleDecl, Context) -> ModuleDecl raise @util.EffektError
 
-pub fn rewrite_capture_set(CaptureSetTree, Context, Hooks) -> CaptureSetTree
-
 pub fn rewrite_def(Def, Context, Hooks) -> Def raise @util.EffektError
-
-pub fn rewrite_effects(EffectsTree, Context, Hooks) -> EffectsTree raise @util.EffektError
 
 pub fn rewrite_extern_body(ExternBody, Context, Hooks) -> ExternBody raise @util.EffektError
 
@@ -61,17 +41,9 @@ pub fn rewrite_op_clause(OpClause, Context, Hooks) -> OpClause raise @util.Effek
 
 pub fn rewrite_stmt(Stmt, Context, Hooks) -> Stmt raise @util.EffektError
 
-pub fn rewrite_term(Term, Context, Hooks) -> Term raise @util.EffektError
-
-pub fn rewrite_type(TypeTree, Context, Hooks) -> TypeTree raise @util.EffektError
-
-pub fn rewrite_value_arg(ValueArg, Context, Hooks) -> ValueArg raise @util.EffektError
-
 pub fn supported_flags(Context) -> Array[String]
 
 pub fn symbol_text(TokenKind) -> String
-
-pub fn underscore_kind() -> TokenKind
 
 // Errors
 
@@ -145,7 +117,6 @@ pub fn Context::assign_capability_arguments(Self, Int32, Array[@symbols.Sym]) ->
 pub fn Context::assign_capability_receiver(Self, Int32, @symbols.Sym) -> Unit
 pub fn Context::assign_capture(Self, Int32, @symbols.Captures) -> Unit
 pub fn Context::assign_effects(Self, Int32, @symbols.Effects) -> Unit
-pub fn Context::assign_effekt_extern(Self, Int32) -> Unit
 pub fn Context::assign_implicit_block_args(Self, Int32, Array[Term]) -> Unit
 pub fn Context::assign_implicit_value_args(Self, Int32, Array[Term]) -> Unit
 pub fn Context::assign_pattern_existentials(Self, Int32, Array[@symbols.Sym]) -> Unit
@@ -160,14 +131,10 @@ pub fn Context::call_scope_of(Self, Int32) -> @symbols.Scope?
 pub fn Context::capability_arguments_of(Self, Int32) -> Array[@symbols.Sym]
 pub fn Context::capability_receiver_of(Self, Int32) -> @symbols.Sym?
 pub fn Context::capture_of(Self, Int32) -> @symbols.Captures?
-pub fn Context::copy_annotations(Self, Int32, Int32) -> Unit
 pub fn Context::effects_of(Self, Int32) -> @symbols.Effects?
 pub fn Context::error(Self, @util.Span, String) -> Unit
 pub fn Context::error_with(Self, @util.Message) -> Unit
-pub fn Context::feature_flags(Self) -> Array[String]
 pub fn Context::has_errors(Self) -> Bool
-pub fn Context::implicit_block_args_of(Self, Int32) -> Array[Term]
-pub fn Context::implicit_value_args_of(Self, Int32) -> Array[Term]
 pub fn Context::info(Self, String) -> Unit
 pub fn Context::info_at(Self, @util.Span, String) -> Unit
 pub fn Context::is_effekt_extern(Self, Int32) -> Bool
@@ -220,10 +187,6 @@ pub(all) enum Delimiter {
   HoleString
   RawString
 }
-pub fn Delimiter::allows_escapes(Self) -> Bool
-pub fn Delimiter::allows_interpolation(Self) -> Bool
-pub fn Delimiter::is_multiline(Self) -> Bool
-pub fn Delimiter::to_token_kind(Self, String, String) -> TokenKind
 
 pub(all) struct EffectsTree {
   span : @util.Span
@@ -318,7 +281,6 @@ pub struct Lexer {
   mut eof : Bool
 }
 pub fn Lexer::Lexer(@util.Source) -> Self
-pub fn Lexer::has_next(Self) -> Bool
 pub fn Lexer::lex(@util.Source) -> Array[Token]
 pub fn Lexer::next(Self) -> Token
 
@@ -356,7 +318,6 @@ pub struct Many[T] {
 pub fn[T] Many::Many(Array[T], @util.Span) -> Self[T]
 pub fn[T] Many::empty(@util.Span) -> Self[T]
 pub fn[T] Many::size(Self[T]) -> Int32
-pub fn[T] Many::unspan(Self[T]) -> Array[T]
 
 pub(all) struct MatchClause {
   uid : Int32
@@ -382,8 +343,6 @@ pub struct Maybe[T] {
   value : T?
   span : @util.Span
 }
-pub fn[T] Maybe::get_or_else(Self[T], T) -> T
-pub fn[T] Maybe::get_or_else_lazy(Self[T], () -> T raise @util.EffektError) -> T raise @util.EffektError
 pub fn[T, U] Maybe::map(Self[T], (T) -> U raise @util.EffektError) -> Self[U] raise @util.EffektError
 pub fn[T] Maybe::non_empty(Self[T]) -> Bool
 pub fn[T] Maybe::none(@util.Span) -> Self[T]
@@ -627,7 +586,6 @@ pub(all) enum TokenKind {
 }
 pub fn TokenKind::explain(Self) -> String
 pub fn TokenKind::is_keyword(Self) -> Bool
-pub fn TokenKind::is_space(Self) -> Bool
 pub fn TokenKind::keyword_text(Self) -> String
 
 pub(all) enum TypeKind {

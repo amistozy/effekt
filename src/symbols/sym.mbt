@@ -457,7 +457,7 @@ pub fn Sym::is_block_symbol(self : Sym) -> Bool {
 }
 
 ///|
-pub fn Sym::is_term_symbol(self : Sym) -> Bool {
+fn Sym::is_term_symbol(self : Sym) -> Bool {
   self.is_value_symbol() || self.is_block_symbol()
 }
 
@@ -690,7 +690,7 @@ pub fn Sym::as_callable(self : Sym) -> CallableView? {
 }
 
 ///|
-pub fn field_param(f : Sym) -> Sym {
+fn field_param(f : Sym) -> Sym {
   match f {
     Field(fd) => fd.param
     _ => Sym::wildcard()

@@ -46,7 +46,7 @@ fn[V] shadowed(m : Map[Int32, V], ids : ArrayView[Sym]) -> Map[Int32, V] {
 }
 
 ///|
-pub fn Substitution::shadow_types(
+fn Substitution::shadow_types(
   self : Substitution,
   shadowed_ids : ArrayView[Sym],
 ) -> Substitution {
@@ -59,7 +59,7 @@ pub fn Substitution::shadow_types(
 }
 
 ///|
-pub fn Substitution::shadow_captures(
+fn Substitution::shadow_captures(
   self : Substitution,
   shadowed_ids : ArrayView[Sym],
 ) -> Substitution {
@@ -113,7 +113,7 @@ pub fn Substitution::shadow_params(
 // ---------------------------------------------------------------------------
 
 ///|
-pub fn substitute_captures_with(
+fn substitute_captures_with(
   capt : Captures,
   csubst : Map[Int32, Captures],
 ) -> Captures {
@@ -137,18 +137,12 @@ pub fn substitute_captures_with(
 }
 
 ///|
-pub fn substitute_value_type(
-  tpe : ValueType,
-  subst : Substitution,
-) -> ValueType {
+fn substitute_value_type(tpe : ValueType, subst : Substitution) -> ValueType {
   substitute_value_type_with(tpe, subst.vtypes, subst.captures)
 }
 
 ///|
-pub fn substitute_block_type(
-  tpe : BlockType,
-  subst : Substitution,
-) -> BlockType {
+fn substitute_block_type(tpe : BlockType, subst : Substitution) -> BlockType {
   substitute_block_type_with(tpe, subst.vtypes, subst.captures)
 }
 
@@ -188,7 +182,7 @@ pub fn block_captures(b : Block) -> Captures {
 ///|
 /// Starting point for inlining: substitutes `(tparams, vparams, bparams)` for
 /// the given arguments in the body of the block.
-pub fn substitute_block_lit_call(
+fn substitute_block_lit_call(
   block : BlockLit,
   targs : ArrayView[ValueType],
   vargs : ArrayView[Expr],
@@ -219,10 +213,7 @@ pub fn substitute_block_lit_call(
 
 ///|
 /// Substitutes the id of a region/reference, which must always be a variable.
-pub fn substitute_as_var(
-  id : Sym,
-  subst : Substitution,
-) -> Sym raise EffektError {
+fn substitute_as_var(id : Sym, subst : Substitution) -> Sym raise EffektError {
   match subst.blocks.get(id.uid()) {
     Some(BlockVar(bv)) => bv.id
     Some(_) => raise EffektError::Internal("Regions should always be variables")
@@ -233,7 +224,7 @@ pub fn substitute_as_var(
 ///|
 /// Substitutes a block variable. If the substitution maps it to a block, that
 /// block must be a variable (this is what upstream's `asInstanceOf` assumes).
-pub fn substitute_block_var(
+fn substitute_block_var(
   bv : BlockVar,
   subst : Substitution,
 ) -> BlockVar raise EffektError {
@@ -474,18 +465,12 @@ pub fn substitute_operation(
 }
 
 ///|
-pub fn substitute_value_param(
-  p : ValueParam,
-  subst : Substitution,
-) -> ValueParam {
+fn substitute_value_param(p : ValueParam, subst : Substitution) -> ValueParam {
   ValueParam(p.id, substitute_value_type(p.tpe, subst))
 }
 
 ///|
-pub fn substitute_block_param(
-  p : BlockParam,
-  subst : Substitution,
-) -> BlockParam {
+fn substitute_block_param(p : BlockParam, subst : Substitution) -> BlockParam {
   BlockParam(
     p.id,
     substitute_block_type(p.tpe, subst),
@@ -494,7 +479,7 @@ pub fn substitute_block_param(
 }
 
 ///|
-pub fn substitute_binding(
+fn substitute_binding(
   binding : Binding,
   subst : Substitution,
 ) -> Binding raise EffektError {

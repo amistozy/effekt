@@ -50,7 +50,7 @@ pub fn PMVar::to_expr(self : PMVar) -> Expr {
 }
 
 ///|
-pub fn PMVar::to_param(self : PMVar) -> ValueParam {
+fn PMVar::to_param(self : PMVar) -> ValueParam {
   ValueParam(self.id, self.tpe)
 }
 
@@ -75,7 +75,7 @@ pub fn PMEquals::PMEquals(symbol : Sym, targs : Array[ValueType]) -> PMEquals {
 }
 
 ///|
-pub fn PMEquals::pm_apply(self : PMEquals, lhs : Expr, rhs : Expr) -> Expr {
+fn PMEquals::pm_apply(self : PMEquals, lhs : Expr, rhs : Expr) -> Expr {
   PureApp(
     BlockVar::BlockVar(self.symbol, unknown_block_type(), Captures::empty()),
     self.targs,
@@ -222,7 +222,7 @@ fn pm_finite_literals(tpe : ValueType) -> Array[LiteralValue]? {
 ///|
 /// Compiles the given clauses to a (nested) pattern match producing a value of
 /// type `motif`.
-pub fn pm_compile(
+fn pm_compile(
   clauses : ArrayView[PMClause],
   motif : ValueType,
 ) -> Stmt raise EffektError {
@@ -609,7 +609,7 @@ fn pm_branching_heuristic(
 
 ///|
 /// Normalizes a clause, substituting away `Any` patterns.
-pub fn pm_normalize(clause : PMClause) -> PMClause raise EffektError {
+fn pm_normalize(clause : PMClause) -> PMClause raise EffektError {
   let (conditions, substitution) = pm_normalize_conditions(
     Map([]),
     clause.conditions,

@@ -211,7 +211,7 @@ fn copy_def_kind(from : Def, kind : DefKind, ctx : Context) -> Def {
 
 ///|
 /// A term referencing a capability bound in the environment.
-pub fn reference_to_capability(cap : Sym, ctx : Context) -> Term {
+fn reference_to_capability(cap : Sym, ctx : Context) -> Term {
   let id = IdRef(cap.name().name, Span::missing())
   ctx.assign_symbol(id.uid, cap)
   let t = mk_term(Span::missing(), Var(id))
@@ -223,7 +223,7 @@ pub fn reference_to_capability(cap : Sym, ctx : Context) -> Term {
 
 ///|
 /// A block parameter binding the given capability symbol.
-pub fn definition_for_capability(cap : Sym, ctx : Context) -> BlockParam {
+fn definition_for_capability(cap : Sym, ctx : Context) -> BlockParam {
   let id = IdDef(cap.name().name, Span::missing())
   ctx.assign_symbol(id.uid, cap)
   let tpe = match cap {

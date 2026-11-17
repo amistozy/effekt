@@ -63,7 +63,7 @@ pub fn Unification::copy(self : Unification) -> Unification {
 ///|
 /// A fresh *value type* unification variable. `underlying` is the type
 /// parameter it was instantiated for (used for error messages).
-pub fn Unification::fresh_type_var(self : Unification, underlying : Sym) -> Sym {
+fn Unification::fresh_type_var(self : Unification, underlying : Sym) -> Sym {
   let x = Sym::type_param(Name::local(underlying.name().name), Span::missing())
   self.var_of.set(x.uid(), underlying)
   x
@@ -76,7 +76,7 @@ pub fn Unification::fresh_type_var(self : Unification, underlying : Sym) -> Sym 
 /// Name.local("?C")`); the role only shows up in its `toString`, which no
 /// diagnostic uses. The parameter is kept (unused) to say at the call site what
 /// the variable stands for.
-pub fn Unification::fresh_capt_var(self : Unification, _role : String) -> Sym {
+fn Unification::fresh_capt_var(self : Unification, _role : String) -> Sym {
   let x = Sym::capture_param(Name::local("?C"))
   self.capt_var.set(x.uid(), x)
   x
@@ -89,7 +89,7 @@ pub fn Unification::is_type_var(self : Unification, x : Sym) -> Bool {
 }
 
 ///|
-pub fn Unification::is_capt_var(self : Unification, x : Sym) -> Bool {
+fn Unification::is_capt_var(self : Unification, x : Sym) -> Bool {
   self.capt_var.contains(x.uid())
 }
 
@@ -107,7 +107,7 @@ pub fn Unification::substitution(self : Unification) -> Substitutions {
 }
 
 ///|
-pub fn Unification::prune_value(self : Unification, t : ValueType) -> ValueType {
+fn Unification::prune_value(self : Unification, t : ValueType) -> ValueType {
   match t {
     @symbols.ValueType::ValueTypeRef(x) =>
       match self.types.get(x.uid()) {
@@ -122,7 +122,7 @@ pub fn Unification::prune_value(self : Unification, t : ValueType) -> ValueType 
 }
 
 ///|
-pub fn Unification::prune_block(self : Unification, t : BlockType) -> BlockType {
+fn Unification::prune_block(self : Unification, t : BlockType) -> BlockType {
   match t {
     @symbols.BlockType::InterfaceType(c, args) =>
       @symbols.BlockType::InterfaceType(c, args.map(a => self.prune_value(a)))
@@ -139,10 +139,7 @@ pub fn Unification::prune_block(self : Unification, t : BlockType) -> BlockType 
 }
 
 ///|
-pub fn Unification::prune_captures(
-  self : Unification,
-  c : Captures,
-) -> Captures {
+fn Unification::prune_captures(self : Unification, c : Captures) -> Captures {
   match c {
     @symbols.Captures::CaptVar(x) =>
       match self.capts.get(x.uid()) {
@@ -168,10 +165,7 @@ pub fn Unification::prune_captures(
 }
 
 ///|
-pub fn Unification::prune_effects(
-  self : Unification,
-  effs : Effects,
-) -> Effects {
+fn Unification::prune_effects(self : Unification, effs : Effects) -> Effects {
   Effects(effs.effects.map(e => self.prune_block(e)))
 }
 
@@ -212,7 +206,7 @@ pub fn Unification::set_type(
 ///|
 /// Re-normalises the substitution, so that solutions never mention solved
 /// variables (`{?B} -> Box[?R]` becomes `{?B} -> Box[Int]` once `?R := Int`).
-pub fn Unification::update_substitution(self : Unification) -> Unit {
+fn Unification::update_substitution(self : Unification) -> Unit {
   let subst = self.substitution()
   for k, v in self.types {
     let updated = subst.substitute_value(v)
@@ -232,7 +226,7 @@ pub fn Unification::update_substitution(self : Unification) -> Unit {
 // -------------------
 
 ///|
-pub fn Unification::lower_of(self : Unification, uid : Int32) -> Array[Sym] {
+fn Unification::lower_of(self : Unification, uid : Int32) -> Array[Sym] {
   self.lower.get(uid).unwrap_or([])
 }
 
@@ -245,7 +239,7 @@ fn captures_not_allowed(diff : Array[Sym]) -> String {
 
 ///|
 /// Adds a subcapturing link `lo - filter <: hi`.
-pub fn Unification::link(
+fn Unification::link(
   self : Unification,
   lo : Int32,
   hi : Int32,
@@ -260,7 +254,7 @@ pub fn Unification::link(
 ///|
 /// Propagates all known bounds along the links until a fixed point is reached.
 /// Returns a diagnostic if the constraint system became inconsistent.
-pub fn Unification::propagate(self : Unification) -> String? {
+fn Unification::propagate(self : Unification) -> String? {
   let mut rounds = 0
   let mut changed = true
   while changed && rounds < 200 {
@@ -314,7 +308,7 @@ pub fn Unification::propagate(self : Unification) -> String? {
 
 ///|
 /// `bounds <: ?x`
-pub fn Unification::require_lower(
+fn Unification::require_lower(
   self : Unification,
   bounds : ArrayView[Sym],
   x : Sym,
@@ -346,7 +340,7 @@ pub fn Unification::require_lower(
 
 ///|
 /// `?x <: bounds`
-pub fn Unification::require_upper(
+fn Unification::require_upper(
   self : Unification,
   bounds : ArrayView[Sym],
   x : Sym,
@@ -377,7 +371,7 @@ pub fn Unification::require_upper(
 
 ///|
 /// Solves an out-of-scope capture variable with its lower bound.
-pub fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
+fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
   if self.capts.contains(x.uid()) {
     return None
   }
@@ -392,7 +386,7 @@ pub fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
 
 ///|
 /// Solves capture variables that went out of scope.
-pub fn Unification::solve_all(
+fn Unification::solve_all(
   self : Unification,
   xs : ArrayView[Sym],
 ) -> Array[String] {
@@ -419,7 +413,7 @@ pub(all) enum UnifScope {
 }
 
 ///|
-pub fn UnifScope::type_vars(self : UnifScope) -> Array[Sym] {
+fn UnifScope::type_vars(self : UnifScope) -> Array[Sym] {
   match self {
     GlobalScope => []
     LocalScope(ts, _, _) => ts
@@ -427,7 +421,7 @@ pub fn UnifScope::type_vars(self : UnifScope) -> Array[Sym] {
 }
 
 ///|
-pub fn UnifScope::capt_vars(self : UnifScope) -> Array[Sym] {
+fn UnifScope::capt_vars(self : UnifScope) -> Array[Sym] {
   match self {
     GlobalScope => []
     LocalScope(_, cs, _) => cs
@@ -443,16 +437,8 @@ pub fn UnifScope::parent(self : UnifScope) -> UnifScope {
 }
 
 ///|
-pub fn UnifScope::is_global(self : UnifScope) -> Bool {
-  match self {
-    GlobalScope => true
-    LocalScope(_, _, _) => false
-  }
-}
-
-///|
 /// Registers a fresh type variable in the current scope.
-pub fn UnifScope::register_type_var(self : UnifScope, x : Sym) -> Unit {
+fn UnifScope::register_type_var(self : UnifScope, x : Sym) -> Unit {
   if self is LocalScope(ts, _, _) {
     ts.push(x)
   }
@@ -460,7 +446,7 @@ pub fn UnifScope::register_type_var(self : UnifScope, x : Sym) -> Unit {
 
 ///|
 /// Registers a fresh capture variable in the current scope.
-pub fn UnifScope::register_capt_var(self : UnifScope, x : Sym) -> Unit {
+fn UnifScope::register_capt_var(self : UnifScope, x : Sym) -> Unit {
   if self is LocalScope(_, cs, _) {
     cs.push(x)
   }

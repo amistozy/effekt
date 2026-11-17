@@ -28,8 +28,6 @@ pub fn doc_space() -> Doc
 
 pub fn doc_spacecat(Doc, Doc) -> Doc
 
-pub fn edit_distance(String, String, Int32) -> Int32?
-
 pub fn empty_doc() -> Doc
 
 pub fn fresh_uid() -> Int32
@@ -129,12 +127,8 @@ pub(all) struct Source {
 }
 pub fn Source::Source(String, String) -> Self
 pub fn Source::empty() -> Self
-pub fn Source::line_start(Self, Int32) -> Int32
-pub fn Source::line_text(Self, Int32) -> String
 pub fn Source::offset_to_position(Self, Int32) -> Position
-pub fn Source::position_to_offset(Self, Position) -> Int32
 pub fn Source::renamed(Self, String) -> Self
-pub fn Source::text_between(Self, Position, Position) -> String
 
 pub(all) struct Span {
   source : Source

@@ -9,7 +9,7 @@
 
 ///|
 /// The `$effekt` runtime namespace.
-pub fn effekt_namespace() -> Expr {
+fn effekt_namespace() -> Expr {
   Variable(JSName("$effekt"))
 }
 
@@ -21,7 +21,7 @@ pub fn effekt_field(name : String) -> Expr {
 
 ///|
 /// `$effekt.<name>(args...)`: a call into the runtime.
-pub fn effekt_call(name : String, args : Array[Expr]) -> Expr {
+fn effekt_call(name : String, args : Array[Expr]) -> Expr {
   method_call(effekt_namespace(), JSName(name), args)
 }
 
@@ -264,7 +264,7 @@ pub fn raw_expr(str : String) -> Expr {
 
 ///|
 /// `raw_stmt(str)` is `RawStmt(List(str), Nil)`.
-pub fn raw_stmt(str : String) -> Stmt {
+fn raw_stmt(str : String) -> Stmt {
   Stmt::RawStmt([str], [])
 }
 
@@ -279,7 +279,7 @@ pub fn js_const(name : JSName, binding : Expr) -> Stmt {
 }
 
 ///|
-pub fn js_let(name : JSName, binding : Expr) -> Stmt {
+fn js_let(name : JSName, binding : Expr) -> Stmt {
   Stmt::Let(PatternVariable(name), binding)
 }
 
@@ -305,7 +305,7 @@ pub fn lambda(params : Array[JSName], body : Expr) -> Expr {
 
 ///|
 /// A lambda whose body is a list of statements.
-pub fn lambda_stmts(
+fn lambda_stmts(
   params : Array[JSName],
   stmts : Array[Stmt],
 ) -> Expr raise EffektError {
@@ -329,7 +329,7 @@ pub fn js_string(scala_string : String) -> Expr {
 }
 
 ///|
-pub fn maybe_block(stmts : Array[Stmt]) -> Stmt {
+fn maybe_block(stmts : Array[Stmt]) -> Stmt {
   match stmts.length() {
     1 => stmts[0]
     _ => Block(stmts)

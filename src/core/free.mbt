@@ -63,7 +63,7 @@ pub fn Free::contains(self : Free, id : Sym) -> Bool {
 
 ///|
 /// All free ids, values and blocks together.
-pub fn Free::free_ids(self : Free) -> Array[Sym] {
+fn Free::free_ids(self : Free) -> Array[Sym] {
   let out : Array[Sym] = []
   for _, v in self.values {
     out.push(v.id)
@@ -76,7 +76,7 @@ pub fn Free::free_ids(self : Free) -> Array[Sym] {
 
 ///|
 /// All free values.
-pub fn Free::free_values(self : Free) -> Array[FreeValue] {
+fn Free::free_values(self : Free) -> Array[FreeValue] {
   let out : Array[FreeValue] = []
   for _, v in self.values {
     out.push(v)
@@ -86,7 +86,7 @@ pub fn Free::free_values(self : Free) -> Array[FreeValue] {
 
 ///|
 /// All free blocks.
-pub fn Free::free_blocks(self : Free) -> Array[FreeBlock] {
+fn Free::free_blocks(self : Free) -> Array[FreeBlock] {
   let out : Array[FreeBlock] = []
   for _, b in self.blocks {
     out.push(b)
@@ -96,7 +96,7 @@ pub fn Free::free_blocks(self : Free) -> Array[FreeBlock] {
 
 ///|
 /// Removes the given value variables from the free set.
-pub fn Free::without_values(self : Free, ids : ArrayView[Sym]) -> Free {
+fn Free::without_values(self : Free, ids : ArrayView[Sym]) -> Free {
   let values = self.values.copy()
   for id in ids {
     values.remove(id.uid())
@@ -106,7 +106,7 @@ pub fn Free::without_values(self : Free, ids : ArrayView[Sym]) -> Free {
 
 ///|
 /// Removes the given block variables from the free set.
-pub fn Free::without_blocks(self : Free, ids : ArrayView[Sym]) -> Free {
+fn Free::without_blocks(self : Free, ids : ArrayView[Sym]) -> Free {
   let blocks = self.blocks.copy()
   for id in ids {
     blocks.remove(id.uid())
@@ -117,14 +117,14 @@ pub fn Free::without_blocks(self : Free, ids : ArrayView[Sym]) -> Free {
 ///|
 /// Removes a single value variable. Upstream additionally takes the type of the
 /// variable; the removal does not need it.
-pub fn Free::remove_value(self : Free, id : Sym) -> Free {
+fn Free::remove_value(self : Free, id : Sym) -> Free {
   self.without_values([id])
 }
 
 ///|
 /// Removes a single block variable. Upstream additionally takes type and
 /// captures; the removal does not need them.
-pub fn Free::remove_block(self : Free, id : Sym) -> Free {
+fn Free::remove_block(self : Free, id : Sym) -> Free {
   self.without_blocks([id])
 }
 

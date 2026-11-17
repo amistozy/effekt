@@ -356,7 +356,7 @@ fn Renamer::rewrite_captures(self : Renamer, capt : Captures) -> Captures {
 ///|
 /// Freshens a block and returns it together with the fresh symbols it introduced
 /// (fresh symbol -> the symbol it replaces), mirroring `Renamer.rename(b)`.
-pub fn rename_block(block : Block) -> (Block, Map[Int32, Sym]) {
+fn rename_block(block : Block) -> (Block, Map[Int32, Sym]) {
   let renamer = Renamer()
   let renamed = renamer.rewrite_block(block)
   (renamed, renamer.renamed)

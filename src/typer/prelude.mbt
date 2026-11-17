@@ -94,7 +94,7 @@ pub struct CallLike {
 /// where `captures` holds one capture set per block parameter and one per
 /// effect (see `Sym::annotated_type`). These helpers extract the *capture
 /// parameter* of such a slot, which is what instantiation substitutes.
-pub fn capture_param_of(c : Captures) -> Sym? {
+fn capture_param_of(c : Captures) -> Sym? {
   match c {
     @symbols.Captures::CaptureSetOf(cs) =>
       if cs.length() == 1 {
@@ -107,7 +107,7 @@ pub fn capture_param_of(c : Captures) -> Sym? {
 }
 
 ///|
-pub fn capture_params_of(capts : ArrayView[Captures]) -> Array[Sym] {
+fn capture_params_of(capts : ArrayView[Captures]) -> Array[Sym] {
   let out : Array[Sym] = []
   for c in capts {
     if capture_param_of(c) is Some(x) {
@@ -118,7 +118,7 @@ pub fn capture_params_of(capts : ArrayView[Captures]) -> Array[Sym] {
 }
 
 ///|
-pub fn captures_of_params(params : ArrayView[Sym]) -> Array[Captures] {
+fn captures_of_params(params : ArrayView[Sym]) -> Array[Captures] {
   params.map(p => @symbols.Captures::CaptureSetOf([p]))
 }
 
@@ -133,12 +133,12 @@ pub fn effects_of(effs : Array[BlockType]) -> Effects {
 
 ///|
 /// Union of two effect sets, keeping the result duplicate free.
-pub fn eff_union(a : Effects, b : Effects) -> Effects {
+fn eff_union(a : Effects, b : Effects) -> Effects {
   a.union(b).distinct()
 }
 
 ///|
-pub fn eff_union_of(effs : ArrayView[Effects]) -> Effects {
+fn eff_union_of(effs : ArrayView[Effects]) -> Effects {
   let out : Array[BlockType] = []
   for e in effs {
     for x in e.effects {
@@ -152,11 +152,11 @@ pub fn eff_union_of(effs : ArrayView[Effects]) -> Effects {
 
 ///|
 /// Set difference on effects.
-pub fn eff_diff(a : Effects, b : Effects) -> Effects {
+fn eff_diff(a : Effects, b : Effects) -> Effects {
   a.filter_not(x => b.exists(y => interface_type_equal(x, y)))
 }
 
 ///|
-pub fn eff_contains(a : Effects, x : BlockType) -> Bool {
+fn eff_contains(a : Effects, x : BlockType) -> Bool {
   a.exists(y => interface_type_equal(x, y))
 }

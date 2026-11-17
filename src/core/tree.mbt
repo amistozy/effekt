@@ -420,7 +420,7 @@ pub fn Operation::Operation(
 /// The value type used where a node needs a type that the typer did not record.
 /// Upstream infers those with `Type.inferType`, which `type.mbt` ports for the
 /// optimizer; this sentinel marks the places that still do without.
-pub fn unknown_value_type() -> ValueType {
+fn unknown_value_type() -> ValueType {
   ValueData(Sym::error_value_type(Span::missing()), [])
 }
 
@@ -432,7 +432,7 @@ pub fn unknown_block_type() -> BlockType {
 
 ///|
 /// Whether this is the placeholder written by `unknown_value_type()`.
-pub fn is_unknown_value_type(tpe : ValueType) -> Bool {
+fn is_unknown_value_type(tpe : ValueType) -> Bool {
   match tpe {
     ValueData(sym, _) =>
       match sym {
@@ -445,7 +445,7 @@ pub fn is_unknown_value_type(tpe : ValueType) -> Bool {
 
 ///|
 /// Whether this is the placeholder written by `unknown_block_type()`.
-pub fn is_unknown_block_type(tpe : BlockType) -> Bool {
+fn is_unknown_block_type(tpe : BlockType) -> Bool {
   match tpe {
     InterfaceType(sym, _) =>
       match sym {

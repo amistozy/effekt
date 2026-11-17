@@ -256,7 +256,7 @@ pub fn rewrite_stmt(
 }
 
 ///|
-pub fn rewrite_term(
+fn rewrite_term(
   t : Term,
   ctx : Context,
   hooks : Hooks,
@@ -342,7 +342,7 @@ fn rewrite_call_target(
 }
 
 ///|
-pub fn rewrite_value_arg(
+fn rewrite_value_arg(
   a : ValueArg,
   ctx : Context,
   hooks : Hooks,
@@ -438,7 +438,7 @@ pub fn rewrite_op_clause(
 }
 
 ///|
-pub fn rewrite_effects(
+fn rewrite_effects(
   e : EffectsTree,
   ctx : Context,
   hooks : Hooks,
@@ -447,7 +447,7 @@ pub fn rewrite_effects(
 }
 
 ///|
-pub fn rewrite_type(
+fn rewrite_type(
   t : TypeTree,
   ctx : Context,
   hooks : Hooks,
@@ -487,7 +487,7 @@ pub fn rewrite_type(
 }
 
 ///|
-pub fn rewrite_capture_set(
+fn rewrite_capture_set(
   c : CaptureSetTree,
   _ctx : Context,
   _hooks : Hooks,

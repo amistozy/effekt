@@ -59,7 +59,7 @@ fn reserved_words() -> Array[String] {
 }
 
 ///|
-pub fn js_escape(name : String) -> String {
+fn js_escape(name : String) -> String {
   if reserved_words().contains(name) {
     "$\{name}"
   } else {
@@ -68,7 +68,7 @@ pub fn js_escape(name : String) -> String {
 }
 
 ///|
-pub fn js_module_name(path : String) -> String {
+fn js_module_name(path : String) -> String {
   "$\{path.replace_all(old="/", new="_").replace_all(old="-", new="_")}"
 }
 
@@ -87,7 +87,7 @@ let generated_names : Map[Int32, JSName] = Map([])
 
 ///|
 /// Forgets every generated name.
-pub fn reset_naming() -> Unit {
+fn reset_naming() -> Unit {
   used_names.clear()
   generated_names.clear()
 }
@@ -153,20 +153,20 @@ pub fn name_def(id : Sym) -> JSName {
 
 ///|
 /// A reference to a symbol.
-pub fn name_ref(id : Sym) -> Expr {
+fn name_ref(id : Sym) -> Expr {
   Variable(unique_name(id))
 }
 
 ///|
 /// The generated name of a field or method.
-pub fn member_name_ref(id : Sym) -> JSName {
+fn member_name_ref(id : Sym) -> JSName {
   unique_name(id)
 }
 
 ///|
 /// A name that is guaranteed to be fresh (used for compiler-generated
 /// variables that have no symbol, e.g. the `other` of `__equals`).
-pub fn fresh_name(s : String) -> JSName {
+fn fresh_name(s : String) -> JSName {
   JSName("\{s}\{@util.fresh_uid()}")
 }
 
@@ -209,7 +209,7 @@ fn bool_literal(b : Bool) -> Expr {
 ///   __equals(other) { ... }
 /// }
 /// ```
-pub fn generate_constructor(
+fn generate_constructor(
   constructor : @core.Constructor,
   tag_value : Int32,
 ) -> Stmt {

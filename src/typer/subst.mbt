@@ -46,7 +46,7 @@ pub fn Substitutions::is_empty(self : Substitutions) -> Bool {
 
 ///|
 /// Parallel composition (`++` upstream): the right-hand side wins.
-pub fn Substitutions::compose(
+fn Substitutions::compose(
   self : Substitutions,
   other : Substitutions,
 ) -> Substitutions {
@@ -122,7 +122,7 @@ pub fn Substitutions::substitute_captures(
 }
 
 ///|
-pub fn Substitutions::substitute_value(
+fn Substitutions::substitute_value(
   self : Substitutions,
   t : ValueType,
 ) -> ValueType {
@@ -142,7 +142,7 @@ pub fn Substitutions::substitute_value(
 }
 
 ///|
-pub fn Substitutions::substitute_effects(
+fn Substitutions::substitute_effects(
   self : Substitutions,
   e : Effects,
 ) -> Effects {

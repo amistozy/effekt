@@ -7,7 +7,7 @@
 ///|
 /// A canonical key for an interface (effect) type, used to look capabilities
 /// up in a `Map`.
-pub fn interface_key(t : BlockType) -> String {
+fn interface_key(t : BlockType) -> String {
   match t {
     @symbols.BlockType::InterfaceType(c, args) =>
       "\{c.uid()}[\{args.map(value_type_key).join(",")}]"
@@ -44,18 +44,8 @@ pub(all) enum CapScope {
 }
 
 ///|
-pub fn CapScope::parent(self : CapScope) -> CapScope {
-  match self {
-    GlobalCap => GlobalCap
-    BindDeclared(_, p) => p
-    BindSome(_, p) => p
-    BindAll(_, p) => p
-  }
-}
-
-///|
 /// All capabilities bound by the frames of this scope, innermost first.
-pub fn CapScope::all_capabilities(self : CapScope) -> Array[Sym] {
+fn CapScope::all_capabilities(self : CapScope) -> Array[Sym] {
   let out : Array[Sym] = []
   let mut scope = self
   while !scope.is_global() {
@@ -82,7 +72,7 @@ pub fn CapScope::all_capabilities(self : CapScope) -> Array[Sym] {
 /// has been solved (to `emit[T]`) the capability still has to be found, so the
 /// comparison is done on `subst`-ed types rather than on the key the frame was
 /// created with.
-pub fn CapScope::capability_for_matching(
+fn CapScope::capability_for_matching(
   self : CapScope,
   tpe : BlockType,
   subst : (BlockType) -> BlockType,
@@ -106,7 +96,7 @@ pub fn CapScope::capability_for_matching(
 /// would make an implementation capture a capability that the enclosing context
 /// does not actually provide (`pos/issue603/issue603_5`: an object whose
 /// operation performs the function's own declared effect must not capture it).
-pub fn CapScope::bound_capability_for(self : CapScope, tpe : BlockType) -> Sym? {
+fn CapScope::bound_capability_for(self : CapScope, tpe : BlockType) -> Sym? {
   let key = interface_key(tpe)
   match self {
     GlobalCap => None
@@ -123,7 +113,7 @@ pub fn CapScope::bound_capability_for(self : CapScope, tpe : BlockType) -> Sym? 
 ///|
 /// Looks up (or, in a `BindAll` frame, creates) the capability for an effect.
 /// Fails for `GlobalCap`, which is the "no handler in scope" case.
-pub fn CapScope::capability_for(self : CapScope, tpe : BlockType) -> Sym? {
+fn CapScope::capability_for(self : CapScope, tpe : BlockType) -> Sym? {
   let key = interface_key(tpe)
   match self {
     GlobalCap => None
@@ -161,7 +151,7 @@ pub fn CapScope::capability_for(self : CapScope, tpe : BlockType) -> Sym? {
 /// All interface types in scope that have the same type constructor as `tpe`;
 /// used for better error messages. The caller filters out the ones that still
 /// have unsolved type arguments (upstream `unknowns(handlerTpe).isEmpty`).
-pub fn CapScope::relevant_in_scope_for(
+fn CapScope::relevant_in_scope_for(
   self : CapScope,
   tpe : BlockType,
 ) -> Array[BlockType] {
@@ -194,7 +184,7 @@ pub fn CapScope::relevant_in_scope_for(
 }
 
 ///|
-pub fn CapScope::is_global(self : CapScope) -> Bool {
+fn CapScope::is_global(self : CapScope) -> Bool {
   match self {
     GlobalCap => true
     _ => false

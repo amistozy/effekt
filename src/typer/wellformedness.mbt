@@ -17,7 +17,7 @@
 ///|
 /// The free captures of a capture set: capture parameters and lexical regions
 /// are free, resources (`io`, `global`, ...) are not — like upstream.
-pub fn free_captures(c : Captures) -> Array[Sym] {
+fn free_captures(c : Captures) -> Array[Sym] {
   match c {
     @symbols.Captures::CaptureSetOf(cs) => cs.filter(s => is_free_capture(s))
     @symbols.Captures::CaptVar(x) => [x]
@@ -38,7 +38,7 @@ fn is_free_capture(s : Sym) -> Bool {
 }
 
 ///|
-pub fn free_captures_value(t : ValueType) -> Array[Sym] {
+fn free_captures_value(t : ValueType) -> Array[Sym] {
   match t {
     @symbols.ValueType::ValueTypeRef(_) => []
     @symbols.ValueType::ValueTypeApp(_, args) => {
@@ -57,7 +57,7 @@ pub fn free_captures_value(t : ValueType) -> Array[Sym] {
 }
 
 ///|
-pub fn free_captures_block(t : BlockType) -> Array[Sym] {
+fn free_captures_block(t : BlockType) -> Array[Sym] {
   match t {
     @symbols.BlockType::InterfaceType(_, args) => {
       let out : Array[Sym] = []
@@ -89,7 +89,7 @@ pub fn free_captures_block(t : BlockType) -> Array[Sym] {
 
 ///|
 /// The free type parameters of a value type.
-pub fn free_types_value(t : ValueType, bound : ArrayView[Sym]) -> Array[Sym] {
+fn free_types_value(t : ValueType, bound : ArrayView[Sym]) -> Array[Sym] {
   match t {
     @symbols.ValueType::ValueTypeRef(x) =>
       if bound.contains(x) {
@@ -112,7 +112,7 @@ pub fn free_types_value(t : ValueType, bound : ArrayView[Sym]) -> Array[Sym] {
 }
 
 ///|
-pub fn free_types_block(t : BlockType, bound : ArrayView[Sym]) -> Array[Sym] {
+fn free_types_block(t : BlockType, bound : ArrayView[Sym]) -> Array[Sym] {
   match t {
     @symbols.BlockType::InterfaceType(_, args) => {
       let out : Array[Sym] = []
@@ -208,7 +208,7 @@ fn WFScope::bind_types(self : WFScope, types : ArrayView[Sym]) -> WFScope {
 /// parameter, so only the first failure of a module is reported (`wf_aborted`
 /// makes the walk stop). That is why `examples/neg/lambdas/closure` reports the
 /// escape in the operation clause and not the one of the handled statement.
-pub fn Typer::check_capture_escapes(self : Typer, module : ModuleDecl) -> Unit {
+fn Typer::check_capture_escapes(self : Typer, module : ModuleDecl) -> Unit {
   self.wf_aborted = false
   for d in module.defs {
     self.wf_def(d, WFScope::empty())

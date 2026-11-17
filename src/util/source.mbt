@@ -56,7 +56,7 @@ pub fn Source::empty() -> Source {
 
 ///|
 /// The offset at which `line` (1-based) starts. Clamped to the file.
-pub fn Source::line_start(self : Source, line : Int32) -> Int32 {
+fn Source::line_start(self : Source, line : Int32) -> Int32 {
   if line <= 1 {
     0
   } else if line > self.line_starts.length() {
@@ -68,7 +68,7 @@ pub fn Source::line_start(self : Source, line : Int32) -> Int32 {
 
 ///|
 /// The text of `line` (1-based), without the trailing newline.
-pub fn Source::line_text(self : Source, line : Int32) -> String {
+fn Source::line_text(self : Source, line : Int32) -> String {
   if line < 1 || line > self.line_starts.length() {
     return ""
   }
@@ -112,13 +112,13 @@ pub fn Source::offset_to_position(self : Source, offset : Int32) -> Position {
 
 ///|
 /// Convert a `Position` back into a 0-based character offset.
-pub fn Source::position_to_offset(self : Source, pos : Position) -> Int32 {
+fn Source::position_to_offset(self : Source, pos : Position) -> Int32 {
   self.line_start(pos.line) + pos.column - 1
 }
 
 ///|
 /// Extracts the text between two positions (end exclusive).
-pub fn Source::text_between(
+fn Source::text_between(
   self : Source,
   from : Position,
   to : Position,

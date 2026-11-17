@@ -496,9 +496,9 @@ You can browse and install extra skills here:
   easy ones to forget. `Parser::nonterminal`/`nonterminal_at` carried the same
   three-line restore in both arms plus one after the `catch`; they are four-line
   bodies now (`let saved = self.start; defer { self.start = saved }`), along with
-  `Parser::labelled`, `Scoping::scoped`/`scoped_named`/`namespace`,
+  `Parser::labelled`, `Scoping::scoped`/`namespace`,
   `Transformer::with_bindings`, `Typer::types_compatible`, the overload attempt
-  loop in `calls.mbt` and the muted region of `Typer::check_implicit` — nineteen
+  loop in `calls.mbt` and the muted region of `Typer::check_implicit` — sixteen
   `defer` sites, up from nine. `with_bindings` even documented the workaround as
   a limitation ("MoonBit has no `try`/`finally`, so a raising `f` leaves the
   transformer in the nested state") — it has `defer`, which is the same thing,
@@ -575,6 +575,31 @@ You can browse and install extra skills here:
   by the roots: `show_core_stmt_hint` existed only for one deleted panic
   message, and `moon check -d` reports it the moment its last caller goes.
   `moon info` then shrinks `.mbti` to match.
+
+  **`pub` means "another package reads this".** An exported item that only its
+  own package (and its own `*_test.mbt`, which is a separate blackbox package)
+  mentions should be `fn`, not `pub fn`: it is invisible dead weight in the
+  package interface, and the compiler only sees the difference once the item is
+  private. Counting every `pub fn` name across the *other* packages and `cmd/`
+  (plus the same directory's `*_test.mbt`, but not `*_wbtest.mbt`, which is
+  whitebox) found 201 of them; making them `fn` left `.mbti` 291 lines shorter
+  with no code change at all. Two things happen when they become private, and
+  both are the point: `unused_value` starts firing for the ones nothing calls —
+  that is how `Scoping::scoped_named`, `Context::feature_flags`,
+  `Many::unspan`, `Bind::bind_impure_app`,
+  `DeclarationContext::find_extern_def`, `UnifScope::is_global` and
+  `CapScope::parent` were found (all deleted) — and `unused_field`,
+  `unused_mut` and `unused_constructor` start inspecting the private types they
+  mention. A `priv` type is the same idea one level up (`T::T` constructors and
+  methods of it have to become `fn` too), but it is *not* free: a `pub(all)`
+  struct's field types must stay public (`A public definition cannot depend on
+  private type` — `Free.values`/`Free.blocks`, `Typer.st`,
+  `Typer.pending_matches` and `DeclarationContext.constructors` all pin their
+  element types), and a private enum exposes its unused variants, which for
+  `Associativity`/`LexerError` are upstream mirrors rather than dead code
+  (`Parser.scala` only declares `Associativity.None`, and
+  `LexerError.Expected` marks a lexer error the port does not raise yet). Go
+  type by type there, and leave those two public.
 
   **A struct field nothing reads is dead too**, and the checker cannot see it
   either: a field that is only *written* (by its constructor) is invisible to

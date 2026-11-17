@@ -24,7 +24,7 @@ pub(all) enum Delimiter {
 }
 
 ///|
-pub fn Delimiter::allows_interpolation(self : Delimiter) -> Bool {
+fn Delimiter::allows_interpolation(self : Delimiter) -> Bool {
   match self {
     SingleString | MultiString | HoleString | RawString => true
     CharString => false
@@ -32,7 +32,7 @@ pub fn Delimiter::allows_interpolation(self : Delimiter) -> Bool {
 }
 
 ///|
-pub fn Delimiter::is_multiline(self : Delimiter) -> Bool {
+fn Delimiter::is_multiline(self : Delimiter) -> Bool {
   match self {
     SingleString | CharString => false
     MultiString | HoleString | RawString => true
@@ -40,14 +40,14 @@ pub fn Delimiter::is_multiline(self : Delimiter) -> Bool {
 }
 
 ///|
-pub fn Delimiter::allows_escapes(self : Delimiter) -> Bool {
+fn Delimiter::allows_escapes(self : Delimiter) -> Bool {
   !self.is_multiline()
 }
 
 ///|
 /// The token of a closed string. `terminator` is the newline that ended a raw
 /// string's line (`""` for every other kind of string).
-pub fn Delimiter::to_token_kind(
+fn Delimiter::to_token_kind(
   self : Delimiter,
   contents : String,
   terminator : String,
@@ -266,7 +266,7 @@ pub fn Lexer::Lexer(source : Source) -> Lexer {
 }
 
 ///|
-pub fn Lexer::has_next(self : Lexer) -> Bool {
+fn Lexer::has_next(self : Lexer) -> Bool {
   !self.eof
 }
 

@@ -7,7 +7,7 @@
 ///|
 /// Reads the contents of every `extern include` in `tree`, resolving the path
 /// relative to `source`'s file.
-pub fn resolve_includes(
+fn resolve_includes(
   tree : ModuleDecl,
   source : Source,
   ctx : Context,

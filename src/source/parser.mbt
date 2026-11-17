@@ -33,12 +33,6 @@ pub fn[T] Many::empty(span : Span) -> Many[T] {
 }
 
 ///|
-/// The items, without the span information (Scala's `unspan`).
-pub fn[T] Many::unspan(self : Many[T]) -> Array[T] {
-  self.items
-}
-
-///|
 pub fn[T] Many::size(self : Many[T]) -> Int32 {
   self.items.length()
 }
@@ -61,13 +55,13 @@ pub fn[T] Maybe::none(span : Span) -> Maybe[T] {
 }
 
 ///|
-pub fn[T] Maybe::get_or_else(self : Maybe[T], default : T) -> T {
+fn[T] Maybe::get_or_else(self : Maybe[T], default : T) -> T {
   self.value.unwrap_or(default)
 }
 
 ///|
 /// Like `get_or_else`, but the default is only computed if needed.
-pub fn[T] Maybe::get_or_else_lazy(
+fn[T] Maybe::get_or_else_lazy(
   self : Maybe[T],
   default : () -> T raise EffektError,
 ) -> T raise EffektError {
@@ -143,7 +137,7 @@ pub struct PrecedenceTable {
 
 ///|
 /// The precedence table used by the parser. Mirrors `Parser.precedenceTable`.
-pub fn build_precedence_table() -> PrecedenceTable {
+fn build_precedence_table() -> PrecedenceTable {
   let relations : Array[(TokenKind, TokenKind)] = []
   let assoc = [TEqEqEq, TNotEqEq, TLtEq, TGtEq, TLt, TGt].map(op => {
     (op, AssocNone)

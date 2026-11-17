@@ -31,7 +31,7 @@ fn Typer::unbox_error(self : Typer, e : Term, tpe : ValueType) -> Message {
 ///
 /// Like `check_expr`, the focus is restored afterwards (`Context.at`), so a
 /// capture conflict the caller reports points at the caller.
-pub fn Typer::check_expr_as_block(
+fn Typer::check_expr_as_block(
   self : Typer,
   e : Term,
   expected : BlockType?,
@@ -251,7 +251,7 @@ fn Typer::lambda_case_hints(
 
 ///|
 /// Checks a block literal against an expected function type.
-pub fn Typer::check_function_argument(
+fn Typer::check_function_argument(
   self : Typer,
   node : Term,
   expected : BlockType,
@@ -393,7 +393,7 @@ pub fn Typer::check_function_argument(
 ///|
 /// Infers the type of a block literal that is not checked against an expected
 /// function type. All parameters have to be annotated.
-pub fn Typer::infer_function_argument(
+fn Typer::infer_function_argument(
   self : Typer,
   node : Term,
 ) -> TyRes[BlockType] raise EffektError {
@@ -465,7 +465,7 @@ pub fn Typer::infer_function_argument(
 ///|
 /// Checks an object or handler implementation. `continuation` is only provided
 /// when a continuation is captured (i.e. for effect handlers).
-pub fn Typer::check_implementation(
+fn Typer::check_implementation(
   self : Typer,
   implementation : Implementation,
   continuation : (ValueType, Sym)?,
@@ -786,7 +786,7 @@ fn Typer::assert_arity(
 
 ///|
 /// Checks `try { prog } with ...`: mirrors the `TryHandle` case.
-pub fn Typer::check_try_handle(
+fn Typer::check_try_handle(
   self : Typer,
   node : Term,
   prog : Stmt,
