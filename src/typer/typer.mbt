@@ -620,18 +620,16 @@ fn Typer::types_compatible(
   self.muted_error = false
   self.muted_messages = []
   self.muted_infos = []
-  let mut ok = true
-  self.unify_value_types(
-    inferred,
-    concrete,
-    MergeTypes(inferred, concrete, NoArms),
-  ) catch {
-    _ => ok = false
+  try {
+    self.unify_value_types(
+      inferred,
+      concrete,
+      MergeTypes(inferred, concrete, NoArms),
+    )
+    !self.muted_error
+  } catch {
+    _ => false
   }
-  if self.muted_error {
-    ok = false
-  }
-  ok
 }
 
 ///|
@@ -3137,13 +3135,9 @@ pub fn Typer::unify_effects(
     let pairs = entry.1
     if pairs.length() == 1 {
       let (e1, e2) = pairs[0]
-      let mut seen = false
-      for pair in forced {
-        if same_interface_type(pair.0, e1) && same_interface_type(pair.1, e2) {
-          seen = true
-        }
-      }
-      if !seen {
+      if !forced.any(pair => {
+          same_interface_type(pair.0, e1) && same_interface_type(pair.1, e2)
+        }) {
         forced.push((e1, e2))
       }
     }
@@ -3155,13 +3149,7 @@ pub fn Typer::unify_effects(
   let undecided : Array[BlockType] = []
   for (eff, pairs) in candidates {
     if pairs.length() > 1 {
-      let mut seen = false
-      for e in undecided {
-        if same_interface_type(e, eff) {
-          seen = true
-        }
-      }
-      if !seen {
+      if !undecided.any(e => same_interface_type(e, eff)) {
         undecided.push(eff)
       }
     }
@@ -3497,14 +3485,9 @@ fn Typer::instantiate_captures(
       let contained : Array[Captures] = []
       let remaining : Array[Sym] = []
       for s in cs {
-        let mut found = false
-        for i in 0..<inst.cparams.length() {
-          if !found && inst.cparams[i].uid() == s.uid() {
-            contained.push(inst.cargs[i])
-            found = true
-          }
-        }
-        if !found && !remaining.contains(s) {
+        if inst.cparams.search_by(p => p.uid() == s.uid()) is Some(i) {
+          contained.push(inst.cargs[i])
+        } else if !remaining.contains(s) {
           remaining.push(s)
         }
       }

@@ -1053,16 +1053,9 @@ fn Parser::default_module_path(self : Parser) -> String {
       start = i + 1
     }
   }
-  let base = name[start:name.length()].to_owned()
-  let mut end = base.length()
-  let mut found = false
-  for i in 0..<base.length() {
-    if !found && base[i] == '.' {
-      end = i
-      found = true
-    }
-  }
-  base[0:end].to_owned()
+  let base = name[start:]
+  let end = base.find(".").unwrap_or(base.length())
+  base[:end].to_owned()
 }
 
 ///|

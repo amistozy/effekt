@@ -37,38 +37,36 @@ fn IsStatic::allows_the_translation(self : IsStatic) -> Bool {
 }
 
 ///|
-/// The arguments whose parameter is not static (upstream `dropStatic`). `zip`
+/// The arguments whose parameter is not static (upstream `dropStatic`); `zip`
 /// truncates, as upstream's does.
 fn[T] drop_static(static : ArrayView[Bool], args : ArrayView[T]) -> Array[T] {
-  let out : Array[T] = []
-  let n = if static.length() < args.length() {
-    static.length()
-  } else {
-    args.length()
-  }
-  for i in 0..<n {
-    if !static[i] {
-      out.push(args[i])
-    }
-  }
-  out
+  static.zip(args).filter_map(pair => if pair.0 { None } else { Some(pair.1) })
 }
 
 ///|
 /// The arguments whose parameter is static (upstream `selectStatic`).
 fn[T] select_static(static : ArrayView[Bool], args : ArrayView[T]) -> Array[T] {
-  let out : Array[T] = []
-  let n = if static.length() < args.length() {
-    static.length()
-  } else {
-    args.length()
-  }
-  for i in 0..<n {
-    if static[i] {
-      out.push(args[i])
+  static.zip(args).filter_map(pair => if pair.0 { Some(pair.1) } else { None })
+}
+
+///|
+/// Whether every recursive call leaves parameter `i` alone. An *empty* list of
+/// calls counts as "not unchanged", which keeps the translation off; every call
+/// also has to pass at least `i + 1` arguments of that kind.
+fn[T] unchanged_in(
+  calls : ArrayView[Array[T]],
+  i : Int32,
+  kind : String,
+  is_unchanged : (T) -> Bool,
+) -> Bool raise EffektError {
+  for args in calls {
+    if i >= args.length() {
+      raise EffektError::Internal(
+        "A recursive call passes too few \{kind} arguments.",
+      )
     }
   }
-  out
+  !calls.is_empty() && calls.all(args => is_unchanged(args[i]))
 }
 
 ///|
@@ -77,57 +75,23 @@ fn[T] select_static(static : ArrayView[Bool], args : ArrayView[T]) -> Array[T] {
 fn is_static(found : RecursiveFunction) -> IsStatic raise EffektError {
   let lit = found.definition
   let free = lit.body.free()
-  let types : Array[Bool] = []
-  for i in 0..<lit.tparams.length() {
-    let param = lit.tparams[i]
-    let mut unchanged = !found.targs.is_empty()
-    for args in found.targs {
-      if i >= args.length() {
-        raise EffektError::Internal(
-          "A recursive call passes too few type arguments.",
-        )
-      }
-      match args[i] {
-        ValueVar(other) => if !(param == other) { unchanged = false }
-        _ => unchanged = false
-      }
-    }
-    types.push(unchanged)
-  }
-  let values : Array[Bool] = []
-  for i in 0..<lit.vparams.length() {
-    let param = lit.vparams[i]
-    let mut unchanged = !found.vargs.is_empty()
-    for args in found.vargs {
-      if i >= args.length() {
-        raise EffektError::Internal(
-          "A recursive call passes too few value arguments.",
-        )
-      }
-      match args[i] {
-        ValueVar(other, _) => if !(param.id == other) { unchanged = false }
-        _ => unchanged = false
-      }
-    }
-    values.push(unchanged || !free.contains(param.id))
-  }
-  let blocks : Array[Bool] = []
-  for i in 0..<lit.bparams.length() {
-    let param = lit.bparams[i]
-    let mut unchanged = !found.bargs.is_empty()
-    for args in found.bargs {
-      if i >= args.length() {
-        raise EffektError::Internal(
-          "A recursive call passes too few block arguments.",
-        )
-      }
-      match args[i] {
-        BlockVar(other) => if !(param.id == other.id) { unchanged = false }
-        _ => unchanged = false
-      }
-    }
-    blocks.push(unchanged || !free.contains(param.id))
-  }
+  let types = lit.tparams.mapi((i, param) => {
+    unchanged_in(found.targs, i, "type", arg => {
+      arg is ValueVar(other) && param == other
+    })
+  })
+  let values = lit.vparams.mapi((i, param) => {
+    let unchanged = unchanged_in(found.vargs, i, "value", arg => {
+      arg is ValueVar(other, _) && param.id == other
+    })
+    unchanged || !free.contains(param.id)
+  })
+  let blocks = lit.bparams.mapi((i, param) => {
+    let unchanged = unchanged_in(found.bargs, i, "block", arg => {
+      arg is BlockVar(other) && param.id == other.id
+    })
+    unchanged || !free.contains(param.id)
+  })
   { types, values, blocks, }
 }
 

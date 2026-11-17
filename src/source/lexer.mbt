@@ -172,16 +172,12 @@ fn parse_double_lit(s : String) -> Double? {
   if s.is_empty() {
     return None
   }
-  let mut i = 0
-  let mut neg = false
-  if s[0] == '-' {
-    neg = true
-    i = 1
-  }
+  let neg = s[0] == '-'
+  let mut i = if neg { 1 } else { 0 }
   let mut int_part : Double = 0.0
   let mut seen_digit = false
   while i < s.length() && s[i] >= '0' && s[i] <= '9' {
-    int_part = int_part * 10.0 + Double::from_int(s[i].to_int() - 48)
+    int_part = int_part * 10.0 + Double::from_int(s[i].to_int() - '0'.to_int())
     seen_digit = true
     i = i + 1
   }
@@ -191,7 +187,7 @@ fn parse_double_lit(s : String) -> Double? {
     i = i + 1
     let mut scale = 0.1
     while i < s.length() && s[i] >= '0' && s[i] <= '9' {
-      result = result + Double::from_int(s[i].to_int() - 48) * scale
+      result = result + Double::from_int(s[i].to_int() - '0'.to_int()) * scale
       scale = scale / 10.0
       i = i + 1
     }

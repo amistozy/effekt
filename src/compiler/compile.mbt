@@ -231,13 +231,7 @@ fn collect_order(
   if visited.any(p => p == source) {
     return true
   }
-  let mut on_stack = -1
-  for i in 0..<stack.length() {
-    if stack[i].source == source {
-      on_stack = i
-    }
-  }
-  if on_stack >= 0 {
+  if stack.search_by(entry => entry.source == source) is Some(on_stack) {
     report_cycle(loader, stack, on_stack, via, ctx)
     return false
   }

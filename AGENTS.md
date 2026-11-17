@@ -156,7 +156,9 @@ You can browse and install extra skills here:
 - **Ask the standard library before writing a helper.** `xs.is_empty()` (not
   `xs.length() == 0` — the core library has 399 of the former and 28 of the
   latter), `a.min(b)`/`a.max(b)`, `xs.last()`, `xs.rev()`, `xs.contains(x)`,
-  `xs.search(x)` (returns `Int32?`; `search_by(p)` for a predicate),
+  `xs.search(x)` (returns `Int32?`; `search_by(p)` for a predicate — that is
+  also the spelling of a `let mut found = false; for i in 0..<xs.length() { if
+  !found && p(xs[i]) { … } }` "find the index" loop),
   `xs.sort_by(cmp)` / `xs.mut_view().stable_sort_by(cmp)` (the plain one is an
   unstable quicksort: a hand-rolled insertion sort is `stable_sort_by`, and both
   of this port's — `candidates_in_order` and `render_messages`, each with an
@@ -189,6 +191,18 @@ You can browse and install extra skills here:
   `.fold(` 2.5x as densely as the core library). `Option`-shaped code has its own
   bullet below.
 
+  A `for i in 0..<static.length().min(args.length())` loop that walks two
+  parallel arrays is `zip` + `filter`/`filter_map` when it only *selects*:
+  upstream's `dropStatic`/`selectStatic` are literally
+  `(isStatic zip arguments).collect { case (false, arg) => arg }`, so the
+  faithful spelling is one line each —
+  `static.zip(args).filter_map(pair => if pair.0 { None } else { Some(pair.1) })`
+  — and `zip`'s truncation is `collect`'s. The same goes for `String::find` /
+  `String::rev_find`: they return the code-unit offset (`Int32?`) of the first /
+  last occurrence, so a scan that only looks for the first `.` (the module name
+  of a file) or the last `/` is that call plus a slice
+  (`base.find(".").unwrap_or(base.length())`, `name[start:]`, `base[:end]`).
+
   **String ordering is `String::lexical_compare`, not home-made.** `String`'s own
   `Compare` orders by *length first* (`"b" < "az"`, because 1 < 2), which is not
   the order a diagnostic listing overloads needs; `a.lexical_compare(b)` is the
@@ -212,6 +226,26 @@ You can browse and install extra skills here:
   `Ordering[String]` is lexicographic, so `d_captures` sorts with
   `lexical_compare` too — with `<` it would print `{x, y, io}` where upstream
   prints `{io, x, y}`.
+
+- **A `mut` flag that a loop maintains is `any`/`all`, and one a `catch` clears
+  is `try`.** `let mut seen = false; for x in xs { if p(x) { seen = true } }` is
+  `xs.any(p)` and `let mut ok = true; for x in xs { if !p(x) { ok = false } }` is
+  `xs.all(p)` — including the `forced`/`undecided` dedup loops in
+  `Typer::unify_effects`, which became `if !forced.any(pair => …) { push }`. A
+  "did it raise?" flag is the `try` *expression*:
+  `try { <fallible>; !self.muted_error } catch { _ => false }` replaces
+  `let mut ok = true; <fallible> catch { _ => ok = false }; if muted { ok = false }`
+  (`Typer::types_compatible`). The same shape over a predicate on the *result*
+  is a pattern condition rather than a flag (`if xs.search_by(p) is Some(i)`).
+
+  Three loops that differ only in their element type are *one generic function*:
+  `is_static` computed "does every recursive call pass this parameter through"
+  three times (`tparams`/`vparams`/`bparams`), differing in the arg type, the
+  arity-error wording and the comparison; all three are now
+  `unchanged_in(found.targs, i, "type", arg => arg is ValueVar(other) && param == other)`
+  with a `(T) -> Bool` predicate, and the three accumulator loops are `mapi`.
+  The generic parameter is inferred at the call site, so the helper costs
+  nothing readable.
 
 - **`Map` is `@builtin`'s linked hash map, and it has combinators too.** Build
   one from pairs with the constructor — `Map(ids.map(id => (id.uid(), id)))`, not
