@@ -449,6 +449,14 @@ fn Typer::try_candidates(
     let error_before = self.muted_error
     let messages_before = self.muted_messages
     let infos_before = self.muted_infos
+    // `defer` is block-scoped, so this restores the enclosing attempt's
+    // diagnostics once per iteration.
+    defer {
+      self.muting = muting_before
+      self.muted_error = error_before
+      self.muted_messages = messages_before
+      self.muted_infos = infos_before
+    }
     self.muting = true
     self.muted_error = false
     self.muted_messages = []
@@ -466,11 +474,6 @@ fn Typer::try_candidates(
     let failed = self.muted_error
     let muted = self.muted_messages.copy()
     let infos = self.muted_infos.copy()
-    // restore the enclosing attempt's diagnostics
-    self.muting = muting_before
-    self.muted_error = error_before
-    self.muted_messages = messages_before
-    self.muted_infos = infos_before
 
     let recorded = if err != "" {
       err

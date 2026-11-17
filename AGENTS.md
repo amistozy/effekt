@@ -357,7 +357,8 @@ You can browse and install extra skills here:
   helper can simply return `Option`, that is preferred (`reuse`, `joinpoint`).
 
 - **Restore saved state with `defer`, not `errdefer` plus a manual restore.**
-  MoonBit's `defer` runs on both exits (return and raise, verified), so
+  MoonBit's `defer` runs on every exit from the *enclosing block* — fall-through,
+  `return` and `raise` (verified) — so
   `let saved = …; …; defer { … = saved }; f()` is enough for the "run `f` with
   this state temporarily changed" helpers (`Typer::at`, `flowing_into`,
   `match_expected`, the namer's `in_*_scope`). `errdefer` alone leaves the
@@ -372,18 +373,26 @@ You can browse and install extra skills here:
   three-line restore in both arms plus one after the `catch`; they are four-line
   bodies now (`let saved = self.start; defer { self.start = saved }`), along with
   `Parser::labelled`, `Scoping::scoped`/`scoped_named`/`namespace`,
-  `Transformer::with_bindings` and `Typer::types_compatible` — seventeen `defer`
-  sites, up from nine. `with_bindings` even documented the workaround as a
-  limitation ("MoonBit has no `try`/`finally`, so a raising `f` leaves the
+  `Transformer::with_bindings`, `Typer::types_compatible`, the overload attempt
+  loop in `calls.mbt` and the muted region of `Typer::check_implicit` — nineteen
+  `defer` sites, up from nine. `with_bindings` even documented the workaround as
+  a limitation ("MoonBit has no `try`/`finally`, so a raising `f` leaves the
   transformer in the nested state") — it has `defer`, which is the same thing,
   so the note is gone rather than kept as a lie.
 
-  Two shapes are *not* `defer`-able, and both are worth recognising:
-  `Typer::check_implicit` must restore the mute flags *before* it records the
-  buffered infos (a `defer` would run after them, so they would be swallowed by
-  the restored mute state), and the overload attempts in `calls.mbt` restore once
-  per loop iteration while `defer` is function-scoped. In both cases the explicit
-  save/restore stays and the comment says why.
+  **`defer` is *block*-scoped**, not function-scoped: it runs when the enclosing
+  block is left, whether by falling off the end, by `return` or by `raise`
+  (verified with a probe). That is what makes the awkward cases work — a `defer`
+  in a loop body runs once per iteration (`for c in candidates { … defer { … } }`
+  puts the muting flags back before the next candidate is tried), and a bare
+  block is an expression, so `let x = { defer { … }; …; 42 }` runs the defer
+  before `x` is used. Put it in the **innermost** block whose state it restores:
+  at function level when the whole body is the guarded region
+  (`Parser::nonterminal`), inside the loop body when the state is per item
+  (`calls.mbt`), and inside a block expression when the *rest* of the function
+  must run with the state already restored — `Typer::check_implicit` wraps its
+  muted region in a block that returns `(errors, infos, failed)` precisely
+  because the infos have to be recorded after the mute flags are back.
 
 ## Host access: prefer the standard library over `extern`
 
