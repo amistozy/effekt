@@ -77,9 +77,7 @@ pub fn Typer::check_call_to(
   vargs : ArrayView[ValueArg],
   bargs : ArrayView[Term],
   expected : ValueType?,
-  scope : CapScope?,
 ) -> TyRes[ValueType] raise EffektError {
-  ignore(scope)
   let callsite = self.st.current
   let span = call.span
 
@@ -543,44 +541,13 @@ fn implicit_tail_matches(
 /// name produces (`array::println` before `effekt::println`, `any::compare`
 /// before `int::compare`), which leaves the overloads of one name in the order
 /// they were defined.
-fn Typer::candidates_in_order(
-  self : Typer,
-  candidates : ArrayView[Sym],
-) -> Array[Sym] {
-  ignore(self)
-  let keys = candidates.map(s => s.name().qualified_name())
+fn candidates_in_order(candidates : ArrayView[Sym]) -> Array[Sym] {
+  let key = (s : Sym) => s.name().qualified_name()
   let sorted = candidates.to_owned()
-  let sorted_keys = keys.copy()
-  // insertion sort: the lists are short and it is stable
-  for i in 1..<sorted.length() {
-    let current = sorted[i]
-    let current_key = sorted_keys[i]
-    let mut j = i - 1
-    while j >= 0 && string_less(current_key, sorted_keys[j]) {
-      sorted[j + 1] = sorted[j]
-      sorted_keys[j + 1] = sorted_keys[j]
-      j = j - 1
-    }
-    sorted[j + 1] = current
-    sorted_keys[j + 1] = current_key
-  }
+  // `String`'s own `Compare` orders by length first, which is not the order the
+  // diagnostics need (`array::println` before `effekt::println`).
+  sorted.mut_view().stable_sort_by((a, b) => key(a).lexical_compare(key(b)))
   sorted
-}
-
-///|
-/// Lexicographic comparison by code unit. `String`'s own `Compare` orders by
-/// length first, which is not the order the diagnostics need
-/// (`array::println` before `effekt::println`).
-fn string_less(a : String, b : String) -> Bool {
-  let ca = a.to_array()
-  let cb = b.to_array()
-  let n = if ca.length() < cb.length() { ca.length() } else { cb.length() }
-  for i in 0..<n {
-    let x = ca[i].to_int()
-    let y = cb[i].to_int()
-    guard x == y else { return x < y }
-  }
-  ca.length() < cb.length()
 }
 
 ///|
@@ -610,7 +577,7 @@ pub fn Typer::check_overloaded_function_call(
   for candidates in scopes {
     // a scope is a *set* of candidates (upstream `Bindings.terms` is a Set):
     // the same symbol can be bound under several paths of the same scope
-    let unique = self.candidates_in_order(dedup_syms(candidates))
+    let unique = candidates_in_order(dedup_syms(candidates))
     let (successes, failures) = self.try_candidates(
       unique,
       scopes.length() == 1 && unique.length() == 1,
@@ -619,15 +586,7 @@ pub fn Typer::check_overloaded_function_call(
           candidate,
         )
         let res = self.check_call_to(
-          call,
-          vps,
-          bps,
-          fun_tpe,
-          targs,
-          vargs,
-          bargs,
-          expected,
-          None,
+          call, vps, bps, fun_tpe, targs, vargs, bargs, expected,
         )
         // The capture of the callee has to be available at the call site
         // (`findFunctionTypeFor(...)._2` in upstream `checkOverloadedFunctionCall`).
@@ -837,7 +796,7 @@ pub fn Typer::check_overloaded_method_call(
     )
   }
   let call = { uid: call_node.uid, span: call_node.span, name: id.name, }
-  for candidates_scope in [self.candidates_in_order(candidates)] {
+  for candidates_scope in [candidates_in_order(candidates)] {
     let (successes, failures) = self.try_candidates(
       candidates_scope,
       candidates_scope.length() == 1,
@@ -867,15 +826,7 @@ pub fn Typer::check_overloaded_method_call(
           self.fill_in_type_arguments(tparams, iface_args)
         }
         self.check_call_to(
-          call,
-          vps,
-          bps,
-          fun_tpe,
-          synth,
-          vargs,
-          bargs,
-          expected,
-          None,
+          call, vps, bps, fun_tpe, synth, vargs, bargs, expected,
         )
       },
     )

@@ -38,38 +38,51 @@ fn rewrite_generated(ctx : Context, t : Term) -> Term raise EffektError {
 }
 
 ///|
+/// The arguments of a call node once `ExplicitCapabilities` has run: the
+/// implicit arguments that were appended at the call site, followed by the
+/// capability arguments recorded for this node. The three call arms below
+/// differ only in the node they build, so the expansion is shared.
+fn expanded_arguments(
+  ctx : Context,
+  t : Term,
+  vargs : Array[ValueArg],
+  bargs : Array[Term],
+) -> (Array[TypeTree], Array[ValueArg], Array[Term]) raise EffektError {
+  let extra_v = ctx
+    .implicit_value_args_of(t.uid)
+    .map(a => rewrite_generated(ctx, a))
+  let extra_b = ctx
+    .implicit_block_args_of(t.uid)
+    .map(a => rewrite_generated(ctx, a))
+  let capability_args = ctx
+    .capability_arguments_of(t.uid)
+    .map(cap => reference_to_capability(cap, ctx))
+  let type_args = ctx
+    .type_arguments_of(t.uid)
+    .map(e => mk_type(Span::missing(), ValueTypeTree(e)))
+  (
+    type_args,
+    vargs + extra_v.map(a => ValueArg::unnamed(a)),
+    bargs + extra_b + capability_args,
+  )
+}
+
+///|
 fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
   match t.kind {
     // An effect call: dispatch on the inferred capability.
     Do(id, _targs, vargs, bargs) => {
-      let extra_v = ctx
-        .implicit_value_args_of(t.uid)
-        .map(a => rewrite_generated(ctx, a))
-      let extra_b = ctx
-        .implicit_block_args_of(t.uid)
-        .map(a => rewrite_generated(ctx, a))
-      let value_args = vargs + extra_v.map(a => ValueArg::unnamed(a))
-      let block_args = bargs + extra_b
+      let (type_args, value_args, block_args) = expanded_arguments(
+        ctx, t, vargs, bargs,
+      )
       let receiver = match ctx.capability_receiver_of(t.uid) {
         Some(cap) => reference_to_capability(cap, ctx)
         None => mk_term(Span::missing(), Var(id))
       }
-      let capability_args = ctx
-        .capability_arguments_of(t.uid)
-        .map(cap => reference_to_capability(cap, ctx))
-      let type_args = ctx
-        .type_arguments_of(t.uid)
-        .map(e => mk_type(Span::missing(), ValueTypeTree(e)))
       Some(
         mk_term(
           t.span.synthesized(),
-          MethodCall(
-            receiver,
-            id,
-            type_args,
-            value_args,
-            block_args + capability_args,
-          ),
+          MethodCall(receiver, id, type_args, value_args, block_args),
         ),
       )
     }
@@ -85,54 +98,21 @@ fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
         ctx, fun, vargs, bargs,
       ) => Some(mk_term(t.span.synthesized(), Select(vargs[0].value, fun)))
     MethodCall(receiver, id, _targs, vargs, bargs) => {
-      let extra_v = ctx
-        .implicit_value_args_of(t.uid)
-        .map(a => rewrite_generated(ctx, a))
-      let extra_b = ctx
-        .implicit_block_args_of(t.uid)
-        .map(a => rewrite_generated(ctx, a))
-      let value_args = vargs + extra_v.map(a => ValueArg::unnamed(a))
-      let block_args = bargs + extra_b
-      let capability_args = ctx
-        .capability_arguments_of(t.uid)
-        .map(cap => reference_to_capability(cap, ctx))
-      let type_args = ctx
-        .type_arguments_of(t.uid)
-        .map(e => mk_type(Span::missing(), ValueTypeTree(e)))
+      let (type_args, value_args, block_args) = expanded_arguments(
+        ctx, t, vargs, bargs,
+      )
       Some(
         mk_term(
           t.span,
-          MethodCall(
-            receiver,
-            id,
-            type_args,
-            value_args,
-            block_args + capability_args,
-          ),
+          MethodCall(receiver, id, type_args, value_args, block_args),
         ),
       )
     }
     Call(target, _targs, vargs, bargs) => {
-      let extra_v = ctx
-        .implicit_value_args_of(t.uid)
-        .map(a => rewrite_generated(ctx, a))
-      let extra_b = ctx
-        .implicit_block_args_of(t.uid)
-        .map(a => rewrite_generated(ctx, a))
-      let value_args = vargs + extra_v.map(a => ValueArg::unnamed(a))
-      let block_args = bargs + extra_b
-      let capability_args = ctx
-        .capability_arguments_of(t.uid)
-        .map(cap => reference_to_capability(cap, ctx))
-      let type_args = ctx
-        .type_arguments_of(t.uid)
-        .map(e => mk_type(Span::missing(), ValueTypeTree(e)))
-      Some(
-        mk_term(
-          t.span,
-          Call(target, type_args, value_args, block_args + capability_args),
-        ),
+      let (type_args, value_args, block_args) = expanded_arguments(
+        ctx, t, vargs, bargs,
       )
+      Some(mk_term(t.span, Call(target, type_args, value_args, block_args)))
     }
     // The bodies below have already been rewritten by the generic traversal; the
     // hook only has to add the capability parameters that
@@ -146,16 +126,11 @@ fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
           "expected as many capabilities as handlers in try/handle, got \{capabilities.length()} and \{handlers.length()}",
         )
       }
-      let new_handlers : Array[Handler] = []
-      for i in 0..<handlers.length() {
-        let h = handlers[i]
-        let cap = capabilities[i]
-        new_handlers.push({
-          ..h,
-          capability: Some(definition_for_capability(cap, ctx)),
-          implementation: with_clause_capabilities(h.implementation, ctx),
-        })
-      }
+      let new_handlers = handlers.mapi((i, h) => {
+        ..h,
+        capability: Some(definition_for_capability(capabilities[i], ctx)),
+        implementation: with_clause_capabilities(h.implementation, ctx),
+      })
       Some(mk_term(t.span, TryHandle(prog, new_handlers)))
     }
     New(implementation) =>
@@ -181,13 +156,12 @@ fn with_clause_capabilities(
   implementation : Implementation,
   ctx : Context,
 ) -> Implementation {
-  let clauses : Array[OpClause] = []
-  for c in implementation.clauses {
+  let clauses = implementation.clauses.map(c => {
     let caps = ctx
       .bound_capabilities_of(c.uid)
       .map(cap => definition_for_capability(cap, ctx))
-    clauses.push({ ..c, bparams: c.bparams + caps, })
-  }
+    { ..c, bparams: c.bparams + caps, }
+  })
   { ..implementation, clauses, }
 }
 

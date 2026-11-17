@@ -311,10 +311,7 @@ pub fn Typer::check_function_argument(
       for i in 0..<bparams.length() {
         let p = bparams[i]
         let sym = self.symbol_of_def(p.id)
-        let capture = match sym {
-          @symbols.Sym::BlockParam(bp) => bp.capture
-          _ => Sym::capture_param(Name::local("anon"))
-        }
+        let capture = self.capture_of_block_param(p)
         let adjusted = type_subst.substitute_block(bps[i])
         let tpe = match symbol_block_type(sym) {
           Some(got) => {
@@ -343,21 +340,8 @@ pub fn Typer::check_function_argument(
       let capabilities = canonical_order(distinct_effs.effects).map(e => {
         self.fresh_capability_for(e, Sym::capture_param(effect_name(e)))
       })
-      let capt_params = block_types.map(_ => {
-        Sym::capture_param(Name::local("x"))
-      })
-      ignore(capt_params)
-
-      let capt_param_syms : Array[Sym] = []
-      for param in bparams {
-        match self.symbol_of_def(param.id) {
-          @symbols.Sym::BlockParam(sym) => capt_param_syms.push(sym.capture)
-          _ => capt_param_syms.push(Sym::capture_param(Name::local("anon")))
-        }
-      }
-      for c in capabilities {
-        capt_param_syms.push(capture_of_capability(c))
-      }
+      let capt_param_syms = bparams.map(p => self.capture_of_block_param(p)) +
+        capabilities.map(capture_of_capability)
 
       let capt_subst = Substitutions::captures(
         cps,
@@ -460,16 +444,8 @@ pub fn Typer::infer_function_argument(
         }
       })
       self.bind_capabilities(node.uid, capabilities)
-      let capt_param_syms : Array[Sym] = []
-      for p in bparams {
-        match self.symbol_of_def(p.id) {
-          @symbols.Sym::BlockParam(bp) => capt_param_syms.push(bp.capture)
-          _ => capt_param_syms.push(Sym::capture_param(Name::local("anon")))
-        }
-      }
-      for c in capabilities {
-        capt_param_syms.push(capture_of_capability(c))
-      }
+      let capt_param_syms = bparams.map(p => self.capture_of_block_param(p)) +
+        capabilities.map(capture_of_capability)
       let fun_type = @symbols.BlockType::FunctionType(
         type_params,
         captures_of_params(capt_param_syms),
@@ -479,7 +455,6 @@ pub fn Typer::infer_function_argument(
         distinct_effs,
       )
       self.using_capture_without(inferred, capt_param_syms)
-      ignore(type_params)
       self.annotate_block(arg.uid, fun_type)
       TyRes(fun_type, Effects::empty())
     }
@@ -623,9 +598,14 @@ fn Typer::check_op_clause(
     view.annotated_effects.unwrap_or(Effects::empty()).distinct().effects,
   )
 
+  // Distinguish a handler operation, which captures a continuation, from an
+  // object operation, which does not. Both checks have to run before the
+  // instantiation below: it asserts that the capture parameters line up with the
+  // declaration, which is exactly what the arity check is about.
   match continuation {
-    // an object implementation: there is no continuation
-    None => {
+    // an object implementation: the block parameters are bound by the
+    // definition itself, not by `resume`
+    None =>
       self.assert_arity(
         clause.span,
         "block parameters",
@@ -633,39 +613,54 @@ fn Typer::check_op_clause(
         declared_bparams.length(),
         clause.id.name,
       )
-      let cparams_for_blocks : Array[Sym] = []
-      for p in clause.bparams {
-        match self.symbol_of_def(p.id) {
-          @symbols.Sym::BlockParam(bp) => cparams_for_blocks.push(bp.capture)
-          _ => cparams_for_blocks.push(Sym::capture_param(Name::local("anon")))
-        }
+    // a handler implementation: `resume` binds the block parameters
+    Some(_) =>
+      if !clause.bparams.is_empty() {
+        self.error(
+          clause.span,
+          "Block parameters are bound by resume and not the effect operation itself",
+        )
       }
-      let cparams_for_effects = canonical.map(t => {
-        Sym::capture_param(effect_name(t))
-      })
-      let cparams = cparams_for_blocks + cparams_for_effects
-      let (vps, bps, tpe, effs) = self.instantiate(
-        declared,
-        declared_tparams,
-        targs + existentials,
-        cparams.map(c => @symbols.Captures::CaptureSetOf([c])),
-      )
-      for i in 0..<clause.vparams.length().min(vps.length()) {
-        let p = clause.vparams[i]
-        let sym = self.symbol_of_def(p.id)
-        let annotated = symbol_value_type(sym)
-        if annotated is Some(got) {
-          self.match_declared_value(got, vps[i], value_param_span(p))
-        }
-        self.bind_value(sym, annotated.unwrap_or(vps[i]))
-      }
+  }
+
+  // The capture parameters of the instantiation: one per declared block
+  // parameter, then one per handled effect (these become the capabilities that
+  // a later phase introduces as parameters). A handler implementation binds its
+  // block parameters through `resume`, so they come from the *declaration* and
+  // keep its names; an object implementation binds them itself, so they are the
+  // captures the namer gave the clause's own parameters.
+  let cparams_for_blocks : Array[Sym] = match continuation {
+    None => clause.bparams.map(p => self.capture_of_block_param(p))
+    Some(_) => declared_bparams.map(p => Sym::capture_param(p.name()))
+  }
+  let cparams_for_effects = canonical.map(t => {
+    Sym::capture_param(effect_name(t))
+  })
+  let cparams = cparams_for_blocks + cparams_for_effects
+  // substitute the actual type and capture parameters for the declared ones
+  let (vps, bps, tpe, effs) = self.instantiate(
+    declared,
+    declared_tparams,
+    targs + existentials,
+    cparams.map(c => @symbols.Captures::CaptureSetOf([c])),
+  )
+  for i in 0..<clause.vparams.length().min(vps.length()) {
+    let p = clause.vparams[i]
+    let sym = self.symbol_of_def(p.id)
+    let annotated = symbol_value_type(sym)
+    if annotated is Some(got) {
+      self.match_declared_value(got, vps[i], value_param_span(p))
+    }
+    self.bind_value(sym, annotated.unwrap_or(vps[i]))
+  }
+
+  match continuation {
+    // an object implementation: there is no continuation
+    None => {
       for i in 0..<clause.bparams.length().min(bps.length()) {
         let p = clause.bparams[i]
         let sym = self.symbol_of_def(p.id)
-        let capture = match sym {
-          @symbols.Sym::BlockParam(bp) => bp.capture
-          _ => Sym::capture_param(Name::local("anon"))
-        }
+        let capture = self.capture_of_block_param(p)
         let annotated = symbol_block_type(sym)
         if annotated is Some(got) {
           self.match_declared(got, bps[i], block_param_span(p))
@@ -708,36 +703,8 @@ fn Typer::check_op_clause(
 
     // a handler implementation: we have a continuation
     Some((ret, continuation_capt)) => {
-      if !clause.bparams.is_empty() {
-        self.error(
-          clause.span,
-          "Block parameters are bound by resume and not the effect operation itself",
-        )
-      }
       let is_bidirectional = !canonical.is_empty() ||
         !declared_bparams.is_empty()
-      let cparams_for_blocks : Array[Sym] = declared_bparams.map(p => {
-        Sym::capture_param(p.name())
-      })
-      let cparams_for_effects = canonical.map(t => {
-        Sym::capture_param(effect_name(t))
-      })
-      let cparams = cparams_for_blocks + cparams_for_effects
-      let (vps, bps, tpe, effs) = self.instantiate(
-        declared,
-        declared_tparams,
-        targs + existentials,
-        cparams.map(c => @symbols.Captures::CaptureSetOf([c])),
-      )
-      for i in 0..<clause.vparams.length().min(vps.length()) {
-        let p = clause.vparams[i]
-        let sym = self.symbol_of_def(p.id)
-        let annotated = symbol_value_type(sym)
-        if annotated is Some(got) {
-          self.match_declared_value(got, vps[i], value_param_span(p))
-        }
-        self.bind_value(sym, annotated.unwrap_or(vps[i]))
-      }
       // (4) synthesize the type of the continuation
       let resume_type = if is_bidirectional {
         let inner = @symbols.BlockType::FunctionType(
@@ -783,6 +750,20 @@ fn Typer::check_op_clause(
       self.annotate_value(clause.uid, res.tpe)
       res.effs
     }
+  }
+}
+
+///|
+/// The capture parameter of a block parameter (upstream `p.symbol.capture`).
+/// The namer creates every block parameter as a `BlockParam`, which is where
+/// the capture comes from; the fallback covers a symbol that it did not bind.
+fn Typer::capture_of_block_param(
+  self : Typer,
+  p : @source.BlockParam,
+) -> Sym raise EffektError {
+  match self.symbol_of_def(p.id) {
+    @symbols.Sym::BlockParam(bp) => bp.capture
+    _ => Sym::capture_param(Name::local("anon"))
   }
 }
 
@@ -861,12 +842,9 @@ pub fn Typer::check_try_handle(
   // (4) wellformedness checks
   // the handled effects are compared after substitution: a capability may
   // have been created while a type argument was still an unsolved variable
-  let handled_effects : Array[BlockType] = []
-  for cap in provided_capabilities {
-    if self.st.bt.get(cap.uid()) is Some(t) {
-      handled_effects.push(self.st.u.prune_block(t))
-    }
-  }
+  let handled_effects = provided_capabilities.filter_map(cap => {
+    self.st.bt.get(cap.uid()).map(t => self.st.u.prune_block(t))
+  })
   self.warn_about_handlers(
     node.span,
     handlers,
@@ -879,7 +857,7 @@ pub fn Typer::check_try_handle(
     self.st.u.prune_effects(prog_res.effs),
   )
 
-  // the escape checks live in wellformedness.mbt (the pass after this one)\n\n
+  // the escape checks live in wellformedness.mbt (the pass after this one)
   // the captures of the handler continue flowing into the outer scope
   self.using_capture(continuation_capt)
   TyRes(
@@ -905,12 +883,9 @@ fn Typer::warn_about_handlers(
   effects : ArrayView[BlockType],
   used : Effects,
 ) -> Unit {
-  let explicit : Array[Sym] = []
-  for h in handlers {
-    if h.capability is Some(bp) && self.ctx.symbol_of(bp.id.uid) is Some(s) {
-      explicit.push(s)
-    }
-  }
+  let explicit = handlers.filter_map(h => {
+    h.capability.bind(bp => self.ctx.symbol_of(bp.id.uid))
+  })
   for i in 0..<effects.length() {
     // the same effect can be provided by several handlers; warn only once
     guard !effects[:i].any(e => interface_type_equal(effects[i], e)) else {

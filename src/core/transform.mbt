@@ -1081,7 +1081,7 @@ fn Transformer::transform_stmt(
         self.transform_stmt(rest)
       } else {
         // { e; stmt } --> { val _ = e; stmt }
-        let _ = self.transform_as_expr(e)
+        ignore(self.transform_as_expr(e))
         self.transform_stmt(rest)
       }
 

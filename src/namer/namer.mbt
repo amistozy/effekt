@@ -1253,8 +1253,7 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       self.check_implicit_value_params(vparams, Forbidden)
       self.check_implicit_block_params(bparams, Forbidden)
       self.in_local_scope(() => {
-        let tps = tparams.map(t => self.resolve_type_param(t))
-        ignore(tps)
+        ignore(tparams.map(t => self.resolve_type_param(t)))
         let vps = vparams.map(p => self.resolve_value_param(p, true))
         let bps = bparams.map(p => self.resolve_block_param(p))
         self.bind_values(vps)
@@ -1546,8 +1545,7 @@ fn Namer::resolve_implementation(
     }
     self.context.assign_symbol(clause.uid, op_sym)
     self.in_local_scope(() => {
-      let tps = clause.tparams.map(t => self.resolve_type_param(t))
-      ignore(tps)
+      ignore(clause.tparams.map(t => self.resolve_type_param(t)))
       let vps = clause.vparams.map(p => self.resolve_value_param(p, true))
       let bps = clause.bparams.map(p => self.resolve_block_param(p))
       self.bind_values(vps)

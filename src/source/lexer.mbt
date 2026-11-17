@@ -333,7 +333,7 @@ fn Lexer::advance(self : Lexer) -> Char {
 ///|
 fn Lexer::advance_k(self : Lexer, k : Int32) -> Unit {
   for _ in 0..<k {
-    let _ = self.advance()
+    ignore(self.advance())
   }
 }
 
@@ -369,7 +369,7 @@ fn Lexer::get_current_slice(
 ///|
 fn Lexer::advance_while(self : Lexer, predicate : (Char, Char) -> Bool) -> Unit {
   while predicate(self.current_char, self.next_char) && !self.at_end_of_input() {
-    let _ = self.advance()
+    ignore(self.advance())
   }
 }
 
@@ -583,7 +583,7 @@ fn Lexer::number(self : Lexer) -> TokenKind {
   self.advance_while((curr, _) => is_digit(curr))
 
   if self.current_char == '.' && is_digit(self.next_char) {
-    let _ = self.advance() // consume '.'
+    ignore(self.advance()) // consume '.'
     // Consume fractional part
     self.advance_while((curr, _) => is_digit(curr))
     let float_string = self.get_current_slice(0, 0)
@@ -653,7 +653,7 @@ fn Lexer::string_like(
       // a raw string ends with its line: the terminator is kept in the token so
       // that the parser can glue the lines of one literal back together
       ('\n', _) if delimiter == RawString => {
-        let _ = self.advance()
+        ignore(self.advance())
         self.pop_raw_strings()
         return self.close_string(delimiter, contents, false, false, "\n")
       }
@@ -681,24 +681,24 @@ fn Lexer::string_like(
       }
       // escapes
       ('\\', _) if delimiter.allows_escapes() => {
-        let _ = self.advance()
+        ignore(self.advance())
         match self.current_char {
           '\\' | '"' | '\'' | '$' => contents.write_char(self.advance())
           'n' => {
-            let _ = self.advance()
+            ignore(self.advance())
             contents.write_char('\n')
           }
           'r' => {
-            let _ = self.advance()
+            ignore(self.advance())
             contents.write_char('\r')
           }
           't' => {
-            let _ = self.advance()
+            ignore(self.advance())
             contents.write_char('\t')
           }
           'u' => {
             let start = self.offset
-            let _ = self.advance()
+            ignore(self.advance())
             let code_point = self.lex_unicode_escape()
             if code_point < 0 {
               return TError(
@@ -765,11 +765,11 @@ fn Lexer::pop_raw_strings(self : Lexer) -> Unit {
 fn Lexer::lex_unicode_escape(self : Lexer) -> Int32 {
   let c = self.current_char
   if c == '{' {
-    let _ = self.advance()
+    ignore(self.advance())
     let start = self.offset
     self.advance_while((curr, _) => curr != '}')
     guard self.current_char == '}' else { return -1 }
-    let _ = self.advance() // consume '}'
+    ignore(self.advance()) // consume '}'
     let hex_str = self.slice(start, self.offset - 1)
     parse_hex_int(hex_str)
   } else if is_hex_digit(c) {
@@ -818,9 +818,7 @@ fn Lexer::multiline_comment(self : Lexer) -> TokenKind {
         // Remove `/*` and `*/`
         return TComment(self.get_current_slice(2, 2))
       }
-      _ => {
-        let _ = self.advance()
-      }
+      _ => ignore(self.advance())
     }
   }
   TError(UnterminatedComment)

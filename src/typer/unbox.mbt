@@ -31,28 +31,24 @@ pub fn unbox_inference(
 /// `copyAnnotations`). It also makes the pass idempotent and keeps every
 /// annotation the type checker writes reachable through the node the caller
 /// already holds.
-fn Unboxer::visit_term(self : Unboxer, from : Term, kind : TermKind) -> Term {
-  ignore(self)
+fn Unboxer::visit_term(_self : Unboxer, from : Term, kind : TermKind) -> Term {
   { uid: from.uid, span: from.span, kind, }
 }
 
 ///|
-fn Unboxer::visit_stmt(self : Unboxer, from : Stmt, kind : StmtKind) -> Stmt {
-  ignore(self)
+fn Unboxer::visit_stmt(_self : Unboxer, from : Stmt, kind : StmtKind) -> Stmt {
   { uid: from.uid, span: from.span, kind, }
 }
 
 ///|
-fn Unboxer::visit_def(self : Unboxer, from : Def, kind : DefKind) -> Def {
-  ignore(self)
+fn Unboxer::visit_def(_self : Unboxer, from : Def, kind : DefKind) -> Def {
   { uid: from.uid, span: from.span, info: from.info, kind, }
 }
 
 ///|
 /// A *synthesized* wrapper (e.g. the `Unbox` inserted around a value that is
 /// used as a block) is a new node and gets a fresh uid.
-fn Unboxer::synthesized(self : Unboxer, span : Span, kind : TermKind) -> Term {
-  ignore(self)
+fn Unboxer::synthesized(_self : Unboxer, span : Span, kind : TermKind) -> Term {
   mk_term(span, kind)
 }
 

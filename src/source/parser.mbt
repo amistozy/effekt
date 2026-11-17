@@ -494,7 +494,7 @@ fn Parser::consume(self : Parser, kind : TokenKind) -> Unit raise EffektError {
   if self.peek_kind() != kind {
     self.fail_expected(kind.explain(), self.peek_kind())
   }
-  let _ = self.next()
+  ignore(self.next())
 }
 
 ///|
@@ -983,7 +983,7 @@ fn Info::is_non_empty(self : Info) -> Bool {
 fn Parser::maybe_documentation(self : Parser) -> String? raise EffektError {
   let docs : Array[String] = []
   while self.peek_kind() is TDocComment(message) {
-    let _ = self.next()
+    ignore(self.next())
     docs.push(message)
   }
   guard !docs.is_empty() else { None }
@@ -1758,7 +1758,7 @@ fn Parser::feature_flag(self : Parser) -> FeatureFlag raise EffektError {
   let kind = self.peek_kind()
   match kind {
     TIdent(name) => {
-      let _ = self.next()
+      ignore(self.next())
       if name == "default" {
         Default
       } else {
@@ -1783,7 +1783,7 @@ fn Parser::path_lit(self : Parser) -> String raise EffektError {
     let kind = self.peek_kind()
     match kind {
       TStr(s, false) => {
-        let _ = self.next()
+        ignore(self.next())
         s
       }
       _ => self.fail_expected("path as string literal", kind)
@@ -1803,12 +1803,12 @@ fn Parser::string_lit(self : Parser) -> String raise EffektError {
     let kind = self.peek_kind()
     match kind {
       TRawStr(first, terminator) => {
-        let _ = self.next()
+        ignore(self.next())
         let buf = StringBuilder()
         buf.write_string(first)
         let mut last_terminator = terminator
         while self.peek_kind() is TRawStr(s, terminator) {
-          let _ = self.next()
+          ignore(self.next())
           buf.write_string(last_terminator)
           buf.write_string(s)
           last_terminator = terminator
@@ -1816,7 +1816,7 @@ fn Parser::string_lit(self : Parser) -> String raise EffektError {
         buf.to_string()
       }
       TStr(s, _) => {
-        let _ = self.next()
+        ignore(self.next())
         s
       }
       _ => self.fail_expected("string literal", kind)
@@ -2388,7 +2388,7 @@ fn Parser::op_clause(self : Parser) -> OpClause raise EffektError {
           "Unexpected tokens after operation definition. Expected either a new operation definition or the end of the implementation.",
           () => {
             while !self.peek(TRBrace) && !self.peek(KDef) && !self.peek(TEOF) {
-              let _ = self.next()
+              ignore(self.next())
             }
           },
         )
@@ -2823,7 +2823,7 @@ fn Parser::prim_expr(self : Parser) -> Term raise EffektError {
       } else if kind == TSpliceStart {
         self.nonterminal(() => {
           let start_position = self.position
-          let _ = self.many_until_kind(() => self.skip(), TSpliceEnd)
+          ignore(self.many_until_kind(() => self.skip(), TSpliceEnd))
           let end_position = self.position
           if self.peek(TSpliceEnd) {
             self.consume(TSpliceEnd)
@@ -2969,7 +2969,7 @@ fn Parser::hole_string(self : Parser) -> String raise EffektError {
     let kind = self.peek_kind()
     match kind {
       THoleStr(s) => {
-        let _ = self.next()
+        ignore(self.next())
         s
       }
       _ => self.fail_expected("natural language text", kind)
@@ -3014,37 +3014,37 @@ fn Parser::literal_value(
     let kind = self.peek_kind()
     match kind {
       TInteger(v) => {
-        let _ = self.next()
+        ignore(self.next())
         (LInt(v), self.span())
       }
       TFloat(v) => {
-        let _ = self.next()
+        ignore(self.next())
         (LDouble(v), self.span())
       }
       TStr(s, _) => {
-        let _ = self.next()
+        ignore(self.next())
         (LString(s), self.span())
       }
       TChr(c) => {
-        let _ = self.next()
+        ignore(self.next())
         (LChar(c), self.span())
       }
       TByt(b) => {
-        let _ = self.next()
+        ignore(self.next())
         (LByte(b), self.span())
       }
       KTrue => {
-        let _ = self.next()
+        ignore(self.next())
         (LBool(true), self.span())
       }
       KFalse => {
-        let _ = self.next()
+        ignore(self.next())
         (LBool(false), self.span())
       }
       _ =>
         if self.is_unit_literal() {
-          let _ = self.next()
-          let _ = self.next()
+          ignore(self.next())
+          ignore(self.next())
           (LUnit, self.span())
         } else {
           self.fail_expected("a literal", kind)
@@ -3182,7 +3182,7 @@ fn Parser::ident(self : Parser) -> String raise EffektError {
     let kind = self.peek_kind()
     match kind {
       TIdent(id) => {
-        let _ = self.next()
+        ignore(self.next())
         id
       }
       _ => self.fail_expected("identifier", kind)

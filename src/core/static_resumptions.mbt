@@ -199,12 +199,14 @@ fn ShiftInfo::resumes_only(self : ShiftInfo) -> Bool raise EffektError {
 /// Whether every `resume(k){s}` resumes with a value, i.e. not bidirectionally.
 fn ShiftInfo::resumes_with_values(self : ShiftInfo) -> Bool raise EffektError {
   let mut with_values = true
-  let _ = self.replace_resumptions(resumed => {
-    if !(resumed is Return(_)) {
-      with_values = false
-    }
-    resumed
-  })
+  ignore(
+    self.replace_resumptions(resumed => {
+      if !(resumed is Return(_)) {
+        with_values = false
+      }
+      resumed
+    }),
+  )
   with_values
 }
 
@@ -216,12 +218,14 @@ fn ShiftInfo::observes(
   s : Stmt,
 ) -> Bool raise EffektError {
   let mut observed = false
-  let _ = self.replace_resumptions_in(s, resumed => {
-    if captures_any_in(resumed.infer_capt(), names) {
-      observed = true
-    }
-    resumed
-  })
+  ignore(
+    self.replace_resumptions_in(s, resumed => {
+      if captures_any_in(resumed.infer_capt(), names) {
+        observed = true
+      }
+      resumed
+    }),
+  )
   observed
 }
 
@@ -383,10 +387,12 @@ fn TailPositions::rewrite(
 ///|
 fn TailPositions::tails(self : TailPositions) -> Array[Stmt] raise EffektError {
   let found : Array[Stmt] = []
-  let _ = self.rewrite(child => {
-    found.push(child)
-    child
-  })
+  ignore(
+    self.rewrite(child => {
+      found.push(child)
+      child
+    }),
+  )
   found
 }
 
@@ -817,7 +823,7 @@ fn blocked_prompts(module : ModuleDecl) -> Map[Int32, Sym] raise EffektError {
       None
     }),
   )
-  let _ = rewrite.rewrite_module(module)
+  ignore(rewrite.rewrite_module(module))
   out
 }
 
@@ -1191,104 +1197,14 @@ fn jumps_to_join_leaf(
 }
 
 ///|
-/// The statements `k` is resumed with in `s`.
+/// The statements `k` is resumed with in `s`. The congruence of `Rewrite` walks
+/// the tree; the hook only records, so every `Resume` is seen exactly once.
 fn resumed_statements(k : Sym, s : Stmt) -> Array[Stmt] raise EffektError {
   let out : Array[Stmt] = []
   let rewrite = Rewrite(
-    Some((rewrite, stmt) => {
-      match stmt {
-        Resume(k_var, resumed) =>
-          if k_var.id.uid() == k.uid() {
-            out.push(resumed)
-          }
-        _ => ()
-      }
-      match stmt {
-        Def(_, block, rest) => {
-          let _ = rewrite.rewrite_block(block)
-          let _ = rewrite.rewrite_stmt(rest)
-        }
-        Let(_, binding, body) => {
-          let _ = rewrite.rewrite_expr(binding)
-          let _ = rewrite.rewrite_stmt(body)
-        }
-        ImpureApp(_, _, _, vargs, bargs, body) => {
-          for v in vargs {
-            let _ = rewrite.rewrite_expr(v)
-          }
-          for b in bargs {
-            let _ = rewrite.rewrite_block(b)
-          }
-          let _ = rewrite.rewrite_stmt(body)
-        }
-        Return(exprs) =>
-          for e in exprs {
-            let _ = rewrite.rewrite_expr(e)
-          }
-        Val(_, binding, body) => {
-          let _ = rewrite.rewrite_stmt(binding)
-          let _ = rewrite.rewrite_stmt(body)
-        }
-        App(callee, _, vargs, bargs) => {
-          let _ = rewrite.rewrite_block(callee)
-          for v in vargs {
-            let _ = rewrite.rewrite_expr(v)
-          }
-          for b in bargs {
-            let _ = rewrite.rewrite_block(b)
-          }
-        }
-        Invoke(callee, _, _, _, vargs, bargs) => {
-          let _ = rewrite.rewrite_block(callee)
-          for v in vargs {
-            let _ = rewrite.rewrite_expr(v)
-          }
-          for b in bargs {
-            let _ = rewrite.rewrite_block(b)
-          }
-        }
-        If(cond, thn, els) => {
-          let _ = rewrite.rewrite_expr(cond)
-          let _ = rewrite.rewrite_stmt(thn)
-          let _ = rewrite.rewrite_stmt(els)
-        }
-        Match(scrutinee, _, clauses, default) => {
-          let _ = rewrite.rewrite_expr(scrutinee)
-          for clause in clauses {
-            let _ = rewrite.rewrite_block_lit(clause.body)
-          }
-          if default is Some(body) {
-            let _ = rewrite.rewrite_stmt(body)
-          }
-        }
-        Region(lit) => {
-          let _ = rewrite.rewrite_block_lit(lit)
-        }
-        Alloc(_, init, _, body) => {
-          let _ = rewrite.rewrite_expr(init)
-          let _ = rewrite.rewrite_stmt(body)
-        }
-        Var(_, init, _, body) => {
-          let _ = rewrite.rewrite_expr(init)
-          let _ = rewrite.rewrite_stmt(body)
-        }
-        Get(_, _, _, _, body) => {
-          let _ = rewrite.rewrite_stmt(body)
-        }
-        Put(_, _, value, body) => {
-          let _ = rewrite.rewrite_expr(value)
-          let _ = rewrite.rewrite_stmt(body)
-        }
-        Reset(lit) => {
-          let _ = rewrite.rewrite_block_lit(lit)
-        }
-        Shift(_, _, body) => {
-          let _ = rewrite.rewrite_stmt(body)
-        }
-        Resume(_, body) => {
-          let _ = rewrite.rewrite_stmt(body)
-        }
-        Hole(_, _) => ()
+    Some((_rewrite, stmt) => {
+      if stmt is Resume(k_var, resumed) && k_var.id.uid() == k.uid() {
+        out.push(resumed)
       }
       None
     }),
@@ -1296,7 +1212,7 @@ fn resumed_statements(k : Sym, s : Stmt) -> Array[Stmt] raise EffektError {
     None,
     None,
   )
-  let _ = rewrite.rewrite_stmt(s)
+  ignore(rewrite.rewrite_stmt(s))
   out
 }
 

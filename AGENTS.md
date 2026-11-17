@@ -135,16 +135,34 @@ You can browse and install extra skills here:
   need, and they are gone: a parameter that the body does not read is written
   `_self`, `_ctx`, `_role` in the signature (the compiler treats a leading
   underscore as intentional), and a bound pattern that is not used is `_`
-  (`FunDef(id, _, vparams, _, _, _, body)`). Discarding the *value of a call* is
-  `ignore(f(x))`; `let _ = pattern` stays for binding nothing.
+  (`FunDef(id, _, vparams, _, _, _, body)`).
+  A `_self` receiver is still a method: `x.visit_term(…)` works, the parameter
+  name alone changed (`unbox.mbt`'s four node builders have no state to read).
+  Discarding the *value of a call* is `ignore(f(x))`; `let _ = pattern` stays
+  for binding nothing. Core writes `ignore(` 199 times and `let _ =` 15 times,
+  so this port follows suit: 40 `let _ = …` statements became `ignore(…)` this
+  round, and the three that stay are the ones whose argument is a multi-line
+  closure (`ignore(` would put a third closing paren under the call —
+  `parser.mbt`'s two `soft_fail_with` drains and `transform.mbt`'s
+  `bind_block`).
+  A *vestigial* `ignore(…)` is different, and is dead code: `ignore(span)` below
+  a `span` that another arm of the same function uses, `let tps = …; ignore(tps)`
+  above a lookup that never reads it, or a whole `for vp in vparams { ignore(vp) }`
+  loop — all three existed (`learn`, the namer, `type_of`'s `FunctionType` arm)
+  and all three are gone. The compiler only warns about the *binding*, so a
+  `let` whose value is discarded and an `ignore` of a used value both survive a
+  green build.
 
 - **Ask the standard library before writing a helper.** `xs.is_empty()` (not
   `xs.length() == 0` — the core library has 399 of the former and 28 of the
   latter), `a.min(b)`/`a.max(b)`, `xs.last()`, `xs.rev()`, `xs.contains(x)`,
   `xs.search(x)` (returns `Int32?`; `search_by(p)` for a predicate),
-  `xs.sort_by(cmp)`, `xs.any/all/fold`, `xs[m..n]` views with `.to_owned()` (the
-  `ArrayView::to_array` of older compilers is deprecated; `String::to_array` is
-  the unrelated string → `Array[Char]` conversion and is fine).
+  `xs.sort_by(cmp)` / `xs.mut_view().stable_sort_by(cmp)` (the plain one is an
+  unstable quicksort, so a diagnostic that must keep equal keys in insertion
+  order needs the stable one), `xs.any/all/fold`, `xs[m..n]` views with
+  `.to_owned()` (the `ArrayView::to_array` of older compilers is deprecated;
+  `String::to_array` is the unrelated string → `Array[Char]` conversion and is
+  fine).
   A helper that only renames one of those is deleted (`min2`, `array_index_of`,
   the `length() == 0`/`length() > 0` comparisons are all gone that way). An
   accumulator loop that only maps is `xs.map(f)` (`xs.mapi((i, x) => …)` when the
@@ -161,6 +179,20 @@ You can browse and install extra skills here:
   unions/concatenates is `xs.fold(init=…, (acc, x) => …)` (this port writes
   `.fold(` 2.5x as densely as the core library). `Option`-shaped code has its own
   bullet below.
+
+  **String ordering is `String::lexical_compare`, not home-made.** `String`'s own
+  `Compare` orders by *length first* (`"b" < "az"`, because 1 < 2), which is not
+  the order a diagnostic listing overloads needs; `a.lexical_compare(b)` is the
+  code-unit-lexicographic one (`"az" < "b"`, `"ab" < "abc"`). A fifteen-line
+  `string_less` that walked both strings char by char and then compared lengths
+  was exactly that function, and the stable sort of the overload candidates is
+  two lines on top of it (note the annotation: a bare `s => s.name()` has no
+  type to resolve `name` against):
+
+  ```moonbit
+  let key = (s : Sym) => s.name().qualified_name()
+  sorted.mut_view().stable_sort_by((a, b) => key(a).lexical_compare(key(b)))
+  ```
 
 - **`Map` is `@builtin`'s linked hash map, and it has combinators too.** Build
   one from pairs with the constructor — `Map(ids.map(id => (id.uid(), id)))`, not
@@ -339,6 +371,18 @@ You can browse and install extra skills here:
   that only *collects* something (upstream's `Tree.Query`) can run the same
   congruence with a side-effecting hook that always returns `None`.
 
+  **A hook must not walk the children itself.** `Rewrite::rewrite_stmt` already
+  falls back to `rewrite_stmt_children` when the hook returns `None`, so a hook
+  that also re-implements the congruence visits everything twice — and a hook
+  that *pushes* then records every nested match twice. That is exactly what
+  `resumed_statements` did: it was a transliteration of Scala's
+  `override def stmt(s) = { collect(s); super.stmt(s) }`, where `super.stmt` *is*
+  the traversal, so the Scala version visits once. Ninety lines of
+  `match stmt { Def(…) => let _ = rewrite.rewrite_block(…), … }` were deleted
+  when the hook was reduced to the `if stmt is Resume(k, resumed) && … {
+  out.push(resumed) }` plus `None`. When porting a Scala `Tree.Query`/`Rewrite`
+  subclass, the hook body is the override *minus* the `super` call.
+
 - **Standard combinators take raising closures.** `Array::map`, `any`, `all`,
   `each`, `filter`, … declare their callback as `(T) -> U raise?`, so an arrow
   that aborts compilation is a legal argument: write `xs.map(x => …)` /
@@ -451,6 +495,20 @@ You can browse and install extra skills here:
   by the roots: `show_core_stmt_hint` existed only for one deleted panic
   message, and `moon check -d` reports it the moment its last caller goes.
   `moon info` then shrinks `.mbti` to match.
+
+- **A refactoring must keep the order of the checks that abort.** Diagnostics
+  come from the *first* `abort`, so hoisting a shared prologue above an
+  arm-specific check quietly changes which message a `.check` file sees.
+  `Typer::check_op_clause` now hoists the `instantiate` + value-parameter
+  binding that both kinds of operation implementation share; the block-parameter
+  arity check had to move above it, because `instantiate` asserts that the
+  capture parameters line up with the declaration and would otherwise report
+  "Capture arguments and parameter size mismatch: 0 vs. 2" where
+  `neg/object/obj_unbound_block` expects "Number of block parameters (0) does
+  not match declaration of 'Eff'…". Both arm-specific checks therefore sit in
+  one `match continuation` *before* the shared part. The three gates catch this
+  (`scripts/upstream.ps1 -Strict` reported the wording change), and a single
+  test can be re-run quickly with `-Filter obj_unbound_block`.
 
 ## Git workflow
 

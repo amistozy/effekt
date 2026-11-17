@@ -222,9 +222,7 @@ fn Typer::error_message(self : Typer, msg : Message) -> Unit {
 /// succeeds (`Context.withMessages`) and a warning does not make an attempt
 /// fail (`Try` fails on errors only).
 fn Typer::warning(self : Typer, span : Span, msg : String) -> Unit {
-  if self.muting {
-    ignore((span, msg))
-  } else {
+  if !self.muting {
     self.ctx.warning(span, msg)
   }
 }
@@ -233,9 +231,7 @@ fn Typer::warning(self : Typer, span : Span, msg : String) -> Unit {
 /// Reports a fully built warning (with notes and helps). Muted while an
 /// overload candidate is checked, like `warning`.
 fn Typer::warning_message(self : Typer, msg : Message) -> Unit {
-  if self.muting {
-    ignore(msg)
-  } else {
+  if !self.muting {
     self.ctx.report(msg)
   }
 }
@@ -938,7 +934,7 @@ fn Typer::without(
     @symbols.Captures::CaptVar(x) => {
       let y = self.fresh_capt_var("without")
       self.st.u.link(y.uid(), x.uid(), others.to_owned())
-      let _ = self.st.u.propagate()
+      ignore(self.st.u.propagate())
       @symbols.Captures::CaptVar(y)
     }
   }
@@ -1433,8 +1429,7 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
       self.bind_block(res, self.lookup_block(res))
       self.bind_capture(res, self.lookup_capture(res))
     }
-    @source.DefKind::InterfaceDef(id, _, ops) => {
-      ignore(id)
+    @source.DefKind::InterfaceDef(_, _, ops) =>
       for op in ops {
         let sym = self.symbol_of_def(op.id)
         match sym.annotated_type() {
@@ -1461,7 +1456,6 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
           _ => ()
         }
       }
-    }
     @source.DefKind::DataDef(_, _, ctors) =>
       for c in ctors {
         let sym = self.symbol_of_def(c.id)
@@ -1472,8 +1466,7 @@ pub fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
         }
         self.bind_capture(sym, Captures::empty())
       }
-    @source.DefKind::RecordDef(id, _, fields) => {
-      ignore(fields)
+    @source.DefKind::RecordDef(id, _, _) => {
       let rec = self.symbol_of_def(id)
       match rec {
         @symbols.Sym::Record(r) => {
@@ -1759,11 +1752,10 @@ pub fn Typer::synth_def(self : Typer, d : Def) -> TyRes[Unit] raise EffektError 
             match body {
               @source.ExternBody::StringExternBody(_, template) =>
                 for arg in template.args {
-                  let _ = self.check_expr(arg, None)
+                  ignore(self.check_expr(arg, None))
                 }
-              @source.ExternBody::EffektExternBody(_, stmt) => {
-                let _ = self.check_stmt(stmt, Some(expected_return))
-              }
+              @source.ExternBody::EffektExternBody(_, stmt) =>
+                ignore(self.check_stmt(stmt, Some(expected_return)))
               @source.ExternBody::Unsupported(_) => ()
             }
           }
@@ -2123,7 +2115,6 @@ fn Typer::check_expr_kind(
                 vargs,
                 bargs,
                 expected,
-                None,
               )
               TyRes(res.tpe, eff_union(res.effs, callee_res.effs))
             }
@@ -2344,7 +2335,7 @@ fn Typer::check_pattern_kind(
       [(sym, sc)]
     }
     @source.PatternKind::LiteralPattern(_, tpe) => {
-      self.match_pattern(sc, tpe, pattern.span)
+      self.match_pattern(sc, tpe)
       []
     }
     @source.PatternKind::TagPattern(id, patterns) => {
@@ -2381,7 +2372,7 @@ fn Typer::check_pattern_kind(
         None => self.abort(pattern.span, "Cannot find constructor type.")
       }
       let (vps, ret) = self.instantiate_value(ctor_type, all_tparams, targs, [])
-      self.match_pattern(sc, ret, pattern.span)
+      self.match_pattern(sc, ret)
       let mut bindings : Array[(Sym, ValueType)] = []
       if patterns.length() != vps.length() {
         self.abort(
@@ -2826,9 +2817,7 @@ fn Typer::match_pattern(
   self : Typer,
   scrutinee : ValueType,
   pattern_tpe : ValueType,
-  span : Span,
 ) -> Unit raise EffektError {
-  ignore(span)
   self.unify_value_types(
     self.st.u.prune_value(scrutinee),
     self.st.u.prune_value(pattern_tpe),
@@ -2945,10 +2934,7 @@ fn Typer::learn(
         self.st.u.prune_value(existing),
         MergeInvariant(ctx),
       )
-    None => {
-      ignore(ctx)
-      self.st.u.set_type(x, t)
-    }
+    None => self.st.u.set_type(x, t)
   }
 }
 
@@ -3318,8 +3304,7 @@ pub fn Typer::join(
   if failed {
     return joined
   }
-  for (tpe, arm_span) in tpes_and_terms {
-    ignore(arm_span)
+  for (tpe, _) in tpes_and_terms {
     self.require_subtype_value(tpe, joined, Expected(tpe, joined))
   }
   joined
@@ -3744,9 +3729,6 @@ pub fn Typer::resolve_block_type(
       let cps : Array[Sym] = []
       let capts : Array[Captures] = []
       let bps : Array[BlockType] = []
-      for vp in vparams {
-        ignore(vp)
-      }
       let tparam_syms : Array[Sym] = tparams.map(p => self.symbol_of_def(p))
       for (id, bpt) in bparams {
         let b = self.resolve_block_type(bpt)
@@ -3762,11 +3744,7 @@ pub fn Typer::resolve_block_type(
         capts.push(@symbols.Captures::CaptureSetOf([capture]))
         bps.push(b)
       }
-      let resolved_effs : Array[BlockType] = []
-      for e in effs.effs {
-        let b = self.resolve_block_type(e)
-        resolved_effs.push(b)
-      }
+      let resolved_effs = effs.effs.map(e => self.resolve_block_type(e))
       let distinct_effs = @symbols.dedup_blocks(resolved_effs)
       for e in distinct_effs {
         let capture = Sym::capture_param(effect_name(e))
@@ -3775,7 +3753,6 @@ pub fn Typer::resolve_block_type(
       }
       let vps = vparams.map(v => self.resolve_value_type(v))
       let r = self.resolve_value_type(ret)
-      ignore(tparam_syms)
       @symbols.BlockType::FunctionType(
         tparam_syms,
         capts,
