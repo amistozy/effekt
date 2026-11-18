@@ -246,6 +246,38 @@ fn Typer::info(self : Typer, span : Span, msg : String) -> Unit {
 }
 
 ///|
+/// Runs `f` with the diagnostics muted and returns what the region recorded —
+/// `(value, failed, messages, infos)` — with the enclosing mute state put back
+/// first, so that the caller may report the recorded diagnostics where they
+/// belong. `failed` is the region's own verdict: `error`/`abort` set it, a
+/// warning does not.
+///
+/// `f` normally catches its own abort (that is the point of a muted region), so
+/// a plain `f` keeps the call pure; one that lets the abort through still has
+/// the mute state restored, because `defer` is block-scoped.
+fn[T] Typer::muted(
+  self : Typer,
+  f : () -> T raise?,
+) -> (T, Bool, Array[Message], Array[(Span, String)]) raise? {
+  let muting_before = self.muting
+  let error_before = self.muted_error
+  let messages_before = self.muted_messages
+  let infos_before = self.muted_infos
+  defer {
+    self.muting = muting_before
+    self.muted_error = error_before
+    self.muted_messages = messages_before
+    self.muted_infos = infos_before
+  }
+  self.muting = true
+  self.muted_error = false
+  self.muted_messages = []
+  self.muted_infos = []
+  let value = f()
+  (value, self.muted_error, self.muted_messages.copy(), self.muted_infos.copy())
+}
+
+///|
 /// Reports an error and stops type checking. Generic in the result type so
 /// that it can be used in any position.
 fn[T] Typer::abort(
@@ -605,31 +637,22 @@ fn Typer::types_compatible(
   concrete : ValueType,
 ) -> Bool {
   let before = self.st.backup()
-  let muting_before = self.muting
-  let error_before = self.muted_error
-  let messages_before = self.muted_messages
-  let infos_before = self.muted_infos
   defer {
     self.st = before
-    self.muting = muting_before
-    self.muted_error = error_before
-    self.muted_messages = messages_before
-    self.muted_infos = infos_before
   }
-  self.muting = true
-  self.muted_error = false
-  self.muted_messages = []
-  self.muted_infos = []
-  try {
-    self.unify_value_types(
-      inferred,
-      concrete,
-      MergeTypes(inferred, concrete, NoArms),
-    )
-    !self.muted_error
-  } catch {
-    _ => false
-  }
+  let (unified, failed, _, _) = self.muted(() => {
+    try {
+      self.unify_value_types(
+        inferred,
+        concrete,
+        MergeTypes(inferred, concrete, NoArms),
+      )
+      true
+    } catch {
+      _ => false
+    }
+  })
+  unified && !failed
 }
 
 ///|

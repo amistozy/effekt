@@ -1566,15 +1566,11 @@ fn Transformer::transform_as_stmt(
             "Should not happen: selection from a non ValueTypeApp.",
           )
       }
-      let vsubst : Map[Int32, ValueType] = Map([])
-      for i in 0..<universals.length() {
-        if i < scrutinee_type_args.length() {
-          vsubst.set(
-            universals[i].uid(),
-            self.transform_value_type(scrutinee_type_args[i]),
-          )
-        }
-      }
+      let vsubst = Map(
+        universals
+        .zip(scrutinee_type_args)
+        .map(pair => (pair.0.uid(), self.transform_value_type(pair.1))),
+      )
       let selected = Sym::value_param(Name::local("x"), None, tree.span)
       let tpe = self.inferred_type_of(tree)
       let params : Array[ValueParam] = []
@@ -2214,8 +2210,8 @@ fn Transformer::preprocess(
   let patterns : Array[ScrutineePattern] = []
   match clause.pattern.kind {
     @source.MultiPattern(ps) =>
-      for i in 0..<scs.length().min(ps.length()) {
-        patterns.push({ scrutinee: scs[i], pattern: ps[i], })
+      for (s, p) in scs.zip(ps) {
+        patterns.push({ scrutinee: s, pattern: p, })
       }
     _ =>
       if scs.length() == 1 {

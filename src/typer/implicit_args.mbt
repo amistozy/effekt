@@ -84,38 +84,13 @@ fn[T] Typer::check_implicit(
   tpe : String,
   run : () -> T raise EffektError,
 ) -> T raise EffektError {
-  let mut result : T? = None
-  let mut failure : String? = None
-  // The mute flags have to be back in place *before* the diagnostics are
-  // recorded below, so the muted region is a block of its own: `defer` is
-  // block-scoped and restores them when this block ends.
-  let (errors, infos, failed) = {
-    let muting_before = self.muting
-    let error_before = self.muted_error
-    let messages_before = self.muted_messages
-    let infos_before = self.muted_infos
-    defer {
-      self.muting = muting_before
-      self.muted_error = error_before
-      self.muted_messages = messages_before
-      self.muted_infos = infos_before
-    }
-    self.muting = true
-    self.muted_error = false
-    self.muted_messages = []
-    self.muted_infos = []
-    try {
-      result = Some(run())
-    } catch {
-      EffektError::Fatal(msg) => failure = Some(msg)
+  let ((result, failure), muted_error, errors, infos) = self.muted(() => {
+    (Some(run()), None) catch {
+      EffektError::Fatal(msg) => (None, Some(msg))
       EffektError::Internal(m) => raise EffektError::Internal(m)
     }
-    (
-      self.muted_messages.copy(),
-      self.muted_infos.copy(),
-      self.muted_error || failure is Some(_),
-    )
-  }
+  })
+  let failed = muted_error || failure is Some(_)
   if failed {
     // Upstream's `ImplicitInstantiation.show`: the claim, one line naming the
     // argument and its type, the stencil's explanation, the nested diagnostics

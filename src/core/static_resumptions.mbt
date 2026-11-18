@@ -1178,10 +1178,9 @@ fn jumps_to_join_leaf(
     Return(_) => jump(leaf)
     _ => {
       let ys : Array[Sym] = result_types.map(_ => Sym::tmp_value("y"))
-      let results : Array[Expr] = []
-      for i in 0..<ys.length() {
-        results.push(Expr::ValueVar(ys[i], result_types[i]))
-      }
+      let results = ys
+        .zip(result_types)
+        .map(pair => Expr::ValueVar(pair.0, pair.1))
       Val(ys, leaf, jump(Return(results)))
     }
   }

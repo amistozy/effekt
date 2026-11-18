@@ -373,22 +373,17 @@ fn extended(
 fn and_return(s : Stmt, current : Expr) -> Stmt raise EffektError {
   let result_types = s.infer_type()
   let results : Array[Sym] = result_types.map(_ => Sym::id(Name::local("r")))
-  let returns : Array[Expr] = []
-  for i in 0..<results.length() {
-    returns.push(Expr::ValueVar(results[i], result_types[i]))
-  }
-  returns.push(current)
-  Val(results, s, Return(returns))
+  let returns = results
+    .zip(result_types)
+    .map(pair => Expr::ValueVar(pair.0, pair.1))
+  Val(results, s, Return(returns + [current]))
 }
 
 ///|
 /// `val r, state = s; return r` where `tpe` are the types of `r`.
 fn drop_state(s : Stmt, tpe : ArrayView[ValueType], ref : Sym) -> Stmt {
   let results : Array[Sym] = tpe.map(_ => Sym::id(Name::local("r")))
-  let returns : Array[Expr] = []
-  for i in 0..<results.length() {
-    returns.push(Expr::ValueVar(results[i], tpe[i]))
-  }
+  let returns = results.mapi((i, r) => Expr::ValueVar(r, tpe[i]))
   Val(results + [Sym::id(ref.name())], s, Return(returns))
 }
 

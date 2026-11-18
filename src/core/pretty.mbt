@@ -214,12 +214,7 @@ fn d_params(
   let bps_doc = if bps.is_empty() {
     empty_doc()
   } else {
-    let docs : Array[Doc] = []
-    for i in 0..<bps.length() {
-      let cp = if i < cps.length() { Some(cps[i]) } else { None }
-      docs.push(d_block_param_with_capture(bps[i], cp))
-    }
-    hsep(docs)
+    hsep(bps.mapi((i, bp) => d_block_param_with_capture(bp, cps.get(i))))
   }
   doc_cat(tps_doc, doc_cat(vps_doc, bps_doc))
 }

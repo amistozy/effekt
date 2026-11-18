@@ -503,11 +503,8 @@ fn pm_split_on_tag(
           None => ([] : Array[PMVar])
         }
         let nested : Map[Int32, PMVarPattern] = Map([])
-        for i in 0..<field_vars.length() {
-          nested.set(
-            field_vars[i].id.uid(),
-            PMVarPattern(field_vars[i], patterns_and_types[i].pattern),
-          )
+        for i, v in field_vars {
+          nested.set(v.id.uid(), PMVarPattern(v, patterns_and_types[i].pattern))
         }
         // it is important to add nested matches first, since they might include
         // substitutions for the rest.

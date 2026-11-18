@@ -41,18 +41,18 @@ pub fn DeclarationContext::DeclarationContext(
 ) -> DeclarationContext {
   let datas : Map[Int32, Int32] = Map([])
   let constructors : Map[Int32, ConstructorRef] = Map([])
-  for i in 0..<declarations.length() {
-    if declarations[i] is DeclarationData(id, _, ctors) {
+  for i, d in declarations {
+    if d is DeclarationData(id, _, ctors) {
       datas.set(id.uid(), i)
       for c in ctors {
-        constructors.set(c.id.uid(), { data: declarations[i], constructor: c, })
+        constructors.set(c.id.uid(), { data: d, constructor: c, })
       }
     }
   }
   let extern_defs : Map[Int32, Int32] = Map([])
   let extern_defs_by_name : Map[String, Int32] = Map([])
-  for i in 0..<externs.length() {
-    match externs[i] {
+  for i, e in externs {
+    match e {
       ExternDef(id, _, _, _, vparams, _, _, _, _) => {
         extern_defs.set(id.uid(), i)
         extern_defs_by_name.set(

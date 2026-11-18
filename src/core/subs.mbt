@@ -180,22 +180,20 @@ fn substitute_block_lit_call(
   check_arity(bargs.length(), block.cparams.length(), "capture arguments")
   check_arity(bargs.length(), block.bparams.length(), "block arguments")
   check_arity(vargs.length(), block.vparams.length(), "value arguments")
-  let tsubst : Map[Int32, ValueType] = Map([])
-  for i in 0..<block.tparams.length() {
-    tsubst.set(block.tparams[i].uid(), targs[i])
-  }
-  let csubst : Map[Int32, Captures] = Map([])
-  for i in 0..<block.cparams.length() {
-    csubst.set(block.cparams[i].uid(), block_captures(bargs[i]))
-  }
-  let vsubst : Map[Int32, Expr] = Map([])
-  for i in 0..<block.vparams.length() {
-    vsubst.set(block.vparams[i].id.uid(), vargs[i])
-  }
-  let bsubst : Map[Int32, Block] = Map([])
-  for i in 0..<block.bparams.length() {
-    bsubst.set(block.bparams[i].id.uid(), bargs[i])
-  }
+  let tsubst = Map(
+    block.tparams[:].zip(targs).map(pair => (pair.0.uid(), pair.1)),
+  )
+  let csubst = Map(
+    block.cparams[:]
+    .zip(bargs)
+    .map(pair => (pair.0.uid(), block_captures(pair.1))),
+  )
+  let vsubst = Map(
+    block.vparams[:].zip(vargs).map(pair => (pair.0.id.uid(), pair.1)),
+  )
+  let bsubst = Map(
+    block.bparams[:].zip(bargs).map(pair => (pair.0.id.uid(), pair.1)),
+  )
   substitute_stmt(block.body, Substitution(tsubst, csubst, vsubst, bsubst))
 }
 

@@ -439,35 +439,13 @@ fn Typer::try_candidates(
   // including its hints — are reported instead of being buffered.
   for c in candidates {
     self.st = before.backup()
-    let muting_before = self.muting
-    let error_before = self.muted_error
-    let messages_before = self.muted_messages
-    let infos_before = self.muted_infos
-    // `defer` is block-scoped, so this restores the enclosing attempt's
-    // diagnostics once per iteration.
-    defer {
-      self.muting = muting_before
-      self.muted_error = error_before
-      self.muted_messages = messages_before
-      self.muted_infos = infos_before
-    }
-    self.muting = true
-    self.muted_error = false
-    self.muted_messages = []
-    self.muted_infos = []
-    let mut res : TyRes[ValueType]? = None
-    let mut err = ""
-    try {
-      res = Some(run(c))
-    } catch {
-      EffektError::Fatal(m) => err = m
-      EffektError::Internal(m) => err = m
-    }
+    let ((res, err), failed, muted, infos) = self.muted(() => {
+      (Some(run(c)), "") catch {
+        EffektError::Fatal(m) => (None, m)
+        EffektError::Internal(m) => (None, m)
+      }
+    })
     let after = self.st.backup()
-    // this attempt's own verdict and diagnostics
-    let failed = self.muted_error
-    let muted = self.muted_messages.copy()
-    let infos = self.muted_infos.copy()
 
     let recorded = if err != "" {
       err

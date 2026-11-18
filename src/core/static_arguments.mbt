@@ -186,39 +186,31 @@ fn StaticArguments::wrap_definition(
   ) // Fresh parameters for the wrapper and its call to the worker. Only the
   // non-static ones are freshened, so that the static ones keep their names and
   // the worker closes over exactly those.
-  let fresh_cparams : Array[Sym] = []
-  for i in 0..<lit.cparams.length() {
-    let param = lit.cparams[i]
+  let fresh_cparams = lit.cparams.mapi((i, param) => {
     if static_b[i] {
-      fresh_cparams.push(param)
+      param
     } else {
-      fresh_cparams.push(Sym::id(param.name()))
+      Sym::id(param.name())
     }
-  }
-  let fresh_vparams : Array[ValueParam] = []
-  for i in 0..<lit.vparams.length() {
-    let param = lit.vparams[i]
+  })
+  let fresh_vparams = lit.vparams.mapi((i, param) => {
     if static_v[i] {
-      fresh_vparams.push(param)
+      param
     } else {
-      fresh_vparams.push(ValueParam(Sym::id(param.id.name()), param.tpe))
+      ValueParam(Sym::id(param.id.name()), param.tpe)
     }
-  }
-  let fresh_bparams : Array[BlockParam] = []
-  for i in 0..<lit.bparams.length() {
-    let param = lit.bparams[i]
+  })
+  let fresh_bparams = lit.bparams.mapi((i, param) => {
     if static_b[i] {
-      fresh_bparams.push(param)
+      param
     } else {
-      fresh_bparams.push(
-        BlockParam(
-          Sym::id(param.id.name()),
-          param.tpe,
-          CaptureSetOf([fresh_cparams[i]]),
-        ),
+      BlockParam(
+        Sym::id(param.id.name()),
+        param.tpe,
+        CaptureSetOf([fresh_cparams[i]]),
       )
     }
-  }
+  })
   // The worker closes over the static block arguments of the wrapper.
   let new_captures = select_static(static_b, fresh_cparams).fold(
     init=Block::BlockLit(lit).infer_capt(),
