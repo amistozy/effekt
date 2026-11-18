@@ -442,11 +442,7 @@ fn Exhaustivity::check_datatype(
           if c == ctor {
             let fields = constructor_fields(ctor)
             let nested : Array[(Trace, Pat)] = []
-            let count = if fields.length() < patterns.length() {
-              fields.length()
-            } else {
-              patterns.length()
-            }
+            let count = fields.length().min(patterns.length())
             for i in 0..<count {
               nested.push((TChild(ctor, i, trace), patterns[i]))
             }

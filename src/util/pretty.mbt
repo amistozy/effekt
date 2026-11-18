@@ -104,16 +104,17 @@ pub fn punctuate(docs : ArrayView[Doc], sep : Doc) -> Doc {
 }
 
 ///|
-pub fn intercalate(
-  seps : ArrayView[String],
-  docs : ArrayView[Doc],
-) -> Array[Doc] {
-  let out : Array[Doc] = []
-  for i in 0..<docs.length() {
-    if i > 0 && i - 1 < seps.length() {
-      out.push(Text(seps[i - 1]))
+/// Upstream effekt's `util.intercalate(a, b)`: `a[0], b[0], a[1], b[1], …`,
+/// followed by the rest of the longer sequence.
+pub fn[A] intercalate(xs : ArrayView[A], ys : ArrayView[A]) -> Array[A] {
+  let out : Array[A] = []
+  for i in 0..<xs.length().max(ys.length()) {
+    if i < xs.length() {
+      out.push(xs[i])
     }
-    out.push(docs[i])
+    if i < ys.length() {
+      out.push(ys[i])
+    }
   }
   out
 }
@@ -134,7 +135,7 @@ pub fn braces_inner(d : Doc) -> Doc {
 }
 
 ///|
-pub fn brackets_inner(d : Doc) -> Doc {
+fn brackets_inner(d : Doc) -> Doc {
   doc_cat(Text("["), doc_cat(d, Text("]")))
 }
 
@@ -142,6 +143,31 @@ pub fn brackets_inner(d : Doc) -> Doc {
 /// `group (nest (line <> d))` — the standard "hang" combinator.
 pub fn nested(d : Doc) -> Doc {
   doc_group(doc_nest(2, doc_cat(Line, d)))
+}
+
+///|
+/// `docs` in parentheses, separated by commas: an empty list is `()`.
+pub fn parens_list(docs : ArrayView[Doc]) -> Doc {
+  parens_inner(punctuate(docs, comma()))
+}
+
+///|
+/// `docs` in braces, separated by commas: an empty list is `{}`.
+pub fn braces_list(docs : ArrayView[Doc]) -> Doc {
+  braces_inner(punctuate(docs, comma()))
+}
+
+///|
+/// `docs` in brackets, separated by commas: an empty list is `[]`.
+pub fn brackets_list(docs : ArrayView[Doc]) -> Doc {
+  brackets_inner(punctuate(docs, comma()))
+}
+
+///|
+/// `block(content) = "{" <> nest(line <> content) <> line <> "}"`: the two soft
+/// lines collapse to `{ content }` when the group fits.
+pub fn braced_block(content : Doc) -> Doc {
+  braces_inner(doc_cat(doc_nest(2, doc_cat(doc_line(), content)), doc_line()))
 }
 
 // Rendering

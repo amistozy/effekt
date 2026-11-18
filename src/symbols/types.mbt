@@ -194,7 +194,7 @@ fn canonical_compare_value_lists(
   a : ArrayView[ValueType],
   b : ArrayView[ValueType],
 ) -> Int32 {
-  let n = if a.length() < b.length() { a.length() } else { b.length() }
+  let n = a.length().min(b.length())
   for i in 0..<n {
     let c = canonical_compare_value(a[i], b[i])
     guard c == 0 else { return c }

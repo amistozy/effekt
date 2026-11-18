@@ -34,54 +34,24 @@ fn d_name(name : JSName) -> Doc {
 }
 
 ///|
-fn parens_list(docs : ArrayView[Doc]) -> Doc {
-  parens_inner(punctuate(docs, comma()))
-}
-
-///|
-fn brackets_list(docs : ArrayView[Doc]) -> Doc {
-  brackets_inner(punctuate(docs, comma()))
-}
-
-///|
-/// `jsBlock(content) = "{" <> nest(line <> content) <> line <> "}"`.
-fn js_block(content : Doc) -> Doc {
-  braces_inner(doc_cat(doc_nest(2, doc_cat(doc_line(), content)), doc_line()))
-}
-
-///|
 /// `jsBlock(docs)`. An empty block is printed as `{}`.
 fn js_block_docs(docs : ArrayView[Doc]) -> Doc {
   if docs.is_empty() {
     text("{}")
   } else {
-    js_block(vcat(docs))
+    braced_block(vcat(docs))
   }
 }
 
 ///|
-/// `jsBlock(vsep(docs, sep))`: the documents are interleaved with `sep`.
+/// `jsBlock(vsep(docs, sep))`: the documents are interleaved with `sep`. An
+/// empty object is printed as `{}`.
 fn js_block_sep(docs : ArrayView[Doc]) -> Doc {
   if docs.is_empty() {
     text("{}")
   } else {
-    js_block(punctuate(docs, comma()))
+    braced_block(punctuate(docs, comma()))
   }
-}
-
-///|
-/// Upstream effekt's `util.intercalate(a, b)`: `a[0], b[0], a[1], b[1], ...`.
-/// (The `intercalate` of our `@util` package has a different shape, so the JS
-/// printer uses this local version.)
-fn interleave(strings : ArrayView[String], docs : ArrayView[Doc]) -> Array[Doc] {
-  let out : Array[Doc] = []
-  for i in 0..<strings.length() {
-    out.push(text(strings[i]))
-    if i < docs.length() {
-      out.push(docs[i])
-    }
-  }
-  out
 }
 
 // ---------------------------------------------------------------------------
@@ -108,7 +78,7 @@ fn d_expr_atom(e : Expr) -> Doc {
 
 ///|
 fn d_raw(strings : ArrayView[String], args : ArrayView[Expr]) -> Doc {
-  hcat(interleave(strings, args.map(d_expr_atom)))
+  hcat(intercalate(strings.map(text), args.map(d_expr_atom)))
 }
 
 ///|
@@ -231,10 +201,7 @@ fn d_stmt(s : Stmt) -> Doc {
     Destruct(ids, expr) =>
       doc_cat(
         doc_spacecat(
-          doc_spacecat(
-            text("const"),
-            braces_inner(punctuate(ids.map(d_name), comma())),
-          ),
+          doc_spacecat(text("const"), braces_list(ids.map(d_name))),
           doc_spacecat(text("="), d_expr(expr)),
         ),
         text(";"),

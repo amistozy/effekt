@@ -701,12 +701,8 @@ fn[T] Parser::backtrack(
   let result = try {
     let value = p()
     let end = self.pos()
-    let start = before_end
-    let sp = if start > end {
-      Span(self.source, end, end)
-    } else {
-      Span(self.source, start, end)
-    }
+    // a token sequence can end before it starts when a production recovers
+    let sp = Span(self.source, before_end.min(end), end)
     Maybe::some(value, sp)
   } catch {
     Fatal(_) => {
@@ -935,20 +931,6 @@ fn[T] Parser::documented(
   p : (Info) -> T raise EffektError,
 ) -> T raise EffektError {
   self.nonterminal(() => p(self.info()))
-}
-
-///|
-fn[A] interleave(xs : ArrayView[A], ys : ArrayView[A]) -> Array[A] {
-  let result : Array[A] = []
-  for i in 0..<xs.length().max(ys.length()) {
-    if i < xs.length() {
-      result.push(xs[i])
-    }
-    if i < ys.length() {
-      result.push(ys[i])
-    }
-  }
-  result
 }
 
 ///|
@@ -3094,7 +3076,7 @@ fn Parser::template_string(
             ),
           )
         })
-        let exprs = interleave(do_lits, do_splices)
+        let exprs = intercalate(do_lits, do_splices)
         let unit_span = self.span().synthesized()
         let unit = mk_term(unit_span, TermKind::Literal(LUnit, t_unit()))
         let body = exprs.rev_fold(

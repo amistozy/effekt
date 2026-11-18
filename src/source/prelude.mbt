@@ -9,6 +9,7 @@ using @util {
   type Message,
   type Severity,
   fresh_uid,
+  intercalate,
 }
 
 ///|

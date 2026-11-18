@@ -6,9 +6,13 @@ import {
 }
 
 // Values
+pub fn braced_block(Doc) -> Doc
+
 pub fn braces_inner(Doc) -> Doc
 
-pub fn brackets_inner(Doc) -> Doc
+pub fn braces_list(ArrayView[Doc]) -> Doc
+
+pub fn brackets_list(ArrayView[Doc]) -> Doc
 
 pub fn comma() -> Doc
 
@@ -36,13 +40,15 @@ pub fn hcat(ArrayView[Doc]) -> Doc
 
 pub fn hsep(ArrayView[Doc]) -> Doc
 
-pub fn intercalate(ArrayView[String], ArrayView[Doc]) -> Array[Doc]
+pub fn[A] intercalate(ArrayView[A], ArrayView[A]) -> Array[A]
 
 pub fn internal_error(String) -> Unit raise EffektError
 
 pub fn nested(Doc) -> Doc
 
 pub fn parens_inner(Doc) -> Doc
+
+pub fn parens_list(ArrayView[Doc]) -> Doc
 
 pub fn punctuate(ArrayView[Doc], Doc) -> Doc
 

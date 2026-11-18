@@ -604,13 +604,8 @@ fn ShowContext::generate_data_instance(
   // arguments are looked up *before* the new bindings are installed. (The
   // zip truncates to the shorter list, like upstream.)
   let looked_up = targs.map(t => self.lookup_type(t))
-  let n = if data_tparams.length() < looked_up.length() {
-    data_tparams.length()
-  } else {
-    looked_up.length()
-  }
-  for i in 0..<n {
-    self.tparam_lookup.set(data_tparams[i].uid(), looked_up[i])
+  for (tparam, tpe) in data_tparams.zip(looked_up) {
+    self.tparam_lookup.set(tparam.uid(), tpe)
   }
 
   let value_tpe = ValueData(data_id, targs.map(t => self.lookup_type(t)))

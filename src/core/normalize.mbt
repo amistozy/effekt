@@ -465,16 +465,10 @@ fn Normalizer::discount(
   ctx : NormCtx,
 ) -> Int32 raise EffektError {
   let known : Map[Int32, Expr] = Map([])
-  let count = if site.callee.vparams.length() < site.vargs.length() {
-    site.callee.vparams.length()
-  } else {
-    site.vargs.length()
-  }
-  for i in 0..<count {
-    let arg = self.active_expr(site.vargs[i], ctx)
+  for (vparam, varg) in site.callee.vparams.zip(site.vargs) {
+    let arg = self.active_expr(varg, ctx)
     match arg {
-      Literal(_, _) | Make(_, _, _, _) =>
-        known.set(site.callee.vparams[i].id.uid(), arg)
+      Literal(_, _) | Make(_, _, _, _) => known.set(vparam.id.uid(), arg)
       _ => ()
     }
   }

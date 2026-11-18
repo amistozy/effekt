@@ -67,27 +67,6 @@ fn emptyline() -> Doc {
 }
 
 ///|
-fn parens_list(docs : ArrayView[Doc]) -> Doc {
-  parens_inner(punctuate(docs, comma()))
-}
-
-///|
-fn braces_list(docs : ArrayView[Doc]) -> Doc {
-  braces_inner(punctuate(docs, comma()))
-}
-
-///|
-fn brackets_list(docs : ArrayView[Doc]) -> Doc {
-  brackets_inner(punctuate(docs, comma()))
-}
-
-///|
-/// `block(content) = "{" <> nest(line <> content) <> line <> "}"`.
-fn braced_block(content : Doc) -> Doc {
-  braces_inner(doc_cat(doc_nest(2, doc_cat(doc_line(), content)), doc_line()))
-}
-
-///|
 fn escape_string(s : String) -> String {
   let buf = StringBuilder()
   for c in s {
@@ -156,11 +135,7 @@ fn d_block_type(t : BlockType) -> Doc {
     FunctionType(tparams, cparams, vparams, bparams, result) => {
       let tps = d_type_params(tparams)
       let vps = parens_list(vparams.map(d_value_type))
-      let n = if cparams.length() < bparams.length() {
-        cparams.length()
-      } else {
-        bparams.length()
-      }
+      let n = cparams.length().min(bparams.length())
       let bps : Array[Doc] = []
       for i in 0..<n {
         bps.push(
