@@ -96,10 +96,9 @@ fn middle_end(
 /// after normalization and leave dead `Reset`s"; the rounds run the same phases on
 /// a shrinking tree.
 ///
-/// `ReferencesToParameters` is ported (`src/core/references_to_parameters.mbt`)
-/// but not run: threading the state of a reference that lives across a shift
-/// miscompiles `testdata/upstream/examples/stdlib/stream/map.effekt`, so the pass
-/// stays out of the pipeline until that is understood.
+/// Every round ends in `ReferencesToParameters`, and so do the final cleanups:
+/// the pass threads the state of a reference through a definition's parameters,
+/// which needs the per-arity `RETURN_n` that `js/transform_cps.mbt` emits.
 fn optimize(
   module : @core.ModuleDecl,
   main_sym : Sym,

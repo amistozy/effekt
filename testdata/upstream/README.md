@@ -14,9 +14,9 @@ tests instead of only against hand-written examples.
 The expected diagnostics of a negative test come either from its `.check` file
 (`[error] <path>:<line>:<col>: <message>` lines) or, when there is none, from
 the `// ERROR <text>` / `// WARN <text>` comments in the source — exactly the
-two sources upstream's `EffektTests.scala` uses. The port currently matches
-severity and line, not the wording of every message (the summary counts the
-files whose wording differs).
+two sources upstream's `EffektTests.scala` uses. The port matches severity, line
+and wording: `scripts/upstream.ps1 -Strict` compares the whole rendered
+diagnostics of every negative test with its `.check` file, and all 203 match.
 
 Run them with `powershell -File scripts/upstream.ps1` (add `-Filter <substring>`
 to run a subset). The script keeps a baseline that can only grow.
