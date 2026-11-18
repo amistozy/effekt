@@ -41,7 +41,7 @@ pub(all) enum BlockType {
     Array[Captures],
     Array[ValueType],
     Array[BlockType],
-    Array[ValueType]
+    Array[ValueType],
   )
   /// An effect / capability type, e.g. `State[Int]` (upstream `Interface`).
   InterfaceType(Sym, Array[ValueType])

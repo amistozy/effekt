@@ -18,38 +18,16 @@ pub fn Hooks::none() -> Hooks {
 }
 
 ///|
-fn apply_expr(hooks : Hooks, ctx : Context, t : Term) -> Term raise EffektError {
-  match hooks.expr {
-    None => t
-    Some(f) =>
-      match f(ctx, t) {
-        None => t
-        Some(t2) => t2
-      }
-  }
-}
-
-///|
-fn apply_stmt(hooks : Hooks, ctx : Context, s : Stmt) -> Stmt raise EffektError {
-  match hooks.stmt {
-    None => s
-    Some(f) =>
-      match f(ctx, s) {
-        None => s
-        Some(s2) => s2
-      }
-  }
-}
-
-///|
-fn apply_def(hooks : Hooks, ctx : Context, d : Def) -> Def raise EffektError {
-  match hooks.defn {
-    None => d
-    Some(f) =>
-      match f(ctx, d) {
-        None => d
-        Some(d2) => d2
-      }
+/// Applies a rewriting hook: the replacement it returns, or the node itself when
+/// the hook leaves it alone.
+fn[T] apply_hook(
+  hook : ((Context, T) -> T? raise EffektError)?,
+  ctx : Context,
+  node : T,
+) -> T raise EffektError {
+  match hook {
+    None => node
+    Some(f) => f(ctx, node).unwrap_or(node)
   }
 }
 
@@ -72,7 +50,7 @@ fn rewrite_hooked_expr(
   original : Term,
   rewritten : Term,
 ) -> Term raise EffektError {
-  let result = apply_expr(hooks, ctx, rewritten)
+  let result = apply_hook(hooks.expr, ctx, rewritten)
   if result.uid != original.uid {
     ctx.copy_annotations(original.uid, result.uid)
   }
@@ -86,7 +64,7 @@ fn rewrite_hooked_stmt(
   original : Stmt,
   rewritten : Stmt,
 ) -> Stmt raise EffektError {
-  let result = apply_stmt(hooks, ctx, rewritten)
+  let result = apply_hook(hooks.stmt, ctx, rewritten)
   if result.uid != original.uid {
     ctx.copy_annotations(original.uid, result.uid)
   }
@@ -100,7 +78,7 @@ fn rewrite_hooked_def(
   original : Def,
   rewritten : Def,
 ) -> Def raise EffektError {
-  let result = apply_def(hooks, ctx, rewritten)
+  let result = apply_hook(hooks.defn, ctx, rewritten)
   if result.uid != original.uid {
     ctx.copy_annotations(original.uid, result.uid)
   }

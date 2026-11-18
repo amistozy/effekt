@@ -42,7 +42,7 @@ fn unsupported_error(
   bodies : ArrayView[ExternBody],
   ctx : Context,
 ) -> ExternBody {
-  let flags : Array[String] = bodies.map(b => b.flag().to_string())
+  let flags : Array[String] = bodies.map(b => "\{b.flag()}")
   let supported = supported_flags(ctx).join(", ")
   Unsupported(
     "Extern definition is not supported as it is only defined for feature flags \{flags.join(", ")}, but the current backend only supports \{supported}.",

@@ -195,7 +195,7 @@ pub(all) enum TypeKind {
     Array[TypeTree],
     Array[(IdDef?, TypeTree)],
     TypeTree,
-    EffectsTree
+    EffectsTree,
   )
   /// A value type together with its effects.
   Effectful(TypeTree, EffectsTree)
@@ -376,7 +376,7 @@ pub(all) enum DefKind {
     Array[BlockParam],
     CaptureSetTree?,
     TypeTree?,
-    Stmt
+    Stmt,
   )
   ValDef(IdDef, TypeTree?, Stmt)
   RegDef(IdDef, TypeTree?, IdRef, Stmt)
@@ -396,7 +396,7 @@ pub(all) enum DefKind {
     Array[BlockParam],
     CaptureSetTree,
     TypeTree,
-    Array[ExternBody]
+    Array[ExternBody],
   )
   ExternResource(IdDef, TypeTree)
   ExternInterface(IdDef, Array[IdDef], Array[ExternBody])

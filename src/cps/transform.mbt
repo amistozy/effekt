@@ -241,7 +241,7 @@ fn transform_extern(
       bparams,
       _ret,
       annotated_capture,
-      body
+      body,
     ) => {
       let vps = vparams.map(p => p.id)
       let bps = bparams.map(p => p.id)

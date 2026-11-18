@@ -177,7 +177,7 @@ fn parse_double_lit(s : String) -> Double? {
   let mut int_part : Double = 0.0
   let mut seen_digit = false
   while i < s.length() && s[i] >= '0' && s[i] <= '9' {
-    int_part = int_part * 10.0 + Double::from_int(s[i].to_int() - '0'.to_int())
+    int_part = int_part * 10.0 + (s[i].to_int() - '0'.to_int()).to_double()
     seen_digit = true
     i = i + 1
   }
@@ -187,7 +187,7 @@ fn parse_double_lit(s : String) -> Double? {
     i = i + 1
     let mut scale = 0.1
     while i < s.length() && s[i] >= '0' && s[i] <= '9' {
-      result = result + Double::from_int(s[i].to_int() - '0'.to_int()) * scale
+      result = result + (s[i].to_int() - '0'.to_int()).to_double() * scale
       scale = scale / 10.0
       i = i + 1
     }

@@ -165,7 +165,11 @@ You can browse and install extra skills here:
   `// insertion sort` comment — were exactly that), `xs.any/all/fold`,
   `xs[m..n]` views with `.to_owned()` (the `ArrayView::to_array` of older
   compilers is deprecated; `String::to_array` is the unrelated string →
-  `Array[Char]` conversion and is fine).
+  `Array[Char]` conversion and is fine). A one-sided clamp is `x.max(0)` /
+  `x.min(n)` and a two-sided one is `x.clamp(min=…, max=…)` (three `if`s in
+  `Source::offset_to_position` / `Span::text` were exactly that); rebuilding a
+  value that has a `T::with_*` constructor uses it, not a field-by-field literal
+  (`Span::with_origin(…)` in `to_span`/`merge`).
   The `Char` predicates are methods too: `c.is_ascii_digit()` (U+0030..U+0039,
   the same test as `'0' <= c && c <= '9'`), `c.is_whitespace()`,
   `c.is_ascii_alphabetic()`, `c.is_ascii_hexdigit()` — the lexer's `is_digit` /
@@ -246,6 +250,17 @@ You can browse and install extra skills here:
   with a `(T) -> Bool` predicate, and the three accumulator loops are `mapi`.
   The generic parameter is inferred at the call site, so the helper costs
   nothing readable.
+
+  The same holds for *functions* that differ only in the node type they handle.
+  The four vertical/horizontal pretty-printer combinators were four copies of
+  one fold — `vcat`/`vsep`/`hsep`/`punctuate` are now
+  `separated_by(docs, HardLine)`/`(docs, Line)`/`(docs, doc_space())`/
+  `(docs, sep)` — and `apply_expr`/`apply_stmt`/`apply_def` were three copies of
+  "look up the hook, apply it, fall back to the node", now one
+  `fn[T] apply_hook(hook : ((Context, T) -> T? raise EffektError)?, ctx, node)`
+  called as `apply_hook(hooks.expr, ctx, rewritten)`. The three visible
+  wrappers only exist when they carry something else too (the
+  `rewrite_hooked_*` trio copies annotations and needs the node's uid).
 
 - **`Map` is `@builtin`'s linked hash map, and it has combinators too.** Build
   one from pairs with the constructor — `Map(ids.map(id => (id.uid(), id)))`, not
@@ -380,6 +395,14 @@ You can browse and install extra skills here:
     (`capability: h.capability.map(p => rewrite_block_param(p, ctx, hooks))`) and
     as a whole function body (`default.map(value => self.transform_stmt(dctx,
     value))`).
+  - **`map_or` is *not* an idiom to adopt.** The stdlib has it, but the core
+    library writes `.map_or(` four times in 177k lines and `match o { Some(x) =>
+    f(x), None => <value> }` hundreds of times, so that shape stays a `match`.
+    (`unwrap_or` is different: 49 uses.) `unwrap_or_else(() => …)` is the
+    by-name spelling for an expensive default, and `unwrap_or` still may not
+    take one: `reduce_shifts`' `reuse(shift, true)` must stay a `match`, because
+    its `None` arm calls `copy(…)` and forcing it eagerly would copy on every
+    successful reuse.
 
 - **Update a record with `{ ..self, field: value }`, not a `with_*` helper.**
   MoonBit keeps the other fields, so a pass that rebuilds a node with one field
@@ -547,11 +570,12 @@ You can browse and install extra skills here:
 - The suppressions all live in **one place**, `moon.mod`'s `warnings`, and each
   entry is documented there with why the port produces it on purpose
   (`reserved_keyword` for Effekt's own AST vocabulary — `module`, `local`, `ref`,
-  `constructor`, …; and `implicit_impl_as_method`, which `pub impl` and
-  `derive(Eq, Debug)` trigger — 501 diagnostics in total). Do not add a
+  `constructor`, … — 501 diagnostics). Do not add a
   package-level `warnings =` line: `moon.pkg` lists were removed in favour of
   the shared default, and a package that needs an extra suppression should be
-  discussed rather than silenced.
+  discussed rather than silenced. `implicit_impl_as_method` used to be on the
+  list; `moon 0.1.20261117` removed the implicit promotion itself, so the entry
+  is gone and the call sites were fixed instead (see below).
 - Fixing one of those classes is always welcome — `unused_package`,
   `redundant_modifier`, `deprecated`, `unused_mut`, `unused_value`,
   `unused_type_declaration` and `unused_error_type` were cleaned up that way
@@ -559,6 +583,19 @@ You can browse and install extra skills here:
   vestigial `raise` clauses rather than by renaming) — but drop the entry only
   after a full clean `moon check -d` (delete `_build`: a cached build hides
   whole packages).
+
+- **An `impl` method is not a method of the type.** `impl Show for X with fn
+  output(…)` (and `#derive(Show)`/`Debug`/`Eq`) only registers the trait
+  instance: `x.to_string()` does not resolve unless the method is promoted with
+  an explicit `extend`. Print through the trait instead — string interpolation
+  `"\{x}"` is the shortest spelling and the one this port uses — or call
+  `Show::to_string(x)`. The compiler's own hint says as much ("`impl` cannot be
+  invoked directly as method unless explicitly promoted via `extend`"). Four
+  sites were written the other way when promotion was on by default
+  (`feature_flags`' error message, `cps`' `hole` span, two parser tests); they
+  interpolate now. Inherent methods (`Int::to_string`, `StringBuilder::to_string`,
+  `Char::to_string`) are unaffected, which is why most `x.to_string()` calls in
+  the tree are still fine.
 
 - **A `pub` declaration the checker cannot see a use for is still dead code.**
   `unused_value` only fires for package-private items, so an exported function
@@ -595,11 +632,19 @@ You can browse and install extra skills here:
   struct's field types must stay public (`A public definition cannot depend on
   private type` — `Free.values`/`Free.blocks`, `Typer.st`,
   `Typer.pending_matches` and `DeclarationContext.constructors` all pin their
-  element types), and a private enum exposes its unused variants, which for
-  `Associativity`/`LexerError` are upstream mirrors rather than dead code
-  (`Parser.scala` only declares `Associativity.None`, and
-  `LexerError.Expected` marks a lexer error the port does not raise yet). Go
-  type by type there, and leave those two public.
+  element types), a public enum pins the types in its payloads (`PMPattern`
+  keeps `PMSubPattern` and `PMEquals` public), and a private enum exposes its
+  unused variants, which for `Associativity`/`LexerError` are upstream mirrors
+  rather than dead code (`Parser.scala` only declares `Associativity.None`, and
+  `LexerError.Expected` marks a lexer error the port does not raise yet).
+  Twelve survived the check this round — `CoreToplevel`, `ScrutineePattern`,
+  `PMVar`, `PMVarPattern`, `ShowContext`, `PMClause`, `PMCondition`, `Spanned`,
+  `SpannedTemplate`, `ImplicitStencil`, `Unboxer`, `CallLike`, 48 more `.mbti`
+  lines — so it is worth going type by type, but `PMPattern`, `PMSubPattern`,
+  `PMEquals`, `ConstructorRef`, `FreeValue`, `FreeBlock`, `TyperState`,
+  `PendingMatch`, `JoinKind`, `MergeOrigin`, `CapScope`, `UnifScope`,
+  `Delimiter`, `PrecedenceTable`, `RecoverableDiagnostic`, `Associativity` and
+  `LexerError` all have a reason to stay public.
 
   **A struct field nothing reads is dead too**, and the checker cannot see it
   either: a field that is only *written* (by its constructor) is invisible to

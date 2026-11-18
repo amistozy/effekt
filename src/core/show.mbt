@@ -143,7 +143,7 @@ fn block_type_key(tpe : BlockType) -> String {
 /// and the bindings collected for the statement currently being transformed.
 ///
 /// Upstream's `ShowContext`.
-pub(all) struct ShowContext {
+priv struct ShowContext {
   /// value type key -> the id of the generated show function
   show_names : Map[String, Sym]
   /// value type key -> the generated definition
@@ -156,7 +156,7 @@ pub(all) struct ShowContext {
 }
 
 ///|
-pub fn ShowContext::ShowContext() -> ShowContext {
+fn ShowContext::ShowContext() -> ShowContext {
   {
     show_names: Map([]),
     show_defns: Map([]),

@@ -190,12 +190,6 @@ pub(all) struct ConstructorRef {
   constructor : Constructor
 }
 
-pub(all) enum CoreToplevel {
-  CoreToplevelDef(Toplevel)
-  CoreToplevelDecl(Declaration)
-  CoreToplevelExtern(Extern)
-}
-
 pub(all) enum Declaration {
   DeclarationData(@symbols.Sym, Array[@symbols.Sym], Array[Constructor])
   DeclarationInterface(@symbols.Sym, Array[@symbols.Sym], Array[Property])
@@ -300,20 +294,6 @@ pub(all) struct Operation {
 pub fn Operation::Operation(@symbols.Sym, Array[@symbols.Sym], Array[@symbols.Sym], Array[ValueParam], Array[BlockParam], Stmt) -> Self
 pub fn Operation::free(Self) -> Free
 
-pub(all) struct PMClause {
-  conditions : Array[PMCondition]
-  label : BlockVar
-  targs : Array[ValueType]
-  args : Array[PMVar]
-}
-pub fn PMClause::PMClause(Array[PMCondition], BlockVar, Array[ValueType], Array[PMVar]) -> Self
-
-pub(all) enum PMCondition {
-  PMPatterns(Map[Int32, PMVarPattern])
-  PMPredicate(Expr)
-  PMRun(Binding)
-}
-
 pub(all) struct PMEquals {
   symbol : @symbols.Sym
   targs : Array[ValueType]
@@ -334,19 +314,6 @@ pub(all) struct PMSubPattern {
 }
 pub fn PMSubPattern::PMSubPattern(PMPattern, ValueType) -> Self
 
-pub(all) struct PMVar {
-  id : @symbols.Sym
-  tpe : ValueType
-}
-pub fn PMVar::PMVar(@symbols.Sym, ValueType) -> Self
-pub fn PMVar::to_expr(Self) -> Expr
-
-pub(all) struct PMVarPattern {
-  variable : PMVar
-  pattern : PMPattern
-}
-pub fn PMVarPattern::PMVarPattern(PMVar, PMPattern) -> Self
-
 pub(all) struct Property {
   id : @symbols.Sym
   tpe : BlockType
@@ -357,19 +324,6 @@ pub(all) struct QualifiedSignature {
   name : String
 }
 pub fn QualifiedSignature::QualifiedSignature(String) -> Self
-
-pub(all) struct ScrutineePattern {
-  scrutinee : Expr
-  pattern : @source.MatchPattern
-}
-
-pub(all) struct ShowContext {
-  show_names : Map[String, @symbols.Sym]
-  show_defns : Map[String, Toplevel]
-  tparam_lookup : Map[Int32, ValueType]
-  mut bindings : Array[Binding]
-}
-pub fn ShowContext::ShowContext() -> Self
 
 pub(all) enum Stmt {
   Def(@symbols.Sym, Block, Stmt)

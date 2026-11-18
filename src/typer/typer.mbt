@@ -1329,8 +1329,8 @@ pub fn Typer::check_main(
           vparams,
           bparams,
           result,
-          effects
-        )
+          effects,
+        ),
       ) => {
         if !vparams.is_empty() || !bparams.is_empty() {
           self.abort(main.decl(), "Main does not take arguments")
@@ -2924,7 +2924,7 @@ fn Typer::unify_block_types(
         vps1,
         bps1,
         ret1,
-        effs1
+        effs1,
       ),
       @symbols.BlockType::FunctionType(
         tparams2,
@@ -2932,7 +2932,7 @@ fn Typer::unify_block_types(
         vps2,
         bps2,
         ret2,
-        effs2
+        effs2,
       ),
     ) => {
       if tparams1.length() != tparams2.length() {
@@ -3727,7 +3727,7 @@ pub fn Typer::resolve_block_type(
           vps,
           bps,
           ret,
-          inner_effs
+          inner_effs,
         ) =>
           @symbols.BlockType::FunctionType(
             tparams,

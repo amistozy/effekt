@@ -1394,8 +1394,6 @@ fn to_js_stmt(
         ),
       ])
     @cps.Stmt::Hole(span) =>
-      pure([
-        Return(effekt_call("hole", [js_string(span.position().to_string())])),
-      ])
+      pure([Return(effekt_call("hole", [js_string("\{span.position()}")]))])
   }
 }

@@ -1060,7 +1060,7 @@ test "method call on a value is desugared to a call" {
               @source.CallTarget::IdTarget(id),
               _,
               vargs,
-              bargs
+              bargs,
             ) => {
               assert_eq(id.name, "show")
               assert_eq(vargs.length(), 1)
@@ -1360,7 +1360,7 @@ test "method call is desugared even when the driver drops the unboxed tree" {
                   @source.CallTarget::IdTarget(id),
                   _,
                   _,
-                  _
+                  _,
                 ) => assert_eq(id.name, "show")
                 _ => fail("expected the argument to be a call to show")
               }

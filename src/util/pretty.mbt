@@ -73,41 +73,34 @@ pub fn hcat(docs : ArrayView[Doc]) -> Doc {
 }
 
 ///|
-pub fn vcat(docs : ArrayView[Doc]) -> Doc {
+/// `docs` folded with `sep` between neighbours, and `Empty` when there are none.
+fn separated_by(docs : ArrayView[Doc], sep : Doc) -> Doc {
   match docs.length() {
     0 => Empty
-    _ =>
-      docs[1:].fold(init=docs[0], (acc, d) => doc_cat(acc, doc_cat(HardLine, d)))
+    _ => docs[1:].fold(init=docs[0], (acc, d) => doc_cat(acc, doc_cat(sep, d)))
   }
+}
+
+///|
+pub fn vcat(docs : ArrayView[Doc]) -> Doc {
+  separated_by(docs, HardLine)
 }
 
 ///|
 /// Vertical separation: line breaks that become spaces when the enclosing
 /// group fits on one line.
 pub fn vsep(docs : ArrayView[Doc]) -> Doc {
-  match docs.length() {
-    0 => Empty
-    _ => docs[1:].fold(init=docs[0], (acc, d) => doc_cat(acc, doc_cat(Line, d)))
-  }
+  separated_by(docs, Line)
 }
 
 ///|
 pub fn hsep(docs : ArrayView[Doc]) -> Doc {
-  match docs.length() {
-    0 => Empty
-    _ =>
-      docs[1:].fold(init=docs[0], (acc, d) => {
-        doc_cat(acc, doc_cat(Text(" "), d))
-      })
-  }
+  separated_by(docs, doc_space())
 }
 
 ///|
 pub fn punctuate(docs : ArrayView[Doc], sep : Doc) -> Doc {
-  match docs.length() {
-    0 => Empty
-    _ => docs[1:].fold(init=docs[0], (acc, d) => doc_cat(acc, doc_cat(sep, d)))
-  }
+  separated_by(docs, sep)
 }
 
 ///|
@@ -230,9 +223,7 @@ pub fn render_width(doc : Doc, width : Int32) -> String {
 ///|
 /// Conservative "does this document fit into `space` columns" check.
 fn fits(space : Int32, doc : Doc) -> Bool {
-  if space < 0 {
-    return false
-  }
+  guard space >= 0 else { return false }
   let mut remaining = space
   let stack : Array[Doc] = [doc]
   while stack.pop() is Some(d) {

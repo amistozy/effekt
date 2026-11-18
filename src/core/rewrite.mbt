@@ -451,7 +451,7 @@ fn Rewrite::rewrite_extern(
       bparams,
       result,
       capt,
-      body
+      body,
     ) =>
       ExternDef(
         self.rewrite_id(id),

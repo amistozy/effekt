@@ -2348,18 +2348,12 @@ fn def_id_name(d : Def) -> String {
 /// The name of a type tree for diagnostics. Without source text (synthesized
 /// nodes), we fall back to a description of the tree.
 fn tree_text(t : TypeTree) -> String {
-  match t.span.text() {
-    Some(text) => text
-    None => "<type>"
-  }
+  t.span.text().unwrap_or("<type>")
 }
 
 ///|
 fn span_text(span : Span) -> String {
-  match span.text() {
-    Some(text) => text
-    None => "<effect set>"
-  }
+  span.text().unwrap_or("<effect set>")
 }
 
 ///|

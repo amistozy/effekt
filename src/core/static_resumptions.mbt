@@ -1223,11 +1223,8 @@ fn reduce_shifts(
       None =>
         // 1b) copied into a join point, if no `var` or a region lies above
         if joinable {
-          match copy(Continuation(prompt, None), shift, blocked) {
-            Some(result) => result
-            // 1c) else left alone
-            None => s
-          }
+          // 1c) else left alone
+          copy(Continuation(prompt, None), shift, blocked).unwrap_or(s)
         } else {
           s
         }

@@ -89,13 +89,7 @@ fn Source::line_text(self : Source, line : Int32) -> String {
 ///|
 /// Convert a 0-based character offset into a `Position`.
 pub fn Source::offset_to_position(self : Source, offset : Int32) -> Position {
-  let clamped = if offset < 0 {
-    0
-  } else if offset > self.content.length() {
-    self.content.length()
-  } else {
-    offset
-  }
+  let clamped = offset.clamp(min=0, max=self.content.length())
   // Binary search for the last line_start <= clamped
   let mut lo = 0
   let mut hi = self.line_starts.length() - 1
@@ -208,12 +202,8 @@ pub fn Span::text(self : Span) -> String? {
   if self.origin == Missing || self.source.content == "" {
     return None
   }
-  let a = if self.start < 0 { 0 } else { self.start }
-  let b = if self.end > self.source.content.length() {
-    self.source.content.length()
-  } else {
-    self.end
-  }
+  let a = self.start.max(0)
+  let b = self.end.min(self.source.content.length())
   if b <= a {
     None
   } else {
@@ -225,12 +215,7 @@ pub fn Span::text(self : Span) -> String? {
 /// Extends a span to cover everything up to `other`.
 pub fn Span::to_span(self : Span, other : Span) -> Span {
   guard self.source.name == other.source.name else { self }
-  {
-    source: self.source,
-    start: self.start,
-    end: other.end,
-    origin: self.origin,
-  }
+  Span::with_origin(self.source, self.start, other.end, self.origin)
 }
 
 ///|
@@ -244,7 +229,7 @@ pub fn Span::merge(self : Span, other : Span) -> Span {
   let a = if self.start <= other.start { self } else { other }
   let b = if self.end >= other.end { self } else { other }
   guard a.source.name == b.source.name else { a }
-  { source: a.source, start: a.start, end: b.end, origin: a.origin, }
+  Span::with_origin(a.source, a.start, b.end, a.origin)
 }
 
 ///|

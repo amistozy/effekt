@@ -157,7 +157,7 @@ pub(all) enum Extern {
     Array[BlockParam],
     ValueType,
     Captures,
-    ExternBody[Expr]
+    ExternBody[Expr],
   )
   ExternInclude(FeatureFlag, String)
 }

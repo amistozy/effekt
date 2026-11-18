@@ -1124,7 +1124,7 @@ test "var and assignment become Var/Get/Put" {
                       _,
                       ref3,
                       _,
-                      @core.Return([@core.ValueVar(result, _)])
+                      @core.Return([@core.ValueVar(result, _)]),
                     ) => {
                       assert_eq(ref3.uid(), var_sym.uid())
                       assert_eq(result.uid(), s2.uid())

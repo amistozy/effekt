@@ -374,7 +374,7 @@ test "show phase: generates a structural instance and rewrites the call" {
         @core.Val(
           _,
           @core.App(_, targs, vargs, bargs),
-          @core.Return([@core.ValueVar(_, _)])
+          @core.Return([@core.ValueVar(_, _)]),
         ) => {
           assert_eq(targs.length(), 0)
           assert_eq(vargs.length(), 1)

@@ -94,27 +94,19 @@ pub fn Message::with_phase(self : Message, phase : String) -> Message {
 /// `FailedOverloadError` and `ImplicitInstantiationError` indent under the
 /// heading of their candidate.
 pub fn Message::content_with_notes(self : Message) -> String {
-  let parts : Array[String] = [self.text]
-  for note in self.notes {
-    parts.push(note.text())
-  }
-  parts.join("\n")
+  ([self.text] + self.notes.map(note => note.text())).join("\n")
 }
 
 ///|
 /// Adds a note, optionally at a place of its own.
 pub fn Message::note(self : Message, text : String, at : Span?) -> Message {
-  let notes = self.notes.copy()
-  notes.push(Note(text, at))
-  { ..self, notes, }
+  { ..self, notes: self.notes + [Note(text, at)], }
 }
 
 ///|
 /// Adds a suggestion how to fix the diagnostic.
 pub fn Message::help(self : Message, text : String) -> Message {
-  let notes = self.notes.copy()
-  notes.push(Help(text))
-  { ..self, notes, }
+  { ..self, notes: self.notes + [Help(text)], }
 }
 
 ///|
@@ -187,10 +179,7 @@ fn with_phase(text : String, phase : String?) -> String {
 pub fn Message::render(self : Message) -> String {
   let primary = excerpt_of(self.span)
   // One gutter for the whole diagnostic, as wide as its largest line number.
-  let mut width = match primary {
-    Some(e) => e.line.to_string().length()
-    None => 0
-  }
+  let mut width = primary.map(e => e.line.to_string().length()).unwrap_or(0)
   let items : Array[(String, String, Excerpt?)] = []
   for note in self.notes {
     match note {

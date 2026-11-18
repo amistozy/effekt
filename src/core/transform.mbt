@@ -20,7 +20,7 @@
 ///|
 /// A toplevel entry of a core module: upstream's
 /// `Toplevel | Declaration | Extern`.
-pub(all) enum CoreToplevel {
+priv enum CoreToplevel {
   CoreToplevelDef(Toplevel)
   CoreToplevelDecl(Declaration)
   CoreToplevelExtern(Extern)
@@ -644,7 +644,7 @@ fn Transformer::transform_block_type(
       vparams,
       bparams,
       result,
-      effects
+      effects,
     ) => {
       let capability_types = @symbols.canonical_order(effects.to_list()).map(e => {
         self.transform_block_type(e)
@@ -2209,7 +2209,7 @@ fn capture_of_captures(c : Captures) -> Sym {
 
 ///|
 /// A scrutinee together with the pattern that is matched against it.
-pub(all) struct ScrutineePattern {
+priv struct ScrutineePattern {
   scrutinee : Expr
   pattern : @source.MatchPattern
 }

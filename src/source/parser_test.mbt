@@ -220,7 +220,7 @@ test "parse: extern js include followed by a definition" {
   assert_eq(defs_of(d).length(), 2)
   match defs_of(d)[0].kind {
     ExternInclude(flag, path, contents) => {
-      assert_eq(flag.to_string(), "js")
+      assert_eq("\{flag}", "js")
       assert_eq(path, "")
       assert_eq(contents, Some("console.log()"))
     }
@@ -242,14 +242,14 @@ test "parse: extern def with feature-flagged bodies" {
       assert_eq(bodies.length(), 2)
       match bodies[0] {
         StringExternBody(flag, template) => {
-          assert_eq(flag.to_string(), "js")
+          assert_eq("\{flag}", "js")
           assert_eq(template.strings.length(), 3)
           assert_eq(template.args.length(), 2)
         }
         _ => abort("expected a string extern body")
       }
       match bodies[1] {
-        StringExternBody(flag, _) => assert_eq(flag.to_string(), "chez")
+        StringExternBody(flag, _) => assert_eq("\{flag}", "chez")
         _ => abort("expected a string extern body")
       }
     }

@@ -34,18 +34,18 @@
 ///|
 /// A value variable together with its annotated type. Upstream core couples the
 /// id and the type in `core.ValueVar`; here the two travel together explicitly.
-pub(all) struct PMVar {
+priv struct PMVar {
   id : Sym
   tpe : ValueType
 }
 
 ///|
-pub fn PMVar::PMVar(id : Sym, tpe : ValueType) -> PMVar {
+fn PMVar::PMVar(id : Sym, tpe : ValueType) -> PMVar {
   { id, tpe, }
 }
 
 ///|
-pub fn PMVar::to_expr(self : PMVar) -> Expr {
+fn PMVar::to_expr(self : PMVar) -> Expr {
   ValueVar(self.id, self.tpe)
 }
 
@@ -119,13 +119,13 @@ pub(all) enum PMPattern {
 
 ///|
 /// A variable and the pattern it is matched against.
-pub(all) struct PMVarPattern {
+priv struct PMVarPattern {
   variable : PMVar
   pattern : PMPattern
 }
 
 ///|
-pub fn PMVarPattern::PMVarPattern(
+fn PMVarPattern::PMVarPattern(
   variable : PMVar,
   pattern : PMPattern,
 ) -> PMVarPattern {
@@ -135,7 +135,7 @@ pub fn PMVarPattern::PMVarPattern(
 ///|
 /// The conditions need to be met in sequence before the block at the clause's
 /// label can be evaluated with the given type and value arguments.
-pub(all) enum PMCondition {
+priv enum PMCondition {
   /// All of the patterns need to match for this condition to be met.
   PMPatterns(Map[Int32, PMVarPattern])
   /// A boolean predicate that needs to be branched on at runtime.
@@ -147,7 +147,7 @@ pub(all) enum PMCondition {
 ///|
 /// One disjunct of a match: a conjunction of conditions and the joinpoint to
 /// call when all of them are met.
-pub(all) struct PMClause {
+priv struct PMClause {
   conditions : Array[PMCondition]
   label : BlockVar
   targs : Array[ValueType]
@@ -155,7 +155,7 @@ pub(all) struct PMClause {
 }
 
 ///|
-pub fn PMClause::PMClause(
+fn PMClause::PMClause(
   conditions : Array[PMCondition],
   label : BlockVar,
   targs : Array[ValueType],
@@ -469,7 +469,7 @@ fn pm_split_on_tag(
           PMTag(constructor, tparams, _, patterns_and_types),
           rest_patterns,
           rest_conds,
-        )
+        ),
       ) => {
         // NOTE: Ideally, we would use a `DeclarationContext` here, but we
         // cannot: we're currently in the Source->Core transformer, so we do not
