@@ -671,20 +671,9 @@ fn Transformer::transform_captures(
   self : Transformer,
   capt : Captures,
 ) -> Captures {
-  match capt {
-    // upstream: Context.panic("... should be a concrete capture set in this phase.")
-    CaptVar(_) => capt
-    CaptureSetOf(cs) => {
-      let out : Array[Sym] = []
-      for c in cs {
-        match self.capture_substitution.get(c.uid()) {
-          Some(replacement) => out.append(replacement.to_array())
-          None => out.push(c)
-        }
-      }
-      CaptureSetOf(dedup_syms(out))
-    }
-  }
+  // upstream: Context.panic("... should be a concrete capture set in this phase.")
+  guard capt is CaptureSetOf(cs) else { return capt }
+  captures_union(cs, c => self.capture_substitution.get(c.uid()))
 }
 
 // ---------------------------------------------------------------------------

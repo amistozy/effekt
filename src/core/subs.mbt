@@ -120,20 +120,8 @@ fn substitute_captures_with(
   if csubst.is_empty() {
     return capt
   }
-  match capt {
-    CaptureSetOf(cs) => {
-      guard cs.any(c => csubst.contains(c.uid())) else { return capt }
-      let out : Array[Sym] = []
-      for c in cs {
-        match csubst.get(c.uid()) {
-          Some(replacement) => out.append(replacement.to_array())
-          None => out.push(c)
-        }
-      }
-      CaptureSetOf(dedup_syms(out))
-    }
-    CaptVar(_) => capt
-  }
+  guard capt is CaptureSetOf(cs) else { return capt }
+  captures_union(cs, c => csubst.get(c.uid()))
 }
 
 ///|

@@ -99,25 +99,8 @@ pub fn Substitutions::substitute_captures(
 ) -> Captures {
   match c {
     @symbols.Captures::CaptVar(x) => self.captures.get(x.uid()).unwrap_or(c)
-    @symbols.Captures::CaptureSetOf(cs) => {
-      let out : Array[Sym] = []
-      for s in cs {
-        match self.captures.get(s.uid()) {
-          Some(@symbols.Captures::CaptureSetOf(ys)) =>
-            for y in ys {
-              if !out.contains(y) {
-                out.push(y)
-              }
-            }
-          Some(@symbols.Captures::CaptVar(y)) =>
-            if !out.contains(y) {
-              out.push(y)
-            }
-          None => if !out.contains(s) { out.push(s) }
-        }
-      }
-      @symbols.Captures::CaptureSetOf(out)
-    }
+    @symbols.Captures::CaptureSetOf(cs) =>
+      @symbols.captures_union(cs, s => self.captures.get(s.uid()))
   }
 }
 

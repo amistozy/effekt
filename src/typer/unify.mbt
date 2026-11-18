@@ -146,21 +146,10 @@ fn Unification::prune_captures(self : Unification, c : Captures) -> Captures {
         Some(s) => self.prune_captures(s)
         None => c
       }
-    @symbols.Captures::CaptureSetOf(cs) => {
-      let out : Array[Sym] = []
-      for s in cs {
-        match self.capts.get(s.uid()) {
-          Some(sol) =>
-            for y in self.prune_captures(sol).to_array() {
-              if !out.contains(y) {
-                out.push(y)
-              }
-            }
-          None => if !out.contains(s) { out.push(s) }
-        }
-      }
-      @symbols.Captures::CaptureSetOf(out)
-    }
+    @symbols.Captures::CaptureSetOf(cs) =>
+      @symbols.captures_union(cs, s => {
+        self.capts.get(s.uid()).map(sol => self.prune_captures(sol))
+      })
   }
 }
 

@@ -209,25 +209,33 @@ fn[T] all(
 }
 
 ///|
+/// The unique symbol bound to `name` in `terms`: `None` when the name is not
+/// bound, and an abort when it is bound more than once. Upstream reports the
+/// ambiguous reference from `lookupFirstTerm`, which is why every *plain*
+/// lookup goes through this and only `lookupOverloaded` keeps the list.
+pub fn unique_term(
+  terms : Map[String, Array[Sym]],
+  name : String,
+) -> Sym? raise EffektError {
+  match terms.get(name) {
+    None => None
+    Some(syms) => {
+      guard syms.length() <= 1 else {
+        raise EffektError::Fatal("Ambiguous reference to \{name}")
+      }
+      syms.get(0)
+    }
+  }
+}
+
+///|
 /// Searches the nested scopes for the first term with the given name.
 pub fn Scoping::lookup_first_term_option(
   self : Scoping,
   path : ArrayView[String],
   name : String,
 ) -> Sym? raise EffektError {
-  first(path, self.scope, b => {
-    match b.terms.get(name) {
-      None => None
-      Some(syms) =>
-        if syms.length() > 1 {
-          raise EffektError::Fatal("Ambiguous reference to \{name}")
-        } else if syms.is_empty() {
-          None
-        } else {
-          Some(syms[0])
-        }
-    }
-  })
+  first(path, self.scope, b => unique_term(b.terms, name))
 }
 
 ///|
@@ -267,19 +275,7 @@ fn Scope::lookup_term_option(
   path : ArrayView[String],
   name : String,
 ) -> Sym? raise EffektError {
-  first(path, self, b => {
-    match b.terms.get(name) {
-      None => None
-      Some(syms) =>
-        if syms.length() > 1 {
-          raise EffektError::Fatal("Ambiguous reference to \{name}")
-        } else if syms.is_empty() {
-          None
-        } else {
-          Some(syms[0])
-        }
-    }
-  })
+  first(path, self, b => unique_term(b.terms, name))
 }
 
 ///|
@@ -308,18 +304,7 @@ pub fn lookup_term_in_scope(
 ) -> Sym? raise EffektError {
   match scope.lookup_term_option([], name) {
     Some(sym) => Some(sym)
-    None =>
-      match imports.terms.get(name) {
-        None => None
-        Some(syms) =>
-          if syms.length() > 1 {
-            raise EffektError::Fatal("Ambiguous reference to \{name}")
-          } else if syms.is_empty() {
-            None
-          } else {
-            Some(syms[0])
-          }
-      }
+    None => unique_term(imports.terms, name)
   }
 }
 

@@ -370,17 +370,7 @@ fn Namer::lookup_term(
       return Some(sym)
     }
     let imported = in_bindings(self.imports, p, bindings => {
-      match bindings.terms.get(name) {
-        None => None
-        Some(syms) =>
-          if syms.length() > 1 {
-            raise EffektError::Fatal("Ambiguous reference to \{name}")
-          } else if syms.is_empty() {
-            None
-          } else {
-            Some(syms[0])
-          }
-      }
+      @symbols.unique_term(bindings.terms, name)
     })
     if imported is Some(sym) {
       return Some(sym)

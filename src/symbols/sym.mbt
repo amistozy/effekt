@@ -860,6 +860,26 @@ pub fn dedup_syms(xs : ArrayView[Sym]) -> Array[Sym] {
 }
 
 ///|
+/// The union of the captures that `solution` maps the captures of `cs` to; a
+/// capture without an entry is kept itself. The order is preserved and
+/// duplicates are dropped, so this is the substitution's view of a capture set:
+/// `Substitution::substitute_captures_with`, the core transformer's
+/// `transform_captures` and the typer's two capture resolvers are its callers.
+pub fn captures_union(
+  cs : ArrayView[Sym],
+  solution : (Sym) -> Captures?,
+) -> Captures {
+  let out : Array[Sym] = []
+  for c in cs {
+    match solution(c) {
+      Some(replacement) => out.append(replacement.to_array())
+      None => out.push(c)
+    }
+  }
+  CaptureSetOf(dedup_syms(out))
+}
+
+///|
 pub fn Captures::diff(self : Captures, other : Captures) -> Captures {
   match (self, other) {
     (CaptureSetOf(a), CaptureSetOf(b)) =>

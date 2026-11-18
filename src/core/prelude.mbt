@@ -36,6 +36,7 @@ using @symbols {
   type Name,
   type Captures,
   dedup_syms,
+  captures_union,
   // built-in symbols
   core_builtin_to_string,
   // type queries (mirrors the parts of `core/Type.scala` we do port)
