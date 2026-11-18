@@ -276,19 +276,13 @@ fn unit_lit() -> @source.Term {
 ///|
 /// Is `name` bound as a type in `bindings`?
 fn has_type(bindings : @symbols.Bindings, name : String) -> Bool {
-  match bindings.types.get(name) {
-    Some(_) => true
-    None => false
-  }
+  bindings.types.get(name) is Some(_)
 }
 
 ///|
 /// Is `name` bound as a term in `bindings`?
 fn has_term(bindings : @symbols.Bindings, name : String) -> Bool {
-  match bindings.terms.get(name) {
-    Some(_) => true
-    None => false
-  }
+  bindings.terms.get(name) is Some(_)
 }
 
 ///|

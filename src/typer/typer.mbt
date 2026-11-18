@@ -1123,7 +1123,7 @@ fn Typer::unknowns_block(self : Typer, t : BlockType) -> Array[String] {
 fn dedup_syms_strings(xs : ArrayView[String]) -> Array[String] {
   let out : Array[String] = []
   for x in xs {
-    if !out.any(y => y == x) {
+    if !out.contains(x) {
       out.push(x)
     }
   }

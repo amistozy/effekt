@@ -289,13 +289,11 @@ fn show_test_instance_def(
   out : @core.ModuleDecl,
   tpe : @core.ValueType,
 ) -> (@symbols.Sym, @core.BlockLit)? {
-  for i = f.module.definitions.length(); i < out.definitions.length(); i = i + 1 {
-    match out.definitions[i] {
-      @core.ToplevelDef(id, @core.BlockLit(lit)) =>
-        if lit.vparams.length() == 1 && lit.vparams[0].tpe == tpe {
-          return Some((id, lit))
-        }
-      _ => ()
+  for defn in out.definitions[f.module.definitions.length():] {
+    if defn is @core.ToplevelDef(id, @core.BlockLit(lit)) &&
+      lit.vparams.length() == 1 &&
+      lit.vparams[0].tpe == tpe {
+      return Some((id, lit))
     }
   }
   None

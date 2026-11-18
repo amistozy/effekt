@@ -567,10 +567,8 @@ priv struct Deadcode {
 ///|
 /// `Deadcode.used` (Deadcode.scala:12).
 fn Deadcode::used(self : Deadcode, id : Sym) -> Bool {
-  match self.reachable.get(id.uid()) {
-    Some(Never) | None => false
-    Some(_) => true
-  }
+  guard self.reachable.get(id.uid()) is Some(usage) else { return false }
+  usage != Never
 }
 
 ///|
@@ -587,32 +585,22 @@ fn Deadcode::unused(self : Deadcode, id : Sym) -> Bool {
 /// as long as it is used (and is then reported by the backend).
 fn Deadcode::rewrite_module(self : Deadcode, m : ModuleDecl) -> ModuleDecl {
   // drop unused constructors and operations, and types
-  let declarations : Array[Declaration] = []
-  for d in m.declarations {
-    if self.used(d.id()) {
-      declarations.push(self.rewrite_declaration(d))
-    }
-  }
+  let declarations = m.declarations
+    .filter(d => self.used(d.id()))
+    .map(d => self.rewrite_declaration(d))
   // drop unreachable externs
-  let externs : Array[Extern] = []
-  for e in m.externs {
+  let externs = m.externs.filter(e => {
     match e {
-      ExternDef(id, _, _, _, _, _, _, _, _) =>
-        if self.used(id) {
-          externs.push(e)
-        }
-      ExternInclude(_, _) => externs.push(e)
-      ExternData(id, _, _) => if self.used(id) { externs.push(e) }
-      ExternInterface(id, _, _) => if self.used(id) { externs.push(e) }
+      ExternInclude(_, _) => true
+      ExternDef(id, _, _, _, _, _, _, _, _) => self.used(id)
+      ExternData(id, _, _) => self.used(id)
+      ExternInterface(id, _, _) => self.used(id)
     }
-  }
+  })
   // drop unreachable definitions
-  let definitions : Array[Toplevel] = []
-  for d in m.definitions {
-    if self.used(d.id()) {
-      definitions.push(self.rewrite_toplevel(d))
-    }
-  }
+  let definitions = m.definitions
+    .filter(d => self.used(d.id()))
+    .map(d => self.rewrite_toplevel(d))
   ModuleDecl(m.path, m.includes, declarations, externs, definitions, m.exports)
 }
 
@@ -623,24 +611,10 @@ fn Deadcode::rewrite_declaration(
   d : Declaration,
 ) -> Declaration {
   match d {
-    DeclarationData(id, tparams, constructors) => {
-      let kept : Array[Constructor] = []
-      for c in constructors {
-        if self.used(c.id) {
-          kept.push(c)
-        }
-      }
-      DeclarationData(id, tparams, kept)
-    }
-    DeclarationInterface(id, tparams, properties) => {
-      let kept : Array[Property] = []
-      for p in properties {
-        if self.used(p.id) {
-          kept.push(p)
-        }
-      }
-      DeclarationInterface(id, tparams, kept)
-    }
+    DeclarationData(id, tparams, constructors) =>
+      DeclarationData(id, tparams, constructors.filter(c => self.used(c.id)))
+    DeclarationInterface(id, tparams, properties) =>
+      DeclarationInterface(id, tparams, properties.filter(p => self.used(p.id)))
   }
 }
 
@@ -661,12 +635,9 @@ fn Deadcode::rewrite_implementation(
   self : Deadcode,
   implementation : Implementation,
 ) -> Implementation {
-  let operations : Array[Operation] = []
-  for op in implementation.operations {
-    if self.used(op.name) {
-      operations.push(self.rewrite_operation(op))
-    }
-  }
+  let operations = implementation.operations
+    .filter(op => self.used(op.name))
+    .map(op => self.rewrite_operation(op))
   Implementation(implementation.interface, operations)
 }
 
@@ -764,12 +735,9 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
       }
     }
     Match(scrutinee, annotated, clauses, default) => {
-      let clauses2 : Array[Clause] = []
-      for clause in clauses {
-        if self.used(clause.tag) {
-          clauses2.push(Clause(clause.tag, self.rewrite_block_lit(clause.body)))
-        }
-      }
+      let clauses2 = clauses
+        .filter(clause => self.used(clause.tag))
+        .map(clause => Clause(clause.tag, self.rewrite_block_lit(clause.body)))
       let default2 = default.map(body => self.rewrite_stmt(body))
       Match(self.rewrite_expr(scrutinee), annotated, clauses2, default2)
     }

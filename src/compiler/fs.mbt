@@ -13,12 +13,8 @@
 ///|
 /// Reads a file, returning `None` when there is no readable file at `path`.
 pub fn read_file(path : String) -> String? {
-  if file_exists(path) {
-    Some(@fs.read_file_to_string(path)) catch {
-      _ => None
-    }
-  } else {
-    None
+  Some(@fs.read_file_to_string(path)) catch {
+    _ => None
   }
 }
 
@@ -65,4 +61,30 @@ pub fn join_path(a : String, b : String) -> String {
 /// Makes `path` absolute, following `node:path`'s `resolve`.
 pub fn resolve_path(path : String) -> String {
   @path.Path(path).resolve().0
+}
+
+///|
+/// Replaces Windows path separators with `/`.
+pub fn normalize_separators(p : String) -> String {
+  p.replace_all(old="\\", new="/")
+}
+
+///|
+/// The last segment of `path`: `foo/bar.effekt` and `C:\work\bar.effekt` both
+/// end in `bar.effekt`.
+fn base_name(path : String) -> String {
+  let segments = normalize_separators(path)
+    .split("/")
+    .map(s => s.to_owned())
+    .collect()
+  match segments {
+    [.., last] => last
+    [] => path
+  }
+}
+
+///|
+/// `s` without a trailing `suffix`, or `s` itself when it does not end in it.
+fn without_suffix(s : String, suffix : StringView) -> String {
+  s.strip_suffix(suffix).unwrap_or(s).to_owned()
 }

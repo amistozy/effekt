@@ -965,10 +965,7 @@ fn[T] SpannedTemplate::unspan_template(
 ///|
 /// Does this info carry any documentation or modifier?
 fn Info::is_non_empty(self : Info) -> Bool {
-  match self.doc {
-    Some(_) => true
-    None => self.is_private || self.is_extern
-  }
+  self.doc is Some(_) || self.is_private || self.is_extern
 }
 
 ///|

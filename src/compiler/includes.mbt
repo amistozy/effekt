@@ -18,27 +18,23 @@ fn resolve_includes(
 ///|
 fn resolve_includes_def(d : Def, source : Source, ctx : Context) -> Def {
   let kind = match d.kind {
-    @source.ExternInclude(flag, path, contents) =>
-      match contents {
-        Some(_) => d.kind
-        None =>
-          // Only load the include when it is needed by the current backend
-          // (upstream `Namer`: `if (ff matches supportedFeatureFlags)`), so that
-          // e.g. a Chez-only include does not have to exist for the JS backend.
-          if !flag.matches_any(@source.supported_flags(ctx)) {
-            d.kind
-          } else {
-            let base = dirname(source.name)
-            let full = join_path(base, path)
-            let loaded = read_file(full)
-            if loaded is None {
-              ctx.error(
-                d.span,
-                "Cannot find extern include '\{path}' (looked at \{full}).",
-              )
-            }
-            @source.ExternInclude(flag, path, loaded)
-          }
+    // Only load the include when it is needed by the current backend
+    // (upstream `Namer`: `if (ff matches supportedFeatureFlags)`), so that e.g.
+    // a Chez-only include does not have to exist for the JS backend. One that
+    // was loaded already (a second module including the same file) is kept.
+    @source.ExternInclude(flag, path, None) =>
+      if flag.matches_any(@source.supported_flags(ctx)) {
+        let full = join_path(dirname(source.name), path)
+        let loaded = read_file(full)
+        if loaded is None {
+          ctx.error(
+            d.span,
+            "Cannot find extern include '\{path}' (looked at \{full}).",
+          )
+        }
+        @source.ExternInclude(flag, path, loaded)
+      } else {
+        d.kind
       }
     @source.NamespaceDef(id, defs) =>
       @source.NamespaceDef(

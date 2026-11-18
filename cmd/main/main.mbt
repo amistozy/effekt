@@ -19,11 +19,12 @@ fn write_output(out : String, js : String) -> String? {
 ///|
 fn run(args : Array[String]) -> Int32 {
   let (opts, arg_errors) = @compiler.parse_args(args)
-  if opts.show_help || (args.length() == 0 && !opts.show_help) {
+  // No argument at all is a request for the usage, like `--help`.
+  if opts.show_help || args.is_empty() {
     println(@compiler.usage())
     return 0
   }
-  if arg_errors.length() > 0 {
+  if !arg_errors.is_empty() {
     // argparse renders the message together with the usage and the option
     // list; report it on stderr like every other diagnostic.
     for e in arg_errors {
@@ -63,41 +64,32 @@ fn run(args : Array[String]) -> Int32 {
     @compiler.eprintln(diagnostics.trim_end().to_owned())
   }
   if opts.show_core {
-    match core_dump {
-      Some(ir) => println(ir)
-      None => ()
+    if core_dump is Some(ir) {
+      println(ir)
     }
     return if result.failed { 1 } else { 0 }
   }
-  match result.output {
-    None => if result.failed { 1 } else { 0 }
-    Some(js) =>
-      if opts.show_js {
-        println(js)
-        0
-      } else {
-        let out = match opts.output {
-          Some(o) => o
-          None => @compiler.default_output(opts.input)
-        }
-        match write_output(out, js) {
-          Some(message) => {
-            @compiler.eprintln(message)
-            1
-          }
-          None => {
-            @compiler.eprintln("Wrote \{out}")
-            // The generated module only *exports* `main`; like the upstream
-            // runner, we also wrote a tiny script that invokes it.
-            let driver = @compiler.runner_path(out)
-            if opts.run {
-              @compiler.run_node(driver)
-            } else {
-              0
-            }
-          }
-        }
-      }
+  guard result.output is Some(js) else {
+    return if result.failed { 1 } else { 0 }
+  }
+  if opts.show_js {
+    println(js)
+    return 0
+  }
+  let out = opts.output.unwrap_or_else(() => {
+    @compiler.default_output(opts.input)
+  })
+  if write_output(out, js) is Some(message) {
+    @compiler.eprintln(message)
+    return 1
+  }
+  @compiler.eprintln("Wrote \{out}")
+  // The generated module only *exports* `main`; like the upstream runner, we
+  // also wrote a tiny script that invokes it.
+  if opts.run {
+    @compiler.run_node(@compiler.runner_path(out))
+  } else {
+    0
   }
 }
 

@@ -201,11 +201,28 @@ You can browse and install extra skills here:
   `(isStatic zip arguments).collect { case (false, arg) => arg }`, so the
   faithful spelling is one line each —
   `static.zip(args).filter_map(pair => if pair.0 { None } else { Some(pair.1) })`
-  — and `zip`'s truncation is `collect`'s. The same goes for `String::find` /
+  — and `zip`'s truncation is `collect`'s. `Array::zip` wants two `Array`s, so a
+  parameter that is an `ArrayView` next to an `Array` field is zipped through the
+  whole-array view: `for (bparam, barg) in b.bparams[:].zip(bargs)` (the core
+  library writes `xs[:]` 767 times for exactly that); the `if i < ys.length()`
+  guard the loop needed is `zip`'s truncation. The same goes for `String::find` /
   `String::rev_find`: they return the code-unit offset (`Int32?`) of the first /
   last occurrence, so a scan that only looks for the first `.` (the module name
   of a file) or the last `/` is that call plus a slice
   (`base.find(".").unwrap_or(base.length())`, `name[start:]`, `base[:end]`).
+
+  **Removing a known suffix or prefix is `strip_suffix`/`strip_prefix`, not
+  `has_suffix` plus a slice.** `String::strip_suffix(self, StringView)` returns
+  the remainder as a `StringView?`, so the "it has it, cut it, otherwise keep it"
+  shape is one expression — `s.strip_suffix(".effekt").unwrap_or(s).to_owned()`,
+  which the compiler library writes as
+  `arg.strip_prefix("--").unwrap_or(arg)` — and the driver's `base_name`/
+  `without_suffix` helpers are the three hand-written versions of it that
+  `module_path_of`, `default_output` and `runner_path` had (no more magic
+  `length() - 7` / `length() - 3`). Collapsing *consecutive* duplicates is
+  `xs.dedup()` (in place, returning `Unit`): `render_messages` carried a
+  `let mut previous = ""` comparison plus a `StringBuilder` that was one `dedup`
+  and one `join`.
 
   **String ordering is `String::lexical_compare`, not home-made.** `String`'s own
   `Compare` orders by *length first* (`"b" < "az"`, because 1 < 2), which is not
@@ -611,7 +628,13 @@ You can browse and install extra skills here:
   did. Deleting is cheap (git keeps the history) and it pulls the next one out
   by the roots: `show_core_stmt_hint` existed only for one deleted panic
   message, and `moon check -d` reports it the moment its last caller goes.
-  `moon info` then shrinks `.mbti` to match.
+  `moon info` then shrinks `.mbti` to match. The same count deletes a whole
+  *family*: `Loader::closure` and the `Loader::visit` it called were the loader's
+  own dependency-order depth-first search, superseded by the driver's
+  `collect_order` (which also detects cycles and reports them with spans);
+  nothing called either, and deleting the pair took 35 lines out of `loader.mbt`
+  and a `pub fn` out of `.mbti`. `backend.aggregate` was the one-step-smaller
+  version — a live function that only its own package calls — and became `fn`.
 
   **`pub` means "another package reads this".** An exported item that only its
   own package (and its own `*_test.mbt`, which is a separate blackbox package)

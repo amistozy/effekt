@@ -50,7 +50,7 @@ fn middle_end(
     cores.push(core)
   }
   // 2. Aggregate into a single core module.
-  let main_module = modules[modules.length() - 1]
+  let main_module = modules.last().unwrap()
   let aggregated = aggregate(cores, main_module.module.path)
   // 2b. Remove the definitions and externs that `main` cannot reach (upstream:
   //     `Aggregate andThen Deadcode andThen core.Show andThen ...`). This keeps
@@ -167,7 +167,7 @@ pub fn emit(
   // can actually call are reported (once per distinct message).
   let reported : Array[String] = []
   for (span, message) in @js.take_unsupported_messages() {
-    if !reported.any(m => m == message) {
+    if !reported.contains(message) {
       reported.push(message)
       ctx.warning(span, message)
     }
@@ -178,15 +178,7 @@ pub fn emit(
 ///|
 /// All term symbols exported by a module.
 fn exports_of(module : @symbols.Module) -> Array[Sym] {
-  let out : Array[Sym] = []
-  for _name, syms in module.exports.terms {
-    for s in syms {
-      if !out.contains(s) {
-        out.push(s)
-      }
-    }
-  }
-  out
+  @symbols.dedup_syms(module.exports.terms.values().to_array().flatten())
 }
 
 ///|
@@ -208,7 +200,7 @@ fn find_main(modules : ArrayView[@namer.ResolvedModule], ctx : Context) -> Sym? 
   if modules.is_empty() {
     return None
   }
-  let module = modules[modules.length() - 1]
+  let module = modules.last().unwrap()
   let found : Array[Sym] = []
   collect_mains(ctx, module.tree.defs, found)
   match found {
@@ -231,18 +223,11 @@ fn collect_mains(
   for d in defs {
     match d.kind {
       @source.DefKind::FunDef(id, _, _, _, _, _, _) =>
-        if id.name == main_name() {
-          if ctx.symbol_of(id.uid) is Some(sym) {
-            if !out.contains(sym) {
-              out.push(sym)
-            }
-          }
+        if id.name == main_name() &&
+          ctx.symbol_of(id.uid) is Some(sym) &&
+          !out.contains(sym) {
+          out.push(sym)
         }
-      _ => ()
-    }
-  }
-  for d in defs {
-    match d.kind {
       @source.DefKind::NamespaceDef(_, inner) => collect_mains(ctx, inner, out)
       _ => ()
     }
@@ -263,7 +248,7 @@ fn find_infix_eqs(modules : ArrayView[@namer.ResolvedModule]) -> Array[Sym] {
 ///|
 /// Concatenates core modules (dependencies first) into one, mirroring
 /// `Compiler.Aggregate`.
-pub fn aggregate(
+fn aggregate(
   cores : ArrayView[@core.ModuleDecl],
   main_path : String,
 ) -> @core.ModuleDecl {
@@ -275,11 +260,14 @@ pub fn aggregate(
     declarations.append(c.declarations)
     externs.append(c.externs)
     definitions.append(c.definitions)
-    for e in c.exports {
-      if !exports.contains(e) {
-        exports.push(e)
-      }
-    }
+    exports.append(c.exports)
   }
-  @core.ModuleDecl(main_path, [], declarations, externs, definitions, exports)
+  @core.ModuleDecl(
+    main_path,
+    [],
+    declarations,
+    externs,
+    definitions,
+    @symbols.dedup_syms(exports),
+  )
 }

@@ -9,11 +9,7 @@
 ///|
 /// The path of the runner script for the given output file.
 pub fn runner_path(output : String) -> String {
-  if output.has_suffix(".js") {
-    "\{output[0:output.length() - 3].to_owned()}__main.js"
-  } else {
-    "\{output}__main.js"
-  }
+  "\{without_suffix(output, ".js")}__main.js"
 }
 
 ///|
@@ -23,12 +19,5 @@ pub fn runner_path(output : String) -> String {
 /// a `.js` extension, but `-o` accepts anything), so the runner requires
 /// exactly that file name.
 pub fn runner_contents(output : String) -> String {
-  let normalized = normalize_separators(output)
-  let segments = normalized.split("/").map(s => s.to_owned()).collect()
-  let base = if segments.is_empty() {
-    normalized
-  } else {
-    segments[segments.length() - 1]
-  }
-  "require(\"./\{base}\").main()\n"
+  "require(\"./\{base_name(output)}\").main()\n"
 }

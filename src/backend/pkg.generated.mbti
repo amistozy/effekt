@@ -2,15 +2,12 @@
 package "amistozy/effekt/src/backend"
 
 import {
-  "amistozy/effekt/src/core",
   "amistozy/effekt/src/namer",
   "amistozy/effekt/src/source",
   "amistozy/effekt/src/util",
 }
 
 // Values
-pub fn aggregate(ArrayView[@core.ModuleDecl], String) -> @core.ModuleDecl
-
 pub fn emit(ArrayView[@namer.ResolvedModule], @source.Context) -> String raise @util.EffektError
 
 pub fn show_core(ArrayView[@namer.ResolvedModule], @source.Context) -> String raise @util.EffektError

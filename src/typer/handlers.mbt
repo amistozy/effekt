@@ -485,7 +485,7 @@ fn Typer::check_implementation(
   let covered : Array[Sym] = implementation.clauses.map(c => {
     self.symbol_of_id(c.id)
   })
-  let not_covered = operations.filter(o => !covered.any(c => c == o))
+  let not_covered = operations.filter(o => !covered.contains(o))
   if !not_covered.is_empty() {
     let names : Array[String] = not_covered.map(o => o.name().name)
     self.error(

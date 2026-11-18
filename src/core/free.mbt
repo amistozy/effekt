@@ -64,34 +64,20 @@ pub fn Free::contains(self : Free, id : Sym) -> Bool {
 ///|
 /// All free ids, values and blocks together.
 fn Free::free_ids(self : Free) -> Array[Sym] {
-  let out : Array[Sym] = []
-  for _, v in self.values {
-    out.push(v.id)
-  }
-  for _, b in self.blocks {
-    out.push(b.id)
-  }
-  out
+  self.values.values().map(v => v.id).to_array() +
+  self.blocks.values().map(b => b.id).to_array()
 }
 
 ///|
 /// All free values.
 fn Free::free_values(self : Free) -> Array[FreeValue] {
-  let out : Array[FreeValue] = []
-  for _, v in self.values {
-    out.push(v)
-  }
-  out
+  self.values.values().to_array()
 }
 
 ///|
 /// All free blocks.
 fn Free::free_blocks(self : Free) -> Array[FreeBlock] {
-  let out : Array[FreeBlock] = []
-  for _, b in self.blocks {
-    out.push(b)
-  }
-  out
+  self.blocks.values().to_array()
 }
 
 ///|

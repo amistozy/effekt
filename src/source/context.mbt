@@ -303,7 +303,7 @@ fn Context::copy_annotations(self : Context, from : Int32, to : Int32) -> Unit {
 
 ///|
 pub fn Context::supports(self : Context, flag : String) -> Bool {
-  self.config.feature_flags.any(f => f == flag)
+  self.config.feature_flags.contains(flag)
 }
 
 // The result of the namer phase

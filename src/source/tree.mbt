@@ -126,7 +126,7 @@ pub fn FeatureFlag::matches_any(
   names : ArrayView[String],
 ) -> Bool {
   match self {
-    NamedFeatureFlag(n) => names.any(x => x == n)
+    NamedFeatureFlag(n) => names.contains(n)
     Default => true
   }
 }

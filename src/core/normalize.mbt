@@ -1082,15 +1082,9 @@ fn Normalizer::normalize_val(
       )
     }
     // [[ val x = return e; s ]] = let x = [[ e ]]; [[ s ]]
-    Return(exprs) => {
-      let pairs : Array[(Sym, Expr)] = []
-      for i, expr in exprs {
-        if i < ids.length() {
-          pairs.push((ids[i], expr))
-        }
-      }
-      self.normalize_let(pairs, body, ctx)
-    }
+    Return(exprs) =>
+      // upstream zips the ids with the returned expressions, which truncates
+      self.normalize_let(ids.zip(exprs), body, ctx)
     // Commute `val` and bindings
     Def(id2, block2, body2) =>
       Def(
@@ -1240,27 +1234,26 @@ fn Normalizer::reduce(
 ) -> Stmt raise EffektError {
   let bindings : Array[Binding] = []
   let bvars : Array[Block] = []
-  for i, bparam in b.bparams {
-    if i < bargs.length() {
-      match bargs[i] {
-        BlockVar(bv) => {
-          // u1 + (u2 - 1)
-          self.usage.set(
-            bv.id.uid(),
-            self.usage_of(bparam.id) + self.usage_of(bv.id).decrement(),
-          )
-          bvars.push(BlockVar(bv))
-        }
-        block => {
-          let id = Sym::tmp_block("blockBinding")
-          bindings.push(BindingDef(id, block))
-          bvars.push(
-            BlockVar(
-              BlockVar::BlockVar(id, block.infer_type(), block_captures(block)),
-            ),
-          )
-          self.copy_usage_one(id, bparam.id)
-        }
+  // upstream zips the parameters with the arguments, which truncates
+  for (bparam, barg) in b.bparams[:].zip(bargs) {
+    match barg {
+      BlockVar(bv) => {
+        // u1 + (u2 - 1)
+        self.usage.set(
+          bv.id.uid(),
+          self.usage_of(bparam.id) + self.usage_of(bv.id).decrement(),
+        )
+        bvars.push(BlockVar(bv))
+      }
+      block => {
+        let id = Sym::tmp_block("blockBinding")
+        bindings.push(BindingDef(id, block))
+        bvars.push(
+          BlockVar(
+            BlockVar::BlockVar(id, block.infer_type(), block_captures(block)),
+          ),
+        )
+        self.copy_usage_one(id, bparam.id)
       }
     }
   }
@@ -1431,13 +1424,10 @@ fn adjust_type_args(
   if targs.length() == count {
     return targs
   }
-  let out : Array[ValueType] = []
-  for i in 0..<count {
-    if i < targs.length() {
-      out.push(targs[i])
-    } else {
-      out.push(unknown_value_type())
-    }
+  // a slice clamps at both ends, so this truncates to the first `count`
+  let out = targs[:count].to_owned()
+  for _ in out.length()..<count {
+    out.push(unknown_value_type())
   }
   out
 }

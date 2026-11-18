@@ -240,7 +240,7 @@ fn Namer::import_dependency(
       let included = dep.module
       // Importing the same module twice is a no-op (the driver prepends the
       // implicit prelude include, so `import effekt` occurs twice).
-      if self.imported.any(p => p == path) {
+      if self.imported.contains(path) {
         return Some(included)
       }
       self.imported.push(path)
@@ -1455,7 +1455,7 @@ fn Namer::resolve_clause(
     let names : Array[Name] = []
     for p in ps {
       let name = p.name()
-      if names.any(n => n == name) {
+      if names.contains(name) {
         self.context.error(
           clause.span,
           "Patterns have to be linear: names can only occur once, but \{name.name} shows up multiple times.",

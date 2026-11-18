@@ -40,12 +40,9 @@ pub(all) struct CompileResult {
 /// prelude is looked up here only.
 fn library_roots(opts : Options) -> Array[String] {
   let lib = resolve_path(opts.lib_path)
-  let roots : Array[String] = [lib]
-  roots.push(join_path(lib, "common"))
   // The JavaScript backend's library directory: `import mutable/map` resolves
   // to `<lib>/js/mutable/map.effekt` (upstream `backendIncludes`).
-  roots.push(join_path(lib, "js"))
-  roots
+  [lib, join_path(lib, "common"), join_path(lib, "js")]
 }
 
 ///|
@@ -62,15 +59,11 @@ fn library_roots(opts : Options) -> Array[String] {
 /// `examples/t_import.effekt`.
 pub fn search_paths(input : String, opts : Options) -> Array[String] {
   let roots = library_roots(opts)
-  for p in opts.include_paths {
-    let resolved = resolve_path(p)
-    if !roots.any(r => r == resolved) {
-      roots.push(resolved)
-    }
-  }
   let input_dir = dirname(resolve_path(input))
-  if !roots.any(r => r == input_dir) {
-    roots.push(input_dir)
+  for p in opts.include_paths.map(resolve_path) + [input_dir] {
+    if !roots.contains(p) {
+      roots.push(p)
+    }
   }
   roots
 }
@@ -99,11 +92,10 @@ pub fn compile_file(
     let loader = Loader(search_paths(opts.input, opts))
     // The prelude is provided by the library, never by the input's directory.
     loader.set_prelude_roots(library_roots(opts))
-    let parsed = (pipeline.parse)(source, ctx)
-    if parsed is None {
+    guard (pipeline.parse)(source, ctx) is Some(parsed) else {
       return { output: None, messages: ctx.messages.copy(), failed: true, }
     }
-    let tree = resolve_includes(parsed.unwrap(), source, ctx)
+    let tree = resolve_includes(parsed, source, ctx)
     let main_path = module_path_of(opts.input)
     // The main module is registered under a collision-free key: a program file
     // may be called `exception.effekt` and the prelude module of that name has
@@ -147,12 +139,7 @@ pub fn compile_file(
       let checked = (pipeline.typecheck)(r.tree, ctx)
       resolved.set(path, { ..r, tree: checked, })
     }
-    let trees : Array[@namer.ResolvedModule] = []
-    for path in order {
-      if resolved.get(path) is Some(r) {
-        trees.push(r)
-      }
-    }
+    let trees = order.filter_map(path => resolved.get(path))
 
     if ctx.has_errors() {
       None
@@ -228,7 +215,7 @@ fn collect_order(
   }
   // Already part of the order (a diamond, or the same file reached by another
   // include path): nothing to do.
-  if visited.any(p => p == source) {
+  if visited.contains(source) {
     return true
   }
   if stack.search_by(entry => entry.source == source) is Some(on_stack) {
@@ -274,45 +261,30 @@ fn report_cycle(
 ) -> Unit {
   let root = stack[from]
   let root_tree = loader.tree_of(root.key)
-  let root_name = match root_tree {
-    Some(t) => t.path
-    None => root.key
-  }
+  let root_name = module_name(loader, root.key)
   // `ModuleDecl.path` is the declared module name (`module cyclic_a`).
-  let names : Array[String] = []
-  let vias : Array[String] = []
-  for entry in stack[from:] {
-    match loader.tree_of(entry.key) {
-      Some(t) => names.push(t.path)
-      None => names.push(entry.key)
-    }
-    vias.push(entry.via)
-  }
+  let names = stack[from:].map(entry => module_name(loader, entry.key))
+  let vias = stack[from:].map(entry => entry.via)
   // The cycle is closed by the include that led back to the root, whose path
   // names the root module.
   vias[0] = via
   let cycle = "\{names.join(" -> ")} -> \{root_name}"
   let span = match root_tree {
     Some(t) => {
-      let mut first : Span? = None
+      let mut first = Span::missing()
       for inc in t.includes {
-        if first is None && !inc.span.is_missing() {
-          first = Some(inc.span)
+        if !inc.span.is_missing() {
+          first = inc.span
+          break
         }
       }
-      match first {
-        Some(s) => s
-        None => Span::missing()
-      }
+      first
     }
     None => Span::missing()
   }
   // Upstream's `Source.name` for an imported module is `./<path>.effekt`
   // (`VirtualFileSource`); `moduleOf` strips the `.effekt` again.
-  let dependencies : Array[String] = ["./\{vias[0]}"]
-  for i in vias.length()>..1 {
-    dependencies.push("./\{vias[i]}")
-  }
+  let dependencies = vias.map(v => "./\{v}")
   // The cycle is reported on the loader's view of the root, i.e. under the
   // include path that closed the cycle (`./<path>.effekt`).
   let cycle_span = if span.origin == Missing {
@@ -330,7 +302,7 @@ fn report_cycle(
   // Each "Cannot compile dependency" is reported at the include that caused it:
   // the first one closes the cycle, in the last module on the stack, and the
   // others are the includes of the modules that follow the root.
-  let closing = stack[stack.length() - 1]
+  let closing = stack.last().unwrap()
   ctx.error(
     visited_span(include_span_of(loader, closing.key, vias[0]), closing),
     "Cannot compile dependency: \{dependencies[0]}",
@@ -360,45 +332,35 @@ fn visited_span(span : Span, visit : Visit) -> Span {
 }
 
 ///|
-/// The span of the `include "<path>"` in the module registered under `key`, or
-/// a missing span when there is none (it may have been resolved through a
-/// search path).
-fn include_span_of(loader : Loader, key : String, path : String) -> Span {
+/// The declared module name of the module registered under `key` (`ModuleDecl.path`
+/// is the declared name, `module cyclic_a`), or the key itself when it has not
+/// been loaded.
+fn module_name(loader : Loader, key : String) -> String {
   match loader.tree_of(key) {
-    Some(t) => {
-      for inc in t.includes {
-        if inc.path == path {
-          return inc.span
-        }
-      }
-      Span::missing()
-    }
-    None => Span::missing()
+    Some(t) => t.path
+    None => key
   }
 }
 
 ///|
-/// Replaces Windows path separators with `/`.
-pub fn normalize_separators(p : String) -> String {
-  p.replace_all(old="\\", new="/")
+/// The span of the `include "<path>"` in the module registered under `key`, or
+/// a missing span when there is none (it may have been resolved through a
+/// search path).
+fn include_span_of(loader : Loader, key : String, path : String) -> Span {
+  guard loader.tree_of(key) is Some(t) else { return Span::missing() }
+  for inc in t.includes {
+    if inc.path == path {
+      return inc.span
+    }
+  }
+  Span::missing()
 }
 
 ///|
 /// The module path of a file, derived from its name (`foo/bar.effekt` -> `bar`,
 /// `foo/effekt.effekt` -> `effekt`).
 pub fn module_path_of(file : String) -> String {
-  let normalized = normalize_separators(file)
-  let segments = normalized.split("/").map(s => s.to_owned()).collect()
-  let last = if segments.is_empty() {
-    normalized
-  } else {
-    segments[segments.length() - 1]
-  }
-  if last.has_suffix(".effekt") {
-    last[0:last.length() - 7].to_owned()
-  } else {
-    last
-  }
+  without_suffix(base_name(file), ".effekt")
 }
 
 ///|
@@ -415,17 +377,14 @@ pub fn render_messages(messages : ArrayView[Message]) -> String {
   // so the order diagnostics were reported in is kept where they coincide
   let sorted = messages.to_owned()
   sorted.mut_view().stable_sort_by((a, b) => compare_positions(a.span, b.span))
-  let buf = StringBuilder()
-  let mut previous = ""
-  for m in sorted {
-    let rendered = m.render()
-    if rendered != previous {
-      buf.write_string(rendered)
-      buf.write_string("\n")
-      previous = rendered
-    }
+  let lines = sorted.map(m => m.render())
+  // `distinct` on the *formatted* messages, which the sort above made adjacent
+  lines.dedup()
+  if lines.is_empty() {
+    ""
+  } else {
+    "\{lines.join("\n")}\n"
   }
-  buf.to_string()
 }
 
 ///|
@@ -445,9 +404,5 @@ fn compare_positions(a : Span, b : Span) -> Int32 {
 ///|
 /// The default output path for the given input file.
 pub fn default_output(input : String) -> String {
-  if input.has_suffix(".effekt") {
-    "\{input[0:input.length() - 7].to_owned()}.js"
-  } else {
-    "\{input}.js"
-  }
+  "\{without_suffix(input, ".effekt")}.js"
 }

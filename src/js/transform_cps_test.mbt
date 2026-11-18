@@ -879,7 +879,7 @@ test "js: a main with capability parameters is rejected" {
       )
     }
     @util.EffektError::Internal(msg) =>
-      assert_true(false, msg="unexpected internal error: \{msg}")
+      fail("unexpected internal error: \{msg}")
   }
   assert_true(
     rejected,

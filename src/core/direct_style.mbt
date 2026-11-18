@@ -105,11 +105,10 @@ pub fn direct_style(module : ModuleDecl) -> ModuleDecl raise EffektError {
           if stmt_can_be_direct(rewritten_binding) {
             let l = Sym::tmp_block("l")
             let result_types = rewritten_binding.infer_type()
-            let vparams : Array[ValueParam] = []
             // upstream zips the ids with the results, which truncates
-            for i in 0..<ids.length().min(result_types.length()) {
-              vparams.push(ValueParam(ids[i], result_types[i]))
-            }
+            let vparams = ids
+              .zip(result_types)
+              .map(pair => ValueParam(pair.0, pair.1))
             let joinpoint = BlockLit::BlockLit(
               [],
               [],

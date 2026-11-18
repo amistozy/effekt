@@ -27,18 +27,12 @@ fn closure_of(input : String, messages : Array[@util.Message]) -> Array[String] 
       desugared
     },
     emit: (modules, _ctx) => {
-      let seen : Array[String] = []
-      for m in modules {
-        seen.push(m.module.path)
-      }
-      paths.val = seen
+      paths.val = modules.map(m => m.module.path)
       ""
     },
   }
   let result = @compiler.compile_file(opts, pipeline, @source.Config::default())
-  for m in result.messages {
-    messages.push(m)
-  }
+  messages.append(result.messages)
   paths.val
 }
 
@@ -61,16 +55,10 @@ test "the exception module exports its interface as a type" {
   let deps : Map[String, @namer.ResolvedModule] = { "effekt": prelude }
   let tree = loader.load_tree("exception", ctx, @source.parse_module_decl)
   let resolved = @namer.resolve_module(tree, ctx, deps)
-  let type_names : Array[String] = []
-  for name, _ in resolved.module.exports.types {
-    type_names.push(name)
-  }
-  let term_names : Array[String] = []
-  for name, _ in resolved.module.exports.terms {
-    term_names.push(name)
-  }
-  assert_true(type_names.any(n => n == "Exception"))
-  assert_true(term_names.any(n => n == "raise"))
+  let type_names = resolved.module.exports.types.keys().to_array()
+  let term_names = resolved.module.exports.terms.keys().to_array()
+  assert_true(type_names.contains("Exception"))
+  assert_true(term_names.contains("raise"))
 }
 
 ///|
@@ -81,7 +69,7 @@ test "the driver hands the dependency closure to the backend" {
     println(m.render())
   }
   assert_eq(messages.filter(m => m.severity == @util.Error).length(), 0)
-  assert_true(paths.any(p => p == "effekt"))
-  assert_true(paths.any(p => p == "exception"))
-  assert_eq(paths[paths.length() - 1], "import_handler")
+  assert_true(paths.contains("effekt"))
+  assert_true(paths.contains("exception"))
+  assert_eq(paths.last().unwrap(), "import_handler")
 }

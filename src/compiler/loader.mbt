@@ -16,7 +16,7 @@ fn prelude_paths() -> Array[String] {
 
 ///|
 fn is_prelude_path(path : String) -> Bool {
-  prelude_paths().any(p => p == path)
+  prelude_paths().contains(path)
 }
 
 ///|
@@ -39,13 +39,9 @@ fn Loader::implicit_includes(self : Loader, path : String) -> Array[Include] {
 ///|
 /// The implicit includes themselves, regardless of the importing module.
 fn Loader::prelude_includes(self : Loader) -> Array[Include] {
-  let out : Array[Include] = []
-  for p in prelude_paths() {
-    if locate_in(self.prelude_roots, p) is Some(_) {
-      out.push({ path: p, span: Span::missing(), })
-    }
-  }
-  out
+  prelude_paths()
+  .filter(p => locate_in(self.prelude_roots, p) is Some(_))
+  .map(p => { path: p, span: Span::missing(), })
 }
 
 ///|
@@ -145,13 +141,7 @@ pub fn Loader::load_tree(
         )
       }
       let file = located.unwrap()
-      let source = Source(
-        file,
-        match read_file(file) {
-          Some(c) => c
-          None => ""
-        },
-      )
+      let source = Source(file, read_file(file).unwrap_or(""))
       let parsed = parse(source, ctx)
       if parsed is None {
         ctx.abort(Span::missing(), "Could not parse module '\{path}'.")
@@ -168,41 +158,6 @@ pub fn Loader::load_tree(
       tree
     }
   }
-}
-
-///|
-/// Computes the transitive dependency closure of `path` in topological order
-/// (dependencies first). The prelude is not included here.
-pub fn Loader::closure(
-  self : Loader,
-  path : String,
-  ctx : Context,
-  parse : (Source, Context) -> ModuleDecl? raise EffektError,
-) -> Array[String] raise EffektError {
-  let order : Array[String] = []
-  let visited : Array[String] = []
-  self.visit(path, ctx, parse, visited, order)
-  order
-}
-
-///|
-fn Loader::visit(
-  self : Loader,
-  path : String,
-  ctx : Context,
-  parse : (Source, Context) -> ModuleDecl? raise EffektError,
-  visited : Array[String],
-  order : Array[String],
-) -> Unit raise EffektError {
-  if visited.any(p => p == path) {
-    return
-  }
-  visited.push(path)
-  let tree = self.load_tree(path, ctx, parse)
-  for inc in tree.includes {
-    self.visit(inc.path, ctx, parse, visited, order)
-  }
-  order.push(path)
 }
 
 ///|
