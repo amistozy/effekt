@@ -403,8 +403,13 @@ pub fn Sym::decl(self : Sym) -> Span {
 
 ///|
 /// Symbols are compared by identity (`uid`), not by name.
+///
+/// The physical-equality fast path matters: capture sets are compared and
+/// deduplicated element by element, and most comparisons in those loops see
+/// the very same symbol object, which is much cheaper to check than two
+/// `base()` dispatches.
 pub impl Eq for Sym with fn equal(self, other) {
-  self.uid() == other.uid()
+  physical_equal(self, other) || self.uid() == other.uid()
 }
 
 ///|
@@ -865,6 +870,9 @@ pub fn dedup_syms(xs : ArrayView[Sym]) -> Array[Sym] {
 /// duplicates are dropped, so this is the substitution's view of a capture set:
 /// `Substitution::substitute_captures_with`, the core transformer's
 /// `transform_captures` and the typer's two capture resolvers are its callers.
+///
+/// The result is deduplicated while it is built (a set is small, and the
+/// alternative rebuilds it once more afterwards).
 pub fn captures_union(
   cs : ArrayView[Sym],
   solution : (Sym) -> Captures?,
@@ -872,11 +880,17 @@ pub fn captures_union(
   let out : Array[Sym] = []
   for c in cs {
     match solution(c) {
-      Some(replacement) => out.append(replacement.to_array())
-      None => out.push(c)
+      Some(CaptureSetOf(xs)) =>
+        for x in xs {
+          if !out.contains(x) {
+            out.push(x)
+          }
+        }
+      Some(CaptVar(x)) => if !out.contains(x) { out.push(x) }
+      None => if !out.contains(c) { out.push(c) }
     }
   }
-  CaptureSetOf(dedup_syms(out))
+  CaptureSetOf(out)
 }
 
 ///|

@@ -216,6 +216,11 @@ fn build_precedence_table() -> PrecedenceTable {
 }
 
 ///|
+/// The parser's precedence table, built once: it is a pure function of the
+/// token kinds and read-only afterwards, and every module used to rebuild it.
+let precedence_table : PrecedenceTable = build_precedence_table()
+
+///|
 fn PrecedenceTable::is_operator(self : PrecedenceTable, op : TokenKind) -> Bool {
   self.ops.contains(op)
 }
@@ -318,7 +323,7 @@ pub fn Parser::Parser(
     start: 0,
     fail_position: 0,
     diagnostics: [],
-    precedence: build_precedence_table(),
+    precedence: precedence_table,
   }
   // HACK: eat spaces before we begin!
   parser.spaces()

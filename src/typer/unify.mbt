@@ -52,8 +52,12 @@ pub fn Unification::copy(self : Unification) -> Unification {
     lower: self.lower.copy(),
     upper: self.upper.copy(),
     links: self.links.copy(),
-    var_of: self.var_of.copy(),
-    capt_var: self.capt_var.copy(),
+    // `var_of`/`capt_var` are only ever *read by key* and only grow: a variable
+    // created by a rolled-back candidate is never looked up again (every fresh
+    // variable gets a fresh uid), so a snapshot can share them instead of
+    // copying two module-wide tables.
+    var_of: self.var_of,
+    capt_var: self.capt_var,
   }
 }
 
@@ -100,11 +104,6 @@ pub fn Unification::underlying(self : Unification, x : Sym) -> Sym {
 
 // Substitution
 // ------------
-
-///|
-pub fn Unification::substitution(self : Unification) -> Substitutions {
-  { values: self.types.copy(), captures: self.capts.copy(), }
-}
 
 ///|
 fn Unification::prune_value(self : Unification, t : ValueType) -> ValueType {
@@ -195,19 +194,81 @@ pub fn Unification::set_type(
 ///|
 /// Re-normalises the substitution, so that solutions never mention solved
 /// variables (`{?B} -> Box[?R]` becomes `{?B} -> Box[Int]` once `?R := Int`).
+///
+/// This runs after every `set_type`, so it must not rebuild solutions that
+/// cannot change: the `mentions_*` test below is a cheap walk without
+/// allocation, and the updates are collected and applied after the iteration
+/// (the substitution reads the live tables instead of copying them).
 fn Unification::update_substitution(self : Unification) -> Unit {
-  let subst = self.substitution()
+  let subst : Substitutions = { values: self.types, captures: self.capts, }
+  let type_updates : Array[(Int32, ValueType)] = []
   for k, v in self.types {
-    let updated = subst.substitute_value(v)
-    if !(updated == v) {
-      self.types.set(k, updated)
+    if self.mentions_solution(v) {
+      let updated = subst.substitute_value(v)
+      if !(updated == v) {
+        type_updates.push((k, updated))
+      }
     }
   }
+  let capt_updates : Array[(Int32, Captures)] = []
   for k, v in self.capts {
-    let updated = subst.substitute_captures(v)
-    if !(updated == v) {
-      self.capts.set(k, updated)
+    if self.mentions_solved_capture(v) {
+      let updated = subst.substitute_captures(v)
+      if !(updated == v) {
+        capt_updates.push((k, updated))
+      }
     }
+  }
+  for (k, v) in type_updates {
+    self.types.set(k, v)
+  }
+  for (k, v) in capt_updates {
+    self.capts.set(k, v)
+  }
+}
+
+///|
+/// Whether substituting `t` could change it: it mentions a type variable that
+/// has a solution (directly, or inside a block type, an effect or a capture
+/// set).
+fn Unification::mentions_solution(self : Unification, t : ValueType) -> Bool {
+  match t {
+    @symbols.ValueType::ValueTypeRef(x) => self.types.contains(x.uid())
+    @symbols.ValueType::ValueTypeApp(_, args) =>
+      args.any(a => self.mentions_solution(a))
+    @symbols.ValueType::BoxedType(b, c) =>
+      self.mentions_solution_in_block(b) || self.mentions_solved_capture(c)
+  }
+}
+
+///|
+fn Unification::mentions_solution_in_block(
+  self : Unification,
+  t : BlockType,
+) -> Bool {
+  match t {
+    @symbols.BlockType::InterfaceType(_, args) =>
+      args.any(a => self.mentions_solution(a))
+    @symbols.BlockType::FunctionType(_, capts, vps, bps, ret, effs) =>
+      capts.any(c => self.mentions_solved_capture(c)) ||
+      vps.any(v => self.mentions_solution(v)) ||
+      bps.any(b => self.mentions_solution_in_block(b)) ||
+      self.mentions_solution(ret) ||
+      effs.effects.any(e => self.mentions_solution_in_block(e))
+  }
+}
+
+///|
+/// Whether substituting `c` could change it: it mentions a capture variable
+/// that has a solution.
+fn Unification::mentions_solved_capture(
+  self : Unification,
+  c : Captures,
+) -> Bool {
+  match c {
+    @symbols.Captures::CaptVar(x) => self.capts.contains(x.uid())
+    @symbols.Captures::CaptureSetOf(cs) =>
+      cs.any(s => self.capts.contains(s.uid()))
   }
 }
 
@@ -250,13 +311,39 @@ fn Unification::propagate(self : Unification) -> String? {
     changed = false
     rounds = rounds + 1
     for (a, b, filter) in self.links {
-      // lower(a) - filter flows into lower(b)
-      for c in self.lower_of(a) {
-        if !filter.contains(c) && !self.lower_of(b).contains(c) {
-          let next = self.lower_of(b).copy()
-          next.push(c)
-          self.lower.set(b, next)
-          changed = true
+      // lower(a) - filter flows into lower(b). The lower bound of `b` is copied
+      // at most once per link and written back at the end, instead of looking
+      // it up and copying it for every propagated capture.
+      if self.lower.get(a) is Some(la) {
+        let mut lower_b : Array[Sym]? = None
+        for c in la {
+          if filter.contains(c) {
+            continue
+          }
+          let present = match lower_b {
+            Some(lb) => lb.contains(c)
+            None =>
+              match self.lower.get(b) {
+                Some(lb) => lb.contains(c)
+                None => false
+              }
+          }
+          if !present {
+            let lb = match lower_b {
+              Some(lb) => lb
+              None =>
+                match self.lower.get(b) {
+                  Some(lb) => lb.copy()
+                  None => []
+                }
+            }
+            lb.push(c)
+            lower_b = Some(lb)
+            changed = true
+          }
+        }
+        if lower_b is Some(lb) {
+          self.lower.set(b, lb)
         }
       }
       // upper(b) + filter flows into upper(a)
@@ -273,13 +360,12 @@ fn Unification::propagate(self : Unification) -> String? {
             self.upper.set(a, target)
             changed = true
           }
-          Some(ua) => {
-            let intersection = ua.filter(c => target.contains(c))
-            if intersection.length() != ua.length() {
-              self.upper.set(a, intersection)
+          Some(ua) =>
+            // Only build the intersection when it can shrink the bound.
+            if !ua.all(c => target.contains(c)) {
+              self.upper.set(a, ua.filter(c => target.contains(c)))
               changed = true
             }
-          }
         }
       }
     }

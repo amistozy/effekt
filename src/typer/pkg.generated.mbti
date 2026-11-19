@@ -185,7 +185,6 @@ pub fn Unification::Unification() -> Self
 pub fn Unification::copy(Self) -> Self
 pub fn Unification::is_type_var(Self, @symbols.Sym) -> Bool
 pub fn Unification::set_type(Self, @symbols.Sym, @symbols.ValueType) -> Unit
-pub fn Unification::substitution(Self) -> Substitutions
 pub fn Unification::underlying(Self, @symbols.Sym) -> @symbols.Sym
 
 // Type aliases
