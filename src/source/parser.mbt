@@ -502,7 +502,9 @@ fn Parser::saw_newline_last(self : Parser) -> Bool raise EffektError {
   for i in self.position>..0 {
     let token = self.fail_on_error_token(self.tokens[i], i)
     guard token.kind.is_space() && token.kind != TNewline else {
-      return token.kind == TNewline
+      // A raw string is always terminated by a newline, and the terminator is
+      // part of its token, so no `TNewline` follows it (upstream `sawNewlineLast`).
+      return token.kind == TNewline || token.kind is TRawStr(_, _)
     }
   }
   self.fail("Unexpected start of file")

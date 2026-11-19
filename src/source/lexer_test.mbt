@@ -175,6 +175,7 @@ test "lexer: symbols" {
     "=> <= < >= > / * - && ++ + EOF",
   )
   assert_eq(kinds("== !="), "=== !== EOF")
+  assert_eq(kinds("-- -= -"), "-- -= - EOF")
   assert_eq(
     kinds(":= :: .. ... ^^ ~ ~> <~ += -= *= /="),
     ":= :: .. ... ^^ ~ ~> <~ += -= *= /= EOF",

@@ -11,7 +11,9 @@
 #                 expected severity on the expected line
 #
 # The baseline can only grow: raise it after every improvement, never lower it
-# without removing a test.
+# without removing a test. Re-syncing the corpus to a newer upstream re-bases it
+# (that is a new set of tests, not a regression); the numbers and the reason are
+# recorded in the commit message and in `testdata/upstream/README.md`.
 #
 # Usage: powershell -File scripts/upstream.ps1 [-Filter <substring>] [-ShowWording] [-Strict]
 
@@ -32,14 +34,14 @@ Push-Location $root
 # Compiling one file loads the whole prelude, so the corpus is split across a
 # few background jobs to keep the wall-clock time reasonable.
 $jobs = 6
-$positiveBaseline = 415
+$positiveBaseline = 429
 # Every negative test matches: severity and line as `EffektTests.scala` does for
 # the tests that only carry `// ERROR` comments, and the wording of all of them
 # (`-ShowWording` reports any that differ). `-Strict` additionally compares the
 # whole rendered diagnostic of the tests that carry a `.check` file; the
 # baseline counts the ones whose full text is identical to upstream's.
-$negativeBaseline = 203
-$negativeStrictBaseline = 203
+$negativeBaseline = 238
+$negativeStrictBaseline = 189
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
 moon build --target js 2>&1 | Out-Null

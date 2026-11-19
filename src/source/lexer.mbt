@@ -489,6 +489,7 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
       self.advance_k(1)
       self.number()
     }
+    ('-', '-') => self.advance_with(2, TMinusMinus)
     ('-', '=') => self.advance_with(2, TMinusEq)
     ('-', _) => self.advance_with(1, TMinus)
     ('*', '=') => self.advance_with(2, TStarEq)
