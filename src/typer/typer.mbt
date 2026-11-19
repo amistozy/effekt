@@ -85,9 +85,11 @@ pub(all) struct TyperState {
   /// smaller than the previous one counts as a recursion level; the guard in
   /// `with_implicit_guard` aborts a runaway chain.
   mut implicit_stack : Map[String, (Int32, Int32)]
-  vt : Map[Int32, ValueType]
-  bt : Map[Int32, BlockType]
-  ct : Map[Int32, Captures]
+  /// The typing context of symbols (see `CowMap`: a backup shares these and
+  /// copies them on the first write).
+  vt : CowMap[ValueType]
+  bt : CowMap[BlockType]
+  ct : CowMap[Captures]
   /// Persistent, so a backup shares it and a write replaces it (see
   /// `Annotations`).
   mut ann : Annotations
@@ -107,9 +109,9 @@ fn TyperState::backup(self : TyperState) -> TyperState {
     cap_scope: self.cap_scope,
     current: self.current,
     implicit_stack: self.implicit_stack.copy(),
-    vt: self.vt.copy(),
-    bt: self.bt.copy(),
-    ct: self.ct.copy(),
+    vt: self.vt.snapshot(),
+    bt: self.bt.snapshot(),
+    ct: self.ct.snapshot(),
     ann: self.ann,
   }
 }
@@ -168,9 +170,9 @@ pub fn Typer::Typer(ctx : Context) -> Typer {
       cap_scope: GlobalCap,
       current: Captures::empty(),
       implicit_stack: Map([]),
-      vt: Map([]),
-      bt: Map([]),
-      ct: Map([]),
+      vt: CowMap::new(),
+      bt: CowMap::new(),
+      ct: CowMap::new(),
       ann: Annotations(),
     },
     muting: false,
@@ -1244,13 +1246,13 @@ fn Typer::check_module(
 fn Typer::commit(self : Typer) -> Unit {
   let u = self.st.u
   // the typing context (symbols)
-  for uid, t in self.st.vt {
+  for uid, t in self.st.vt.iter2() {
     self.ctx.assign_value_type(uid, u.prune_value(t))
   }
-  for uid, t in self.st.bt {
+  for uid, t in self.st.bt.iter2() {
     self.ctx.assign_block_type(uid, u.prune_block(t))
   }
-  for uid, c in self.st.ct {
+  for uid, c in self.st.ct.iter2() {
     self.ctx.assign_capture(uid, u.prune_captures(c))
   }
   // inferred annotations (tree nodes)

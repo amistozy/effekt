@@ -15,14 +15,14 @@
 ///|
 pub struct Unification {
   /// Solution of type unification variables (already pruned).
-  types : Map[Int32, ValueType]
+  types : CowMap[ValueType]
   /// Solution of capture unification variables.
-  capts : Map[Int32, Captures]
+  capts : CowMap[Captures]
   /// Concrete *lower* bounds of capture unification variables.
-  lower : Map[Int32, Array[Sym]]
+  lower : CowMap[Array[Sym]]
   /// Concrete *upper* bounds of capture unification variables. Absence means
   /// "no bound learned yet" (i.e. top).
-  upper : Map[Int32, Array[Sym]]
+  upper : CowMap[Array[Sym]]
   /// Subcapturing links `(lower, upper, filter)`; see `propagate`.
   links : Array[(Int32, Int32, Array[Sym])]
   /// The type parameter a unification variable was instantiated for.
@@ -34,10 +34,10 @@ pub struct Unification {
 ///|
 pub fn Unification::Unification() -> Unification {
   {
-    types: Map([]),
-    capts: Map([]),
-    lower: Map([]),
-    upper: Map([]),
+    types: CowMap::new(),
+    capts: CowMap::new(),
+    lower: CowMap::new(),
+    upper: CowMap::new(),
     links: [],
     var_of: Map([]),
     capt_var: Map([]),
@@ -47,10 +47,10 @@ pub fn Unification::Unification() -> Unification {
 ///|
 pub fn Unification::copy(self : Unification) -> Unification {
   {
-    types: self.types.copy(),
-    capts: self.capts.copy(),
-    lower: self.lower.copy(),
-    upper: self.upper.copy(),
+    types: self.types.snapshot(),
+    capts: self.capts.snapshot(),
+    lower: self.lower.snapshot(),
+    upper: self.upper.snapshot(),
     links: self.links.copy(),
     // `var_of`/`capt_var` are only ever *read by key* and only grow: a variable
     // created by a rolled-back candidate is never looked up again (every fresh
@@ -200,9 +200,12 @@ pub fn Unification::set_type(
 /// allocation, and the updates are collected and applied after the iteration
 /// (the substitution reads the live tables instead of copying them).
 fn Unification::update_substitution(self : Unification) -> Unit {
-  let subst : Substitutions = { values: self.types, captures: self.capts, }
+  let subst : Substitutions = {
+    values: self.types.view(),
+    captures: self.capts.view(),
+  }
   let type_updates : Array[(Int32, ValueType)] = []
-  for k, v in self.types {
+  for k, v in self.types.iter2() {
     if self.mentions_solution(v) {
       let updated = subst.substitute_value(v)
       if !(updated == v) {
@@ -211,7 +214,7 @@ fn Unification::update_substitution(self : Unification) -> Unit {
     }
   }
   let capt_updates : Array[(Int32, Captures)] = []
-  for k, v in self.capts {
+  for k, v in self.capts.iter2() {
     if self.mentions_solved_capture(v) {
       let updated = subst.substitute_captures(v)
       if !(updated == v) {
@@ -371,7 +374,7 @@ fn Unification::propagate(self : Unification) -> String? {
     }
   }
   // consistency of all nodes
-  for uid, lo in self.lower {
+  for uid, lo in self.lower.iter2() {
     if self.upper.get(uid) is Some(up) {
       let diff = lo.filter(c => !up.contains(c))
       // Upstream's `Constraints.checkConsistency`.

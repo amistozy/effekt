@@ -646,6 +646,10 @@ fn Parser::span(self : Parser) -> Span {
 ///|
 /// The handler for the "span" effect: everything parsed inside `p` reports its
 /// span relative to the first token `p` sees.
+///
+/// Only the token's start is needed here, so the token is read directly: going
+/// through `peek_token` would run the error-token recovery of every production's
+/// first token twice (`consume` and friends do it when they look at the token).
 fn[T] Parser::nonterminal(
   self : Parser,
   p : () -> T raise EffektError,
@@ -654,7 +658,7 @@ fn[T] Parser::nonterminal(
   defer {
     self.start = saved
   }
-  self.start = self.peek_token().start
+  self.start = self.raw_token_at(self.position).start
   p()
 }
 
