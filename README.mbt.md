@@ -18,7 +18,7 @@ files. The whole language compiles, not a subset.
 | `moon test --target js` | 250 unit tests |
 | `scripts/e2e.ps1` | 26 end-to-end checks |
 | `scripts/stdlib.ps1` | 49 of 49 standard library modules compile |
-| `scripts/upstream.ps1 -Strict` | 430 of 440 programs match, 238 of 243 rejections match, 189 of 234 diagnostics verbatim |
+| `scripts/upstream.ps1 -Strict` | 432 of 440 programs match, 238 of 243 rejections match, 189 of 234 diagnostics verbatim |
 
 Every gate is green on every commit, against the baselines `upstream.ps1` keeps;
 they may only grow, apart from a re-sync that moves the corpus. The corpus,
@@ -34,7 +34,7 @@ lacks, or import a module that upstream itself does not ship.
 The programs that do not match yet are the ones upstream gained after
 `6fbff0b0e`, and they need work this port still owes: `core.Mono`, which upstream
 runs before `core.Show` and without which the structural `show` of a generic data
-type is not resolved (3 programs), and the newer overloading resolution — an
+type is not resolved (1 program, `show/wrapper`), and the newer overloading resolution — an
 `x.f(...)` call, a cut-off candidate, a value shadowing a function (7 programs) —
 together with upstream's reworked overload diagnostics, which draw each candidate
 with its source, drop duplicated errata, and report the error inside an argument

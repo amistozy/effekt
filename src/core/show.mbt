@@ -695,7 +695,13 @@ fn ShowContext::constructor_clauses(
 ) -> Clause raise EffektError {
   Clause(
     constr.id,
-    BlockLit::BlockLit([], [], vparams, [], self.constructor_stmt(dctx, constr)),
+    BlockLit::BlockLit(
+      [],
+      [],
+      vparams,
+      [],
+      self.constructor_stmt(dctx, constr, vparams),
+    ),
   )
 }
 
@@ -706,12 +712,16 @@ fn ShowContext::constructor_stmt(
   self : ShowContext,
   dctx : DeclarationContext,
   constr : Constructor,
+  vparams : Array[ValueParam],
 ) -> Stmt raise EffektError {
   let infix_concat = find_extern_def(dctx, show_string_concat_name, [
     t_string(),
     t_string(),
   ])
-  let pure_fields = constr.fields.map(field => self.field_pure(dctx, field))
+  let pure_fields : Array[(Sym, Stmt)] = []
+  for i, field in constr.fields {
+    pure_fields.push(self.field_pure(dctx, field, vparams[i].tpe))
+  }
   let concatenated = PureApp(infix_concat, [], [
     Literal(LString("\{constr.id.name().name}("), t_string()),
     concat_pure(dctx, pure_fields),
@@ -768,12 +778,22 @@ fn field_val_stmts(
 
 ///|
 /// `(Id("field"), App(getShowBlockVar(paramTpe), List.empty, List(ValueVar(id, paramTpe)), List.empty))`
+///
+/// `paramTpe` is the type the constructor parameter was given by
+/// [[ShowContext::constructor_vparams]], not what `field.tpe` looks up to *now*:
+/// generating the instance of one field can bind the type parameters again (a
+/// `Pair[Pair[Int, Bool], Pair[Bool, Int]]` generates the instance for
+/// `Pair[Int, Bool]` while resolving its first field, which rebinds `A` and `B`),
+/// and re-looking the second field up would then see those bindings. Upstream
+/// does not run into this because it monomorphizes first (`core.Mono`), so its
+/// constructors have no type parameters left; resolving the fields once, before
+/// any instance is generated, has the same effect here.
 fn ShowContext::field_pure(
   self : ShowContext,
   dctx : DeclarationContext,
   field : Field,
+  param_tpe : ValueType,
 ) -> (Sym, Stmt) raise EffektError {
-  let param_tpe = self.lookup_type(field.tpe)
   let app = App(
     BlockVar(self.get_show_block_var(dctx, param_tpe)),
     [],
