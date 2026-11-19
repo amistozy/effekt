@@ -9,7 +9,7 @@
 
 ///|
 /// A table that copies itself when it is written while shared.
-pub(all) struct CowMap[V] {
+pub struct CowMap[V] {
   mut data : Map[Int32, V]
   mut frozen : Bool
 }
@@ -44,8 +44,8 @@ fn[V] CowMap::iter2(self : CowMap[V]) -> Iter2[Int32, V] {
 }
 
 ///|
-/// The underlying table, shared for reading. The caller must not write it (the
-/// type checker uses this to read the live tables through Substitutions).
+/// The underlying table, shared for reading. The caller must not write it: the
+/// type checker uses this to read the live tables through `Substitutions`.
 fn[V] CowMap::view(self : CowMap[V]) -> Map[Int32, V] {
   self.data
 }

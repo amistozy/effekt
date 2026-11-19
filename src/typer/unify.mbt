@@ -205,7 +205,7 @@ fn Unification::update_substitution(self : Unification) -> Unit {
     captures: self.capts.view(),
   }
   let type_updates : Array[(Int32, ValueType)] = []
-  for k, v in self.types.iter2() {
+  for k, v in self.types {
     if self.mentions_solution(v) {
       let updated = subst.substitute_value(v)
       if !(updated == v) {
@@ -214,7 +214,7 @@ fn Unification::update_substitution(self : Unification) -> Unit {
     }
   }
   let capt_updates : Array[(Int32, Captures)] = []
-  for k, v in self.capts.iter2() {
+  for k, v in self.capts {
     if self.mentions_solved_capture(v) {
       let updated = subst.substitute_captures(v)
       if !(updated == v) {
@@ -374,7 +374,7 @@ fn Unification::propagate(self : Unification) -> String? {
     }
   }
   // consistency of all nodes
-  for uid, lo in self.lower.iter2() {
+  for uid, lo in self.lower {
     if self.upper.get(uid) is Some(up) {
       let diff = lo.filter(c => !up.contains(c))
       // Upstream's `Constraints.checkConsistency`.

@@ -51,7 +51,7 @@ pub(all) enum CapScope {
   BindAll(Map[String, @symbols.Sym], CapScope)
 }
 
-pub(all) struct CowMap[V] {
+pub struct CowMap[V] {
   mut data : Map[Int32, V]
   mut frozen : Bool
 }

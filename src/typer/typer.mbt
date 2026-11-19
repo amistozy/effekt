@@ -85,8 +85,9 @@ pub(all) struct TyperState {
   /// smaller than the previous one counts as a recursion level; the guard in
   /// `with_implicit_guard` aborts a runaway chain.
   mut implicit_stack : Map[String, (Int32, Int32)]
-  /// The typing context of symbols (see `CowMap`: a backup shares these and
-  /// copies them on the first write).
+  /// The typing context of symbols: value types, block types and captures. A
+  /// backup shares these tables and the first write copies the one it writes
+  /// (see `CowMap`).
   vt : CowMap[ValueType]
   bt : CowMap[BlockType]
   ct : CowMap[Captures]
@@ -1246,47 +1247,47 @@ fn Typer::check_module(
 fn Typer::commit(self : Typer) -> Unit {
   let u = self.st.u
   // the typing context (symbols)
-  for uid, t in self.st.vt.iter2() {
+  for uid, t in self.st.vt {
     self.ctx.assign_value_type(uid, u.prune_value(t))
   }
-  for uid, t in self.st.bt.iter2() {
+  for uid, t in self.st.bt {
     self.ctx.assign_block_type(uid, u.prune_block(t))
   }
-  for uid, c in self.st.ct.iter2() {
+  for uid, c in self.st.ct {
     self.ctx.assign_capture(uid, u.prune_captures(c))
   }
   // inferred annotations (tree nodes)
-  for uid, t in self.st.ann.value.iter2() {
+  for uid, t in self.st.ann.value {
     self.ctx.assign_value_type(uid, u.prune_value(t))
   }
-  for uid, t in self.st.ann.block.iter2() {
+  for uid, t in self.st.ann.block {
     self.ctx.assign_block_type(uid, u.prune_block(t))
   }
-  for uid, e in self.st.ann.effect.iter2() {
+  for uid, e in self.st.ann.effect {
     self.ctx.assign_effects(uid, u.prune_effects(e))
   }
-  for uid, c in self.st.ann.capt.iter2() {
+  for uid, c in self.st.ann.capt {
     self.ctx.assign_capture(uid, u.prune_captures(c))
   }
-  for uid, targs in self.st.ann.type_args.iter2() {
+  for uid, targs in self.st.ann.type_args {
     self.ctx.assign_type_arguments(uid, targs.map(t => u.prune_value(t)))
   }
-  for uid, caps in self.st.ann.bound_caps.iter2() {
+  for uid, caps in self.st.ann.bound_caps {
     self.ctx.assign_bound_capabilities(uid, caps)
   }
-  for uid, cap in self.st.ann.cap_receiver.iter2() {
+  for uid, cap in self.st.ann.cap_receiver {
     self.ctx.assign_capability_receiver(uid, cap)
   }
-  for uid, caps in self.st.ann.cap_args.iter2() {
+  for uid, caps in self.st.ann.cap_args {
     self.ctx.assign_capability_arguments(uid, caps)
   }
-  for uid, sym in self.st.ann.symbols.iter2() {
+  for uid, sym in self.st.ann.symbols {
     self.ctx.assign_symbol(uid, sym)
   }
-  for uid, args in self.st.ann.impl_vargs.iter2() {
+  for uid, args in self.st.ann.impl_vargs {
     self.ctx.assign_implicit_value_args(uid, args)
   }
-  for uid, args in self.st.ann.impl_bargs.iter2() {
+  for uid, args in self.st.ann.impl_bargs {
     self.ctx.assign_implicit_block_args(uid, args)
   }
 }
