@@ -2,4 +2,5 @@ import {
   "amistozy/effekt/src/util",
   "amistozy/effekt/src/symbols",
   "amistozy/effekt/src/source",
+  "moonbitlang/core/immut/hashmap",
 }

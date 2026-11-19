@@ -15,72 +15,59 @@
 /// Local annotations. Upstream keeps these in a backtrackable local table and
 /// only commits them into the global DB when the phase finishes; we do the
 /// same, which makes overload resolution (backtracking) sound.
+///
+/// The tables are persistent (`@hashmap.HashMap`): writing returns a new map
+/// that shares its structure with the old one, so a `TyperState` inherits the
+/// annotations of its backup without copying anything, and undoing a whole
+/// overload candidate is a pointer assignment.
 pub(all) struct Annotations {
   /// Inferred value types (terms, patterns, definitions).
-  value : Map[Int32, ValueType]
+  value : @hashmap.HashMap[Int32, ValueType]
   /// Inferred block types.
-  block : Map[Int32, BlockType]
+  block : @hashmap.HashMap[Int32, BlockType]
   /// Inferred effects.
-  effect : Map[Int32, Effects]
+  effect : @hashmap.HashMap[Int32, Effects]
   /// Inferred captures.
-  capt : Map[Int32, Captures]
+  capt : @hashmap.HashMap[Int32, Captures]
   /// Inferred type arguments at call sites.
-  type_args : Map[Int32, Array[ValueType]]
+  type_args : @hashmap.HashMap[Int32, Array[ValueType]]
   /// Capabilities a binder has to bind (see `ExplicitCapabilities`).
-  bound_caps : Map[Int32, Array[Sym]]
+  bound_caps : @hashmap.HashMap[Int32, Array[Sym]]
   /// The capability a `Do` dispatches on.
-  cap_receiver : Map[Int32, Sym]
+  cap_receiver : @hashmap.HashMap[Int32, Sym]
   /// Call sites generated while instantiating an implicit argument. Overload
   /// resolution reports an ambiguity for those instead of picking the most
   /// specific candidate (upstream `GenerateImplicitArgs`).
-  implicit_calls : Map[Int32, Bool]
+  implicit_calls : @hashmap.HashMap[Int32, Bool]
   /// Capabilities passed to a call (bidirectional effects).
-  cap_args : Map[Int32, Array[Sym]]
+  cap_args : @hashmap.HashMap[Int32, Array[Sym]]
   /// Implicit value arguments inserted at a call site.
-  impl_vargs : Map[Int32, Array[Term]]
+  impl_vargs : @hashmap.HashMap[Int32, Array[Term]]
   /// Implicit block arguments inserted at a call site.
-  impl_bargs : Map[Int32, Array[Term]]
+  impl_bargs : @hashmap.HashMap[Int32, Array[Term]]
   /// Symbols the type checker resolved while checking (an overloaded call id
   /// resolved to one candidate, an implicit argument's callee). They are part
   /// of the backtrackable state: a rolled-back overload candidate must not
   /// leave its choice behind, or the *next* candidate sees a call that is no
   /// longer overloaded (upstream keeps them in the same backtracked DB).
-  symbols : Map[Int32, Sym]
+  symbols : @hashmap.HashMap[Int32, Sym]
 }
 
 ///|
 pub fn Annotations::Annotations() -> Annotations {
   {
-    value: Map([]),
-    block: Map([]),
-    effect: Map([]),
-    capt: Map([]),
-    type_args: Map([]),
-    bound_caps: Map([]),
-    cap_receiver: Map([]),
-    implicit_calls: Map([]),
-    cap_args: Map([]),
-    impl_vargs: Map([]),
-    impl_bargs: Map([]),
-    symbols: Map([]),
-  }
-}
-
-///|
-pub fn Annotations::copy(self : Annotations) -> Annotations {
-  {
-    value: self.value.copy(),
-    block: self.block.copy(),
-    effect: self.effect.copy(),
-    capt: self.capt.copy(),
-    type_args: self.type_args.copy(),
-    bound_caps: self.bound_caps.copy(),
-    cap_receiver: self.cap_receiver.copy(),
-    implicit_calls: self.implicit_calls.copy(),
-    cap_args: self.cap_args.copy(),
-    impl_vargs: self.impl_vargs.copy(),
-    impl_bargs: self.impl_bargs.copy(),
-    symbols: self.symbols.copy(),
+    value: @hashmap.HashMap::new(),
+    block: @hashmap.HashMap::new(),
+    effect: @hashmap.HashMap::new(),
+    capt: @hashmap.HashMap::new(),
+    type_args: @hashmap.HashMap::new(),
+    bound_caps: @hashmap.HashMap::new(),
+    cap_receiver: @hashmap.HashMap::new(),
+    implicit_calls: @hashmap.HashMap::new(),
+    cap_args: @hashmap.HashMap::new(),
+    impl_vargs: @hashmap.HashMap::new(),
+    impl_bargs: @hashmap.HashMap::new(),
+    symbols: @hashmap.HashMap::new(),
   }
 }
 
@@ -101,7 +88,9 @@ pub(all) struct TyperState {
   vt : Map[Int32, ValueType]
   bt : Map[Int32, BlockType]
   ct : Map[Int32, Captures]
-  ann : Annotations
+  /// Persistent, so a backup shares it and a write replaces it (see
+  /// `Annotations`).
+  mut ann : Annotations
 }
 
 ///|
@@ -121,7 +110,7 @@ fn TyperState::backup(self : TyperState) -> TyperState {
     vt: self.vt.copy(),
     bt: self.bt.copy(),
     ct: self.ct.copy(),
-    ann: self.ann.copy(),
+    ann: self.ann,
   }
 }
 
@@ -317,7 +306,7 @@ fn[T] Typer::panic(self : Typer, msg : String) -> T raise EffektError {
 /// candidate does not leave its choice behind; `commit` flushes the table into
 /// the `Context`.
 fn Typer::assign_symbol(self : Typer, uid : Int32, sym : Sym) -> Unit {
-  self.st.ann.symbols.set(uid, sym)
+  self.st.ann = { ..self.st.ann, symbols: self.st.ann.symbols.add(uid, sym), }
 }
 
 ///|
@@ -511,22 +500,22 @@ pub fn Typer::lookup_capture(self : Typer, s : Sym) -> Captures {
 
 ///|
 fn Typer::annotate_value(self : Typer, uid : Int32, t : ValueType) -> Unit {
-  self.st.ann.value.set(uid, t)
+  self.st.ann = { ..self.st.ann, value: self.st.ann.value.add(uid, t), }
 }
 
 ///|
 fn Typer::annotate_block(self : Typer, uid : Int32, t : BlockType) -> Unit {
-  self.st.ann.block.set(uid, t)
+  self.st.ann = { ..self.st.ann, block: self.st.ann.block.add(uid, t), }
 }
 
 ///|
 fn Typer::annotate_effects(self : Typer, uid : Int32, e : Effects) -> Unit {
-  self.st.ann.effect.set(uid, e)
+  self.st.ann = { ..self.st.ann, effect: self.st.ann.effect.add(uid, e), }
 }
 
 ///|
 fn Typer::annotate_capture(self : Typer, uid : Int32, c : Captures) -> Unit {
-  self.st.ann.capt.set(uid, c)
+  self.st.ann = { ..self.st.ann, capt: self.st.ann.capt.add(uid, c), }
 }
 
 // ---------------------------------------------------------------------------
@@ -856,7 +845,10 @@ fn Typer::bind_capabilities(
       None => self.panic("Capability type needs to be known.")
     }
   }
-  self.st.ann.bound_caps.set(uid, caps)
+  self.st.ann = {
+    ..self.st.ann,
+    bound_caps: self.st.ann.bound_caps.add(uid, caps),
+  }
 }
 
 ///|
@@ -880,7 +872,10 @@ fn[T] Typer::binding_all_capabilities(
     _ => (caps, parent)
   }
   self.st.cap_scope = frame_parent
-  self.st.ann.bound_caps.set(uid, [])
+  self.st.ann = {
+    ..self.st.ann,
+    bound_caps: self.st.ann.bound_caps.add(uid, []),
+  }
   (result, caps)
 }
 
@@ -1259,37 +1254,37 @@ fn Typer::commit(self : Typer) -> Unit {
     self.ctx.assign_capture(uid, u.prune_captures(c))
   }
   // inferred annotations (tree nodes)
-  for uid, t in self.st.ann.value {
+  for uid, t in self.st.ann.value.iter2() {
     self.ctx.assign_value_type(uid, u.prune_value(t))
   }
-  for uid, t in self.st.ann.block {
+  for uid, t in self.st.ann.block.iter2() {
     self.ctx.assign_block_type(uid, u.prune_block(t))
   }
-  for uid, e in self.st.ann.effect {
+  for uid, e in self.st.ann.effect.iter2() {
     self.ctx.assign_effects(uid, u.prune_effects(e))
   }
-  for uid, c in self.st.ann.capt {
+  for uid, c in self.st.ann.capt.iter2() {
     self.ctx.assign_capture(uid, u.prune_captures(c))
   }
-  for uid, targs in self.st.ann.type_args {
+  for uid, targs in self.st.ann.type_args.iter2() {
     self.ctx.assign_type_arguments(uid, targs.map(t => u.prune_value(t)))
   }
-  for uid, caps in self.st.ann.bound_caps {
+  for uid, caps in self.st.ann.bound_caps.iter2() {
     self.ctx.assign_bound_capabilities(uid, caps)
   }
-  for uid, cap in self.st.ann.cap_receiver {
+  for uid, cap in self.st.ann.cap_receiver.iter2() {
     self.ctx.assign_capability_receiver(uid, cap)
   }
-  for uid, caps in self.st.ann.cap_args {
+  for uid, caps in self.st.ann.cap_args.iter2() {
     self.ctx.assign_capability_arguments(uid, caps)
   }
-  for uid, sym in self.st.ann.symbols {
+  for uid, sym in self.st.ann.symbols.iter2() {
     self.ctx.assign_symbol(uid, sym)
   }
-  for uid, args in self.st.ann.impl_vargs {
+  for uid, args in self.st.ann.impl_vargs.iter2() {
     self.ctx.assign_implicit_value_args(uid, args)
   }
-  for uid, args in self.st.ann.impl_bargs {
+  for uid, args in self.st.ann.impl_bargs.iter2() {
     self.ctx.assign_implicit_block_args(uid, args)
   }
 }
@@ -2083,7 +2078,10 @@ fn Typer::check_expr_kind(
         subst.substitute_block(applied_interface(operation)),
       )
       let capability = self.capability_for(effect, e.span)
-      self.st.ann.cap_receiver.set(e.uid, capability)
+      self.st.ann = {
+        ..self.st.ann,
+        cap_receiver: self.st.ann.cap_receiver.add(e.uid, capability),
+      }
       self.using_capture(
         @symbols.Captures::CaptureSetOf([capture_of_capability(capability)]),
       )

@@ -5,6 +5,7 @@ import {
   "amistozy/effekt/src/source",
   "amistozy/effekt/src/symbols",
   "amistozy/effekt/src/util",
+  "moonbitlang/core/immut/hashmap",
 }
 
 // Values
@@ -22,21 +23,20 @@ pub fn value_type_key(@symbols.ValueType) -> String
 
 // Types and methods
 pub(all) struct Annotations {
-  value : Map[Int32, @symbols.ValueType]
-  block : Map[Int32, @symbols.BlockType]
-  effect : Map[Int32, @symbols.Effects]
-  capt : Map[Int32, @symbols.Captures]
-  type_args : Map[Int32, Array[@symbols.ValueType]]
-  bound_caps : Map[Int32, Array[@symbols.Sym]]
-  cap_receiver : Map[Int32, @symbols.Sym]
-  implicit_calls : Map[Int32, Bool]
-  cap_args : Map[Int32, Array[@symbols.Sym]]
-  impl_vargs : Map[Int32, Array[@source.Term]]
-  impl_bargs : Map[Int32, Array[@source.Term]]
-  symbols : Map[Int32, @symbols.Sym]
+  value : @hashmap.HashMap[Int32, @symbols.ValueType]
+  block : @hashmap.HashMap[Int32, @symbols.BlockType]
+  effect : @hashmap.HashMap[Int32, @symbols.Effects]
+  capt : @hashmap.HashMap[Int32, @symbols.Captures]
+  type_args : @hashmap.HashMap[Int32, Array[@symbols.ValueType]]
+  bound_caps : @hashmap.HashMap[Int32, Array[@symbols.Sym]]
+  cap_receiver : @hashmap.HashMap[Int32, @symbols.Sym]
+  implicit_calls : @hashmap.HashMap[Int32, Bool]
+  cap_args : @hashmap.HashMap[Int32, Array[@symbols.Sym]]
+  impl_vargs : @hashmap.HashMap[Int32, Array[@source.Term]]
+  impl_bargs : @hashmap.HashMap[Int32, Array[@source.Term]]
+  symbols : @hashmap.HashMap[Int32, @symbols.Sym]
 }
 pub fn Annotations::Annotations() -> Self
-pub fn Annotations::copy(Self) -> Self
 
 pub struct CallLike {
   uid : Int32
@@ -159,7 +159,7 @@ pub(all) struct TyperState {
   vt : Map[Int32, @symbols.ValueType]
   bt : Map[Int32, @symbols.BlockType]
   ct : Map[Int32, @symbols.Captures]
-  ann : Annotations
+  mut ann : Annotations
 }
 
 pub struct Unboxer {

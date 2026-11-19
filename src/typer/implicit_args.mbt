@@ -222,7 +222,10 @@ fn Typer::source_position_term(
     span,
     @source.TermKind::Call(@source.CallTarget::IdTarget(target), [], args, []),
   )
-  self.st.ann.implicit_calls.set(call.uid, true)
+  self.st.ann = {
+    ..self.st.ann,
+    implicit_calls: self.st.ann.implicit_calls.add(call.uid, true),
+  }
   self.ctx.assign_call_scope(call.uid, scope.scope)
   self.ctx.assign_call_imports(call.uid, scope.imports)
   Some(call)
@@ -302,7 +305,10 @@ fn Typer::implicit_block_term(
       // `myShow` for a list) can be resolved the same way.
       self.ctx.assign_call_scope(callee.uid, scope.scope)
       self.ctx.assign_call_imports(callee.uid, scope.imports)
-      self.st.ann.implicit_calls.set(callee.uid, true)
+      self.st.ann = {
+        ..self.st.ann,
+        implicit_calls: self.st.ann.implicit_calls.add(callee.uid, true),
+      }
       let body = mk_stmt(span, @source.StmtKind::Return(callee))
       mk_term(span, @source.TermKind::BlockLiteral([], vparams, bparams, body))
     }

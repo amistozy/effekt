@@ -296,23 +296,35 @@ fn Typer::check_call_to(
     implicit_bargs.push(term)
   }
   if !implicit_vargs.is_empty() {
-    self.st.ann.impl_vargs.set(call.uid, implicit_vargs)
+    self.st.ann = {
+      ..self.st.ann,
+      impl_vargs: self.st.ann.impl_vargs.add(call.uid, implicit_vargs),
+    }
   }
   if !implicit_bargs.is_empty() {
-    self.st.ann.impl_bargs.set(call.uid, implicit_bargs)
+    self.st.ann = {
+      ..self.st.ann,
+      impl_bargs: self.st.ann.impl_bargs.add(call.uid, implicit_bargs),
+    }
   }
 
   // (6) the declared effects of the callee are effects of this call
   effs = eff_union(effs, inst.effs)
 
   // annotate the call node with the inferred type arguments
-  self.st.ann.type_args.set(call.uid, type_args)
+  self.st.ann = {
+    ..self.st.ann,
+    type_args: self.st.ann.type_args.add(call.uid, type_args),
+  }
 
   // (7) find the capabilities for the effects of the callee
   let capabilities = canonical_order(inst.effs.distinct().effects).map(e => {
     self.capability_for(e, span)
   })
-  self.st.ann.cap_args.set(call.uid, capabilities)
+  self.st.ann = {
+    ..self.st.ann,
+    cap_args: self.st.ann.cap_args.add(call.uid, capabilities),
+  }
 
   let capt_params = capt_args[bargs.length() + implicit_bargs.length():].to_owned()
   for i in 0..<capt_params.length().min(capabilities.length()) {
@@ -429,24 +441,30 @@ fn Typer::try_candidates(
   Array[(Sym, TyRes[ValueType], TyperState, Array[(Span, String)])],
   Array[(Sym, String, Array[Message])],
 ) {
-  let before = self.st.backup()
+  // A single candidate in a single scope needs no backtracking: upstream calls
+  // `checkCallTo` directly, and a candidate that fails is reported and aborted
+  // by the caller, so the state it leaves behind is never read. The copies
+  // below cover whole maps, and this is the common case for a call.
+  let alone_single = alone && candidates.length() == 1
+  let before = if alone_single { None } else { Some(self.st.backup()) }
   let successes : Array[
     (Sym, TyRes[ValueType], TyperState, Array[(Span, String)]),
   ] = []
   let failures : Array[(Sym, String, Array[Message])] = []
-  // With a single candidate there is nothing to backtrack: upstream calls
-  // `checkCallTo` directly, so the diagnostics of that (only) candidate —
-  // including its hints — are reported instead of being buffered.
-  for c in candidates {
-    self.st = before.backup()
+  for i, c in candidates {
+    // Every candidate starts from the state the call was checked in; the first
+    // one already does.
+    if i > 0 {
+      if before is Some(b) {
+        self.st = b.backup()
+      }
+    }
     let ((res, err), failed, muted, infos) = self.muted(() => {
       (Some(run(c)), "") catch {
         EffektError::Fatal(m) => (None, m)
         EffektError::Internal(m) => (None, m)
       }
     })
-    let after = self.st.backup()
-
     let recorded = if err != "" {
       err
     } else {
@@ -461,7 +479,10 @@ fn Typer::try_candidates(
             self.replay_infos(infos)
           }
         } else {
-          successes.push((c, r, after, infos))
+          // Only a success has to keep the state for the caller; that of a
+          // failed candidate is thrown away.
+          let state = if alone_single { self.st } else { self.st.backup() }
+          successes.push((c, r, state, infos))
         }
       None => {
         failures.push((c, final, muted))
@@ -471,7 +492,9 @@ fn Typer::try_candidates(
       }
     }
   }
-  self.st = before
+  if before is Some(b) {
+    self.st = b
+  }
   (successes, failures)
 }
 
