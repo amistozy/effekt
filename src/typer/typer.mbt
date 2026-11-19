@@ -1937,6 +1937,27 @@ fn Typer::check_expr(
 }
 
 ///|
+/// Stops a candidate that has already recorded a diagnostic, without recording
+/// another one: the diagnostics are muted while an overload candidate is tried
+/// (or an implicit argument is instantiated), and checking goes on after a
+/// mismatch so that one diagnostic is enough to explain it. A candidate that
+/// recorded an error has lost, though, and letting it instantiate *its* implicit
+/// arguments is what makes the implicit search explode: the eta-expanded call of
+/// an implicit argument is resolved against every overload of the name, so a
+/// rejected candidate for `?display: List[A] => String` still generates a
+/// `?display: List[List[A]]` one (the `implicit_same_size_chain` tests: the
+/// compiler did not terminate for a three-step chain). Upstream stops the
+/// candidate at its first error (`Context.abort` inside `Try`).
+fn Typer::reject_if_errors(
+  self : Typer,
+  errors_before : Bool,
+) -> Unit raise EffektError {
+  if !errors_before && self.muted_error {
+    raise EffektError::Fatal("")
+  }
+}
+
+///|
 fn Typer::check_expr_kind(
   self : Typer,
   e : Term,

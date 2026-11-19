@@ -78,6 +78,7 @@ fn Typer::check_call_to(
 ) -> TyRes[ValueType] raise EffektError {
   let callsite = self.st.current
   let span = call.span
+  let errors_before = self.muted_error
 
   // (0) check that argument and parameter counts align
   //
@@ -238,7 +239,13 @@ fn Typer::check_call_to(
   // Generating an implicit argument can itself type check a call that needs
   // implicit arguments (`?myShow: A => String` applied to a `List[A]`), so the
   // recursion is bounded (upstream: the recursion guard in
-  // `GenerateImplicitArgs`, see `with_implicit_guard`).
+  // `GenerateImplicitArgs`, see `with_implicit_guard`). A candidate that has
+  // already recorded a diagnostic does not get that far: the implicit search
+  // below resolves the name against *all* overloads, so a rejected candidate
+  // would instantiate the implicits of an overload that does not fit, and the
+  // chain of instantiations of the same name grows exponentially with its
+  // length (`examples/pos/overloading/implicit_same_size_chain`).
+  self.reject_if_errors(errors_before)
   let implicit_vargs : Array[Term] = []
   for i in vargs.length()..<fun_vps.length() {
     let tpe = inst.vparams[i]
