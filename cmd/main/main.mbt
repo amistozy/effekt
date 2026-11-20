@@ -49,10 +49,10 @@ fn run(args : Array[String]) -> Int32 {
       if opts.show_core {
         // `--show-core` is a dump mode: the middle-end runs, but no code is
         // generated and no file is written.
-        core_dump = Some(@backend.show_core(trees, ctx))
+        core_dump = Some(@backend.show_core(trees, ctx, opts.optimize))
         ""
       } else {
-        @backend.emit(trees, ctx)
+        @backend.emit(trees, ctx, opts.optimize)
       }
     },
   }

@@ -74,6 +74,22 @@ if ($core -match 'def main\(\)' -and $core -match 'println' -and $core -notmatch
   $failed++
 }
 
+# --no-optimize turns off the core optimizer (upstream's `Optimizer.optimize`
+# returns right after dead code elimination). The core dump has to change — the
+# flag really skips work — while the program still prints the same thing.
+Write-Host "optimizer toggle" -ForegroundColor Cyan
+$coreOpt = (& node $cli --lib libraries --show-core "examples/fib.effekt" 2>$null | Out-String)
+$coreNoOpt = (& node $cli --lib libraries --show-core --no-optimize "examples/fib.effekt" 2>$null | Out-String)
+$runNoOpt = ((& node $cli --lib libraries --no-optimize --run "examples/amb.effekt" 2>$null | Out-String) -replace "`r`n", "`n").Trim()
+if ($coreNoOpt -ne $coreOpt -and $runNoOpt -eq "66") {
+  Write-Host "  ok    no-optimize" -ForegroundColor Green
+  $passed++
+} else {
+  Write-Host "  FAIL  no-optimize" -ForegroundColor Red
+  Write-Host "    core dump differs: $($coreNoOpt -ne $coreOpt); amb prints: $runNoOpt"
+  $failed++
+}
+
 Pop-Location
 if ($failed -gt 0) {
   Write-Host "$failed of $($failed + $passed) end-to-end test(s) failed" -ForegroundColor Red

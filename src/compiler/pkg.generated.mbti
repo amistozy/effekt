@@ -76,6 +76,7 @@ pub(all) struct Options {
   mut show_core : Bool
   mut show_js : Bool
   mut run : Bool
+  mut optimize : Bool
 }
 pub fn Options::default() -> Self
 

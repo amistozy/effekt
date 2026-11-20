@@ -15,10 +15,10 @@ files. The whole language compiles, not a subset.
 | Gate | Result |
 |---|---|
 | `moon check --target js -d` | type checks, warnings as errors |
-| `moon test --target js` | 256 unit tests |
-| `scripts/e2e.ps1` | 26 end-to-end checks |
+| `moon test --target js` | 257 unit tests |
+| `scripts/e2e.ps1` | 27 end-to-end checks |
 | `scripts/stdlib.ps1` | 49 of 49 standard library modules compile |
-| `scripts/upstream.ps1 -Strict` | 441 of 441 programs match, 91 of 91 benchmarks run and match, 10 of 10 case studies run and match, 243 of 243 rejections match, 240 of 240 diagnostics verbatim |
+| `scripts/upstream.ps1 -Strict` | 441 of 441 programs match, 91 of 91 benchmarks run and match, 10 of 10 case studies run and match, 7 of 7 programs also pass without optimizations, 243 of 243 rejections match, 240 of 240 diagnostics verbatim |
 
 Every gate is green on every commit, against the baselines `upstream.ps1` keeps;
 they may only grow, apart from a re-sync that moves the corpus. The corpus,
@@ -72,7 +72,9 @@ The compiler writes the generated module next to the input, with a `.js` extensi
 `main()`; `--run` then executes that with `node`. `--show-js` prints the module to
 stdout instead, `--show-core` dumps the core IR and generates no code, `-I <dir>`
 adds to the module search path, and `--lib <dir>` selects a different standard
-library (`examples/minilib` is a stripped-down prelude). Diagnostics go to stderr,
+library (`examples/minilib` is a stripped-down prelude). `-O`/`--no-optimize`
+turns the optimizer on or off (it is on by default; `--[no-]optimize` is
+upstream's toggle). Diagnostics go to stderr,
 the program's own output to stdout. The command line is declared with
 `moonbitlang/core/argparse` (`src/compiler/cli.mbt`), so `--help` and the usage for
 malformed arguments come from that declaration.
@@ -131,7 +133,9 @@ needs, and runs upstream's optimizer chain: `Deadcode`, `StaticArguments`, three
 rounds of `BindSubexpressions` → `Normalizer` → `Deadcode` → `StaticResumptions` →
 `DirectStyle` → `ReferencesToParameters`, and a final `Deadcode` +
 `ReferencesToParameters` (`core.Mono` and `core.Show` run before the optimizer, as
-in upstream's `JavaScript.scala`). The backend goes through CPS and contification
+in upstream's `JavaScript.scala`). `--no-optimize` stops the optimizer after its
+first `Deadcode`, exactly where upstream's `Optimizer.optimize` returns when
+`Context.config.optimize()` is false. The backend goes through CPS and contification
 to the JavaScript IR, where handlers become the `RESET`/`SHIFT`/`RESUME`
 primitives of `effekt.effekt`, the runtime every module includes through `extern
 include`.

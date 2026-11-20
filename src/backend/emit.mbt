@@ -7,10 +7,15 @@
 //     Deadcode                                        (drop unreachable code)
 //     core.Mono                                       (monomorphize)
 //     core.Show                                       (structural show instances)
-//     Optimizer / DropBindings                        (skipped for now)
+//     Optimizer                                       (minus the passes not ported)
 //     cps.Transformer.transform                       (core -> cps)
 //     cps.Contify.rewrite                             (cps -> cps)
 //     TransformerCps.compile(...).commonjs            (cps -> js)
+//
+// `Optimizer` honors the `--optimize`/`--no-optimize` toggle: upstream's
+// `Optimizer.optimize` always eliminates dead code and returns early when
+// `Context.config.optimize()` is false. That is what its `withoutOptimizations`
+// test list relies on — those programs have to print the same thing either way.
 
 ///|
 /// The name of the entry point.
@@ -25,9 +30,14 @@ fn main_name() -> String {
 ///
 /// This is what `--show-core` prints and what CPS conversion consumes, together
 /// with the entry point's symbol.
+///
+/// `enabled` is the `--optimize`/`--no-optimize` toggle (upstream's
+/// `Context.config.optimize()`): it only affects the optimizer, the rest of the
+/// middle-end runs either way.
 fn middle_end(
   modules : ArrayView[@namer.ResolvedModule],
   ctx : Context,
+  enabled : Bool,
 ) -> (@core.ModuleDecl, Sym) raise EffektError {
   if modules.is_empty() {
     ctx.abort(Span::missing(), "No module to compile.")
@@ -88,14 +98,15 @@ fn middle_end(
   let aggregated = @core.show_phase(aggregated)
   // 2e. The optimizer: upstream's `Optimizer.optimize`, minus the phases that
   //     are not ported (`LambdaSets`, `ArityRaising`, `DropBindings`).
-  let aggregated = optimize(aggregated, main_sym)
+  let aggregated = optimize(aggregated, main_sym, enabled)
   (aggregated, main_sym)
 }
 
 ///|
-/// `Optimizer.optimize`: dead code elimination, then the static argument
-/// transformation, then three rounds of normalization (each of which ends in the
-/// passes that consume the normal form), and two final cleanups.
+/// `Optimizer.optimize`: dead code elimination, then — unless the optimizer is
+/// turned off — the static argument transformation, three rounds of
+/// normalization (each of which ends in the passes that consume the normal form),
+/// and two final cleanups.
 ///
 /// Upstream normalizes three times "since tail resumptions might only surface
 /// after normalization and leave dead `Reset`s"; the rounds run the same phases on
@@ -104,14 +115,22 @@ fn middle_end(
 /// Every round ends in `ReferencesToParameters`, and so do the final cleanups:
 /// the pass threads the state of a reference through a definition's parameters,
 /// which needs the per-arity `RETURN_n` that `js/transform_cps.mbt` emits.
+///
+/// `enabled` mirrors upstream's early return in `Optimizer.optimize`: dead code
+/// elimination happens unconditionally (it is what makes the following phases
+/// cheap), and `--no-optimize` skips everything after it.
 fn optimize(
   module : @core.ModuleDecl,
   main_sym : Sym,
+  enabled : Bool,
 ) -> @core.ModuleDecl raise EffektError {
   let roots = [main_sym]
   // (1) first thing we do is simply remove unused definitions (this speeds up
   //     all following analyses and rewrites)
   let module = @core.deadcode(module, roots)
+  if !enabled {
+    return module
+  }
   // (2) lift static arguments
   let module = @core.static_arguments(module)
   let policy = @core.InliningPolicy::default()
@@ -140,12 +159,15 @@ fn normalize_round(
 }
 
 ///|
-/// The core program of `modules`, for `--show-core`.
+/// The core program of `modules`, for `--show-core`. `enabled` is the
+/// `--optimize`/`--no-optimize` toggle, so that the dump shows what the code
+/// generator would consume.
 pub fn show_core(
   modules : ArrayView[@namer.ResolvedModule],
   ctx : Context,
+  enabled : Bool,
 ) -> String raise EffektError {
-  let (aggregated, _) = middle_end(modules, ctx)
+  let (aggregated, _) = middle_end(modules, ctx, enabled)
   @core.show_core(aggregated)
 }
 
@@ -155,8 +177,9 @@ pub fn show_core(
 pub fn emit(
   modules : ArrayView[@namer.ResolvedModule],
   ctx : Context,
+  enabled : Bool,
 ) -> String raise EffektError {
-  let (aggregated, main_sym) = middle_end(modules, ctx)
+  let (aggregated, main_sym) = middle_end(modules, ctx, enabled)
 
   // 3. CPS conversion and code generation.
 

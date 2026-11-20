@@ -71,6 +71,7 @@ test "command line defaults" {
   assert_eq(opts.lib_path, "libraries")
   assert_false(opts.show_help)
   assert_false(opts.run)
+  assert_true(opts.optimize)
 }
 
 ///|
@@ -88,6 +89,18 @@ test "command line parsing collects repeated options and all flags" {
 }
 
 ///|
+/// Upstream declares `--optimize` as a Scallop toggle, so `--no-optimize` is
+/// its negation and the last spelling wins.
+test "the optimizer toggle is on unless --no-optimize is given" {
+  assert_true(@compiler.parse_args([]).0.optimize)
+  assert_true(@compiler.parse_args(["--optimize"]).0.optimize)
+  assert_true(@compiler.parse_args(["-O"]).0.optimize)
+  assert_false(@compiler.parse_args(["--no-optimize"]).0.optimize)
+  assert_false(@compiler.parse_args(["--optimize", "--no-optimize"]).0.optimize)
+  assert_true(@compiler.parse_args(["--no-optimize", "--optimize"]).0.optimize)
+}
+
+///|
 test "the help flag is recognised in both spellings" {
   assert_true(@compiler.parse_args(["-h"]).0.show_help)
   assert_true(@compiler.parse_args(["--help"]).0.show_help)
@@ -100,7 +113,7 @@ test "the help text documents every option" {
   for
     flag in [
       "-h, --help", "--show-core", "--show-js", "--run", "-o, --output", "-I, --include",
-      "--lib", "input",
+      "--lib", "-O, --[no-]optimize", "input",
     ] {
     assert_true(help.contains(flag))
   }
@@ -214,6 +227,7 @@ fn frontend_with_includes(
     show_core: false,
     show_js: false,
     run: false,
+    optimize: true,
   }
   let pipeline : @compiler.Pipeline = {
     parse: @source.parse_module_decl,

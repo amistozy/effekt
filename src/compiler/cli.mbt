@@ -14,6 +14,8 @@ pub(all) struct Options {
   mut show_core : Bool
   mut show_js : Bool
   mut run : Bool
+  /// Run the core optimizer (upstream's `--optimize`/`--no-optimize` toggle).
+  mut optimize : Bool
 }
 
 ///|
@@ -27,6 +29,7 @@ pub fn Options::default() -> Options {
     show_core: false,
     show_js: false,
     run: false,
+    optimize: true,
   }
 }
 
@@ -74,6 +77,16 @@ fn command() -> @argparse.Command {
       @argparse.FlagArg(
         "run",
         about="Run the program with node after compiling",
+      ),
+      // Upstream declares this as a Scallop toggle (`prefix = "no-"`), so both
+      // `--optimize` and `--no-optimize` are accepted. `--no-optimize` is what
+      // upstream's `withoutOptimizations` test list uses: those programs are
+      // expected to produce the very same output without the optimizer.
+      @argparse.FlagArg(
+        "optimize",
+        short='O',
+        negatable=true,
+        about="Run optimizations (in particular the inliner) when compiling programs",
       ),
     ],
     positionals=[
@@ -125,6 +138,9 @@ pub fn parse_args(args : ArrayView[String]) -> (Options, Array[String]) {
   opts.show_core = flag(matches, "show-core")
   opts.show_js = flag(matches, "show-js")
   opts.run = flag(matches, "run")
+  // A toggle, so the default is `true` and only `--no-optimize` turns it off
+  // (`flag()` would report "not given" as `false`).
+  opts.optimize = matches.flags.get("optimize").unwrap_or(true)
   opts.output = option(matches, "output")
   opts.include_paths = option_values(matches, "include")
   if option(matches, "lib") is Some(path) {

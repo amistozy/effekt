@@ -16,6 +16,7 @@ fn closure_of(input : String, messages : Array[@util.Message]) -> Array[String] 
     show_core: false,
     show_js: false,
     run: false,
+    optimize: true,
   }
   let paths : Ref[Array[String]] = Ref([])
   let pipeline : @compiler.Pipeline = {
@@ -48,6 +49,7 @@ test "the exception module exports its interface as a type" {
     show_core: false,
     show_js: false,
     run: false,
+    optimize: true,
   }
   let loader = @compiler.Loader(@compiler.search_paths(opts.input, opts))
   let prelude_tree = loader.load_tree("effekt", ctx, @source.parse_module_decl)

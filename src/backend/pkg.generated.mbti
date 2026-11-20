@@ -8,9 +8,9 @@ import {
 }
 
 // Values
-pub fn emit(ArrayView[@namer.ResolvedModule], @source.Context) -> String raise @util.EffektError
+pub fn emit(ArrayView[@namer.ResolvedModule], @source.Context, Bool) -> String raise @util.EffektError
 
-pub fn show_core(ArrayView[@namer.ResolvedModule], @source.Context) -> String raise @util.EffektError
+pub fn show_core(ArrayView[@namer.ResolvedModule], @source.Context, Bool) -> String raise @util.EffektError
 
 // Errors
 

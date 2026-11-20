@@ -7,6 +7,10 @@
 # diagnostics either in a `.check` file or in `// ERROR` / `// WARN` comments.
 #
 #   pos, stdlib   compile and run; stdout has to match `.check`
+#   benchmarks    the same, in the benchmarks' test mode (no argument)
+#   casestudies   the same, for literate `.effekt.md` programs
+#   noopt         upstream's `withoutOptimizations` list: the same programs
+#                 compiled with `--no-optimize`, against the same `.check`
 #   neg           compilation has to fail and report a diagnostic of the
 #                 expected severity on the expected line
 #
@@ -51,6 +55,10 @@ $benchmarkBaseline = 91
 # `examples/casestudies` is literate: every `.effekt.md` there is a program whose
 # code fences the compiler extracts, with a `.check` file holding its output.
 $casestudyBaseline = 10
+# Upstream also compiles a handful of programs with `--no-optimize` and compares
+# them against the *same* `.check` file (`EffektTests.runWithoutOptimizations`):
+# the optimizer is not allowed to change what a program prints.
+$noOptimizationBaseline = 7
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
 moon build --target js 2>&1 | Out-Null
@@ -99,7 +107,8 @@ New-Item -ItemType Directory -Force $outDir | Out-Null
 # The worker: run one test file and report a single line per test.
 #
 # Emits `<kind>\t<status>\t<relative path>\t<detail>` lines, where kind is
-# `pos` or `neg` and status is `ok`, `fail`, or `wording`.
+# `pos`, `bench`, `case`, `noopt` or `neg` and status is `ok`, `fail`, or
+# `wording`.
 # ---------------------------------------------------------------------------
 $worker = {
   param($cli, $libDir, $corpus, $outDir, $files, $strict)
@@ -114,18 +123,19 @@ $worker = {
   # The exit code is written to a file by a small batch wrapper: a `Process`
   # object returned by `Start-Process` inside a background job is deserialized,
   # so `ExitCode` is not available there.
-  function Invoke-Effekt($file, $jsOut, $run, $relFile, [int]$timeoutMs = 30000) {
+  function Invoke-Effekt($file, $jsOut, $run, $relFile, $noOpt, [int]$timeoutMs = 30000) {
     $stdoutFile = "$jsOut.out"
     $stderrFile = "$jsOut.err"
     $codeFile = "$jsOut.code"
     $batchFile = "$jsOut.cmd"
     $runArg = if ($run) { " --run" } else { "" }
+    $optArg = if ($noOpt) { " --no-optimize" } else { "" }
     # The compiler runs from the corpus root with the path *relative* to it, as
     # upstream does: `sourcePosition` embeds the path it is given, and the
     # recorded `.check` files contain the upstream layout (`examples/pos/...`).
     $batch = "@echo off`r`n" +
       "cd /d `"$corpus`"`r`n" +
-      "node `"$cli`" --lib `"$libDir`" -I `"$corpus`" -o `"$jsOut`"$runArg `"$relFile`" 1> `"$stdoutFile`" 2> `"$stderrFile`"`r`n" +
+      "node `"$cli`" --lib `"$libDir`" -I `"$corpus`" -o `"$jsOut`"$runArg$optArg `"$relFile`" 1> `"$stdoutFile`" 2> `"$stderrFile`"`r`n" +
       "> `"$codeFile`" echo %ERRORLEVEL%`r`n"
     [IO.File]::WriteAllText($batchFile, $batch)
     # `-WindowStyle Hidden` keeps the hundreds of per-test console windows from
@@ -268,19 +278,22 @@ $worker = {
     $file = $item.file
     $kind = $item.kind
     $rel = $item.rel
-    $jsOut = Join-Path $outDir (($rel -replace '[\\/]', '__') + ".js")
+    # A program may be compiled twice (with and without the optimizer), so the
+    # scratch output carries the kind as well.
+    $jsOut = Join-Path $outDir ("{0}.{1}.js" -f ($rel -replace '[\\/]', '__'), $kind)
 
-    if ($kind -eq "pos" -or $kind -eq "bench" -or $kind -eq "case") {
+    if ($kind -eq "pos" -or $kind -eq "bench" -or $kind -eq "case" -or $kind -eq "noopt") {
+      $noOpt = ($kind -eq "noopt")
       $check = Get-CheckFile $file
       $expected = ""
       if (Test-Path $check) {
         $expected = ([IO.File]::ReadAllText($check)).Replace("`r`n", "`n").TrimEnd()
       }
-      $r = Invoke-Effekt $file $jsOut $true $rel
+      $r = Invoke-Effekt $file $jsOut $true $rel $noOpt
       if ($r.timeout) {
         # the corpus runs six files at a time; a slow machine can push one over
         # the limit, so a timeout is retried once before it is reported
-        $r = Invoke-Effekt $file $jsOut $true $rel 60000
+        $r = Invoke-Effekt $file $jsOut $true $rel $noOpt 60000
       }
       if ($r.timeout) {
         "$kind`tfail`t$rel`ttimeout (90s)"
@@ -318,9 +331,9 @@ $worker = {
       # Upstream's `runNegativeTestsIn` calls `run(f, true)`, i.e. it *runs* a
       # negative test that has a `.check` file as well — the file records the
       # program's output (a test may only warn) followed by the diagnostics.
-      $r = Invoke-Effekt $file $jsOut $true $rel
+      $r = Invoke-Effekt $file $jsOut $true $rel $false
       if ($r.timeout) {
-        $r = Invoke-Effekt $file $jsOut $true $rel 60000
+        $r = Invoke-Effekt $file $jsOut $true $rel $false 60000
       }
       if ($r.timeout) {
         "$kind`tfail`t$rel`ttimeout (90s)"
@@ -440,6 +453,28 @@ foreach ($f in (Get-ChildItem -Recurse $base -Filter '*.effekt' -File)) {
   if ($Filter -ne "" -and -not $rel.Contains($Filter)) { continue }
   $tests += @{ kind = "neg"; file = $f.FullName; rel = $rel }
 }
+# Upstream's `withoutOptimizations` (`JavaScriptTests.scala`): these programs are
+# also compiled with `--no-optimize` and compared against the same `.check` file.
+# They are listed by hand, as upstream does, because the point is that this
+# particular list keeps working without the optimizer.
+$withoutOptimizations = @(
+  # contifying under reset
+  "examples/pos/issue842.effekt",
+  "examples/pos/issue861.effekt",
+  # contifying a block that is also passed as an argument
+  "examples/pos/contify_block_used_as_value.effekt",
+  "examples/pos/parser.effekt",
+  "examples/pos/probabilistic.effekt",
+  # local function def needs to be rewritten (issue 1229)
+  "examples/benchmarks/folklore_to_fact/motzkin.effekt",
+  # a local definition in a loop capturing a block parameter of the loop
+  "examples/pos/loop_block_parameter.effekt"
+)
+foreach ($rel in $withoutOptimizations) {
+  if ($Filter -ne "" -and -not $rel.Contains($Filter)) { continue }
+  if ($skipped.ContainsKey($rel)) { continue }
+  $tests += @{ kind = "noopt"; file = (Join-Path $corpus $rel); rel = $rel }
+}
 
 $chunks = @()
 for ($i = 0; $i -lt $jobs; $i++) { $chunks += ,@() }
@@ -464,6 +499,8 @@ $benchOk = 0
 $benchTotal = 0
 $caseOk = 0
 $caseTotal = 0
+$nooptOk = 0
+$nooptTotal = 0
 $negOk = 0
 $negTotal = 0
 $negWording = 0
@@ -481,11 +518,13 @@ foreach ($line in $results) {
   $status = $parts[1]
   $rel = $parts[2]
   $detail = if ($parts.Count -gt 3) { $parts[3] } else { "" }
-  if ($kind -eq "pos" -or $kind -eq "bench" -or $kind -eq "case") {
+  if ($kind -eq "pos" -or $kind -eq "bench" -or $kind -eq "case" -or $kind -eq "noopt") {
     if ($kind -eq "bench") {
       $benchTotal++
     } elseif ($kind -eq "case") {
       $caseTotal++
+    } elseif ($kind -eq "noopt") {
+      $nooptTotal++
     } else {
       $posTotal++
     }
@@ -494,6 +533,8 @@ foreach ($line in $results) {
         $benchOk++
       } elseif ($kind -eq "case") {
         $caseOk++
+      } elseif ($kind -eq "noopt") {
+        $nooptOk++
       } else {
         $posOk++
       }
@@ -529,6 +570,7 @@ Write-Host ""
 Write-Host ("positive (pos + stdlib): {0} of {1} pass" -f $posOk, $posTotal) -ForegroundColor Cyan
 Write-Host ("benchmarks:              {0} of {1} run and match" -f $benchOk, $benchTotal) -ForegroundColor Cyan
 Write-Host ("casestudies:             {0} of {1} run and match" -f $caseOk, $caseTotal) -ForegroundColor Cyan
+Write-Host ("without optimizations:   {0} of {1} run and match" -f $nooptOk, $nooptTotal) -ForegroundColor Cyan
 Write-Host ("negative (neg):          {0} of {1} match ({2} pass with different wording)" -f $negOk, $negTotal, $negWording) -ForegroundColor Cyan
 if ($Strict) {
   Write-Host ("  of those, full text:   {0} of {1} `.check` files match exactly" -f $negStrictOk, $negStrictTotal) -ForegroundColor Cyan
@@ -577,7 +619,7 @@ $failed = $false
 # baseline; it reports its own results and only a full run enforces one.
 if ($Filter -ne "") {
   Write-Host ""
-  Write-Host ("filtered run (no baseline check): {0}/{1} positive, {2}/{3} benchmarks, {4}/{5} casestudies, {6}/{7} negative" -f $posOk, $posTotal, $benchOk, $benchTotal, $caseOk, $caseTotal, $negOk, $negTotal) -ForegroundColor DarkGray
+  Write-Host ("filtered run (no baseline check): {0}/{1} positive, {2}/{3} benchmarks, {4}/{5} casestudies, {6}/{7} without optimizations, {8}/{9} negative" -f $posOk, $posTotal, $benchOk, $benchTotal, $caseOk, $caseTotal, $nooptOk, $nooptTotal, $negOk, $negTotal) -ForegroundColor DarkGray
 } else {
   if ($posOk -lt $positiveBaseline) {
     Write-Host ("positive: {0} pass, below the baseline of {1}" -f $posOk, $positiveBaseline) -ForegroundColor Red
@@ -591,6 +633,10 @@ if ($Filter -ne "") {
     Write-Host ("casestudies: {0} pass, below the baseline of {1}" -f $caseOk, $casestudyBaseline) -ForegroundColor Red
     $failed = $true
   }
+  if ($nooptOk -lt $noOptimizationBaseline) {
+    Write-Host ("without optimizations: {0} pass, below the baseline of {1}" -f $nooptOk, $noOptimizationBaseline) -ForegroundColor Red
+    $failed = $true
+  }
   if ($negOk -lt $negativeBaseline) {
     Write-Host ("negative: {0} match, below the baseline of {1}" -f $negOk, $negativeBaseline) -ForegroundColor Red
     $failed = $true
@@ -600,7 +646,7 @@ if ($Filter -ne "") {
     $failed = $true
   }
   if ($failed) { exit 1 }
-  $baselines = "baselines: positive {0}, benchmarks {1}, casestudies {2}, negative {3}" -f $positiveBaseline, $benchmarkBaseline, $casestudyBaseline, $negativeBaseline
+  $baselines = "baselines: positive {0}, benchmarks {1}, casestudies {2}, without optimizations {3}, negative {4}" -f $positiveBaseline, $benchmarkBaseline, $casestudyBaseline, $noOptimizationBaseline, $negativeBaseline
   if ($Strict) { $baselines += ", negative (full text) {0}" -f $negativeStrictBaseline }
   Write-Host $baselines -ForegroundColor Green
 }

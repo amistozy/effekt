@@ -46,6 +46,14 @@ Run them with `powershell -File scripts/upstream.ps1` (add `-Filter <substring>`
 to run a subset). The script keeps a baseline that can only grow, apart from a
 re-sync, which re-bases it.
 
+Beyond the directories, `scripts/upstream.ps1` also runs upstream's
+`withoutOptimizations` list (`JavaScriptTests.scala`, seven programs:
+`pos/issue842`, `pos/issue861`, `pos/contify_block_used_as_value`, `pos/parser`,
+`pos/probabilistic`, `benchmarks/folklore_to_fact/motzkin` and
+`pos/loop_block_parameter`) with `--no-optimize` and compares them against the
+same `.check` files: all seven have to print the same thing with and without the
+optimizer.
+
 Files imported by the corpus (`import examples/pos/lists`, `import mutable/map`,
 …) are resolved with `-I testdata/upstream` and the library's `common` and `js`
 directories, so the directory layout has to stay as it is.
