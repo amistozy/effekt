@@ -102,7 +102,7 @@ pub fn t_unit() -> ValueType
 
 pub fn top_type_sym() -> Sym
 
-pub fn toplevel(Array[String], Bindings) -> Scoping
+pub fn toplevel(Array[String]) -> Scoping
 
 pub fn unique_term(Map[String, Array[Sym]], String) -> Sym? raise @util.EffektError
 

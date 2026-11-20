@@ -100,10 +100,14 @@ fn Namer::Namer(
   let namespace = module.name.path + [module.name.name]
   {
     context,
-    scoping: @symbols.toplevel(namespace, @symbols.root_bindings()),
+    scoping: @symbols.toplevel(namespace),
     module,
     self_namespace: namespace,
-    imports: Bindings::empty(),
+    // The builtins are the imports of every module (upstream
+    // `Scoping.toplevel` puts the prelude into the global scope's imports), so
+    // they are found by every lookup but a definition of the same name shadows
+    // them.
+    imports: @symbols.root_bindings(),
     parent_definitions: [],
     hole_count: Map([]),
     holes: [],
@@ -545,7 +549,11 @@ fn Namer::define_id(
           )
         }
         if sym is @symbols.Sym::TypeParam(_) {
-          if self.scoping.lookup_type_option([], id.name) is Some(shadowed) {
+          // `Namer::lookup_type` also searches the imports, like upstream's
+          // `lookupTypeOption` (the builtins are imports): a type parameter
+          // named `Int` shadows the builtin and has to warn
+          // (`examples/neg/namer/shadowing-types`).
+          if self.lookup_type([], id.name) is Some(shadowed) {
             if !shadowed.is_type_var() {
               self.context.warning(
                 id.span,

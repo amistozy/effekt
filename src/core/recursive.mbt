@@ -54,16 +54,20 @@ fn RecursiveAnalysis::within(self : RecursiveAnalysis, id : Sym) -> Bool {
 }
 
 ///|
+/// Registers `definition` under `id`. A definition can be reached twice: the
+/// inliner replaces a use of `id` with the *same* block, so a converted
+/// `new Interface { ... }` that is used twice is one node of the tree with two
+/// parents (`examples/benchmarks/advent_of_code_2025/day03`'s handler for
+/// `Nondet` is used by two `with` bindings). Upstream's `process(id, block)` is
+/// `defs(id) = RecursiveFunction(b)`, i.e. it simply registers the definition
+/// again and the calls recorded while the first occurrence was traversed are
+/// dropped; the analysis only feeds `StaticArguments`, which needs the
+/// definition, not every call.
 fn RecursiveAnalysis::record_definition(
   self : RecursiveAnalysis,
   id : Sym,
   definition : BlockLit,
-) -> Unit raise EffektError {
-  if self.definitions.contains(id.uid()) {
-    raise EffektError::Internal(
-      "The definition \{id.name().name} is registered twice.",
-    )
-  }
+) -> Unit {
   self.definitions.set(id.uid(), RecursiveFunction(definition))
 }
 

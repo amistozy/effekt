@@ -172,10 +172,16 @@ pub(all) struct Scoping {
 }
 
 ///|
-pub fn toplevel(module_path : Array[String], prelude : Bindings) -> Scoping {
-  let global = Bindings::empty()
-  global.import_all(prelude)
-  { module_path, scope: Global(global), }
+/// The scope a module starts in (upstream `Scoping.toplevel`).
+///
+/// Upstream puts the prelude into the *imports* of the global scope and leaves
+/// its `bindings` empty, so a module may define a type that has the same name as
+/// a builtin (`examples/benchmarks/advent_of_code_2025/day12` declares
+/// `record Region`, and `Region` is a builtin interface). The port keeps imports
+/// in `Namer.imports` instead of in the scope, so the caller passes the prelude
+/// there.
+pub fn toplevel(module_path : Array[String]) -> Scoping {
+  { module_path, scope: Global(Bindings::empty()), }
 }
 
 ///|
