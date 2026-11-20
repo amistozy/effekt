@@ -20,11 +20,10 @@
 //
 // Deviations from upstream, all of them also noted where they occur:
 //
-//   - `Usage.*`, `Usage.decrement` and `Reachable.usage`'s counterpart
-//     `Usage.Many` bookkeeping for the optimizer are only used by the passes
-//     that this port does not include (`Optimizer`, `Normalizer`, `Inlining`,
-//     `StaticResumptions`), so `*` and `decrement` are omitted; `+` is needed
-//     by the analysis itself.
+//   - `Usage` lives here, as upstream keeps it in `Reachable.scala`: `+` is the
+//     analysis's own bookkeeping, `*` and `decrement` are what the normalizer
+//     needs for its inlining decisions, and `DropBindings` reads the map
+//     through `reachable_usage`.
 //   - `Reachable` threads the definitions functionally (`using defs:
 //     Definitions`); the port threads a mutable map instead, adding an entry
 //     when entering a `Def` / `Let` and removing it on the way out (uids are
@@ -39,7 +38,7 @@
 //     block; only block *variables* carry an annotated type in this port, see
 //     [[Reachable::process_block_tpe]].
 //   - `Usage`, `Reachable` and `Deadcode` are not part of the public interface:
-//     the only caller is the backend.
+//     the callers are the backend, the normalizer and `DropBindings`.
 
 // ---------------------------------------------------------------------------
 // Usage (Reachable.scala:211-245)
@@ -800,8 +799,9 @@ fn Deadcode::rewrite_stmt(self : Deadcode, s : Stmt) -> Stmt {
 // ---------------------------------------------------------------------------
 
 ///|
-/// The usage information of the reachability analysis, which is what the
-/// normalizer consults to decide whether an inlining is affordable (upstream:
+/// The usage information of the reachability analysis: what the normalizer
+/// consults to decide whether an inlining is affordable, and what `DropBindings`
+/// reads to decide whether a binding is used once (upstream:
 /// `Reachable(entrypoints, m)`).
 fn reachable_usage(
   module : ModuleDecl,

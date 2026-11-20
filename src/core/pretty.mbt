@@ -375,13 +375,15 @@ fn d_stmts(s : Stmt) -> Doc {
     Def(id, block, rest) =>
       match block {
         BlockLit(lit) =>
+          // `"def" <+> id <> params <+> "=" <+> block(...)`: no space between the
+          // name and its parameters, one before the `=` (PrettyPrinter.scala:232).
           doc_cat(
             doc_spacecat(
-              doc_spacecat(text("def"), d_id(id)),
               doc_cat(
+                doc_spacecat(text("def"), d_id(id)),
                 d_params(lit.tparams, lit.cparams, lit.vparams, lit.bparams),
-                doc_spacecat(text("="), braced_block(d_stmts(lit.body))),
               ),
+              doc_spacecat(text("="), braced_block(d_stmts(lit.body))),
             ),
             doc_cat(doc_line(), d_stmts(rest)),
           )

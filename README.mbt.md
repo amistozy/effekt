@@ -15,7 +15,7 @@ files. The whole language compiles, not a subset.
 | Gate | Result |
 |---|---|
 | `moon check --target js -d` | type checks, warnings as errors |
-| `moon test --target js` | 257 unit tests |
+| `moon test --target js` | 261 unit tests |
 | `scripts/e2e.ps1` | 27 end-to-end checks |
 | `scripts/stdlib.ps1` | 49 of 49 standard library modules compile |
 | `scripts/upstream.ps1 -Strict` | 441 of 441 programs match, 91 of 91 benchmarks run and match, 10 of 10 case studies run and match, 7 of 7 programs also pass without optimizations, 243 of 243 rejections match, 240 of 240 diagnostics verbatim |
@@ -120,8 +120,8 @@ and the gates run it.
 ```
 Source ─► Lexer ─► Parser ─► Namer ─► UnboxInference ─► Typer ─► ResolveExternDefs
        ─► ExplicitCapabilities ─► core.Transformer (ANF) ─► Aggregate ─► Deadcode
-       ─► core.Mono ─► core.Show ─► Optimizer ─► cps.Transformer ─► cps.Contify
-       ─► js.TransformerCps ─► JavaScript
+       ─► core.Mono ─► core.Show ─► Optimizer ─► DropBindings
+       ─► cps.Transformer ─► cps.Contify ─► js.TransformerCps ─► JavaScript
 ```
 
 The frontend produces a typed source tree — effects and capture sets are inferred
@@ -135,7 +135,9 @@ rounds of `BindSubexpressions` → `Normalizer` → `Deadcode` → `StaticResump
 `ReferencesToParameters` (`core.Mono` and `core.Show` run before the optimizer, as
 in upstream's `JavaScript.scala`). `--no-optimize` stops the optimizer after its
 first `Deadcode`, exactly where upstream's `Optimizer.optimize` returns when
-`Context.config.optimize()` is false. The backend goes through CPS and contification
+`Context.config.optimize()` is false. `DropBindings` then inlines the value
+bindings that are used exactly once — and, unlike the optimizer, it does that
+with `--no-optimize` as well, as upstream does. The backend goes through CPS and contification
 to the JavaScript IR, where handlers become the `RESET`/`SHIFT`/`RESUME`
 primitives of `effekt.effekt`, the runtime every module includes through `extern
 include`.
@@ -185,8 +187,8 @@ Deliberate, and documented at the point of use:
   capture the binder drops, and a type parameter that would leave its scope.
 - **The optimizer is ported and runs** (see above), with these deviations: no
   `Deadcode.isPureCall` rule, because with approximate capture sets a pure-looking
-  call can capture a region and the rule would drop live calls; no `LambdaSets`,
-  `ArityRaising` or `DropBindings`; five normalizer deviations (no
+  call can capture a region and the rule would drop live calls; no `LambdaSets`
+  or `ArityRaising`; five normalizer deviations (no
   sharing of pure expressions via `Context.facts`, `covers`/`selecting` skipped,
   the `Shift` rule of `normalizeVal` skipped, join-point parameters typed
   `unknown_value_type()`, and the unit-return rule comparing syntax rather than

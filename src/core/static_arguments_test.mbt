@@ -38,7 +38,7 @@ test "static arguments: an unchanged argument becomes a worker parameter" {
   )
   let expected =
     #|def f(x: Int) = {
-    #|  def f_worker ()= {
+    #|  def f_worker() = {
     #|    f_worker()
     #|  }
     #|  f_worker()
@@ -65,7 +65,7 @@ test "static arguments: an unread parameter is vacuously static" {
   )
   let expected =
     #|def f(x: Int) = {
-    #|  def f_worker ()= {
+    #|  def f_worker() = {
     #|    f_worker()
     #|  }
     #|  f_worker()
@@ -104,7 +104,7 @@ test "static arguments: a type argument that is passed through is dropped" {
   )
   let expected =
     #|def f['t](x: Int) = {
-    #|  def f_worker ()= {
+    #|  def f_worker() = {
     #|    f_worker()
     #|  }
     #|  f_worker()

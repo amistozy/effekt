@@ -20,6 +20,8 @@ pub fn deadcode(ModuleDecl, ArrayView[@symbols.Sym]) -> ModuleDecl
 
 pub fn direct_style(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
+pub fn drop_bindings(ModuleDecl, ArrayView[@symbols.Sym]) -> ModuleDecl raise @util.EffektError
+
 pub fn instantiate(BlockType, ArrayView[ValueType], ArrayView[@symbols.Captures]) -> BlockType raise @util.EffektError
 
 pub fn mono_phase(ModuleDecl) -> ModuleDecl raise @util.EffektError

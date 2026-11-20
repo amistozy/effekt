@@ -22,6 +22,8 @@ priv struct Rewrite {
   on_stmt : ((Rewrite, Stmt) -> Stmt? raise EffektError)?
   /// Replaces a block; `None` rebuilds it from the rewritten children.
   on_block : ((Rewrite, Block) -> Block? raise EffektError)?
+  /// Replaces an expression; `None` rebuilds it from the rewritten children.
+  on_expr : ((Rewrite, Expr) -> Expr? raise EffektError)?
   /// Replaces a symbol wherever it occurs, in types and capture sets too.
   on_id : ((Sym) -> Sym)?
   /// Replaces a capture set wherever it occurs.
@@ -34,8 +36,9 @@ fn Rewrite::Rewrite(
   on_id : ((Sym) -> Sym)?,
   on_captures : ((Captures) -> Captures)?,
   on_block : ((Rewrite, Block) -> Block? raise EffektError)?,
+  on_expr? : (Rewrite, Expr) -> Expr? raise EffektError,
 ) -> Rewrite {
-  { on_stmt, on_id, on_captures, on_block, }
+  { on_stmt, on_id, on_captures, on_block, on_expr, }
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +112,22 @@ fn Rewrite::rewrite_block_type(self : Rewrite, tpe : BlockType) -> BlockType {
 
 ///|
 fn Rewrite::rewrite_expr(self : Rewrite, e : Expr) -> Expr raise EffektError {
+  match self.on_expr {
+    Some(f) =>
+      match f(self, e) {
+        Some(replacement) => replacement
+        None => self.rewrite_expr_children(e)
+      }
+    None => self.rewrite_expr_children(e)
+  }
+}
+
+///|
+/// The congruence for expressions: rebuild `e` from its rewritten children.
+fn Rewrite::rewrite_expr_children(
+  self : Rewrite,
+  e : Expr,
+) -> Expr raise EffektError {
   match e {
     ValueVar(id, tpe) =>
       ValueVar(self.rewrite_id(id), self.rewrite_value_type(tpe))

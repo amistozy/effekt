@@ -8,6 +8,7 @@
 //     core.Mono                                       (monomorphize)
 //     core.Show                                       (structural show instances)
 //     Optimizer                                       (minus the passes not ported)
+//     DropBindings                                    (drop unique value bindings)
 //     cps.Transformer.transform                       (core -> cps)
 //     cps.Contify.rewrite                             (cps -> cps)
 //     TransformerCps.compile(...).commonjs            (cps -> js)
@@ -99,6 +100,11 @@ fn middle_end(
   // 2e. The optimizer: upstream's `Optimizer.optimize`, minus the phases that
   //     are not ported (`LambdaSets`, `ArityRaising`, `DropBindings`).
   let aggregated = optimize(aggregated, main_sym, enabled)
+  // 2f. Drop (inline) the unique value bindings. Upstream runs `DropBindings`
+  //     after the optimizer and unconditionally — unlike `Optimizer.optimize`,
+  //     it does not consult `config.optimize()` — so `--no-optimize` drops
+  //     bindings as well.
+  let aggregated = @core.drop_bindings(aggregated, [main_sym])
   (aggregated, main_sym)
 }
 
