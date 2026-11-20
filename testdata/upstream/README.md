@@ -1,17 +1,28 @@
 # Upstream test corpus
 
 `examples/` is a verbatim copy of the Effekt repository's test corpus
-(`effekt/examples/pos`, `examples/stdlib`, `examples/neg` and
-`examples/benchmarks` at the revision this port follows, `6976c7947`), so that
-the port can be measured against the language's own tests instead of only
-against hand-written examples.
+(`effekt/examples/pos`, `examples/stdlib`, `examples/benchmarks`,
+`examples/casestudies` and `examples/neg` at the revision this port follows,
+`6976c7947`), so that the port can be measured against the language's own tests
+instead of only against hand-written examples.
 
 | Directory | Files | Expectation |
 |---|---|---|
 | `examples/pos` | 314 | compiles, runs, stdout equals the sibling `.check` file |
 | `examples/stdlib` | 131 | same, for programs that exercise the standard library |
 | `examples/benchmarks` | 93 | same; every benchmark runs in *test mode* (`benchmarks/runner.effekt`) |
+| `examples/casestudies` | 10 | same, for the literate `.effekt.md` case studies |
 | `examples/neg` | 243 | compilation fails; the diagnostics have to cover the expected severities and lines |
+
+The case studies are *literate* programs: each `.effekt.md` file is a markdown
+document whose code fences hold the program. The compiler extracts the fences
+the way upstream's `MarkdownSource` does — a fence is code when it is written as
+```` ```effekt ```` or without a language, dropped when it names another
+language, `:ignore`d or wrapped in a `def replN()` whose result a synthesized
+`main` prints for `:repl` — and replaces everything else by blank lines, so a
+diagnostic keeps pointing at the markdown line it came from. They import each
+other by module path (`import examples/casestudies/lexer`), which is why the
+loader has to find `lexer.effekt.md` for `lexer` as well.
 
 The benchmarks are upstream's `examples/benchmarks`; the `config_*.txt` files in
 it select the *problem sizes* used when benchmarking (`runner.effekt` reads the

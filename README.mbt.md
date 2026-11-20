@@ -15,23 +15,23 @@ files. The whole language compiles, not a subset.
 | Gate | Result |
 |---|---|
 | `moon check --target js -d` | type checks, warnings as errors |
-| `moon test --target js` | 251 unit tests |
+| `moon test --target js` | 256 unit tests |
 | `scripts/e2e.ps1` | 26 end-to-end checks |
 | `scripts/stdlib.ps1` | 49 of 49 standard library modules compile |
-| `scripts/upstream.ps1 -Strict` | 440 of 440 programs match, 91 of 91 benchmarks run and match, 243 of 243 rejections match, 240 of 240 diagnostics verbatim |
+| `scripts/upstream.ps1 -Strict` | 440 of 440 programs match, 91 of 91 benchmarks run and match, 10 of 10 case studies run and match, 243 of 243 rejections match, 240 of 240 diagnostics verbatim |
 
 Every gate is green on every commit, against the baselines `upstream.ps1` keeps;
 they may only grow, apart from a re-sync that moves the corpus. The corpus,
 copied verbatim from upstream at commit `6976c7947` (314 `pos`, 131 `stdlib`, 93
-`benchmarks`, 243 `neg`), is the real measure: a `pos`/`stdlib`/`benchmarks`
-program is compiled, run, and its stdout together with our diagnostics is
-compared against upstream's `.check` file, and a `neg` program has to fail with
-the expected severity, on the expected line, with upstream's message — `-Strict`
-compares the whole rendered diagnostics verbatim, as upstream's `assertNoDiff`
-does. 774 of the 781 programs are compared; the seven skipped here write to
-`/dev/stdout`, spawn POSIX tools or check a POSIX errno Windows lacks, overflow
-the stack (upstream ignores that benchmark for JavaScript), or import a module
-that upstream itself does not ship.
+`benchmarks`, 10 literate `casestudies`, 243 `neg`), is the real measure: a
+positive program is compiled, run, and its stdout together with our diagnostics
+is compared against upstream's `.check` file, and a `neg` program has to fail
+with the expected severity, on the expected line, with upstream's message —
+`-Strict` compares the whole rendered diagnostics verbatim, as upstream's
+`assertNoDiff` does. 784 of the 791 programs are compared; the seven skipped
+here write to `/dev/stdout`, spawn POSIX tools or check a POSIX errno Windows
+lacks, overflow the stack (upstream ignores that benchmark for JavaScript), or
+import a module that upstream itself does not ship.
 
 Every program of the corpus compiles and runs, and every rejection is a rejection
 of the expected severity on the expected line. The diagnostics are rendered the

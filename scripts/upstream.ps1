@@ -48,6 +48,9 @@ $negativeStrictBaseline = 240
 # is what the `.check` file records. The `config_*.txt` files upstream uses to
 # benchmark are not read here.
 $benchmarkBaseline = 91
+# `examples/casestudies` is literate: every `.effekt.md` there is a program whose
+# code fences the compiler extracts, with a `.check` file holding its output.
+$casestudyBaseline = 10
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
 moon build --target js 2>&1 | Out-Null
@@ -226,11 +229,21 @@ $worker = {
     return [regex]::Replace($text, "\u001b\[[;\d]*m", "")
   }
 
+  # The `.check` file of a test: `foo.effekt` and the literate `foo.effekt.md`
+  # both record their output in `foo.check` (upstream `checkFileFor`).
+  function Get-CheckFile($file) {
+    if ($file.EndsWith(".effekt.md")) {
+      $file.Substring(0, $file.Length - ".effekt.md".Length) + ".check"
+    } else {
+      [IO.Path]::ChangeExtension($file, ".check")
+    }
+  }
+
   # The expected diagnostics of a negative test: from the `.check` file when
   # there is one, otherwise from the `// ERROR` / `// WARN` comments.
   function Get-Expected($file) {
     $expected = @()
-    $check = [IO.Path]::ChangeExtension($file, ".check")
+    $check = Get-CheckFile $file
     if (Test-Path $check) {
       foreach ($line in (Get-Content $check)) {
         if ($line -match '^\[(error|warning|info)\]\s+\S+?:(\d+):(\d+):\s*(.*)$') {
@@ -257,8 +270,8 @@ $worker = {
     $rel = $item.rel
     $jsOut = Join-Path $outDir (($rel -replace '[\\/]', '__') + ".js")
 
-    if ($kind -eq "pos" -or $kind -eq "bench") {
-      $check = [IO.Path]::ChangeExtension($file, ".check")
+    if ($kind -eq "pos" -or $kind -eq "bench" -or $kind -eq "case") {
+      $check = Get-CheckFile $file
       $expected = ""
       if (Test-Path $check) {
         $expected = ([IO.File]::ReadAllText($check)).Replace("`r`n", "`n").TrimEnd()
@@ -339,11 +352,11 @@ $worker = {
         "$kind`tfail`t$rel`tcompiled without an error"
       } elseif ($wording -gt 0) {
         "$kind`twording`t$rel`t$wording message(s) differ in wording: " + ($wordingDetails -join " | ")
-      } elseif ($strict -and (Test-Path ([IO.Path]::ChangeExtension($file, ".check")))) {
+      } elseif ($strict -and (Test-Path (Get-CheckFile $file))) {
         # Upstream's `runNegativeTestsIn` compares the recorded `.check` file
         # verbatim (`assertNoDiff`) when there is one. Report the first line that
         # differs, so the remaining work is visible one difference at a time.
-        $check = [IO.Path]::ChangeExtension($file, ".check")
+        $check = Get-CheckFile $file
         $actualText = (Remove-AnsiColors $r.stdout).TrimEnd()
         $diagText = (Remove-AnsiColors (Get-DiagnosticText $r.stderr)).TrimEnd()
         if ($diagText -ne "") {
@@ -412,6 +425,15 @@ foreach ($dir in @("pos", "stdlib", "benchmarks")) {
     $tests += @{ kind = $kind; file = $f.FullName; rel = $rel }
   }
 }
+# The case studies are literate (`.effekt.md`) programs: the compiler extracts
+# the code fences, keeping the lines of the markdown file (see the README).
+$base = Join-Path $corpus "examples/casestudies"
+foreach ($f in (Get-ChildItem -Recurse $base -Filter '*.effekt.md' -File)) {
+  $rel = $f.FullName.Substring($corpus.Length).TrimStart('\', '/') -replace '\\', '/'
+  if ($Filter -ne "" -and -not $rel.Contains($Filter)) { continue }
+  if ($skipped.ContainsKey($rel)) { continue }
+  $tests += @{ kind = "case"; file = $f.FullName; rel = $rel }
+}
 $base = Join-Path $corpus "examples/neg"
 foreach ($f in (Get-ChildItem -Recurse $base -Filter '*.effekt' -File)) {
   $rel = $f.FullName.Substring($corpus.Length).TrimStart('\', '/') -replace '\\', '/'
@@ -440,6 +462,8 @@ $posOk = 0
 $posTotal = 0
 $benchOk = 0
 $benchTotal = 0
+$caseOk = 0
+$caseTotal = 0
 $negOk = 0
 $negTotal = 0
 $negWording = 0
@@ -457,10 +481,22 @@ foreach ($line in $results) {
   $status = $parts[1]
   $rel = $parts[2]
   $detail = if ($parts.Count -gt 3) { $parts[3] } else { "" }
-  if ($kind -eq "pos" -or $kind -eq "bench") {
-    if ($kind -eq "bench") { $benchTotal++ } else { $posTotal++ }
+  if ($kind -eq "pos" -or $kind -eq "bench" -or $kind -eq "case") {
+    if ($kind -eq "bench") {
+      $benchTotal++
+    } elseif ($kind -eq "case") {
+      $caseTotal++
+    } else {
+      $posTotal++
+    }
     if ($status -eq "ok") {
-      if ($kind -eq "bench") { $benchOk++ } else { $posOk++ }
+      if ($kind -eq "bench") {
+        $benchOk++
+      } elseif ($kind -eq "case") {
+        $caseOk++
+      } else {
+        $posOk++
+      }
     } else {
       if (-not $failures.ContainsKey($detail)) { $failures[$detail] = @() }
       $failures[$detail] += $rel
@@ -492,6 +528,7 @@ foreach ($line in $results) {
 Write-Host ""
 Write-Host ("positive (pos + stdlib): {0} of {1} pass" -f $posOk, $posTotal) -ForegroundColor Cyan
 Write-Host ("benchmarks:              {0} of {1} run and match" -f $benchOk, $benchTotal) -ForegroundColor Cyan
+Write-Host ("casestudies:             {0} of {1} run and match" -f $caseOk, $caseTotal) -ForegroundColor Cyan
 Write-Host ("negative (neg):          {0} of {1} match ({2} pass with different wording)" -f $negOk, $negTotal, $negWording) -ForegroundColor Cyan
 if ($Strict) {
   Write-Host ("  of those, full text:   {0} of {1} `.check` files match exactly" -f $negStrictOk, $negStrictTotal) -ForegroundColor Cyan
@@ -540,7 +577,7 @@ $failed = $false
 # baseline; it reports its own results and only a full run enforces one.
 if ($Filter -ne "") {
   Write-Host ""
-  Write-Host ("filtered run (no baseline check): {0}/{1} positive, {2}/{3} benchmarks, {4}/{5} negative" -f $posOk, $posTotal, $benchOk, $benchTotal, $negOk, $negTotal) -ForegroundColor DarkGray
+  Write-Host ("filtered run (no baseline check): {0}/{1} positive, {2}/{3} benchmarks, {4}/{5} casestudies, {6}/{7} negative" -f $posOk, $posTotal, $benchOk, $benchTotal, $caseOk, $caseTotal, $negOk, $negTotal) -ForegroundColor DarkGray
 } else {
   if ($posOk -lt $positiveBaseline) {
     Write-Host ("positive: {0} pass, below the baseline of {1}" -f $posOk, $positiveBaseline) -ForegroundColor Red
@@ -548,6 +585,10 @@ if ($Filter -ne "") {
   }
   if ($benchOk -lt $benchmarkBaseline) {
     Write-Host ("benchmarks: {0} pass, below the baseline of {1}" -f $benchOk, $benchmarkBaseline) -ForegroundColor Red
+    $failed = $true
+  }
+  if ($caseOk -lt $casestudyBaseline) {
+    Write-Host ("casestudies: {0} pass, below the baseline of {1}" -f $caseOk, $casestudyBaseline) -ForegroundColor Red
     $failed = $true
   }
   if ($negOk -lt $negativeBaseline) {
@@ -559,7 +600,7 @@ if ($Filter -ne "") {
     $failed = $true
   }
   if ($failed) { exit 1 }
-  $baselines = "baselines: positive {0}, benchmarks {1}, negative {2}" -f $positiveBaseline, $benchmarkBaseline, $negativeBaseline
+  $baselines = "baselines: positive {0}, benchmarks {1}, casestudies {2}, negative {3}" -f $positiveBaseline, $benchmarkBaseline, $casestudyBaseline, $negativeBaseline
   if ($Strict) { $baselines += ", negative (full text) {0}" -f $negativeStrictBaseline }
   Write-Host $baselines -ForegroundColor Green
 }
