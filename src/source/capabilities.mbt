@@ -97,16 +97,57 @@ fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
     Call(IdTarget(fun), _targs, vargs, bargs) if is_field_call(
         ctx, fun, vargs, bargs,
       ) => Some(mk_term(t.span.synthesized(), Select(vargs[0].value, fun)))
+    // The shape of a method call follows from the candidate the typer resolved
+    // it to and from the kind of the receiver (upstream `ExplicitCapabilities`):
+    // a value (or a mutable variable) is called through its box, an operation as
+    // a method of the receiver's interface, and a function or a computation by
+    // passing the receiver as its first argument.
     MethodCall(receiver, id, _targs, vargs, bargs) => {
       let (type_args, value_args, block_args) = expanded_arguments(
         ctx, t, vargs, bargs,
       )
-      Some(
-        mk_term(
-          t.span,
-          MethodCall(receiver, id, type_args, value_args, block_args),
-        ),
-      )
+      let shape = match ctx.symbol_of(id.uid) {
+        // a field is selected, not called (upstream `case _: Field => Select(...)`)
+        Some(@symbols.Sym::Field(_)) => Select(receiver, id)
+        Some(sym) =>
+          if sym.is_value_symbol() || sym.is_ref_binder() {
+            let callee = reference_to_value(sym, ctx)
+            if is_block_like(ctx, receiver) {
+              Call(
+                ExprTarget(mk_term(t.span.synthesized(), Unbox(callee))),
+                type_args,
+                value_args,
+                [receiver] + block_args,
+              )
+            } else {
+              Call(
+                ExprTarget(mk_term(t.span.synthesized(), Unbox(callee))),
+                type_args,
+                [ValueArg::unnamed(receiver)] + value_args,
+                block_args,
+              )
+            }
+          } else if sym.is_operation() {
+            MethodCall(
+              as_block(ctx, receiver),
+              id,
+              type_args,
+              value_args,
+              block_args,
+            )
+          } else if is_block_like(ctx, receiver) {
+            Call(IdTarget(id), type_args, value_args, [receiver] + block_args)
+          } else {
+            Call(
+              IdTarget(id),
+              type_args,
+              [ValueArg::unnamed(receiver)] + value_args,
+              block_args,
+            )
+          }
+        None => Call(IdTarget(id), type_args, value_args, block_args)
+      }
+      Some(mk_term(t.span, shape))
     }
     Call(target, _targs, vargs, bargs) => {
       let (type_args, value_args, block_args) = expanded_arguments(
@@ -182,6 +223,49 @@ fn is_field_call(
     Some(Field(_)) => true
     _ => false
   }
+}
+
+///|
+/// Whether a term is a computation, as `UnboxInference.isBlockLike` decides it
+/// (`src/typer/unbox.mbt` has the same predicate for the unbox pass): a variable
+/// of block type, an unboxed value and a `new` are computations, a value (and a
+/// mutable variable) is not.
+fn is_block_like(ctx : Context, e : Term) -> Bool {
+  match e.kind {
+    Var(id) =>
+      match ctx.symbol_of(id.uid) {
+        Some(sym) => sym.is_block_symbol() && !sym.is_ref_binder()
+        None => false
+      }
+    Unbox(_) | New(_) => true
+    _ => false
+  }
+}
+
+///|
+/// The receiver of a method call as a computation (upstream
+/// `UnboxInference.asBlock`): a value is unboxed first.
+fn as_block(ctx : Context, receiver : Term) -> Term {
+  if is_block_like(ctx, receiver) {
+    receiver
+  } else {
+    mk_term(receiver.span.synthesized(), Unbox(receiver))
+  }
+}
+
+///|
+/// A term referencing a value (or a mutable variable) bound in the environment,
+/// annotated with its type: calling it unboxes it, and the core transformation
+/// needs the boxed type to build the `Unbox`.
+fn reference_to_value(sym : Sym, ctx : Context) -> Term {
+  let id = IdRef(sym.name().name, Span::missing())
+  ctx.assign_symbol(id.uid, sym)
+  let t = mk_term(Span::missing(), Var(id))
+  match ctx.value_type_of(sym.uid()) {
+    Some(tpe) => ctx.assign_value_type(t.uid, tpe)
+    None => ()
+  }
+  t
 }
 
 ///|

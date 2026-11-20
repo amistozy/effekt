@@ -1014,7 +1014,7 @@ fn run_frontend(
 }
 
 ///|
-test "method call on a value is desugared to a call" {
+test "a method call on a value keeps its shape and is desugared later" {
   let ctx = test_ctx()
   let r = @symbols.Sym::type_param(@symbols.Name::local("R"), test_span())
   // extern def show[R](value: R) at {}: String
@@ -1050,8 +1050,34 @@ test "method call on a value is desugared to a call" {
     return_of(method_call),
   )
   let rewritten = run_frontend(module_of([show_def, f_def]), ctx)
-  // the rewritten definition must contain a plain call to `show`
+  // Unbox inference leaves the method call alone: the typer decides per
+  // candidate whether `show` is a method of the receiver's interface or a
+  // function that takes the receiver as its first argument (`ExplicitCapabilities`
+  // rebuilds the call from that decision).
   match rewritten.defs[1].kind {
+    @source.DefKind::FunDef(_, _, _, _, _, _, body) =>
+      match body.kind {
+        @source.StmtKind::Return(e) =>
+          match e.kind {
+            @source.TermKind::MethodCall(_receiver, id, _, vargs, bargs) => {
+              assert_eq(id.name, "show")
+              assert_eq(vargs.length(), 0)
+              assert_eq(bargs.length(), 0)
+              // the resolution recorded the function on the target
+              match ctx.symbol_of(id.uid) {
+                Some(sym) => assert_eq(sym.name().name, "show")
+                None => fail("the typer did not resolve the method call")
+              }
+            }
+            _ => fail("expected the method call to be kept")
+          }
+        _ => fail("expected a return statement")
+      }
+    _ => fail("expected the rewritten function")
+  }
+  // ... and the call becomes a call of `show`, with the receiver as its argument
+  let desugared = @source.explicit_capabilities(rewritten, ctx)
+  match desugared.defs[1].kind {
     @source.DefKind::FunDef(_, _, _, _, _, _, body) =>
       match body.kind {
         @source.StmtKind::Return(e) =>
@@ -1348,8 +1374,12 @@ test "method call is desugared even when the driver drops the unboxed tree" {
     Some(t) => assert_true(t == @symbols.t_string())
     None => fail("no type inferred for the desugared method call")
   }
-  // ... and the module the driver holds now contains the desugared call
-  match module.defs[2].kind {
+  // The typer no longer rebuilds the tree: it records the resolved symbol on the
+  // node the driver holds, and `ExplicitCapabilities` desugars from it — so a
+  // driver that type checked the unboxed tree and then dropped it still gets the
+  // call shape right.
+  let desugared = @source.explicit_capabilities(module, ctx)
+  match desugared.defs[2].kind {
     @source.DefKind::FunDef(_, _, _, _, _, _, body) =>
       match body.kind {
         @source.StmtKind::Return(e) =>

@@ -2121,29 +2121,10 @@ fn Typer::check_expr_kind(
           )
         }
         @source.CallTarget::ExprTarget(callee) => {
-          let hint : (Int32, ValueType)? = if bargs.is_empty() {
-            expected.map(t => (vargs.length(), t))
-          } else {
-            None
-          }
-          let callee_res = self.check_expr_as_block(callee, None, hint)
-          match callee_res.tpe {
-            @symbols.BlockType::FunctionType(_, _, _, _, _, _) => {
-              let call = { uid: e.uid, span: e.span, name: "function", }
-              let res = self.check_call_to(
-                call,
-                [],
-                [],
-                callee_res.tpe,
-                resolved_targs,
-                vargs,
-                bargs,
-                expected,
-              )
-              TyRes(res.tpe, eff_union(res.effs, callee_res.effs))
-            }
-            _ => self.abort(e.span, "Cannot infer function type for callee.")
-          }
+          let call = { uid: e.uid, span: e.span, name: "function", }
+          self.check_call_of_expr(
+            call, callee, resolved_targs, vargs, bargs, expected,
+          )
         }
       }
     }

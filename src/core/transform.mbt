@@ -1674,17 +1674,20 @@ fn Transformer::transform_as_stmt(
         .map(t => self.transform_value_type(t))
       let value_args = vargs.map(a => self.transform_as_expr(a.value))
       let block_args = bargs.map(b => self.transform_as_block(b))
-      let receiver_type = match self.ctx.block_type_of(receiver.uid) {
-        Some(t) => self.transform_block_type(t)
-        None => unknown_block_type()
-      }
       let operation = self.sym_of_ref(id)
+      let interface = operation_interface(operation)
+      let iface_tparams = type_constructor_tparams(interface).length()
+      // The type arguments of the interface come first (upstream:
+      // `InterfaceType(operation.interface, typeArguments(c).take(...))`). The
+      // receiver itself is only annotated when the type checker looked at it as
+      // a block, which is not the case when this phase unboxed it.
+      let receiver_type = InterfaceType(
+        interface,
+        type_args[:iface_tparams].to_owned(),
+      )
       let op_type = self.operation_at_callsite(receiver_type, operation)
       // Do not pass type arguments for the type constructor of the receiver.
-      let remaining = array_drop(
-        type_args,
-        type_constructor_tparams(operation_interface(operation)).length(),
-      )
+      let remaining = array_drop(type_args, iface_tparams)
       Invoke(rec, operation, op_type, remaining, value_args, block_args)
     }
     @source.Hole(_, _) => Hole([self.inferred_type_of(tree)], tree.span)

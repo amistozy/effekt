@@ -259,52 +259,27 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
           bargs.map(b => self.rewrite_as_block(b)),
         ),
       )
+    // `receiver.id(...)` stays a `MethodCall`: whether the receiver is the
+    // object of a method, the first block argument of a computation, or the
+    // first value argument of a function follows from the candidate the typer
+    // picks (`ExplicitCapabilities` rebuilds the call from it). Only the
+    // receiver is rewritten, to the form its own kind asks for.
     @source.TermKind::MethodCall(receiver, id, targs, vargs, bargs) => {
-      let vargs_transformed = vargs.map(a => self.rewrite_arg(a))
-      let bargs_transformed = bargs.map(b => self.rewrite_as_block(b))
-      let has_methods = match self.symbol_of(id.uid) {
-        Some(@symbols.Sym::CallTarget(ct)) =>
-          ct.symbols.any(scope => scope.any(s => s.is_operation()))
-        Some(s) => s.is_operation()
-        None => false
-      }
-      if has_methods {
-        // true method call on an interface: the receiver is the object
-        self.visit_term(
-          e,
-          @source.TermKind::MethodCall(
-            self.rewrite_as_block(receiver),
-            id,
-            targs,
-            vargs_transformed,
-            bargs_transformed,
-          ),
-        )
-      } else if !self.is_block_like(receiver) {
-        // value-UFCS: the receiver becomes the first value argument
-        let first = ValueArg::unnamed(self.rewrite_as_expr(receiver))
-        self.visit_term(
-          e,
-          @source.TermKind::Call(
-            @source.CallTarget::IdTarget(id),
-            targs,
-            [first] + vargs_transformed,
-            bargs_transformed,
-          ),
-        )
+      let recv = if self.is_block_like(receiver) {
+        self.rewrite_as_block(receiver)
       } else {
-        // block-UFCS: the receiver becomes the first block argument
-        let first = self.rewrite_as_block(receiver)
-        self.visit_term(
-          e,
-          @source.TermKind::Call(
-            @source.CallTarget::IdTarget(id),
-            targs,
-            vargs_transformed,
-            [first] + bargs_transformed,
-          ),
-        )
+        self.rewrite_as_expr(receiver)
       }
+      self.visit_term(
+        e,
+        @source.TermKind::MethodCall(
+          recv,
+          id,
+          targs,
+          vargs.map(a => self.rewrite_arg(a)),
+          bargs.map(b => self.rewrite_as_block(b)),
+        ),
+      )
     }
     @source.TermKind::TryHandle(prog, handlers) =>
       self.visit_term(

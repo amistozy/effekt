@@ -470,54 +470,6 @@ fn Namer::lookup_operation(
 }
 
 ///|
-/// Callables bound to `name` under `path` (upstream: `Scoping.lookupFunction`).
-fn Namer::lookup_function(
-  self : Namer,
-  path : Array[String],
-  name : String,
-) -> Array[Array[Sym]] raise EffektError {
-  self
-  .lookup_overloaded(path, name, sym => sym.is_callable() && !sym.is_operation())
-  .filter(group => !group.is_empty())
-}
-
-///|
-/// The block parameters bound to `name` in the innermost scope that binds it
-/// (upstream: `Scoping.lookupFirstBlockParam`).
-fn Namer::lookup_first_block_param(
-  self : Namer,
-  path : Array[String],
-  name : String,
-) -> Array[Sym] raise EffektError {
-  for p in self.lookup_paths(path) {
-    let local = self.scoping.lookup_first_block_param(p, name)
-    guard local.is_empty() else { return local }
-    let imported = in_bindings(self.imports, p, bindings => {
-      match bindings.terms.get(name) {
-        Some(syms) =>
-          Some(
-            syms.filter(sym => {
-              match sym {
-                @symbols.Sym::BlockParam(_) => true
-                _ => false
-              }
-            }),
-          )
-        None => None
-      }
-    })
-    if imported is Some(params) && !params.is_empty() {
-      return params
-    }
-  }
-  []
-}
-
-// ---------------------------------------------------------------------------
-// Defining, binding and looking up names (upstream: `NamerOps`)
-// ---------------------------------------------------------------------------
-
-///|
 fn Namer::path(self : Namer) -> Array[String]? {
   self.scoping.path()
 }
@@ -1247,51 +1199,13 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
     @source.MethodCall(receiver, target, targs, vargs, bargs) => {
       self.record_call_site(t.uid)
       self.resolve_term(receiver)
-      // We are a bit context sensitive in resolving the method.
-      match receiver.kind {
-        @source.Var(id) => {
-          let sym = self.resolve_id_ref(id)
-          if sym.is_value_symbol() {
-            // (foo: ValueType).bar(args)  = Call(bar, foo :: args)
-            if !self.resolve_overloaded_function(target) {
-              self.context.abort(
-                target.span,
-                "Cannot resolve function \{id_text(target)}, called on a value receiver.",
-              )
-            }
-          } else if sym.is_ref_binder() {
-            if !self.resolve_overloaded_function(target) {
-              self.context.abort(
-                target.span,
-                "Cannot resolve function \{id_text(target)}, called on a receiver that is a reference.",
-              )
-            }
-          } else if sym.is_block_symbol() {
-            // (foo: BlockType).bar(args)  = Invoke(foo, bar, args)
-            if !self.resolve_overloaded_operation(target) {
-              self.context.abort(
-                target.span,
-                "Cannot resolve operation \{id_text(target)}, called on a computation.",
-              )
-            }
-          }
-        }
-        @source.Unbox(_) =>
-          if !self.resolve_overloaded_function(target) {
-            self.context.abort(
-              target.span,
-              "Cannot resolve operation \{id_text(target)}, called on an unboxed computation.",
-            )
-          }
-        // expr.bar(args) = Call(bar, expr :: args)
-        _ =>
-          if !self.resolve_overloaded_function(target) {
-            self.context.abort(
-              target.span,
-              "Cannot resolve function \{id_text(target)}, called on an expression.",
-            )
-          }
-      }
+      // `x.f(...)` is not desugared here: every term bound to the name is a
+      // candidate, and the typer decides whether it is a method of the
+      // receiver's interface, a computation that takes the receiver as its
+      // first block argument, or a function that takes it as its first value
+      // argument (upstream `Namer.resolveReceiverCall`).
+      let sym = self.resolve_receiver_call(target)
+      self.context.assign_symbol(t.uid, sym)
       for arg in targs {
         ignore(self.resolve_value_type(arg, false))
       }
@@ -1300,9 +1214,6 @@ fn Namer::resolve_term(self : Namer, t : Term) -> Unit raise EffektError {
       }
       for arg in bargs {
         self.resolve_term(arg)
-      }
-      if self.context.symbol_of(target.uid) is Some(sym) {
-        self.context.assign_symbol(t.uid, sym)
       }
     }
     @source.Do(target, targs, vargs, bargs) => {
@@ -1691,55 +1602,6 @@ fn Namer::all_constructors_for(
 }
 
 ///|
-/// Resolves a potentially overloaded method target; the receiver is a
-/// computation, so we look for an operation first.
-fn Namer::resolve_overloaded_operation(
-  self : Namer,
-  id : IdRef,
-) -> Bool raise EffektError {
-  let syms = self.lookup_operation(id.path, id.name)
-  let syms2 = if syms.is_empty() {
-    self.lookup_function(id.path, id.name)
-  } else {
-    syms
-  }
-  if !syms2.is_empty() {
-    self.context.assign_symbol(id.uid, @symbols.Sym::call_target(syms2))
-    true
-  } else {
-    false
-  }
-}
-
-///|
-/// Resolves a potentially overloaded method target; the receiver is a value or
-/// an expression, so we look for a function first.
-fn Namer::resolve_overloaded_function(
-  self : Namer,
-  id : IdRef,
-) -> Bool raise EffektError {
-  let syms = self.lookup_function(id.path, id.name)
-  let syms2 = if syms.is_empty() {
-    self.lookup_operation(id.path, id.name)
-  } else {
-    syms
-  }
-  // Lookup the first block parameter and do not collect multiple since we do
-  // not (yet?) permit overloading on block parameters.
-  let syms3 = if syms2.is_empty() {
-    [self.lookup_first_block_param(id.path, id.name)]
-  } else {
-    syms2
-  }
-  if !syms3.is_empty() {
-    self.context.assign_symbol(id.uid, @symbols.Sym::call_target(syms3))
-    true
-  } else {
-    false
-  }
-}
-
-///|
 /// Resolves a potentially overloaded function call.
 fn Namer::resolve_function_calltarget(
   self : Namer,
@@ -1775,6 +1637,27 @@ fn Namer::resolve_function_calltarget(
       sym
     }
   }
+}
+
+///|
+/// Resolves the target of a method call `receiver.id(...)`: every term bound to
+/// the name, whatever its kind (upstream `Namer.resolveReceiverCall`).
+///
+/// The typer decides per candidate whether `id` is a method of the receiver's
+/// interface, a computation that takes the receiver as its first block
+/// argument, or a function that takes it as its first value argument — so the
+/// scoping rules of `resolve_target_candidates` do not apply here, and a
+/// target without candidates is left to the typer to report.
+fn Namer::resolve_receiver_call(
+  self : Namer,
+  id : IdRef,
+) -> Sym raise EffektError {
+  let candidates = self
+    .lookup_overloaded(id.path, id.name, _ => true)
+    .filter(group => !group.is_empty())
+  let sym = @symbols.Sym::call_target(candidates)
+  self.context.assign_symbol(id.uid, sym)
+  sym
 }
 
 ///|

@@ -586,24 +586,11 @@ fn Typer::check_overloaded_function_call(
       unique,
       scopes.length() == 1 && unique.length() == 1,
       candidate => {
-        let (fun_tpe, _tparams, vps, bps) = self.find_function_type_for(
-          candidate,
+        self.check_call_to_candidate(
+          call, candidate, targs, vargs, bargs, expected,
         )
-        let res = self.check_call_to(
-          call, vps, bps, fun_tpe, targs, vargs, bargs, expected,
-        )
-        // The capture of the callee has to be available at the call site
-        // (`findFunctionTypeFor(...)._2` in upstream `checkOverloadedFunctionCall`).
-        // Without it a function that is bound to a capability (`at io`) can be
-        // called from where the capability is not in scope.
-        match candidate {
-          @symbols.Sym::Operation(_) => ()
-          _ => self.using_capture(self.lookup_capture(candidate))
-        }
-        res
       },
     )
-
     if successes.length() == 1 {
       let (found, res, state, infos) = successes[0]
       self.st = state
@@ -623,56 +610,7 @@ fn Typer::check_overloaded_function_call(
     }
     all_failures.append(failures)
   }
-  match all_failures {
-    [(_, msg, muted)] =>
-      // Upstream's `abortWith`: the only candidate that was tried reports its own
-      // diagnostics, each at the span it belongs to, instead of one message at
-      // the call. The first one is reported last so that the abort that stops the
-      // phase carries exactly the message the boundary would otherwise repeat.
-      if muted.is_empty() {
-        self.abort(call.span, msg)
-      } else {
-        for msg in muted[1:] {
-          // `self.error_message`, not `self.ctx.report`: a nested call may itself
-          // be checked while an enclosing candidate is muted, and then these
-          // diagnostics have to stay muted as well.
-          self.error_message(msg)
-        }
-        self.abort_message(muted[0])
-      }
-    [] =>
-      self.abort(
-        call.span,
-        "Cannot typecheck call to \{call.name}. Does a function/method with that name exist?",
-      )
-    _ => {
-      // Upstream's `FailedOverloadError`: a title line, then one paragraph per
-      // candidate with the candidate's own diagnostics indented below it, and a
-      // trailing newline (which is the blank line before the excerpt in the
-      // recorded `.check` files). A diagnostic of a candidate is rendered like
-      // any other *except* for the `* note:`/`* help:` markers: upstream's
-      // `contentWithSubdiagnostics` puts them on their own indented lines.
-      let explanations : Array[String] = all_failures.map(f => {
-        let (sym, msg, muted) = f
-        let content = if !muted.is_empty() {
-          muted.map(m => m.content_with_notes()).join("\n")
-        } else {
-          msg
-        }
-        let explanation =
-          $|Possible overload: \{sym.name().qualified_name()} of type \{self.lookup_block(sym)}
-          $|\{indent_message(content)}
-        explanation
-      })
-      let message =
-        $|Cannot typecheck call.
-        $|There are multiple overloads, which all fail to check:
-        $|
-        $|\{explanations.join("\n\n")}
-        $|
-      self.abort(call.span, message)
-    }
-  }
+  self.report_overload_failures(call, all_failures)
 }
 
 ///|
@@ -729,13 +667,294 @@ fn Typer::find_function_type_for(
 }
 
 ///|
-/// Checks a method call `receiver.id(...)`, which after unbox inference only
-/// occurs for capabilities.
+/// Reports why every candidate of an overloaded call failed (upstream
+/// `resolveOverload`'s tail): a call without candidates, the single candidate's
+/// own diagnostics, or one paragraph per candidate.
+fn Typer::report_overload_failures(
+  self : Typer,
+  call : CallLike,
+  all_failures : ArrayView[(Sym, String, Array[Message])],
+) -> TyRes[ValueType] raise EffektError {
+  match all_failures {
+    [(_, msg, muted)] =>
+      // Upstream's `abortWith`: the only candidate that was tried reports its own
+      // diagnostics, each at the span it belongs to, instead of one message at
+      // the call. The first one is reported last so that the abort that stops the
+      // phase carries exactly the message the boundary would otherwise repeat.
+      if muted.is_empty() {
+        self.abort(call.span, msg)
+      } else {
+        for msg in muted[1:] {
+          // `self.error_message`, not `self.ctx.report`: a nested call may itself
+          // be checked while an enclosing candidate is muted, and then these
+          // diagnostics have to stay muted as well.
+          self.error_message(msg)
+        }
+        self.abort_message(muted[0])
+      }
+    [] =>
+      self.abort(
+        call.span,
+        "Cannot typecheck call to \{call.name}. Does a function/method with that name exist?",
+      )
+    _ => {
+      // Upstream's `FailedOverloadError`: a title line, then one paragraph per
+      // candidate with the candidate's own diagnostics indented below it, and a
+      // trailing newline (which is the blank line before the excerpt in the
+      // recorded `.check` files). A diagnostic of a candidate is rendered like
+      // any other *except* for the `* note:`/`* help:` markers: upstream's
+      // `contentWithSubdiagnostics` puts them on their own indented lines.
+      let explanations : Array[String] = all_failures.map(f => {
+        let (sym, msg, muted) = f
+        let content = if !muted.is_empty() {
+          muted.map(m => m.content_with_notes()).join("\n")
+        } else {
+          msg
+        }
+        let explanation =
+          $|Possible overload: \{sym.name().qualified_name()} of type \{self.candidate_type(sym)}
+          $|\{indent_message(content)}
+        explanation
+      })
+      let message =
+        $|Cannot typecheck call.
+        $|There are multiple overloads, which all fail to check:
+        $|
+        $|\{explanations.join("\n\n")}
+        $|
+      self.abort(call.span, message)
+    }
+  }
+}
+
+///|
+/// The type a candidate is reported with (upstream `candidateType`): a block
+/// candidate has a function type, a value candidate the type of the value.
+fn Typer::candidate_type(self : Typer, sym : Sym) -> String {
+  if sym.is_block_symbol() && !sym.is_ref_binder() {
+    let tpe = self.lookup_block(sym) catch { _ => return "?" }
+    "\{tpe}"
+  } else {
+    let tpe = self.lookup_value(sym) catch { _ => return "?" }
+    "\{tpe}"
+  }
+}
+
+///|
+/// Whether a term is a computation, as `UnboxInference.isBlockLike` decides it
+/// for the receiver of a method call: a variable of block type, an unboxed value
+/// and a `new` are computations; a value (and a mutable variable) is not.
+fn Typer::is_block_like(self : Typer, e : Term) -> Bool {
+  match e.kind {
+    @source.TermKind::Var(id) =>
+      match self.symbol_of_id_opt(id) {
+        Some(sym) => sym.is_block_symbol() && !sym.is_ref_binder()
+        None => false
+      }
+    @source.TermKind::Unbox(_) | @source.TermKind::New(_) => true
+    _ => false
+  }
+}
+
+///|
+/// A term for `unbox sym` (upstream `UnboxInference.unboxCallee`): the call of a
+/// value's box, which is how a value is called as a function.
+fn Typer::unboxed_callee(self : Typer, sym : Sym, span : Span) -> Term {
+  let synthesized = span.synthesized()
+  let id = @source.IdRef(sym.name().name, synthesized)
+  self.assign_symbol(id.uid, sym)
+  let value = mk_term(synthesized, @source.TermKind::Var(id))
+  mk_term(synthesized, @source.TermKind::Unbox(value))
+}
+
+///|
+/// Checks a call whose callee is an arbitrary expression (upstream
+/// `checkCallOfExpr`): the callee is checked as a block, which unboxes a value,
+/// and the resulting function type is called.
+fn Typer::check_call_of_expr(
+  self : Typer,
+  call : CallLike,
+  callee : Term,
+  targs : ArrayView[ValueType],
+  vargs : ArrayView[ValueArg],
+  bargs : ArrayView[Term],
+  expected : ValueType?,
+) -> TyRes[ValueType] raise EffektError {
+  // Construct a hint: expected arity + return type. Block arguments are
+  // excluded, their types would require block type unification.
+  let hint : (Int32, ValueType)? = if bargs.is_empty() {
+    expected.map(t => (vargs.length(), t))
+  } else {
+    None
+  }
+  let callee_res = self.check_expr_as_block(callee, None, hint)
+  match callee_res.tpe {
+    @symbols.BlockType::FunctionType(_, _, _, _, _, _) => {
+      let res = self.check_call_to(
+        call,
+        [],
+        [],
+        callee_res.tpe,
+        targs,
+        vargs,
+        bargs,
+        expected,
+      )
+      TyRes(res.tpe, eff_union(res.effs, callee_res.effs))
+    }
+    _ => self.abort(callee.span, "Cannot infer function type for callee.")
+  }
+}
+
+///|
+/// Checks one candidate of a call against its function type, recording the
+/// candidate's capture (upstream `checkCallToBlock`); a candidate that is a value
+/// is called through its box instead (upstream `checkCallToCandidate`).
+fn Typer::check_call_to_candidate(
+  self : Typer,
+  call : CallLike,
+  candidate : Sym,
+  targs : ArrayView[ValueType],
+  vargs : ArrayView[ValueArg],
+  bargs : ArrayView[Term],
+  expected : ValueType?,
+) -> TyRes[ValueType] raise EffektError {
+  if candidate.is_value_symbol() || candidate.is_ref_binder() {
+    let callee = self.unboxed_callee(candidate, call.span)
+    return self.check_call_of_expr(call, callee, targs, vargs, bargs, expected)
+  }
+  let (fun_tpe, _tparams, vps, bps) = self.find_function_type_for(candidate)
+  let res = self.check_call_to(
+    call, vps, bps, fun_tpe, targs, vargs, bargs, expected,
+  )
+  // The capture of the callee has to be available at the call site. The capture
+  // of an operation is dealt with by the caller (`Do` and `MethodCall`).
+  match candidate {
+    @symbols.Sym::Operation(_) => ()
+    _ => self.using_capture(self.lookup_capture(candidate))
+  }
+  res
+}
+
+///|
+/// Checks a candidate of `receiver.id(...)` (upstream `checkReceiverCallTo`): the
+/// receiver becomes the object of the method (an operation), the first block
+/// argument (a computation), or the first value argument (a value or a function).
+fn Typer::check_receiver_call_to(
+  self : Typer,
+  call : CallLike,
+  receiver : Term,
+  block_like : Bool,
+  candidate : Sym,
+  targs : ArrayView[ValueType],
+  vargs : ArrayView[ValueArg],
+  bargs : ArrayView[Term],
+  expected : ValueType?,
+) -> TyRes[ValueType] raise EffektError {
+  if candidate.is_operation() {
+    // a method's object is a computation: a value receiver is unboxed
+    // (upstream `UnboxInference.asBlock`)
+    let recv = if block_like {
+      receiver
+    } else {
+      mk_term(receiver.span.synthesized(), @source.TermKind::Unbox(receiver))
+    }
+    return self.check_method_call_to(
+      call, recv, candidate, targs, vargs, bargs, expected,
+    )
+  }
+  if block_like {
+    self.check_call_to_candidate(
+      call,
+      candidate,
+      targs,
+      vargs,
+      [receiver] + bargs.to_owned(),
+      expected,
+    )
+  } else {
+    let recv = @source.ValueArg::unnamed(receiver)
+    self.check_call_to_candidate(
+      call,
+      candidate,
+      targs,
+      [recv] + vargs.to_owned(),
+      bargs,
+      expected,
+    )
+  }
+}
+
+///|
+/// Checks a method call `receiver.id(...)` against one operation candidate: the
+/// receiver has to be an object of the operation's interface (upstream
+/// `checkMethodCall`).
+fn Typer::check_method_call_to(
+  self : Typer,
+  call : CallLike,
+  receiver : Term,
+  operation : Sym,
+  targs : ArrayView[ValueType],
+  vargs : ArrayView[ValueArg],
+  bargs : ArrayView[Term],
+  expected : ValueType?,
+) -> TyRes[ValueType] raise EffektError {
+  let recv = self.check_expr_as_block(receiver, None, None)
+  let iface_tpe = self.st.u.prune_block(recv.tpe)
+  let (iface_ctor, iface_args) = match iface_tpe {
+    @symbols.BlockType::InterfaceType(ctor, args) => (ctor, args)
+    _ =>
+      self.abort(
+        receiver.span,
+        "Expected an interface type as receiver, but got \{recv.tpe}.",
+      )
+  }
+  match operation_interface(operation) {
+    Some(ctor) =>
+      if ctor != iface_ctor {
+        self.abort(
+          receiver.span,
+          "Expected an object of interface \{ctor.name().name}, but got \{recv.tpe}.",
+        )
+      }
+    None => ()
+  }
+  let (fun_tpe, tparams, vps, bps) = self.find_function_type_for(operation)
+  // The number of explicitly provided type arguments is checked first and aborts
+  // the candidate, so their consistency with the receiver is never reported on
+  // top of it (`examples/neg/issue373/wrong_type_argument_arity`).
+  if !targs.is_empty() && targs.length() != tparams.length() {
+    self.abort(
+      call.span,
+      "Wrong number of type arguments, given \{targs.length()} but expected \{tparams.length()}",
+    )
+  }
+  // manual type arguments have to be consistent with the receiver
+  if !targs.is_empty() {
+    for i in 0..<targs.length().min(iface_args.length()) {
+      self.match_expected(iface_args[i], targs[i], None)
+    }
+  }
+  let synth = if !targs.is_empty() {
+    targs
+  } else {
+    self.fill_in_type_arguments(tparams, iface_args)
+  }
+  let res = self.check_call_to(
+    call, vps, bps, fun_tpe, synth, vargs, bargs, expected,
+  )
+  TyRes(res.tpe, eff_union(res.effs, recv.effs))
+}
+
+///|
+/// Checks a method call `receiver.id(...)` (upstream `checkReceiverCall`).
 ///
-/// If the receiver is clearly not a computation, uniform function call syntax
-/// was not desugared: the driver must type check the tree returned by
-/// `unbox_inference` (upstream runs `Parser andThen Namer andThen
-/// UnboxInference andThen Typer`).
+/// The namer resolves `id` to every term bound to that name, and each of them is
+/// a candidate: an operation is called as a method of the receiver's interface, a
+/// computation takes the receiver as its first block argument, and a value (or a
+/// function) takes it as its first value argument. Which one it is, is decided
+/// only here — `ExplicitCapabilities` then rebuilds the call from the symbol the
+/// resolution settled on.
 fn Typer::check_overloaded_method_call(
   self : Typer,
   call_node : Term,
@@ -746,87 +965,24 @@ fn Typer::check_overloaded_method_call(
   bargs : ArrayView[Term],
   expected : ValueType?,
 ) -> TyRes[ValueType] raise EffektError {
-  if receiver.kind is @source.TermKind::Var(recv_id) &&
-    self.symbol_of_id_opt(recv_id) is Some(s) &&
-    (s.is_value_symbol() || s.is_ref_binder()) {
-    self.abort(
-      receiver.span,
-      "`\{recv_id.name}.\{id.name}` is uniform function call syntax on a value, which has to be desugared by `unbox_inference` before type checking (did the pipeline type check the tree returned by `unbox_inference`?).",
-    )
-  }
   let sym = self.symbol_of_id(id)
-  let methods : Array[Sym] = match sym {
-    @symbols.Sym::CallTarget(ct) => {
-      let out : Array[Sym] = []
-      for scope in ct.symbols {
-        for s in scope {
-          if s.is_operation() {
-            out.push(s)
-          }
-        }
-      }
-      out
-    }
-    _ =>
-      if sym.is_operation() {
-        [sym]
-      } else {
-        self.panic("Not a valid method: \{sym.name().name}")
-      }
-  }
-  let recv = self.check_expr_as_block(receiver, None, None)
-  let (iface_ctor, iface_args) = match self.st.u.prune_block(recv.tpe) {
-    @symbols.BlockType::InterfaceType(ctor, args) => (ctor, args)
-    _ =>
-      self.abort(
-        receiver.span,
-        "Expected an interface type as receiver, but got \{recv.tpe}.",
-      )
-  }
-  let candidates = methods.filter(m => {
-    match operation_interface(m) {
-      Some(ctor) => ctor == iface_ctor
-      None => false
-    }
-  })
-  if candidates.is_empty() {
-    self.abort(
-      id.span,
-      "Method \{id.name} not found for receiver of type \{recv.tpe}.",
-    )
+  let scopes : Array[Array[Sym]] = match sym {
+    @symbols.Sym::CallTarget(ct) => ct.symbols
+    _ => [[sym]]
   }
   let call = { uid: call_node.uid, span: call_node.span, name: id.name, }
-  for candidates_scope in [candidates_in_order(candidates)] {
+  let block_like = self.is_block_like(receiver)
+  let all_failures : Array[(Sym, String, Array[Message])] = []
+  for candidates in scopes {
+    // a scope is a *set* of candidates (upstream `Bindings.terms` is a Set):
+    // the same symbol can be bound under several paths of the same scope
+    let unique = candidates_in_order(dedup_syms(candidates))
     let (successes, failures) = self.try_candidates(
-      candidates_scope,
-      candidates_scope.length() == 1,
+      unique,
+      scopes.length() == 1 && unique.length() == 1,
       candidate => {
-        let (fun_tpe, tparams, vps, bps) = self.find_function_type_for(
-          candidate,
-        )
-        // Upstream's `checkOverloadedMethodCall`: the number of explicitly
-        // provided type arguments is checked first and aborts the candidate, so
-        // their consistency with the receiver is never reported on top of it
-        // (`examples/neg/issue373/wrong_type_argument_arity`).
-        if !targs.is_empty() && targs.length() != tparams.length() {
-          self.abort(
-            call.span,
-            "Wrong number of type arguments, given \{targs.length()} but expected \{tparams.length()}",
-          )
-        }
-        // manual type arguments have to be consistent with the receiver
-        if !targs.is_empty() {
-          for i in 0..<targs.length().min(iface_args.length()) {
-            self.match_expected(iface_args[i], targs[i], None)
-          }
-        }
-        let synth = if !targs.is_empty() {
-          targs
-        } else {
-          self.fill_in_type_arguments(tparams, iface_args)
-        }
-        self.check_call_to(
-          call, vps, bps, fun_tpe, synth, vargs, bargs, expected,
+        self.check_receiver_call_to(
+          call, receiver, block_like, candidate, targs, vargs, bargs, expected,
         )
       },
     )
@@ -834,31 +990,16 @@ fn Typer::check_overloaded_method_call(
       let (found, res, state, infos) = successes[0]
       self.st = state
       self.replay_infos(infos)
-      // Record the operation this method call resolved to: the namer resolves
-      // an operation name to an overloaded `CallTarget`, and the backend needs
-      // the concrete operation to build the `Invoke`.
+      // Record what the method call resolved to: the namer resolves the name to
+      // every candidate, and the backend rebuilds the call from this symbol.
       self.assign_symbol(id.uid, found)
-      return TyRes(res.tpe, eff_union(res.effs, recv.effs))
+      return res
     } else if successes.length() > 1 {
       self.abort(id.span, self.ambiguous_overload_message(successes))
     }
-    match failures {
-      // Upstream's `abortWith` (through `resolveOverload`): the only candidate
-      // that was tried reports its own diagnostics, each at its span, instead of
-      // one message at the call.
-      [(_, msg, muted)] =>
-        if muted.is_empty() {
-          self.abort(call.span, msg)
-        } else {
-          for msg in muted[1:] {
-            self.error_message(msg)
-          }
-          self.abort_message(muted[0])
-        }
-      _ => ()
-    }
+    all_failures.append(failures)
   }
-  self.abort(call.span, "Cannot typecheck method call to \{id.name}.")
+  self.report_overload_failures(call, all_failures)
 }
 
 ///|

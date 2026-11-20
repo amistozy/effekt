@@ -18,7 +18,7 @@ files. The whole language compiles, not a subset.
 | `moon test --target js` | 251 unit tests |
 | `scripts/e2e.ps1` | 26 end-to-end checks |
 | `scripts/stdlib.ps1` | 49 of 49 standard library modules compile |
-| `scripts/upstream.ps1 -Strict` | 433 of 440 programs match, 238 of 243 rejections match, 189 of 234 diagnostics verbatim |
+| `scripts/upstream.ps1 -Strict` | 440 of 440 programs match, 238 of 243 rejections match, 189 of 234 diagnostics verbatim |
 
 Every gate is green on every commit, against the baselines `upstream.ps1` keeps;
 they may only grow, apart from a re-sync that moves the corpus. The corpus,
@@ -31,14 +31,13 @@ verbatim, as upstream's `assertNoDiff` does. 683 of the 688 programs are
 compared; the five skipped here write to `/dev/stdout`, spawn POSIX tools Windows
 lacks, or import a module that upstream itself does not ship.
 
-The programs that do not match yet are the ones upstream gained after
-`6fbff0b0e`: the newer overloading resolution — an `x.f(...)` call, a cut-off
-candidate, a value shadowing a function (7 programs) — together with upstream's
-reworked overload diagnostics, which draw each candidate with its source, drop
-duplicated errata, and report the error inside an argument separately (5
-rejections and the diagnostics that are not verbatim). `stdlib.ps1` and
-`upstream.ps1` run the compiler once per module, so they take minutes: run them
-at milestones.
+Every program of the corpus compiles, runs, and produces upstream's output. What
+still differs is one part of the *diagnostics*: the overloading resolution reports
+the candidates upstream's way — drawing each with its source, dropping duplicated
+errata, and reporting the error inside an argument separately — for the five
+rejections that still fail on the wrong line or with the wrong severity, and for
+the 45 diagnostics that are not verbatim. `stdlib.ps1` and `upstream.ps1` run the
+compiler once per module, so they take minutes: run them at milestones.
 
 ## Quick start
 
