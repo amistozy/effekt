@@ -130,7 +130,7 @@ fn Typer::check_expr_as_block_kind(
       }
     }
     @source.TermKind::New(implementation) => {
-      let res = self.check_implementation(implementation, None)
+      let res = self.check_implementation(implementation, None, None)
       if expected is Some(exp) {
         self.match_expected_block(res.tpe, exp, Some(e.span))
       }
@@ -357,6 +357,14 @@ fn Typer::check_function_argument(
       )
       let res = self.binding_capabilities(node.uid, capabilities, () => {
         self.flowing_into(body_region, () => {
+          // The literal's result is expected to have the function type's result,
+          // which is an expectation of its own: a handler clause's explanation
+          // does not apply to it (upstream derives a fresh `Expected` here).
+          let saved = self.handler_result
+          self.handler_result = None
+          defer {
+            self.handler_result = saved
+          }
           self.check_stmt(body, Some(expected_return))
         })
       })
@@ -469,6 +477,9 @@ fn Typer::check_implementation(
   self : Typer,
   implementation : Implementation,
   continuation : (ValueType, Sym)?,
+  /// The statement this handler handles, for the explanation of a clause whose
+  /// result does not fit (upstream passes the TryHandle body down).
+  handled : Span?,
 ) -> TyRes[BlockType] raise EffektError {
   self.focus = implementation.span
   let tpe = self.resolve_block_ref(implementation.interface)
@@ -504,7 +515,7 @@ fn Typer::check_implementation(
   let mut handler_effects = Effects::empty()
   for clause in implementation.clauses {
     let effs = self.check_op_clause(
-      implementation, interface, targs, clause, continuation,
+      implementation, interface, targs, clause, continuation, handled,
     )
     handler_effects = eff_union(handler_effects, effs)
   }
@@ -520,6 +531,7 @@ fn Typer::check_op_clause(
   targs : Array[ValueType],
   clause : OpClause,
   continuation : (ValueType, Sym)?,
+  handled : Span?,
 ) -> Effects raise EffektError {
   let operations = match interface {
     @symbols.Sym::Interface(i) => i.operations
@@ -746,11 +758,45 @@ fn Typer::check_op_clause(
         resume_sym,
         @symbols.Captures::CaptVar(continuation_capt),
       )
-      let res = self.check_stmt(clause.body, Some(ret))
+      let res = self.check_handler_clause_body(
+        clause.body,
+        ret,
+        ret,
+        resume_type,
+        handled,
+      )
       self.annotate_value(clause.uid, res.tpe)
       res.effs
     }
   }
+}
+
+///|
+/// Checks the body of a handler clause against the type of the handled statement
+/// (upstream `Context.at(...)` with `Because.HandlerClauseResult`). A result that
+/// does not fit is explained with `resume`: either the result could be resumed
+/// with, or the clause is told what `resume` and the handled statement are.
+fn Typer::check_handler_clause_body(
+  self : Typer,
+  body : Stmt,
+  handled_tpe : ValueType,
+  expected : ValueType,
+  resume_type : BlockType,
+  handled : Span?,
+) -> TyRes[ValueType] raise EffektError {
+  let saved = self.handler_result
+  // The handled statement's own span: upstream reports "`T` is the type of the
+  // handled statement" at it.
+  self.handler_result = Some({
+    tpe: handled_tpe,
+    resume: resume_type,
+    handled: handled.unwrap_or(body.span),
+    result: result_span(body),
+  })
+  defer {
+    self.handler_result = saved
+  }
+  self.check_stmt(body, Some(expected))
 }
 
 ///|
@@ -834,6 +880,7 @@ fn Typer::check_try_handle(
       self.check_implementation(
         h.implementation,
         Some((prog_res.tpe, continuation_capt_sym)),
+        Some(prog.span),
       )
     })
     handler_effs = eff_union(handler_effs, res.effs)

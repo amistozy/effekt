@@ -163,6 +163,25 @@ pub struct Typer {
   /// `wellformed` uses `E.abort`, so the first escaped capture or type
   /// parameter ends the pass and the remaining trees are not checked.
   mut wf_aborted : Bool
+  /// The handler clause whose result is being checked (upstream's
+  /// `Because.HandlerClauseResult`): a mismatch against the type of the handled
+  /// statement reads better with `resume` explained than with "expected".
+  mut handler_result : HandlerResult?
+}
+
+///|
+/// What a handler clause's result is checked against (upstream
+/// `ErrorContext.Because.HandlerClauseResult`): the type of the handled
+/// statement, the clause's `resume`, and the handled statement itself.
+pub(all) struct HandlerResult {
+  /// The type of the handled statement, which the clause's result has to have.
+  tpe : ValueType
+  resume : BlockType
+  /// The handled statement itself, for the note that names its type.
+  handled : Span
+  /// The expression the clause body ends in: the comparison whose failure gets
+  /// the explanation.
+  result : Span
 }
 
 ///|
@@ -189,6 +208,7 @@ pub fn Typer::Typer(ctx : Context) -> Typer {
     type_var_spans: Map([]),
     pending_matches: [],
     wf_aborted: false,
+    handler_result: None,
   }
 }
 
@@ -2681,6 +2701,133 @@ fn failure_notes(
 }
 
 ///|
+/// The span of the expression a statement list ends in: that is where the type
+/// of the statement is decided, and the only place where a handler clause's
+/// result is compared against the type of the handled statement (upstream
+/// attaches `Because.HandlerClauseResult` to exactly that comparison; a nested
+/// one, e.g. inside a `val` of the clause, keeps the plain explanation).
+fn result_span(stmt : Stmt) -> Span {
+  match stmt.kind {
+    BlockStmt(inner) => result_span(inner)
+    DefStmt(_, rest) => result_span(rest)
+    ExprStmt(term, _) => term.span
+    Return(term) => term.span
+  }
+}
+
+///|
+/// Is the failure of this comparison the result of a handler clause, checked
+/// against the type of the handled statement? (upstream's
+/// `Expected(got, exp, _, _, Some(Because.HandlerClauseResult(...)))`).
+///
+/// The clause's expectation is passed down to the handled statement and to
+/// everything the clause body is made of, so any comparison against the type of
+/// the handled statement explains `resume`. Comparisons with an expectation of
+/// their own — the result of a function literal, say — do not see it (the
+/// literal's body is checked with the explanation cleared).
+fn handler_clause_failure(ctx : ErrCtx, handler : HandlerResult) -> ValueType? {
+  match root_of(ctx) {
+    Expected(got, exp) =>
+      if value_type_equal(exp, handler.tpe) {
+        Some(got)
+      } else {
+        None
+      }
+    _ => None
+  }
+}
+
+///|
+/// The type `resume` takes, if the clause can resume with a value of it, and how
+/// that call reads (upstream `ErrorContext.resumesWith`).
+fn resumes_with(resume : BlockType) -> (ValueType, String)? {
+  match resume {
+    @symbols.BlockType::FunctionType(_, _, vparams, bparams, _, _) =>
+      match (vparams, bparams) {
+        ([argument], []) => Some((argument, "resume(...)"))
+        (
+          [],
+          [
+            @symbols.BlockType::FunctionType(
+              _,
+              _,
+              _,
+              inner_bparams,
+              argument,
+              _,
+            ),
+          ],
+        ) =>
+          Some(
+            (
+              argument,
+              if inner_bparams.is_empty() {
+                "resume { ... }"
+              } else {
+                "resume { {...} => ... }"
+              },
+            ),
+          )
+        _ => None
+      }
+    _ => None
+  }
+}
+
+///|
+/// Why a handler clause's result does not fit, as subdiagnostics (upstream
+/// `ErrorContext.explain` for `Because.HandlerClauseResult`): resuming with the
+/// result is suggested when its type is the one `resume` takes, and otherwise
+/// the clause is told what `resume` and the handled statement are.
+fn handler_result_notes(
+  handler : HandlerResult,
+  got : ValueType,
+  issue : String,
+  claimed : Bool,
+) -> Array[@util.Subdiagnostic] {
+  let notes : Array[@util.Subdiagnostic] = []
+  // The claim already names the mismatch when it is the comparison itself that
+  // failed (upstream's issue is only passed when the comparison descended into
+  // a component).
+  if !claimed {
+    notes.push(@util.Note(issue + ".", None))
+  }
+  match resumes_with(handler.resume) {
+    Some((argument, syntax)) =>
+      if value_type_equal(got, argument) {
+        notes.push(
+          @util.Help(
+            "Did you mean to resume with it, `\{syntax}`? Here, `resume` has type \{handler.resume}.",
+          ),
+        )
+      } else {
+        handler_notes(notes, handler)
+      }
+    None => handler_notes(notes, handler)
+  }
+  notes
+}
+
+///|
+fn handler_notes(
+  notes : Array[@util.Subdiagnostic],
+  handler : HandlerResult,
+) -> Unit {
+  notes.push(
+    @util.Note(
+      "\{handler.tpe} is the type of the handled statement.",
+      Some(handler.handled),
+    ),
+  )
+  notes.push(
+    @util.Note(
+      "In this handler clause, `resume` has type \{handler.resume}.",
+      None,
+    ),
+  )
+}
+
+///|
 /// A message with the given notes attached, in order.
 fn with_notes(msg : Message, notes : ArrayView[@util.Subdiagnostic]) -> Message {
   let mut out = msg
@@ -2707,8 +2854,31 @@ fn Typer::error_types(
     claim_of(issue, ctx),
   )
   self.error_message(
-    with_notes(msg, failure_notes(ctx, issue, is_claimed(left, right, ctx))),
+    with_notes(msg, self.failure_notes_of(left, right, ctx, issue)),
   )
+}
+
+///|
+/// The notes of a failed comparison: the handler-clause explanation when the
+/// failure is the result of a clause, and the general ones otherwise.
+fn Typer::failure_notes_of(
+  self : Typer,
+  left : ValueType,
+  right : ValueType,
+  ctx : ErrCtx,
+  issue : String,
+) -> Array[@util.Subdiagnostic] {
+  if self.handler_result is Some(handler) {
+    if handler_clause_failure(ctx, handler) is Some(got) {
+      return handler_result_notes(
+        handler,
+        got,
+        issue,
+        is_claimed(left, right, ctx),
+      )
+    }
+  }
+  failure_notes(ctx, issue, is_claimed(left, right, ctx))
 }
 
 ///|
@@ -2725,7 +2895,7 @@ fn[T] Typer::abort_types(
     claim_of(issue, ctx),
   )
   self.abort_message(
-    with_notes(msg, failure_notes(ctx, issue, is_claimed(left, right, ctx))),
+    with_notes(msg, self.failure_notes_of(left, right, ctx, issue)),
   )
 }
 

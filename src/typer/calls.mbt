@@ -189,6 +189,15 @@ fn Typer::check_call_to(
   let mut effs = Effects::empty()
 
   // (4) check value arguments
+  //
+  // An argument is expected to have the type of its *parameter*, which is an
+  // expectation of its own: a handler clause's explanation of `resume` does not
+  // apply inside one (upstream builds a fresh `Expected` for every argument).
+  let saved_handler = self.handler_result
+  self.handler_result = None
+  defer {
+    self.handler_result = saved_handler
+  }
   for i in 0..<vargs.length() {
     let res = self.check_expr(vargs[i].value, Some(inst.vparams[i]))
     effs = eff_union(effs, res.effs)

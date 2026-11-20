@@ -81,6 +81,13 @@ pub struct FailedCandidate {
   undecided : Bool
 }
 
+pub(all) struct HandlerResult {
+  tpe : @symbols.ValueType
+  resume : @symbols.BlockType
+  handled : @util.Span
+  result : @util.Span
+}
+
 pub struct ImplicitStencil {
   name : String
   kind : String
@@ -148,6 +155,7 @@ pub struct Typer {
   type_var_spans : Map[Int32, @util.Span]
   pending_matches : Array[PendingMatch]
   mut wf_aborted : Bool
+  mut handler_result : HandlerResult?
 }
 pub fn Typer::Typer(@source.Context) -> Self
 pub fn Typer::bind_block(Self, @symbols.Sym, @symbols.BlockType) -> Unit
