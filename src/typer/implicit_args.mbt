@@ -281,14 +281,13 @@ fn Typer::implicit_block_term(
         bargs.push(self.var_term_for(sym, span))
       }
       let scope = self.implicit_scope(call)
-      let candidates = @symbols.lookup_functions_in_scope(
-        scope.scope,
-        scope.imports,
-        name,
+      // Like for `f(...)`: a value in the innermost scope shadows the blocks
+      // (upstream calls `resolveFunctionCalltarget` here), so no candidate is
+      // left and the generated call fails — instead of silently using a function
+      // of the same name from an outer scope.
+      let candidates = @symbols.block_candidates(
+        @symbols.lookup_terms_in_scope(scope.scope, scope.imports, name),
       )
-      if candidates.is_empty() {
-        self.abort(call.span.synthesized(), "Could not resolve term \{name}")
-      }
       let target = @source.IdRef(name, span)
       self.assign_symbol(target.uid, @symbols.Sym::call_target(candidates))
       let callee = mk_term(

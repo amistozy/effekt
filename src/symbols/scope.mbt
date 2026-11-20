@@ -363,6 +363,65 @@ pub fn lookup_functions_in_scope(
 }
 
 ///|
+/// All groups of terms bound to `name`, whatever their kind, scope chain first
+/// and imports last (upstream `scope.lookupOverloaded(id, _ => true)`).
+pub fn lookup_terms_in_scope(
+  scope : Scope,
+  imports : Bindings,
+  name : String,
+) -> Array[Array[Sym]] {
+  let groups = all([], scope, b => b.terms.get(name).unwrap_or([])).filter(ns => {
+    !ns.is_empty()
+  })
+  let imported = imports.terms.get(name).unwrap_or([])
+  if !imported.is_empty() {
+    groups + [imported]
+  } else {
+    groups
+  }
+}
+
+///|
+/// Mutable variables are treated as values, not as blocks.
+pub fn is_value_target(sym : Sym) -> Bool {
+  sym.is_value_symbol() || sym.is_ref_binder()
+}
+
+///|
+pub fn is_block_target(sym : Sym) -> Bool {
+  sym.is_block_symbol() && !sym.is_ref_binder()
+}
+
+///|
+/// The block candidates of a call target `f(...)` among `groups` (innermost scope
+/// first): a single value in the tightest scope shadows the blocks, otherwise the
+/// blocks of every scope are the candidates. An empty result means there is no
+/// block to call — either the name is unbound or a value shadows it (upstream
+/// `Namer.resolveFunctionCalltarget`; the type checker uses the same rule for an
+/// implicit block argument).
+pub fn block_candidates(groups : ArrayView[Array[Sym]]) -> Array[Array[Sym]] {
+  for terms in groups {
+    if terms.is_empty() {
+      continue
+    }
+    if terms.all(is_block_target) {
+      let out : Array[Array[Sym]] = []
+      for group in groups {
+        let blocks = group.filter(is_block_target)
+        if !blocks.is_empty() {
+          out.push(blocks)
+        }
+      }
+      return out
+    }
+    if terms.any(is_value_target) {
+      return []
+    }
+  }
+  []
+}
+
+///|
 pub fn Scoping::lookup_operation(
   self : Scoping,
   path : ArrayView[String],

@@ -40,7 +40,7 @@ $positiveBaseline = 440
 # (`-ShowWording` reports any that differ). `-Strict` additionally compares the
 # whole rendered diagnostic of the tests that carry a `.check` file; the
 # baseline counts the ones whose full text is identical to upstream's.
-$negativeBaseline = 238
+$negativeBaseline = 239
 $negativeStrictBaseline = 189
 
 Write-Host "building the compiler..." -ForegroundColor Cyan

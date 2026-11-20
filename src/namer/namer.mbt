@@ -1718,7 +1718,7 @@ fn Namer::resolve_target_candidates(
     if terms.is_empty() {
       continue
     }
-    if terms.all(sym => is_block_target(sym)) {
+    if terms.all(sym => @symbols.is_block_target(sym)) {
       let blocks : Array[Array[Sym]] = []
       for group in candidates {
         let bs = group.filter(sym => sym.is_block_symbol())
@@ -1728,8 +1728,8 @@ fn Namer::resolve_target_candidates(
       }
       return BlockTargets(blocks)
     }
-    if terms.any(sym => is_value_target(sym)) {
-      if terms.any(sym => is_block_target(sym)) {
+    if terms.any(sym => @symbols.is_value_target(sym)) {
+      if terms.any(sym => @symbols.is_block_target(sym)) {
         self.context.panic("Should not happen by construction.")
         return BlockTargets([])
       }
@@ -1744,17 +1744,6 @@ fn Namer::resolve_target_candidates(
     }
   }
   BlockTargets([])
-}
-
-///|
-/// Mutable variables are treated as values, not as blocks.
-fn is_value_target(sym : Sym) -> Bool {
-  sym.is_value_symbol() || sym.is_ref_binder()
-}
-
-///|
-fn is_block_target(sym : Sym) -> Bool {
-  sym.is_block_symbol() && !sym.is_ref_binder()
 }
 
 ///|
