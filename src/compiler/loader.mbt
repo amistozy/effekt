@@ -117,11 +117,18 @@ fn Loader::set_prelude_roots(self : Loader, roots : Array[String]) -> Unit {
 }
 
 ///|
+/// The file a module path names, searched in each root in turn: `<path>.effekt`
+/// first, then the literate `<path>.effekt.md` (upstream `IOModuleDB.findSource`
+/// does the same per root).
 fn locate_in(roots : ArrayView[String], path : String) -> (String, String)? {
   for root in roots {
     let candidate = join_path(root, "\{path}.effekt")
     if file_exists(candidate) {
       return Some((candidate, root))
+    }
+    let literate = join_path(root, "\{path}.effekt.md")
+    if file_exists(literate) {
+      return Some((literate, root))
     }
   }
   None
@@ -159,13 +166,18 @@ pub fn Loader::load_tree(
         )
       }
       let (file, root) = located.unwrap()
-      let content = read_file(file).unwrap_or("")
+      let raw = read_file(file).unwrap_or("")
+      // A literate module (`.effekt.md`) is the program its code fences
+      // contain, at the lines of the markdown file (upstream `MarkdownSource`).
+      let literate = file.has_suffix(".md")
+      let content = if literate { @util.markdown_program(raw) } else { raw }
+      let extension = if literate { ".effekt.md" } else { ".effekt" }
       // A file the standard library provides is named the way upstream mounts
       // it (/libraries/common/list.effekt), so that a diagnostic about a
       // library declaration does not depend on where the library is installed.
       let source = match self.shown.get(root) {
         Some(prefix) =>
-          Source::included(file, content, "\{prefix}/\{path}.effekt")
+          Source::included(file, content, "\{prefix}/\{path}\{extension}")
         None => Source(file, content)
       }
       let parsed = parse(source, ctx)

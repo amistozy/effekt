@@ -9,6 +9,11 @@ test "module path of a file" {
     "effekt",
   )
   assert_eq(@compiler.module_path_of("C:\\work\\hello.effekt"), "hello")
+  // a literate program keeps the name of the module it defines
+  assert_eq(
+    @compiler.module_path_of("examples/casestudies/lexer.effekt.md"),
+    "lexer",
+  )
 }
 
 ///|

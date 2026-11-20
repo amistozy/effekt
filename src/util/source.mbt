@@ -282,3 +282,219 @@ pub impl Show for Span with fn output(self, logger) {
   let pos = self.position()
   logger.write_string("\{self.source.name}:\{pos.line}:\{pos.column}")
 }
+
+// ---------------------------------------------------------------------------
+// Literate sources
+// ---------------------------------------------------------------------------
+
+///|
+/// What a code fence of a literate source is (upstream
+/// `MarkdownSource.FenceType`).
+priv enum FenceType {
+  FenceRepl
+  FenceIgnore
+  FenceCode
+  FenceOther
+}
+
+///|
+/// A fence line: the language after the backticks (if any) and the
+/// `:`-separated options (upstream's `fenceLine` regex
+/// ``^```\s*(\w+)?\s*((?::[^:\n]*)*)$``).
+priv struct Fence {
+  lang : String?
+  opts : Array[String]
+}
+
+///|
+fn is_word_char(c : Char) -> Bool {
+  (c >= 'a' && c <= 'z') ||
+  (c >= 'A' && c <= 'Z') ||
+  (c >= '0' && c <= '9') ||
+  c == '_'
+}
+
+///|
+fn is_fence_space(c : Char) -> Bool {
+  c == ' ' || c == '\t'
+}
+
+///|
+fn chars_text(chars : ArrayView[Char], from : Int32, to : Int32) -> String {
+  let out = StringBuilder()
+  for i in from..<to {
+    out.write_char(chars[i])
+  }
+  out.to_string()
+}
+
+///|
+/// The fence a line introduces or closes, if it is one.
+fn parse_fence(line : String) -> Fence? {
+  let chars = line.to_array()
+  let n = chars.length()
+  guard n >= 3 && chars[0] == '`' && chars[1] == '`' && chars[2] == '`' else {
+    return None
+  }
+  let mut i = 3
+  while i < n && is_fence_space(chars[i]) {
+    i += 1
+  }
+  let lang_start = i
+  while i < n && is_word_char(chars[i]) {
+    i += 1
+  }
+  let lang = if i > lang_start {
+    Some(chars_text(chars, lang_start, i))
+  } else {
+    None
+  }
+  while i < n && is_fence_space(chars[i]) {
+    i += 1
+  }
+  if i == n {
+    return Some({ lang, opts: [], })
+  }
+  guard chars[i] == ':' else { return None }
+  // `ots.split(":").tail`: the options are what follows the first colon, split
+  // at further colons.
+  let opts : Array[String] = []
+  let mut start = i + 1
+  let mut j = start
+  while j <= n {
+    if j == n || chars[j] == ':' {
+      opts.push(chars_text(chars, start, j))
+      start = j + 1
+    }
+    j += 1
+  }
+  Some({ lang, opts, })
+}
+
+///|
+/// The lines of `text` the way Scala's `linesIterator` splits them: a trailing
+/// line terminator does not produce an empty last line, and `\r\n` ends a line.
+fn markdown_lines(text : String) -> Array[String] {
+  let out : Array[String] = []
+  let n = text.length()
+  if n == 0 {
+    return out
+  }
+  let mut start = 0
+  for i in 0..<n {
+    if text[i] == '\n' {
+      out.push(strip_line_end(text, start, i))
+      start = i + 1
+    }
+  }
+  if start < n {
+    out.push(strip_line_end(text, start, n))
+  }
+  out
+}
+
+///|
+fn strip_line_end(text : String, from : Int32, to : Int32) -> String {
+  if to > from && text[to - 1] == '\r' {
+    text[from:to - 1].to_owned()
+  } else {
+    text[from:to].to_owned()
+  }
+}
+
+///|
+/// The program a literate source contains (upstream `MarkdownSource.content`).
+///
+/// All lines outside a code fence become empty lines, so that a diagnostic
+/// keeps pointing at the line of the markdown file it came from. A fence is a
+/// `Code` fence when it is written as ```` ```effekt ```` or without a language,
+/// an `Other` one when it names another language (its content is dropped), and
+/// `Ignore`/`Repl` when the options say so. A `Repl` fence is wrapped in
+/// `def replN() = { ... }` and a `main` that prints each result with `show` is
+/// appended — which is how the case studies in `examples/casestudies` are
+/// written.
+pub fn markdown_program(text : String) -> String {
+  let lines = markdown_lines(text)
+  let out : Array[String] = []
+  let mut code : Array[String] = []
+  let mut fence : FenceType? = None
+  let mut repls = 0
+  for line in lines {
+    match parse_fence(line) {
+      Some(f) =>
+        if f.opts.contains("ignore") {
+          fence = Some(FenceIgnore)
+          out.push("")
+        } else if f.opts.contains("repl") {
+          fence = Some(FenceRepl)
+          // the opening fence becomes the wrapper's header, at its own line
+          out.push("def repl\{repls}() = {")
+          repls += 1
+        } else {
+          match fence {
+            // the opening fence: the language decides what happens to the body
+            None => {
+              fence = match f.lang {
+                Some(l) =>
+                  if l == "effekt" {
+                    Some(FenceCode)
+                  } else {
+                    Some(FenceOther)
+                  }
+                None => Some(FenceCode)
+              }
+              out.push("")
+            }
+            // the closing fence: emit the body here, where it was collected
+            Some(kind) => {
+              match kind {
+                FenceRepl => {
+                  for l in code {
+                    out.push(l)
+                  }
+                  out.push("}")
+                }
+                FenceCode => {
+                  if !code.is_empty() {
+                    for l in code {
+                      out.push(l)
+                    }
+                  }
+                  out.push("")
+                }
+                // an ignored fence and a fence of another language: the body
+                // keeps its lines but none of its code
+                FenceIgnore | FenceOther => {
+                  for _ in code {
+                    out.push("")
+                  }
+                  out.push("")
+                }
+              }
+              fence = None
+              code = []
+            }
+          }
+        }
+      // inside a fence the line is buffered; outside it only keeps the count
+      None =>
+        match fence {
+          Some(_) => code.push(line)
+          None => out.push("")
+        }
+    }
+  }
+  let mut program = out.join("\n")
+  if repls > 0 {
+    let printed : Array[String] = []
+    for i in 0..<repls {
+      printed.push("println(repl\{i}().show)")
+    }
+    // upstream's `main`, appended after the program (see `MarkdownSource`)
+    program = program +
+      "\ndef main() = {\n" +
+      printed.join("\n") +
+      "\n()\n}\n      "
+  }
+  program
+}

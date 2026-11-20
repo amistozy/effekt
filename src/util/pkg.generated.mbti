@@ -48,6 +48,8 @@ pub fn[A] intercalate(ArrayView[A], ArrayView[A]) -> Array[A]
 
 pub fn internal_error(String) -> Unit raise EffektError
 
+pub fn markdown_program(String) -> String
+
 pub fn nested(Doc) -> Doc
 
 pub fn parens_inner(Doc) -> Doc

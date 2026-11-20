@@ -83,7 +83,16 @@ pub fn compile_file(
       // The name is the path *as given* (upstream `Source(name, contents)`):
       // diagnostics and `sourcePosition` should print `examples/hello.effekt`
       // when that is what the user typed, not an absolute path.
-      Some(c) => Source(opts.input, c)
+      //
+      // A literate program (`.effekt.md`) is the program its code fences
+      // contain (upstream `Driver.compileSource` wraps the source in a
+      // `MarkdownSource`); the lines stay those of the markdown file.
+      Some(c) =>
+        if opts.input.has_suffix(".md") {
+          Source(opts.input, @util.markdown_program(c))
+        } else {
+          Source(opts.input, c)
+        }
       None => {
         ctx.error(Span::missing(), "Cannot read input file \{opts.input}")
         return { output: None, messages: ctx.messages.copy(), failed: true, }
@@ -367,7 +376,10 @@ fn include_span_of(loader : Loader, key : String, path : String) -> Span {
 /// The module path of a file, derived from its name (`foo/bar.effekt` -> `bar`,
 /// `foo/effekt.effekt` -> `effekt`).
 pub fn module_path_of(file : String) -> String {
-  without_suffix(base_name(file), ".effekt")
+  // A literate program is named like the module it defines: `ad.effekt.md` is
+  // `ad` (upstream strips `.md` from the source name before it is used as a
+  // module path, see `Driver.compileSource`).
+  without_suffix(without_suffix(base_name(file), ".md"), ".effekt")
 }
 
 ///|
