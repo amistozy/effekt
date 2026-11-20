@@ -3,12 +3,12 @@
 `examples/` is a verbatim copy of the Effekt repository's test corpus
 (`effekt/examples/pos`, `examples/stdlib`, `examples/benchmarks`,
 `examples/casestudies` and `examples/neg` at the revision this port follows,
-`6976c7947`), so that the port can be measured against the language's own tests
+`3249937a0`), so that the port can be measured against the language's own tests
 instead of only against hand-written examples.
 
 | Directory | Files | Expectation |
 |---|---|---|
-| `examples/pos` | 314 | compiles, runs, stdout equals the sibling `.check` file |
+| `examples/pos` | 315 | compiles, runs, stdout equals the sibling `.check` file |
 | `examples/stdlib` | 131 | same, for programs that exercise the standard library |
 | `examples/benchmarks` | 93 | same; every benchmark runs in *test mode* (`benchmarks/runner.effekt`) |
 | `examples/casestudies` | 10 | same, for the literate `.effekt.md` case studies |

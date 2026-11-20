@@ -1294,25 +1294,47 @@ fn Parser::val_stmt(self : Parser, in_braces : Bool) -> Stmt raise EffektError {
           }
           _ => {
             // matches do not support doc comments, so we ignore `info`
-            let scrutinee = self.expr()
+            //
+            // The binding is a *statement*, so it may be a block: it is bound
+            // to a fresh `__valArg` and the match scrutinises that variable
+            // (upstream `valStmt`), which evaluates the binding once, before
+            // the pattern is matched.
+            let binding = self.stmt()
             let default : Stmt? = self.when(KElse, () => Some(self.stmt()), () => {
               None
             })
             let end_pos = self.pos()
             self.semi()
             let body = self.stmts(in_braces)
+            let binding_span = binding.span.synthesized()
+            let name = IdDef("__valArg", binding_span)
+            let scrutinee = mk_term(
+              binding_span,
+              TermKind::Var(IdRef(name.name, binding_span)),
+            )
             let clause : MatchClause = {
               uid: fresh_uid(),
-              span: Span(self.source, pattern.span.start, scrutinee.span.end),
+              span: Span(self.source, pattern.span.start, binding.span.end),
               pattern,
               guards,
               body,
             }
             let matching = mk_term(
               Span(self.source, start_pos, end_pos),
-              Match([scrutinee], [clause], default),
+              TermKind::Match([scrutinee], [clause], default),
             )
-            mk_stmt(self.span().synthesized(), StmtKind::Return(matching))
+            let definition = mk_def(
+              binding_span,
+              Info::empty(),
+              ValDef(name, None, binding),
+            )
+            mk_stmt(
+              self.span().synthesized(),
+              StmtKind::DefStmt(
+                definition,
+                mk_stmt(self.span().synthesized(), StmtKind::Return(matching)),
+              ),
+            )
           }
         }
       }
