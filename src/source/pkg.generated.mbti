@@ -7,6 +7,10 @@ import {
 }
 
 // Values
+pub fn argument_spans_of(Int32) -> (@util.Span, @util.Span)?
+
+pub fn clear_argument_spans() -> Unit
+
 pub fn explicit_capabilities(ModuleDecl, Context) -> ModuleDecl raise @util.EffektError
 
 pub fn mk_def(@util.Span, Info, DefKind) -> Def
@@ -24,6 +28,8 @@ pub fn mk_type(@util.Span, TypeKind) -> TypeTree
 pub fn parse_module_decl(@util.Source, Context) -> ModuleDecl? raise @util.EffektError
 
 pub fn parse_term(@util.Source, Context) -> Term? raise @util.EffektError
+
+pub fn record_argument_spans(Int32, @util.Span, @util.Span) -> Unit
 
 pub fn resolve_extern_defs(ModuleDecl, Context) -> ModuleDecl raise @util.EffektError
 

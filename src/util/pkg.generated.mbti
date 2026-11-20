@@ -14,9 +14,11 @@ pub fn braces_list(ArrayView[Doc]) -> Doc
 
 pub fn brackets_list(ArrayView[Doc]) -> Doc
 
+pub fn[A] close_matches(String, ArrayView[Array[A]], (A) -> String) -> CloseMatches[A]
+
 pub fn comma() -> Doc
 
-pub fn did_you_mean(String, ArrayView[String], (String) -> String?) -> String?
+pub fn did_you_mean(String, ArrayView[Array[String]], (String) -> String?) -> String?
 
 pub fn did_you_mean_type(String) -> String?
 
@@ -33,6 +35,8 @@ pub fn doc_space() -> Doc
 pub fn doc_spacecat(Doc, Doc) -> Doc
 
 pub fn empty_doc() -> Doc
+
+pub fn enumerated(ArrayView[String], String) -> String
 
 pub fn fresh_uid() -> Int32
 
@@ -56,11 +60,15 @@ pub fn render(Doc) -> String
 
 pub fn render_width(Doc, Int32) -> String
 
+pub fn suggestion(ArrayView[String]) -> String?
+
 pub fn text(String) -> Doc
 
 pub fn vcat(ArrayView[Doc]) -> Doc
 
 pub fn vsep(ArrayView[Doc]) -> Doc
+
+pub fn with_phase(String, String?) -> String
 
 // Errors
 pub(all) suberror EffektError {
@@ -69,6 +77,18 @@ pub(all) suberror EffektError {
 }
 
 // Types and methods
+pub(all) struct Candidate {
+  text : String
+  declaration : Span
+  errors : Array[Message]
+}
+
+pub(all) struct CloseMatches[A] {
+  groups : Array[Array[A]]
+}
+pub fn[A] CloseMatches::closest(Self[A]) -> Array[A]
+pub fn[A] CloseMatches::filter(Self[A], (A) -> Bool) -> Self[A]
+
 pub(all) enum Doc {
   Empty
   Text(String)
@@ -80,22 +100,38 @@ pub(all) enum Doc {
   Group(Doc)
 }
 
+pub(all) enum ItemKind {
+  Note
+  Help
+}
+pub fn ItemKind::word(Self) -> String
+
 pub(all) struct Message {
   severity : Severity
   span : Span
   text : String
   phase : String?
+  details : Array[String]
   notes : Array[Subdiagnostic]
+  causes : Array[Message]
+  candidates : Array[Candidate]
+  claim_text : String?
 }
 pub fn Message::Message(Severity, Span, String) -> Self
+pub fn Message::candidates(Self, ArrayView[Candidate]) -> Self
+pub fn Message::cause(Self, Self) -> Self
+pub fn Message::claim(Self) -> String
 pub fn Message::content_with_notes(Self) -> String
+pub fn Message::details(Self, ArrayView[String]) -> Self
 pub fn Message::error(Span, String) -> Self
 pub fn Message::help(Self, String) -> Self
 pub fn Message::info(String) -> Self
 pub fn Message::info_at(Span, String) -> Self
 pub fn Message::note(Self, String, Span?) -> Self
 pub fn Message::render(Self) -> String
+pub fn Message::subdiagnostics(Self, ArrayView[Subdiagnostic]) -> Self
 pub fn Message::warning(Span, String) -> Self
+pub fn Message::with_claim(Self, String) -> Self
 pub fn Message::with_phase(Self, String) -> Self
 
 #derive(Eq)
@@ -130,11 +166,14 @@ pub(all) struct Source {
   name : String
   content : String
   line_starts : Array[Int32]
+  shown : String
 }
 pub fn Source::Source(String, String) -> Self
 pub fn Source::empty() -> Self
+pub fn Source::included(String, String, String) -> Self
 pub fn Source::offset_to_position(Self, Int32) -> Position
 pub fn Source::renamed(Self, String) -> Self
+pub fn Source::shown_name(Self) -> String
 
 pub(all) struct Span {
   source : Source

@@ -58,7 +58,7 @@ fn Loader::is_library_prelude(
 ) -> Bool {
   guard is_prelude_path(path) else { return false }
   match self.locate(path) {
-    Some(file) => resolve_path(file) == resolve_path(input)
+    Some((file, _)) => resolve_path(file) == resolve_path(input)
     None => false
   }
 }
@@ -83,13 +83,31 @@ pub struct Loader {
   /// not the input's directory: a program file that happens to be called
   /// `exception.effekt` must not shadow the prelude module of that name.
   mut prelude_roots : Array[String]
+  /// How a root is named by the diagnostics: the standard library reads as
+  /// /libraries/... no matter where it lives on disk (upstream
+  /// IncludeRoot.shown). A root without an entry shows the path it was found
+  /// at.
+  shown : Map[String, String]
   sources : Map[String, Source]
   trees : Map[String, ModuleDecl]
 }
 
 ///|
 pub fn Loader::Loader(roots : Array[String]) -> Loader {
-  { roots, prelude_roots: roots.copy(), sources: Map([]), trees: Map([]), }
+  {
+    roots,
+    prelude_roots: roots.copy(),
+    shown: Map([]),
+    sources: Map([]),
+    trees: Map([]),
+  }
+}
+
+///|
+/// The name diagnostics print for a module found under `root` (upstream
+/// IncludeRoot.shown): the root's shown prefix plus the module's path.
+fn Loader::set_shown(self : Loader, root : String, shown : String) -> Unit {
+  self.shown.set(root, shown)
 }
 
 ///|
@@ -99,11 +117,11 @@ fn Loader::set_prelude_roots(self : Loader, roots : Array[String]) -> Unit {
 }
 
 ///|
-fn locate_in(roots : ArrayView[String], path : String) -> String? {
+fn locate_in(roots : ArrayView[String], path : String) -> (String, String)? {
   for root in roots {
     let candidate = join_path(root, "\{path}.effekt")
     if file_exists(candidate) {
-      return Some(candidate)
+      return Some((candidate, root))
     }
   }
   None
@@ -114,7 +132,7 @@ fn locate_in(roots : ArrayView[String], path : String) -> String? {
 ///
 /// Prelude modules are only searched in the library (see `prelude_roots`);
 /// everything else is searched in all roots, the input's directory last.
-fn Loader::locate(self : Loader, path : String) -> String? {
+fn Loader::locate(self : Loader, path : String) -> (String, String)? {
   if is_prelude_path(path) {
     locate_in(self.prelude_roots, path)
   } else {
@@ -140,8 +158,16 @@ pub fn Loader::load_tree(
           "Could not find module '\{path}' in include path.",
         )
       }
-      let file = located.unwrap()
-      let source = Source(file, read_file(file).unwrap_or(""))
+      let (file, root) = located.unwrap()
+      let content = read_file(file).unwrap_or("")
+      // A file the standard library provides is named the way upstream mounts
+      // it (/libraries/common/list.effekt), so that a diagnostic about a
+      // library declaration does not depend on where the library is installed.
+      let source = match self.shown.get(root) {
+        Some(prefix) =>
+          Source::included(file, content, "\{prefix}/\{path}.effekt")
+        None => Source(file, content)
+      }
       let parsed = parse(source, ctx)
       if parsed is None {
         ctx.abort(Span::missing(), "Could not parse module '\{path}'.")

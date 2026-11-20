@@ -98,7 +98,12 @@ fn find_equality_functions(module : @source.ModuleDecl) -> Array[Sym] {
     if d.kind is @source.ExternDef(id, _, _, _, _, _, _) && id.name == "infixEq" {
       out.push(
         Sym::ExternFunction({
-          base: { uid: d.uid, name: Name::local(id.name), decl: d.span, },
+          base: {
+            uid: d.uid,
+            name: Name::local(id.name),
+            decl: d.span,
+            def_id: id.span,
+          },
           tparams: [],
           vparams: [],
           bparams: [],

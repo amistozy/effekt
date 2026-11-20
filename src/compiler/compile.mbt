@@ -90,8 +90,15 @@ pub fn compile_file(
       }
     }
     let loader = Loader(search_paths(opts.input, opts))
+    // The standard library reads as `/libraries/...` in diagnostics, no matter
+    // where it is installed (upstream `EffektConfig.includes`).
+    let roots = library_roots(opts)
+    let shown_roots = ["/libraries", "/libraries/common", "/libraries/js"]
+    for i, root in roots {
+      loader.set_shown(root, shown_roots[i])
+    }
     // The prelude is provided by the library, never by the input's directory.
-    loader.set_prelude_roots(library_roots(opts))
+    loader.set_prelude_roots(roots)
     guard (pipeline.parse)(source, ctx) is Some(parsed) else {
       return { output: None, messages: ctx.messages.copy(), failed: true, }
     }
@@ -209,7 +216,7 @@ fn collect_order(
     // identity does not change between the first and a later visit.
     None =>
       match loader.locate(path) {
-        Some(file) => resolve_path(file)
+        Some((file, _)) => resolve_path(file)
         None => path
       }
   }

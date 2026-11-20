@@ -2175,7 +2175,12 @@ fn Parser::do_expr(self : Parser) -> Term raise EffektError {
     self.consume(KDo)
     let id = self.id_ref()
     let (targs, vargs, bargs) = self.arguments()
-    mk_term(self.span(), TermKind::Do(id, targs, vargs, bargs))
+    let node = mk_term(
+      self.span(),
+      TermKind::Do(id, targs, vargs.items, bargs.items),
+    )
+    record_argument_spans(node.uid, vargs.span, bargs.span)
+    node
   })
 }
 
@@ -2552,12 +2557,23 @@ fn Parser::call_expr(self : Parser, callee : Term) -> Term raise EffektError {
       let member_id = self.id_ref()
       if self.is_arguments() {
         let (targs, vargs, bargs) = self.arguments()
-        e = mk_term(
+        let node = mk_term(
           self.span(),
-          TermKind::MethodCall(e, member_id, targs, vargs, bargs),
+          TermKind::MethodCall(e, member_id, targs, vargs.items, bargs.items),
         )
+        record_argument_spans(node.uid, vargs.span, bargs.span)
+        e = node
       } else {
-        e = mk_term(self.span(), TermKind::MethodCall(e, member_id, [], [], []))
+        // Without an argument section both lists are empty at the end of the
+        // name, which is where a diagnostic points (upstream
+        // `member.span.emptyAfter`).
+        let after = member_id.span.empty_after()
+        let node = mk_term(
+          self.span(),
+          TermKind::MethodCall(e, member_id, [], [], []),
+        )
+        record_argument_spans(node.uid, after, after)
+        e = node
       }
     } else {
       let target : CallTarget = match e.kind {
@@ -2565,7 +2581,12 @@ fn Parser::call_expr(self : Parser, callee : Term) -> Term raise EffektError {
         _ => ExprTarget(e)
       }
       let (targs, vargs, bargs) = self.arguments()
-      e = mk_term(self.span(), TermKind::Call(target, targs, vargs, bargs))
+      let node = mk_term(
+        self.span(),
+        TermKind::Call(target, targs, vargs.items, bargs.items),
+      )
+      record_argument_spans(node.uid, vargs.span, bargs.span)
+      e = node
     }
   }
   e
@@ -3182,7 +3203,7 @@ fn Parser::is_arguments(self : Parser) -> Bool raise EffektError {
 ///|
 fn Parser::arguments(
   self : Parser,
-) -> (Array[TypeTree], Array[ValueArg], Array[Term]) raise EffektError {
+) -> (Array[TypeTree], Many[ValueArg], Many[Term]) raise EffektError {
   if !self.is_arguments() {
     self.fail_expected(
       "at least one argument section (types, values, or blocks)",
@@ -3207,21 +3228,25 @@ fn Parser::maybe_type_args(self : Parser) -> Many[TypeTree] raise EffektError {
 }
 
 ///|
-fn Parser::maybe_value_args(self : Parser) -> Array[ValueArg] raise EffektError {
-  if self.peek(TLParen) {
-    self.value_args()
-  } else {
-    []
-  }
+fn Parser::maybe_value_args(self : Parser) -> Many[ValueArg] raise EffektError {
+  self.nonterminal(() => {
+    if self.peek(TLParen) {
+      self.value_args()
+    } else {
+      Many::empty(self.span())
+    }
+  })
 }
 
 ///|
-fn Parser::maybe_block_args(self : Parser) -> Array[Term] raise EffektError {
-  if self.peek(TLBrace) {
-    self.block_args()
-  } else {
-    []
-  }
+fn Parser::maybe_block_args(self : Parser) -> Many[Term] raise EffektError {
+  self.nonterminal(() => {
+    if self.peek(TLBrace) {
+      self.block_args()
+    } else {
+      Many::empty(self.span())
+    }
+  })
 }
 
 ///|
@@ -3246,17 +3271,15 @@ fn Parser::type_args(self : Parser) -> Many[TypeTree] raise EffektError {
 }
 
 ///|
-fn Parser::value_args(self : Parser) -> Array[ValueArg] raise EffektError {
+fn Parser::value_args(self : Parser) -> Many[ValueArg] raise EffektError {
   self.nonterminal(() => {
-    self.many(() => self.value_arg(), TLParen, TComma, TRParen).items
+    self.many(() => self.value_arg(), TLParen, TComma, TRParen)
   })
 }
 
 ///|
-fn Parser::block_args(self : Parser) -> Array[Term] raise EffektError {
-  self.nonterminal(() => {
-    self.some_while_kind(() => self.block_arg(), TLBrace).items
-  })
+fn Parser::block_args(self : Parser) -> Many[Term] raise EffektError {
+  self.nonterminal(() => self.some_while_kind(() => self.block_arg(), TLBrace))
 }
 
 ///|

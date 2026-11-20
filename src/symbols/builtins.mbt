@@ -10,7 +10,12 @@ fn builtin_name(s : String) -> Name {
 ///|
 fn builtin_extern_type(s : String) -> Sym {
   ExternType({
-    base: { uid: fresh_uid(), name: builtin_name(s), decl: Span::missing(), },
+    base: {
+      uid: fresh_uid(),
+      name: builtin_name(s),
+      decl: Span::missing(),
+      def_id: Span::missing(),
+    },
     tparams: [],
   })
 }
@@ -18,7 +23,12 @@ fn builtin_extern_type(s : String) -> Sym {
 ///|
 fn builtin_data_type(s : String) -> Sym {
   DataType({
-    base: { uid: fresh_uid(), name: builtin_name(s), decl: Span::missing(), },
+    base: {
+      uid: fresh_uid(),
+      name: builtin_name(s),
+      decl: Span::missing(),
+      def_id: Span::missing(),
+    },
     tparams: [],
     constructors: [],
   })
@@ -53,14 +63,24 @@ let bottom_symbol : Sym = builtin_data_type("Nothing")
 
 ///|
 let io_symbol : Sym = Interface({
-  base: { uid: fresh_uid(), name: Name::local("IO"), decl: Span::missing(), },
+  base: {
+    uid: fresh_uid(),
+    name: Name::local("IO"),
+    decl: Span::missing(),
+    def_id: Span::missing(),
+  },
   tparams: [],
   operations: [],
 })
 
 ///|
 let async_symbol : Sym = Interface({
-  base: { uid: fresh_uid(), name: Name::local("Async"), decl: Span::missing(), },
+  base: {
+    uid: fresh_uid(),
+    name: Name::local("Async"),
+    decl: Span::missing(),
+    def_id: Span::missing(),
+  },
   tparams: [],
   operations: [],
 })
@@ -71,6 +91,7 @@ let global_symbol : Sym = Interface({
     uid: fresh_uid(),
     name: Name::local("Global"),
     decl: Span::missing(),
+    def_id: Span::missing(),
   },
   tparams: [],
   operations: [],
@@ -82,6 +103,7 @@ let region_symbol : Sym = Interface({
     uid: fresh_uid(),
     name: Name::local("Region"),
     decl: Span::missing(),
+    def_id: Span::missing(),
   },
   tparams: [],
   operations: [],
@@ -89,14 +111,24 @@ let region_symbol : Sym = Interface({
 
 ///|
 let io_capability : Sym = ExternResource({
-  base: { uid: fresh_uid(), name: Name::local("io"), decl: Span::missing(), },
+  base: {
+    uid: fresh_uid(),
+    name: Name::local("io"),
+    decl: Span::missing(),
+    def_id: Span::missing(),
+  },
   tpe: InterfaceType(io_symbol, []),
   capture: Sym::resource(Name::local("io")),
 })
 
 ///|
 let async_capability : Sym = ExternResource({
-  base: { uid: fresh_uid(), name: Name::local("async"), decl: Span::missing(), },
+  base: {
+    uid: fresh_uid(),
+    name: Name::local("async"),
+    decl: Span::missing(),
+    def_id: Span::missing(),
+  },
   tpe: InterfaceType(async_symbol, []),
   capture: Sym::resource(Name::local("async")),
 })
@@ -107,6 +139,7 @@ let global_capability : Sym = ExternResource({
     uid: fresh_uid(),
     name: Name::local("global"),
     decl: Span::missing(),
+    def_id: Span::missing(),
   },
   tpe: InterfaceType(global_symbol, []),
   capture: Sym::resource(Name::local("global")),
@@ -260,7 +293,12 @@ fn global_capture() -> Sym {
 fn make_state_interface() -> Sym {
   let s = Sym::type_param(Name::local("S"), Span::missing())
   let iface = Interface({
-    base: { uid: fresh_uid(), name: Name::local("Ref"), decl: Span::missing(), },
+    base: {
+      uid: fresh_uid(),
+      name: Name::local("Ref"),
+      decl: Span::missing(),
+      def_id: Span::missing(),
+    },
     tparams: [s],
     operations: [],
   })
@@ -269,6 +307,7 @@ fn make_state_interface() -> Sym {
       uid: fresh_uid(),
       name: builtin_name("get"),
       decl: Span::missing(),
+      def_id: Span::missing(),
     },
     tparams: [s],
     vparams: [],
@@ -282,6 +321,7 @@ fn make_state_interface() -> Sym {
       uid: fresh_uid(),
       name: builtin_name("put"),
       decl: Span::missing(),
+      def_id: Span::missing(),
     },
     tparams: [s],
     vparams: [

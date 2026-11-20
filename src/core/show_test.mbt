@@ -45,6 +45,7 @@ fn show_test_base(name : String) -> @symbols.SymBase {
     uid: @util.fresh_uid(),
     name: @symbols.Name::local(name),
     decl: @util.Span::missing(),
+    def_id: @util.Span::missing(),
   }
 }
 

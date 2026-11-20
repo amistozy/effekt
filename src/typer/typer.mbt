@@ -2600,10 +2600,9 @@ fn type_mismatch_text(exp : String, got : String) -> String {
 }
 
 ///|
-/// The claim of a failure: what the diagnostic says, which for a comparison
-/// that descended into a component is the *root*'s summary, not the component's
-/// (upstream `ErrorContext.claim`).
-fn claim_of(issue : String, ctx : ErrCtx) -> String {
+/// How a mismatch reads in a heading: the claim, or the aligned four-line form
+/// once the types get long (upstream `TypeMismatch.show`).
+fn show_of(issue : String, ctx : ErrCtx) -> String {
   match root_of(ctx) {
     Expected(got, exp) => type_mismatch_text("\{exp}", "\{got}")
     ExpectedBlock(got, exp) => type_mismatch_text("\{exp}", "\{got}")
@@ -2623,6 +2622,20 @@ fn claim_of(issue : String, ctx : ErrCtx) -> String {
         NoArms => issue
       }
     _ => issue
+  }
+}
+
+///|
+/// The claim of a failure: what the diagnostic says, which for a comparison
+/// that descended into a component is the *root*'s summary, not the component's
+/// (upstream `ErrorContext.claim`). It is always one line, so that a diagnostic
+/// nested under another can hang it off a caret even where its own heading is
+/// the aligned form.
+fn claim_of(issue : String, ctx : ErrCtx) -> String {
+  match root_of(ctx) {
+    Expected(got, exp) => "Expected \{exp} but got \{got}."
+    ExpectedBlock(got, exp) => "Expected \{exp} but got \{got}."
+    _ => show_of(issue, ctx)
   }
 }
 
@@ -2690,7 +2703,9 @@ fn Typer::error_types(
   ctx : ErrCtx,
 ) -> Unit {
   let issue = mismatch_of("\{left}", "\{right}", ctx)
-  let msg = Message::error(self.focus, claim_of(issue, ctx))
+  let msg = Message::error(self.focus, show_of(issue, ctx)).with_claim(
+    claim_of(issue, ctx),
+  )
   self.error_message(
     with_notes(msg, failure_notes(ctx, issue, is_claimed(left, right, ctx))),
   )
@@ -2706,7 +2721,9 @@ fn[T] Typer::abort_types(
   ctx : ErrCtx,
 ) -> T raise EffektError {
   let issue = mismatch_of("\{left}", "\{right}", ctx)
-  let msg = Message::error(self.focus, claim_of(issue, ctx))
+  let msg = Message::error(self.focus, show_of(issue, ctx)).with_claim(
+    claim_of(issue, ctx),
+  )
   self.abort_message(
     with_notes(msg, failure_notes(ctx, issue, is_claimed(left, right, ctx))),
   )
@@ -2722,7 +2739,9 @@ fn Typer::error_blocks(
   ctx : ErrCtx,
 ) -> Unit {
   let issue = mismatch_of("\{left}", "\{right}", ctx)
-  let msg = Message::error(self.focus, claim_of(issue, ctx))
+  let msg = Message::error(self.focus, show_of(issue, ctx)).with_claim(
+    claim_of(issue, ctx),
+  )
   self.error_message(
     with_notes(
       msg,
@@ -2736,7 +2755,9 @@ fn Typer::error_blocks(
 /// it is, e.g. the two effect sets), with the claim of the surrounding context
 /// (upstream `error(issue, ctx)`).
 fn Typer::error_issue(self : Typer, issue : String, ctx : ErrCtx) -> Unit {
-  let msg = Message::error(self.focus, claim_of(issue, ctx))
+  let msg = Message::error(self.focus, show_of(issue, ctx)).with_claim(
+    claim_of(issue, ctx),
+  )
   self.error_message(with_notes(msg, failure_notes(ctx, issue, false)))
 }
 
@@ -2747,7 +2768,9 @@ fn[T] Typer::abort_issue(
   issue : String,
   ctx : ErrCtx,
 ) -> T raise EffektError {
-  let msg = Message::error(self.focus, claim_of(issue, ctx))
+  let msg = Message::error(self.focus, show_of(issue, ctx)).with_claim(
+    claim_of(issue, ctx),
+  )
   self.abort_message(with_notes(msg, failure_notes(ctx, issue, false)))
 }
 
@@ -3263,6 +3286,7 @@ pub fn Typer::join(
         // definitions are still checked instead of losing their diagnostics.
         // Upstream (and its recorded output) reports the arms' *substituted*
         // types here (`MergeTypes(Context.unification(t1), unification(t2))`).
+        let reported = self.ctx.messages.length()
         let merged = self.merge_value_types(
           acc,
           tpe,
@@ -3281,6 +3305,12 @@ pub fn Typer::join(
             tpe
           }
           EffektError::Internal(m) => raise EffektError::Internal(m)
+        }
+        // A merge that reported a mismatch without aborting failed the same way:
+        // reporting the arms against the join afterwards would repeat it in a
+        // different wording (`examples/neg/patternmatch` says it once).
+        if self.ctx.messages.length() > reported {
+          failed = true
         }
         result = Some(merged)
       }

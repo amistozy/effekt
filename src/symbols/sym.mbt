@@ -10,18 +10,29 @@
 pub(all) struct SymBase {
   uid : Int32
   name : Name
-  /// The span of the defining occurrence (used for diagnostics only).
+  /// The span of the declaration, used for diagnostics (`Context.at(sym.decl)`
+  /// upstream): the whole `def`, not just its name.
   decl : Span
+  /// The span of the defining identifier, i.e. the name in the `def`
+  /// (upstream's `DefinitionTree` annotation). A diagnostic that draws the
+  /// declaration of a symbol underlines this, and it is where a term that is out
+  /// of scope is said to be bound.
+  def_id : Span
 }
 
 ///|
 fn base(name : Name, decl : Span) -> SymBase {
-  { uid: fresh_uid(), name, decl, }
+  { uid: fresh_uid(), name, decl, def_id: Span::missing(), }
 }
 
 ///|
 fn anon_base(name : String) -> SymBase {
-  { uid: fresh_uid(), name: Name::local(name), decl: Span::missing(), }
+  {
+    uid: fresh_uid(),
+    name: Name::local(name),
+    decl: Span::missing(),
+    def_id: Span::missing(),
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +149,9 @@ pub(all) struct DefBinderSym {
 pub(all) struct CallTargetSym {
   base : SymBase
   symbols : Array[Array[Sym]]
+  /// The scope the callee was resolved in, for a "Did you mean ...?" hint when
+  /// no candidate fits (upstream `CallTarget.scope`).
+  scope : Scope?
 }
 
 ///|
@@ -402,6 +416,18 @@ pub fn Sym::decl(self : Sym) -> Span {
 }
 
 ///|
+/// The span of the defining identifier (upstream's `DefinitionTree`); falls back
+/// to the declaration for symbols that were built without one.
+pub fn Sym::def_id(self : Sym) -> Span {
+  let base = self.base()
+  if base.def_id.is_missing() {
+    base.decl
+  } else {
+    base.def_id
+  }
+}
+
+///|
 /// Symbols are compared by identity (`uid`), not by name.
 ///
 /// The physical-equality fast path matters: capture sets are compared and
@@ -594,7 +620,12 @@ pub fn Sym::resource(name : Name) -> Sym {
 ///|
 pub fn Sym::error_value_type(decl : Span) -> Sym {
   ErrorValueType({
-    base: { uid: fresh_uid(), name: Name::anon(), decl, },
+    base: {
+      uid: fresh_uid(),
+      name: Name::anon(),
+      decl,
+      def_id: Span::missing(),
+    },
     tparams: [],
   })
 }
@@ -602,14 +633,22 @@ pub fn Sym::error_value_type(decl : Span) -> Sym {
 ///|
 pub fn Sym::error_block_type(decl : Span) -> Sym {
   ErrorBlockType({
-    base: { uid: fresh_uid(), name: Name::anon(), decl, },
+    base: {
+      uid: fresh_uid(),
+      name: Name::anon(),
+      decl,
+      def_id: Span::missing(),
+    },
     tparams: [],
   })
 }
 
 ///|
-pub fn Sym::call_target(symbols : Array[Array[Sym]]) -> Sym {
-  CallTarget({ base: anon_base("__calltarget"), symbols, })
+/// The call target the namer leaves on a callee: the candidates of every scope,
+/// and the scope they were found in (upstream `symbols.CallTarget`, whose
+/// `scope` the type checker uses to suggest a close name when nothing fits).
+pub fn Sym::call_target(symbols : Array[Array[Sym]], scope : Scope?) -> Sym {
+  CallTarget({ base: anon_base("__calltarget"), symbols, scope, })
 }
 
 // ---------------------------------------------------------------------------

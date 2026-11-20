@@ -60,6 +60,7 @@ pub(all) struct CompileResult {
 pub struct Loader {
   roots : Array[String]
   mut prelude_roots : Array[String]
+  shown : Map[String, String]
   sources : Map[String, @util.Source]
   trees : Map[String, @source.ModuleDecl]
 }

@@ -62,8 +62,7 @@ fn implicit_explanation(name : String, tpe : ValueType) -> String? {
       match tpe {
         @symbols.ValueType::BoxedType(_, _) => {
           let text =
-            #|An implicit argument of a boxed type will be instantiated by boxing the block
-            #|  that an implicit block argument of the same name would be instantiated to.
+            #|An implicit argument of a boxed type will be instantiated by boxing the block that an implicit block argument of the same name would be instantiated to.
           Some(text)
         }
         _ => None
@@ -79,7 +78,10 @@ fn implicit_explanation(name : String, tpe : ValueType) -> String? {
 /// instantiated and nests the diagnostics below that line.
 fn[T] Typer::check_implicit(
   self : Typer,
-  call : CallLike,
+  /// Where the argument list the implicit argument belongs to is written: the
+  /// diagnostic points there (upstream reports the failure of the generated
+  /// tree, whose span is the span of that list).
+  span : Span,
   stencil : ImplicitStencil,
   tpe : String,
   run : () -> T raise EffektError,
@@ -92,35 +94,85 @@ fn[T] Typer::check_implicit(
   })
   let failed = muted_error || failure is Some(_)
   if failed {
-    // Upstream's `ImplicitInstantiation.show`: the claim, one line naming the
-    // argument and its type, the stencil's explanation, the nested diagnostics
-    // (each indented, with their notes and helps on their own lines) and a
-    // trailing newline, which renders as the blank line before the excerpt.
-    let mut text =
-      $|Cannot instantiate implicit argument.
-      $|Cannot instantiate \{ordinal(stencil.index)} \{stencil.kind} \{stencil.name} of type \{tpe}.
-    text = text + "\n"
-    if stencil.explanation is Some(explanation) {
-      text = text + indent_message(explanation) + "\n"
-    }
-    if !errors.is_empty() {
-      text = text +
-        indent_message(
-          errors.map(entry => entry.content_with_notes()).join("\n"),
-        )
-    } else if failure is Some(msg) {
-      text = text + indent_message(msg)
-    }
-    // An instantiation whose search was cut off inherits that: the candidate it
-    // belongs to is undecided, not rejected (upstream `ImplicitInstantiation`'s
-    // `undecided` delegates to the stencil's failure).
     self.cutoff = cut_off
-    self.abort(call.span, text + "\n")
+    self.abort_message(implicit_failure(span, stencil, tpe, errors, failure))
   }
   for entry in infos {
     self.info(entry.0, entry.1)
   }
   result.unwrap()
+}
+
+///|
+/// Generates the tree of an implicit argument (upstream's stencil, which
+/// `GenerateImplicitArgs` resolves *before* the tree is checked). A stencil that
+/// cannot be resolved at all — the name it stands for is not bound — is reported
+/// at the call itself, since that is where upstream's `Error` stencil aborts: at
+/// the current focus, not at the generated tree.
+fn[T] Typer::generate_implicit(
+  self : Typer,
+  /// The call whose implicit argument is being generated; a failure is reported
+  /// here (upstream's stencil aborts at the focus).
+  span : Span,
+  stencil : ImplicitStencil,
+  tpe : String,
+  generate : () -> T raise EffektError,
+) -> T raise EffektError {
+  let ((value, failure), _, errors, infos, cut_off) = self.muted(() => {
+    (Some(generate()), None) catch {
+      EffektError::Fatal(msg) => (None, Some(msg))
+      EffektError::Internal(m) => raise EffektError::Internal(m)
+    }
+  })
+  if failure is Some(_) {
+    self.cutoff = cut_off
+    // Upstream aborts at the *focus*, so everything the attempt recorded is
+    // reported at the call: the stencil is resolved before there is a tree to
+    // point at.
+    let errors = errors.map(entry => { ..entry, span, })
+    self.abort_message(implicit_failure(span, stencil, tpe, errors, failure))
+  }
+  for entry in infos {
+    self.info(entry.0, entry.1)
+  }
+  value.unwrap()
+}
+
+///|
+/// The diagnostic of an implicit argument that cannot be instantiated
+/// (upstream `ImplicitInstantiation`): the claim, one line naming the argument
+/// and its type, the stencil's explanation, and the nested diagnostics of the
+/// failure — each drawn with its own place one gutter deeper.
+///
+/// `span` is where the failure is reported: the call for a stencil that cannot be
+/// resolved, the argument list for a generated tree that does not type check.
+fn implicit_failure(
+  span : Span,
+  stencil : ImplicitStencil,
+  tpe : String,
+  errors : ArrayView[Message],
+  failure : String?,
+) -> Message {
+  let details : Array[String] = [
+    "Cannot instantiate \{ordinal(stencil.index)} \{stencil.kind} \{stencil.name} of type \{tpe}.",
+  ]
+  if stencil.explanation is Some(explanation) {
+    for line in explanation.split("\n") {
+      details.push(line.to_owned())
+    }
+  }
+  let mut message = Message::error(
+    span, "Cannot instantiate implicit argument.",
+  ).details(details)
+  for entry in errors {
+    message = message.cause(entry)
+  }
+  if errors.is_empty() && failure is Some(msg) {
+    // The attempt aborted without recording a diagnostic of its own: the message
+    // it aborted with is what made it fail.
+    message = message.cause(Message::error(span, msg))
+  }
+  message
 }
 
 ///|
@@ -175,15 +227,16 @@ fn int_literal_term(value : Int64, span : Span) -> Term {
 fn Typer::implicit_var_term(
   self : Typer,
   call : CallLike,
+  span : Span,
   name : String,
 ) -> Term raise EffektError {
   let scope = self.implicit_scope(call)
   match @symbols.lookup_term_in_scope(scope.scope, scope.imports, name) {
-    Some(sym) => self.var_term_for(sym, call.span.synthesized())
+    Some(sym) => self.var_term_for(sym, span.synthesized())
     None =>
       // Upstream's `Scope.lookupFirstTerm`: the failure is reported at the
       // generated reference and ends up nested under "Cannot instantiate ...".
-      self.abort(call.span.synthesized(), "Could not resolve term \{name}")
+      self.abort(span.synthesized(), "Could not resolve term \{name}")
   }
 }
 
@@ -221,7 +274,10 @@ fn Typer::source_position_term(
     @source.ValueArg::unnamed(int_literal_term(to.column.to_int64(), span)),
   ]
   let target = @source.IdRef("SourcePosition", span)
-  self.assign_symbol(target.uid, @symbols.Sym::call_target(candidates))
+  self.assign_symbol(
+    target.uid,
+    @symbols.Sym::call_target(candidates, Some(scope.scope)),
+  )
   let call = mk_term(
     span,
     @source.TermKind::Call(@source.CallTarget::IdTarget(target), [], args, []),
@@ -241,14 +297,15 @@ fn Typer::source_position_term(
 fn Typer::implicit_block_term(
   self : Typer,
   call : CallLike,
+  span : Span,
   name : String,
   btpe : BlockType,
 ) -> Term raise EffektError {
   match btpe {
     @symbols.BlockType::InterfaceType(_, _) =>
-      self.implicit_var_term(call, name)
+      self.implicit_var_term(call, span, name)
     @symbols.BlockType::FunctionType(_, _, vps, bps, _, _) => {
-      let span = call.span.synthesized()
+      let span = span.synthesized()
       let vparams : Array[@source.ValueParam] = []
       let vargs : Array[@source.ValueArg] = []
       for i, vp in vps {
@@ -293,7 +350,10 @@ fn Typer::implicit_block_term(
         @symbols.lookup_terms_in_scope(scope.scope, scope.imports, name),
       )
       let target = @source.IdRef(name, span)
-      self.assign_symbol(target.uid, @symbols.Sym::call_target(candidates))
+      self.assign_symbol(
+        target.uid,
+        @symbols.Sym::call_target(candidates, Some(scope.scope)),
+      )
       let callee = mk_term(
         span,
         @source.TermKind::Call(
@@ -324,11 +384,12 @@ fn Typer::implicit_block_term(
 fn Typer::implicit_boxed_term(
   self : Typer,
   call : CallLike,
+  span : Span,
   name : String,
   btpe : BlockType,
 ) -> Term raise EffektError {
-  let span = call.span.synthesized()
-  let block = self.implicit_block_term(call, name, btpe)
+  let span = span.synthesized()
+  let block = self.implicit_block_term(call, span, name, btpe)
   mk_term(span, @source.TermKind::Box(None, block))
 }
 
@@ -337,23 +398,24 @@ fn Typer::implicit_boxed_term(
 fn Typer::implicit_value_term(
   self : Typer,
   call : CallLike,
+  span : Span,
   param : Sym,
   tpe : ValueType,
 ) -> Term raise EffektError {
   let name = param.name().name
   match name {
     "callId" =>
-      int_literal_term(@util.fresh_uid().to_int64(), call.span.synthesized())
+      int_literal_term(@util.fresh_uid().to_int64(), span.synthesized())
     "sourcePosition" =>
       match self.source_position_term(call) {
         Some(t) => t
-        None => self.implicit_var_term(call, name)
+        None => self.implicit_var_term(call, span, name)
       }
     _ =>
       match tpe {
         @symbols.ValueType::BoxedType(btpe, _) =>
-          self.implicit_boxed_term(call, name, btpe)
-        _ => self.implicit_var_term(call, name)
+          self.implicit_boxed_term(call, span, name, btpe)
+        _ => self.implicit_var_term(call, span, name)
       }
   }
 }
@@ -363,10 +425,11 @@ fn Typer::implicit_value_term(
 fn Typer::implicit_block_arg_term(
   self : Typer,
   call : CallLike,
+  span : Span,
   param : Sym,
   btpe : BlockType,
 ) -> Term raise EffektError {
-  self.implicit_block_term(call, param.name().name, btpe)
+  self.implicit_block_term(call, span, param.name().name, btpe)
 }
 
 // ---------------------------------------------------------------------------

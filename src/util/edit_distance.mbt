@@ -4,7 +4,7 @@
 // so the distance is only computed while it can still stay below `limit`.
 
 ///|
-/// The lower-case ASCII code of a character, so that type names can be compared
+/// The lower-case ASCII code of a character, so that names can be compared
 /// case-insensitively (`Mytype` vs `MyType`) without a Unicode case table.
 fn lower_code(c : Char) -> Int32 {
   let code = c.to_int()
@@ -13,6 +13,37 @@ fn lower_code(c : Char) -> Int32 {
   } else {
     code
   }
+}
+
+///|
+/// The edit distance between two already stripped strings, where swapping two
+/// adjacent characters counts as one edit (upstream `levenshtein`: `Bolo` is one
+/// edit away from `Bool`).
+fn levenshtein(s1 : ArrayView[Char], s2 : ArrayView[Char]) -> Int32 {
+  let n = s1.length()
+  let m = s2.length()
+  let d : Array[Int32] = Array::make((n + 1) * (m + 1), 0)
+  let at = (i : Int32, j : Int32) => i * (m + 1) + j
+  for i in 0..<=n {
+    d[at(i, 0)] = i
+  }
+  for j in 0..<=m {
+    d[at(0, j)] = j
+  }
+  for i in 1..<=n {
+    for j in 1..<=m {
+      let delete = d[at(i - 1, j)] + 1
+      let insert = d[at(i, j - 1)] + 1
+      let cost = if s1[i - 1] == s2[j - 1] { 0 } else { 1 }
+      let substitute = d[at(i - 1, j - 1)] + cost
+      let mut best = delete.min(insert).min(substitute)
+      if i > 1 && j > 1 && s1[i - 1] == s2[j - 2] && s1[i - 2] == s2[j - 1] {
+        best = best.min(d[at(i - 2, j - 2)] + 1)
+      }
+      d[at(i, j)] = best
+    }
+  }
+  d[at(n, m)]
 }
 
 ///|
@@ -26,10 +57,10 @@ fn edit_distance(a : String, b : String, limit : Int32) -> Int32? {
   let n = left.length()
   let m = right.length()
   if n == 0 {
-    return if m <= limit { Some(m) } else { None }
+    return Some(m)
   }
   if m == 0 {
-    return if n <= limit { Some(n) } else { None }
+    return Some(n)
   }
   if (n - m).abs() > limit {
     return None
@@ -47,39 +78,15 @@ fn edit_distance(a : String, b : String, limit : Int32) -> Int32? {
   }
   let s1 = left[prefix:n - suffix]
   let s2 = right[prefix:m - suffix]
-  let ln = s1.length()
-  let lm = s2.length()
-  if ln == 0 {
-    return if lm <= limit { Some(lm) } else { None }
+  if s1.is_empty() {
+    return Some(s2.length())
   }
-  if lm == 0 {
-    return if ln <= limit { Some(ln) } else { None }
+  if s2.is_empty() {
+    return Some(s1.length())
   }
-  // `prev[j]` is the distance of `s1[0:i-1]` and `s2[0:j-1]`.
-  let mut prev : Array[Int32] = Array::make(lm + 1, 0)
-  let mut cur : Array[Int32] = Array::make(lm + 1, 0)
-  for j in 0..<=lm {
-    prev[j] = j
-  }
-  for i in 1..<=ln {
-    cur[0] = i
-    let mut row_min = cur[0]
-    for j in 1..<=lm {
-      let cost = if s1[i - 1] == s2[j - 1] { 0 } else { 1 }
-      let best = (prev[j] + 1).min(cur[j - 1] + 1).min(prev[j - 1] + cost)
-      cur[j] = best
-      row_min = row_min.min(best)
-    }
-    if row_min > limit {
-      return None
-    }
-    let tmp = prev
-    prev = cur
-    cur = tmp
-  }
-  let result = prev[lm]
-  if result <= limit {
-    Some(result)
+  let distance = levenshtein(s1, s2)
+  if distance <= limit {
+    Some(distance)
   } else {
     None
   }
@@ -98,38 +105,134 @@ fn equal_ignoring_case(a : String, b : String) -> Bool {
 }
 
 ///|
-/// The suggestion upstream's `Scope.didYouMean` makes for an unresolved type
-/// name, if any.
+/// The candidates within the edit limit of a name, grouped by how close they
+/// are: equal up to case comes first (upstream treats it as distance `-1`), then
+/// fewer edits, then an earlier group of candidates. Mirrors
+/// `CloseMatches` in `effekt/util/EditDistance.scala`.
 ///
-/// `candidates` are the type names that are in scope; `specific` is the
-/// hard-coded heuristic for names that are common in other languages.
+/// The Scala original is a `LazyList` so that `filter` and `closest` only do the
+/// work they need; here the groups are computed eagerly, which is fine for the
+/// few hundred names that are in scope at any point.
+pub(all) struct CloseMatches[A] {
+  /// The groups, closest first. A group holds the candidates of one
+  /// `(distance, preference)` rank, in the order the scopes provided them.
+  groups : Array[Array[A]]
+}
+
+///|
+/// The closest candidates, or none when no candidate is within the limit.
+pub fn[A] CloseMatches::closest(self : CloseMatches[A]) -> Array[A] {
+  for group in self.groups {
+    if !group.is_empty() {
+      return group
+    }
+  }
+  []
+}
+
+///|
+/// The same matches, keeping only the candidates that satisfy `p`. A group that
+/// ends up empty is skipped by `closest`, so the next closest one wins —
+/// `didYouMeanMethod` relies on that: a close name whose candidate does not
+/// accept the call must not hide a slightly farther one that does.
+pub fn[A] CloseMatches::filter(
+  self : CloseMatches[A],
+  p : (A) -> Bool,
+) -> CloseMatches[A] {
+  { groups: self.groups.map(group => group.filter(p)), }
+}
+
+///|
+/// The candidates within the edit limit of `name` (`CloseMatches.apply`).
+/// `groups` are the candidate groups, the preferred group first (for a scope
+/// chain: nearest scope first).
+pub fn[A] close_matches(
+  name : String,
+  groups : ArrayView[Array[A]],
+  name_of : (A) -> String,
+) -> CloseMatches[A] {
+  let limit = (name.length().max(3) / 3).to_int()
+  // The ranks in the order they are found; kept sorted by `(distance,
+  // preference)` so that the group list is closest-first.
+  let ranks : Array[(Int32, Int32)] = []
+  let buckets : Array[Array[A]] = []
+  for group_index, group in groups {
+    for candidate in group {
+      let distance = if equal_ignoring_case(name_of(candidate), name) {
+        // equal up to case is closer than any edit
+        Some(-1)
+      } else {
+        edit_distance(name, name_of(candidate), limit)
+      }
+      guard distance is Some(d) else { continue }
+      let rank = (d, group_index.to_int())
+      let mut slot = -1
+      for i, existing in ranks {
+        if existing == rank {
+          slot = i
+          break
+        }
+        if rank.0 < existing.0 || (rank.0 == existing.0 && rank.1 < existing.1) {
+          ranks.insert(i, rank)
+          buckets.insert(i, [])
+          slot = i
+          break
+        }
+      }
+      if slot == -1 {
+        slot = ranks.length()
+        ranks.push(rank)
+        buckets.push([])
+      }
+      // matches at the same rank are distinct by name
+      let bucket = buckets[slot]
+      if !bucket.any(other => name_of(other) == name_of(candidate)) {
+        bucket.push(candidate)
+      }
+    }
+  }
+  { groups: buckets, }
+}
+
+///|
+/// `a`, `a and b`, `a, b and c` for the conjunction `and` (upstream
+/// `messages.enumerated`).
+pub fn enumerated(items : ArrayView[String], conjunction : String) -> String {
+  if items.is_empty() {
+    return ""
+  }
+  if items.length() == 1 {
+    return items[0]
+  }
+  let init = items[:items.length() - 1].join(", ")
+  "\{init} \{conjunction} \{items[items.length() - 1]}"
+}
+
+///|
+/// The "Did you mean ...?" hint for a list of names, at most three of them
+/// (upstream `messages.suggestion`).
+pub fn suggestion(names : ArrayView[String]) -> String? {
+  if names.is_empty() {
+    return None
+  }
+  Some("Did you mean \{enumerated(names[:names.length().min(3)], "or")}?")
+}
+
+///|
+/// The suggestion upstream's `Scope.didYouMean` makes for an unresolved name, if
+/// any: a hard-coded heuristic first, then the closest of the candidates given
+/// by the scopes (nearest scope first).
+///
+/// `candidates` are the names that are in scope, grouped by scope; `specific` is
+/// the heuristic for names that are common in other languages.
 pub fn did_you_mean(
   name : String,
-  candidates : ArrayView[String],
+  candidates : ArrayView[Array[String]],
   specific : (String) -> String?,
 ) -> String? {
   match specific(name) {
     Some(suggestion) => Some(suggestion)
-    None => {
-      // Priority 2: an exact case-insensitive match.
-      for candidate in candidates {
-        if equal_ignoring_case(candidate, name) {
-          return Some("Did you mean \{candidate}?")
-        }
-      }
-      // Priority 3: the closest name within the edit-distance limit.
-      let threshold = (name.length() + 2).max(3) / 3
-      let mut best : (Int32, String)? = None
-      for candidate in candidates {
-        if edit_distance(name, candidate, threshold) is Some(d) {
-          match best {
-            Some((best_d, _)) if best_d <= d => ()
-            _ => best = Some((d, candidate))
-          }
-        }
-      }
-      best.map(pair => "Did you mean \{pair.1}?")
-    }
+    None => suggestion(close_matches(name, candidates, name => name).closest())
   }
 }
 
@@ -138,18 +241,18 @@ pub fn did_you_mean(
 /// Most of these are names from other languages.
 pub fn did_you_mean_type(name : String) -> String? {
   match name {
-    "Boolean" | "boolean" => Some("Did you mean Bool?")
-    "Str" | "str" => Some("Did you mean String?")
+    "Boolean" | "boolean" => suggestion(["Bool"])
+    "Str" | "str" => suggestion(["String"])
     "Integer" | "Int32" | "Int64" | "I32" | "I64" | "i32" | "i64" =>
-      Some("Did you mean Int?")
+      suggestion(["Int"])
     "UInt32" | "UInt64" | "UInt" | "U32" | "U64" | "u32" | "u64" =>
       Some("Effekt only supports signed integers, did you mean Int?")
     "Int8" | "UInt8" | "I8" | "U8" | "i8" | "u8" =>
       Some("Did you mean Byte (8 bits) or Char (32 bits)?")
     "Float" | "float" | "F64" | "F32" | "f64" | "f32" =>
       Some("Effekt only supports 64bit floating numbers, did you mean Double?")
-    "Maybe" | "maybe" => Some("Did you mean Option?")
-    "Void" | "void" => Some("Did you mean Unit?")
+    "Maybe" | "maybe" => suggestion(["Option"])
+    "Void" | "void" => suggestion(["Unit"])
     _ => None
   }
 }

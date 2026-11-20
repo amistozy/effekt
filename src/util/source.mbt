@@ -27,6 +27,11 @@ pub(all) struct Source {
   name : String
   content : String
   line_starts : Array[Int32]
+  /// The name to *show* in a diagnostic, when it differs from `name`: a file
+  /// found under an include root is named by how the root is shown there, which
+  /// is how the standard library reads as `/libraries/common/list.effekt`
+  /// (upstream `IncludedFileSource.shown`). Empty means "same as `name`".
+  shown : String
 }
 
 ///|
@@ -37,7 +42,30 @@ pub fn Source::Source(name : String, content : String) -> Source {
       starts.push(i + 1)
     }
   }
-  { name, content, line_starts: starts, }
+  { name, content, line_starts: starts, shown: "", }
+}
+
+///|
+/// The name diagnostics print for this source: the include root's view of it if
+/// it was found through one, the name it was read under otherwise (upstream
+/// `shownName`).
+pub fn Source::shown_name(self : Source) -> String {
+  if self.shown == "" {
+    self.name
+  } else {
+    self.shown
+  }
+}
+
+///|
+/// A source found through an include root, shown as `<root>/<path>` no matter
+/// where the root lives on disk.
+pub fn Source::included(
+  name : String,
+  content : String,
+  shown : String,
+) -> Source {
+  { ..Source(name, content), shown, }
 }
 
 ///|
@@ -45,7 +73,7 @@ pub fn Source::Source(name : String, content : String) -> Source {
 /// module are reported with the include path it was reached by, which upstream
 /// writes as `./<path>.effekt` (a `VirtualFileSource`).
 pub fn Source::renamed(self : Source, name : String) -> Source {
-  { name, content: self.content, line_starts: self.line_starts, }
+  { ..self, name, }
 }
 
 ///|
@@ -79,8 +107,16 @@ fn Source::line_text(self : Source, line : Int32) -> String {
     self.content.length()
   }
   let raw = self.content[from:to].to_owned()
+  // A line ends at its terminator, which may be `\n` or `\r\n`: a source line
+  // read from a file with Windows line endings must not carry the `\r` into a
+  // diagnostic (the standard library is checked out that way here).
   if raw.has_suffix("\n") {
-    raw[0:raw.length() - 1].to_owned()
+    let line = raw[0:raw.length() - 1].to_owned()
+    if line.has_suffix("\r") {
+      line[0:line.length() - 1].to_owned()
+    } else {
+      line
+    }
   } else {
     raw
   }
@@ -170,14 +206,11 @@ pub fn Span::missing() -> Span {
 }
 
 ///|
-/// A synthetic empty span immediately after this one.
+/// A synthetic empty span immediately after this one (upstream
+/// `Span.emptyAfter`): it sits at the end of this span, so a diagnostic there
+/// underlines a single character.
 pub fn Span::empty_after(self : Span) -> Span {
-  {
-    source: self.source,
-    start: self.end + 1,
-    end: self.end + 1,
-    origin: Synthesized,
-  }
+  { source: self.source, start: self.end, end: self.end, origin: Synthesized, }
 }
 
 ///|

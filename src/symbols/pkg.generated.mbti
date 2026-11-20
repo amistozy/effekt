@@ -8,7 +8,7 @@ import {
 // Values
 pub fn async_capture() -> Sym
 
-pub fn available_type_names(Scope, Bindings) -> Array[String]
+pub fn available_type_names(Scope, Bindings) -> Array[Array[String]]
 
 pub fn block_candidates(ArrayView[Array[Sym]]) -> Array[Array[Sym]]
 
@@ -36,6 +36,14 @@ pub fn dedup_syms(ArrayView[Sym]) -> Array[Sym]
 
 pub fn double_type_sym() -> Sym
 
+pub fn ended_by(Scope) -> Array[Sym]
+
+pub fn ended_term(Scope, ArrayView[String], String) -> Sym?
+
+pub fn ended_terms(Scope) -> Array[Sym]
+
+pub fn explain_missing_term(Scope, Bindings, ArrayView[String], String) -> Array[@util.Subdiagnostic]
+
 pub fn field_return_type(Sym) -> ValueType
 
 pub fn int_type_sym() -> Sym
@@ -53,6 +61,8 @@ pub fn lookup_functions_in_scope(Scope, Bindings, String) -> Array[Array[Sym]]
 pub fn lookup_term_in_scope(Scope, Bindings, String) -> Sym? raise @util.EffektError
 
 pub fn lookup_terms_in_scope(Scope, Bindings, String) -> Array[Array[Sym]]
+
+pub fn note_ended(Sym) -> @util.Subdiagnostic
 
 pub fn[T] or_else(T?, () -> T? raise @util.EffektError) -> T? raise @util.EffektError
 
@@ -100,6 +110,8 @@ pub fn unit_type_sym() -> Sym
 
 pub fn value_type_equal(ValueType, ValueType) -> Bool
 
+pub fn visible_terms(Scope, Bindings, ArrayView[String]) -> Array[Array[(String, Array[Sym])]]
+
 // Errors
 
 // Types and methods
@@ -135,6 +147,7 @@ pub impl Show for BlockType
 pub(all) struct CallTargetSym {
   base : SymBase
   symbols : Array[Array[Sym]]
+  scope : Scope?
 }
 
 pub(all) struct CallableView {
@@ -355,9 +368,10 @@ pub(all) struct ResumeParamSym {
 pub(all) enum Scope {
   Global(Bindings)
   Named(String, Bindings, Scope)
-  Local(String?, Bindings, Scope)
+  Local(String?, Bindings, Scope, Array[Sym])
 }
 pub fn Scope::bindings(Self) -> Bindings
+pub fn Scope::with_ended(Self, ArrayView[Sym]) -> Self
 
 pub(all) struct Scoping {
   module_path : Array[String]
@@ -422,9 +436,10 @@ pub fn Sym::annotated_type(Self) -> BlockType?
 pub fn Sym::as_callable(Self) -> CallableView?
 pub fn Sym::base(Self) -> SymBase
 pub fn Sym::block_param(Name, BlockType?, Self, Bool, @util.Span) -> Self
-pub fn Sym::call_target(Array[Array[Self]]) -> Self
+pub fn Sym::call_target(Array[Array[Self]], Scope?) -> Self
 pub fn Sym::capture_param(Name) -> Self
 pub fn Sym::decl(Self) -> @util.Span
+pub fn Sym::def_id(Self) -> @util.Span
 pub fn Sym::error_block_type(@util.Span) -> Self
 pub fn Sym::error_value_type(@util.Span) -> Self
 pub fn Sym::id(Name) -> Self
@@ -455,6 +470,7 @@ pub(all) struct SymBase {
   uid : Int32
   name : Name
   decl : @util.Span
+  def_id : @util.Span
 }
 
 pub(all) struct TmpBlockSym {

@@ -12,19 +12,6 @@ fn is_tuple_name(name : String) -> Bool {
 }
 
 ///|
-/// Upstream's `Style.indent`: two spaces in front of *every* line of a nested
-/// message (`FailedOverloadError` and `ImplicitInstantiationError` render the
-/// messages of their candidates that way).
-///
-/// A trailing newline of the nested message is *not* turned into an indented
-/// empty line: Scala's `linesIterator` (which `Style.indent` uses) drops the
-/// final empty line, and the outer message adds its own newline.
-fn indent_message(text : String) -> String {
-  let text = if text.has_suffix("\n") { text[:text.length() - 1] } else { text }
-  text.split("\n").map(line => "  \{line}").join("\n")
-}
-
-///|
 /// Heuristics for the two ways of confusing a tuple with separate arguments
 /// (upstream `Typer.checkCallTo`):
 ///
@@ -246,6 +233,12 @@ fn Typer::check_call_to(
   // chain of instantiations of the same name grows exponentially with its
   // length (`examples/pos/overloading/implicit_same_size_chain`).
   self.reject_if_errors(errors_before)
+  // Where the two argument lists are written: an implicit argument stands for
+  // the list it would have been passed in, and its diagnostics point there
+  // (upstream passes args.span / args.span to the generated tree).
+  let (vargs_span, bargs_span) = @source.argument_spans_of(call.uid).unwrap_or(
+    (call.span, call.span),
+  )
   let implicit_vargs : Array[Term] = []
   for i in vargs.length()..<fun_vps.length() {
     let tpe = inst.vparams[i]
@@ -255,14 +248,15 @@ fn Typer::check_call_to(
       index: i,
       explanation: implicit_explanation(known_vps[i].name().name, tpe),
     }
-    let (term, res) = self.check_implicit(call, stencil, "\{tpe}", () => {
-      let term = self.implicit_value_term(call, known_vps[i], tpe)
-      let res = self.with_implicit_guard(
+    let term = self.generate_implicit(call.span, stencil, "\{tpe}", () => {
+      self.implicit_value_term(call, vargs_span, known_vps[i], tpe)
+    })
+    let res = self.check_implicit(vargs_span, stencil, "\{tpe}", () => {
+      self.with_implicit_guard(
         stencil.name,
         value_type_size(self.st.u.prune_value(tpe)),
         () => self.check_expr(term, Some(tpe)),
       )
-      (term, res)
     })
     if tpe is @symbols.ValueType::BoxedType(_, capt) &&
       capt.is_pure() &&
@@ -286,9 +280,11 @@ fn Typer::check_call_to(
       index: j,
       explanation: None,
     }
-    let (term, res) = self.check_implicit(call, stencil, "\{btpe}", () => {
-      let term = self.implicit_block_arg_term(call, known_bps[j], btpe)
-      let res = self.with_implicit_guard(
+    let term = self.generate_implicit(call.span, stencil, "\{btpe}", () => {
+      self.implicit_block_arg_term(call, bargs_span, known_bps[j], btpe)
+    })
+    let res = self.check_implicit(bargs_span, stencil, "\{btpe}", () => {
+      self.with_implicit_guard(
         stencil.name,
         block_type_size(self.st.u.prune_block(btpe)),
         () => {
@@ -297,7 +293,6 @@ fn Typer::check_call_to(
           })
         },
       )
-      (term, res)
     })
     effs = eff_union(effs, res.effs)
     implicit_bargs.push(term)
@@ -597,7 +592,7 @@ fn Typer::check_overloaded_function_call(
     }
     all_failures.append(failures)
   }
-  self.report_overload_failures(call, all_failures)
+  self.report_overload_failures(call, all_failures, NoExplanation)
 }
 
 ///|
@@ -631,7 +626,7 @@ fn Typer::resolve_scope(
     // The diagnostic is placed at the *reference* (`Context.spanOf(id)`),
     // not at the call: `examples/neg/name-based-implicits/type-tag-complex`
     // underlines the 7 characters of `typeTag`, not `typeTag()`.
-    self.abort(id.span, self.ambiguous_overload_message(successes))
+    self.abort_message(self.ambiguous_overload_message(id.span, successes))
   }
   if !undecided.is_empty() {
     // The candidates that type check and the ones that could not be decided
@@ -639,7 +634,9 @@ fn Typer::resolve_scope(
     // whose claim says that a search reached its depth limit. The abort is itself
     // undecided, so an enclosing candidate inherits it.
     self.cutoff = true
-    self.abort(id.span, self.undecided_overload_message(successes, undecided))
+    self.abort_message(
+      self.undecided_overload_message(id.span, successes, undecided),
+    )
   }
   None
 }
@@ -647,74 +644,63 @@ fn Typer::resolve_scope(
 ///|
 /// Upstream's `OverloadResolution` for a candidate whose implicit search was cut
 /// off: the claim, the line introducing the candidates, and one paragraph per
-/// candidate — the ones that type check without, the undecided one with its
-/// failure.
+/// candidate — the ones that type check with their declaration, the undecided
+/// one with the failure that cut its search off.
 fn Typer::undecided_overload_message(
   self : Typer,
+  span : Span,
   successes : ArrayView[
     (Sym, TyRes[ValueType], TyperState, Array[(Span, String)]),
   ],
   undecided : ArrayView[FailedCandidate],
-) -> String {
-  let explanations : Array[String] = []
+) -> Message {
+  let candidates : Array[Candidate] = []
   for s in successes {
-    let sym = s.0
-    explanations.push(
-      "Possible overload: \{sym.name().qualified_name()} of type \{self.candidate_type(sym)}",
-    )
+    candidates.push(self.candidate_of(s.0, []))
   }
   for f in undecided {
-    let content = if !f.muted.is_empty() {
-      f.muted.map(m => m.content_with_notes()).join("\n")
-    } else {
-      f.msg
-    }
-    let explanation =
-      $|Possible overload: \{f.sym.name().qualified_name()} of type \{self.candidate_type(f.sym)}
-      $|\{indent_message(content)}
-    explanations.push(explanation)
+    candidates.push(self.candidate_of(f.sym, f.muted))
   }
-  overload_undecided_claim + "\n" + explanations.join("\n\n") + "\n"
+  Message::error(
+    span, "Cannot decide which overload to call: an implicit search reached its depth limit.",
+  )
+  .details(["There are multiple overloads, which all could type check:"])
+  .candidates(candidates)
 }
 
 ///|
-/// How a call that could not be decided reads: upstream `OverloadResolution`'s
-/// claim and details when one of its candidates is `Undecided`.
-let overload_undecided_claim : String =
-  #|Cannot decide which overload to call: an implicit search reached its depth limit.
-  #|There are multiple overloads, which all could type check:
+/// One candidate of an unresolved overload as the drawing needs it: the span of
+/// its defining identifier (which is drawn with the candidate's bullet on it)
+/// and the diagnostics that rejected it.
+fn Typer::candidate_of(
+  self : Typer,
+  sym : Sym,
+  errors : ArrayView[Message],
+) -> Candidate {
+  {
+    text: "\{sym.name().qualified_name()} of type \{self.candidate_type(sym)}",
+    declaration: sym.def_id(),
+    errors: errors.to_owned(),
+  }
+}
 
 ///|
-/// Upstream's `AmbiguousOverload`: the title, then one line per candidate with
-/// the names padded to the longest one.
+/// Upstream's `OverloadResolution` when several candidates type check: the
+/// title, the line introducing them, and one paragraph per candidate — each
+/// drawn with its declaration.
 fn Typer::ambiguous_overload_message(
   self : Typer,
+  span : Span,
   successes : ArrayView[
     (Sym, TyRes[ValueType], TyperState, Array[(Span, String)]),
   ],
-) -> String raise EffektError {
-  let names : Array[String] = successes.map(s => {
-    let (sym, _, _, _) = s
-    sym.name().qualified_name()
+) -> Message {
+  let candidates : Array[Candidate] = successes.map(s => {
+    self.candidate_of(s.0, [])
   })
-  let mut longest = 0
-  for name in names {
-    if name.length() > longest {
-      longest = name.length()
-    }
-  }
-  let explanations : Array[String] = []
-  for i in 0..<successes.length() {
-    let sym = successes[i].0
-    let name = names[i]
-    let padding = " ".repeat(longest - name.length())
-    explanations.push("- \{name}: \{padding}\{self.lookup_block(sym)}")
-  }
-  let message =
-    $|Ambiguous overload.
-    $|There are multiple overloads, which all would type check:
-    $|\{explanations.join("\n")}
-  message
+  Message::error(span, "Ambiguous overload.")
+  .details(["There are multiple overloads, which all would type check:"])
+  .candidates(candidates)
 }
 
 ///|
@@ -738,22 +724,21 @@ fn Typer::find_function_type_for(
 }
 
 ///|
-/// How an overload failure starts: its claim, then the list of candidates (a
-/// trailing newline renders as the blank line before the excerpt).
-///
-/// The claim is also how a *nested* overload failure is recognised: a diagnostic
-/// that is itself an unresolved overload is not the shared problem below, because
-/// it does not say what is wrong with the candidate — upstream only reports a
-/// shared diagnostic on its own when it stands on its own
-/// (`Context.abortWith(OverloadResolution)`).
-let overload_failure_claim : String =
-  #|Cannot typecheck call.
-  #|There are multiple overloads, which all fail to check:
+/// How an unresolved overload reads (upstream `OverloadResolution.claim` when all
+/// candidates fail). The claim is also how a *nested* overload failure is
+/// recognised: a diagnostic that is itself an unresolved overload is not the
+/// shared problem below, because it does not say what is wrong with the
+/// candidate — upstream only reports a shared diagnostic on its own when it
+/// stands on its own (`Context.abortWith(OverloadResolution)`).
+let overload_failure_claim : String = "Cannot typecheck call."
 
 ///|
 /// Whether a diagnostic is an unresolved overload of its own.
 fn is_overload_failure(m : Message) -> Bool {
-  m.text.has_prefix(overload_failure_claim)
+  m.text == overload_failure_claim &&
+  m.details.any(d => {
+    d == "There are multiple overloads, which all fail to check:"
+  })
 }
 
 ///|
@@ -767,12 +752,70 @@ fn is_error_message(m : Message) -> Bool {
 
 ///|
 /// Whether two diagnostics are the same one: upstream compares the structured
-/// messages, i.e. the severity, the place and the content.
+/// messages (`Diagnostic` is a case class, so the severity, the place, the claim
+/// and everything nested under it have to agree). Comparing only the claim would
+/// make the implicit-argument failures of two overloads look like one shared
+/// diagnostic, since they all read "Cannot instantiate implicit argument.".
 fn same_message(a : Message, b : Message) -> Bool {
   is_error_message(a) == is_error_message(b) &&
   a.span.start == b.span.start &&
   a.span.end == b.span.end &&
-  a.text == b.text
+  a.text == b.text &&
+  a.details == b.details &&
+  same_notes(a.notes, b.notes) &&
+  same_messages(a.causes, b.causes) &&
+  same_candidates(a.candidates, b.candidates)
+}
+
+///|
+fn same_notes(
+  a : ArrayView[@util.Subdiagnostic],
+  b : ArrayView[@util.Subdiagnostic],
+) -> Bool {
+  guard a.length() == b.length() else { return false }
+  for i in 0..<a.length() {
+    let same = match (a[i], b[i]) {
+      (
+        @util.Subdiagnostic::Note(text_a, at_a),
+        @util.Subdiagnostic::Note(text_b, at_b),
+      ) => {
+        let same_at = match (at_a, at_b) {
+          (Some(x), Some(y)) => x.start == y.start && x.end == y.end
+          (None, None) => true
+          _ => false
+        }
+        text_a == text_b && same_at
+      }
+      (@util.Subdiagnostic::Help(text_a), @util.Subdiagnostic::Help(text_b)) =>
+        text_a == text_b
+      _ => false
+    }
+    guard same else { return false }
+  }
+  true
+}
+
+///|
+fn same_messages(a : ArrayView[Message], b : ArrayView[Message]) -> Bool {
+  guard a.length() == b.length() else { return false }
+  for i in 0..<a.length() {
+    guard same_message(a[i], b[i]) else { return false }
+  }
+  true
+}
+
+///|
+fn same_candidates(a : ArrayView[Candidate], b : ArrayView[Candidate]) -> Bool {
+  guard a.length() == b.length() else { return false }
+  for i in 0..<a.length() {
+    guard a[i].text == b[i].text &&
+      a[i].declaration.start == b[i].declaration.start &&
+      a[i].declaration.end == b[i].declaration.end &&
+      same_messages(a[i].errors, b[i].errors) else {
+      return false
+    }
+  }
+  true
 }
 
 ///|
@@ -832,6 +875,15 @@ pub struct FailedCandidate {
 }
 
 ///|
+/// Upstream's `resolveOverload` takes the notes and helps of a call without
+/// candidates as a defaulted block (`explainMissing: Subdiagnostics ?=> Unit`).
+/// Only a method call has them, so the caller says so explicitly.
+priv enum ExplainMissing {
+  Explain(() -> Array[@util.Subdiagnostic])
+  NoExplanation
+}
+
+///|
 /// Reports why every candidate of an overloaded call failed (upstream
 /// `resolveOverload`'s tail): a call without candidates, the single candidate's
 /// own diagnostics, or the candidate paragraphs of the overload error.
@@ -839,6 +891,10 @@ fn Typer::report_overload_failures(
   self : Typer,
   call : CallLike,
   all_failures : ArrayView[FailedCandidate],
+  /// Upstream's `resolveOverload(id, results, explainMissing)`: the notes and
+  /// helps of a call that found no candidate at all. Only a method call has
+  /// them (`explainMissingMethod`), a function call passes none.
+  explain_missing : ExplainMissing,
 ) -> TyRes[ValueType] raise EffektError {
   match all_failures {
     [only] =>
@@ -857,11 +913,17 @@ fn Typer::report_overload_failures(
         }
         self.abort_message(only.muted[0])
       }
-    [] =>
-      self.abort(
+    [] => {
+      let error = Message::error(
         call.span,
         "Cannot typecheck call to \{call.name}. Does a function/method with that name exist?",
       )
+      let subs = match explain_missing {
+        Explain(explain) => explain()
+        NoExplanation => []
+      }
+      self.abort_message(error.subdiagnostics(subs))
+    }
     _ => {
       let shared = shared_failures(all_failures)
       let dependent = all_failures.map(f => dependent_failures(f.muted, shared))
@@ -883,35 +945,19 @@ fn Typer::report_overload_failures(
       }
       // Otherwise the shared diagnostics are reported on their own first, and the
       // overload error follows with the candidate-specific diagnostics nested
-      // under each candidate.
+      // under each candidate (upstream `FailedOverloadError`): a title line, the
+      // line introducing the candidates, and one paragraph per candidate drawn
+      // with its declaration and the diagnostics that rejected it.
       for m in shared {
         self.error_message(m)
       }
-      // Upstream's `FailedOverloadError`: a title line, then one paragraph per
-      // candidate with the candidate's own diagnostics indented below it, and a
-      // trailing newline (which is the blank line before the excerpt in the
-      // recorded `.check` files). A diagnostic of a candidate is rendered like
-      // any other *except* for the `* note:`/`* help:` markers: upstream's
-      // `contentWithSubdiagnostics` puts them on their own indented lines.
-      let explanations : Array[String] = all_failures.mapi((i, f) => {
-        let sym = f.sym
-        let msg = f.msg
-        let own = dependent[i]
-        let content = if !own.is_empty() {
-          own.map(m => m.content_with_notes()).join("\n")
-        } else {
-          msg
-        }
-        let explanation =
-          $|Possible overload: \{sym.name().qualified_name()} of type \{self.candidate_type(sym)}
-          $|\{indent_message(content)}
-        explanation
+      let candidates : Array[Candidate] = all_failures.mapi((i, f) => {
+        self.candidate_of(f.sym, dependent[i])
       })
-      let message = overload_failure_claim +
-        "\n" +
-        explanations.join("\n\n") +
-        "\n"
-      self.abort(call.span, message)
+      let message = Message::error(call.span, overload_failure_claim)
+        .details(["There are multiple overloads, which all fail to check:"])
+        .candidates(candidates)
+      self.abort_message(message)
     }
   }
 }
@@ -1155,9 +1201,10 @@ fn Typer::check_overloaded_method_call(
   expected : ValueType?,
 ) -> TyRes[ValueType] raise EffektError {
   let sym = self.symbol_of_id(id)
-  let scopes : Array[Array[Sym]] = match sym {
-    @symbols.Sym::CallTarget(ct) => ct.symbols
-    _ => [[sym]]
+  let (scopes, iscope) : (Array[Array[Sym]], @symbols.Scope?) = match sym {
+    @symbols.Sym::CallTarget(ct) => (ct.symbols, ct.scope)
+    // already resolved by a previous attempt to typecheck
+    _ => ([[sym]], None)
   }
   let call = { uid: call_node.uid, span: call_node.span, name: id.name, }
   let block_like = self.is_block_like(receiver)
@@ -1183,7 +1230,74 @@ fn Typer::check_overloaded_method_call(
     }
     all_failures.append(failures)
   }
-  self.report_overload_failures(call, all_failures)
+  let explain = Explain(() => {
+    self.explain_missing_method(call, iscope, id, candidate => {
+      self.check_receiver_call_to(
+        call,
+        receiver,
+        block_like,
+        candidate,
+        targs,
+        vargs,
+        bargs,
+        None,
+      )
+    })
+  })
+  self.report_overload_failures(call, all_failures, explain)
+}
+
+///|
+/// Upstream's `explainMissingMethod`: why a method call found no candidate at
+/// all. A `def` of that name whose scope has ended is pointed at, otherwise the
+/// call is retried for every close name in scope and the ones that accept it are
+/// suggested — "Did you mean weight?" for `Rope("four").wieght`.
+///
+/// `check` checks one candidate *without* the expected type: the suggestion must
+/// not depend on an enclosing choice (upstream `checkCandidate(None)`).
+fn Typer::explain_missing_method(
+  self : Typer,
+  call : CallLike,
+  scope : @symbols.Scope?,
+  id : IdRef,
+  check : (Sym) -> TyRes[ValueType] raise EffektError,
+) -> Array[@util.Subdiagnostic] {
+  let scope = match scope {
+    Some(s) => s
+    None => return []
+  }
+  match @symbols.ended_term(scope, id.path, id.name) {
+    Some(binder) => return [@symbols.note_ended(binder)]
+    None => ()
+  }
+  let imports = self.ctx
+    .call_imports_of(call.uid)
+    .unwrap_or(@symbols.Bindings::empty())
+  let candidates = @symbols.visible_terms(scope, imports, [])
+  // `accepts`: does any candidate of that name type check the call?
+  let accepts = (entry : (String, Array[Sym])) => {
+    self.accepts_call(entry.1, check)
+  }
+  let closest = @util.close_matches(id.name, candidates, entry => entry.0)
+    .filter(accepts)
+    .closest()
+  match @util.suggestion(closest.map(entry => entry.0)) {
+    Some(help) => [@util.Subdiagnostic::Help(help)]
+    None => []
+  }
+}
+
+///|
+/// Upstream's `accepts` in `didYouMeanMethod`: try every candidate of one name
+/// and report whether one of them type checks the call (a candidate that fails
+/// does not count, `try_candidates` mutes and swallows the diagnostics).
+fn Typer::accepts_call(
+  self : Typer,
+  syms : ArrayView[Sym],
+  check : (Sym) -> TyRes[ValueType] raise EffektError,
+) -> Bool {
+  let (successes, _) = self.try_candidates(syms, false, check)
+  !successes.is_empty()
 }
 
 ///|

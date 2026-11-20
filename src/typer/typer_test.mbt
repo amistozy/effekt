@@ -22,6 +22,7 @@ fn base(name : String) -> @symbols.SymBase {
     uid: @util.fresh_uid(),
     name: @symbols.Name::local(name),
     decl: @util.Span::missing(),
+    def_id: @util.Span::missing(),
   }
 }
 
@@ -1158,7 +1159,7 @@ test "overload resolution retries and picks the second candidate" {
   let show_ref = @source.IdRef("show", test_span())
   ctx.assign_symbol(
     show_ref.uid,
-    @symbols.Sym::call_target([[bool_show, int_show]]),
+    @symbols.Sym::call_target([[bool_show, int_show]], None),
   )
   let inner = @source.mk_term(
     test_span(),

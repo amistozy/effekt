@@ -127,11 +127,15 @@ fn[T] Namer::in_local_scope(
   f : () -> T raise EffektError,
 ) -> T raise EffektError {
   let before = self.scoping.scope
-  self.scoping.scope = @symbols.Scope::Local(None, Bindings::empty(), before)
+  self.scoping.scope = @symbols.Scope::Local(None, Bindings::empty(), before, [])
   // `defer` restores the scope on the error path as well, so an abort in the
-  // middle of a definition cannot leave the namer in a nested scope.
+  // middle of a definition cannot leave the namer in a nested scope. The terms
+  // whose scope ends are read off the scope that is current *now*: a nested
+  // scope has already recorded its own ended terms in it (`Scope.withEnded`).
   defer {
-    self.scoping.scope = before
+    self.scoping.scope = before.with_ended(
+      @symbols.ended_by(self.scoping.scope),
+    )
   }
   f()
 }
@@ -147,9 +151,12 @@ fn[T] Namer::in_named_scope(
     Some(name),
     Bindings::empty(),
     before,
+    [],
   )
   defer {
-    self.scoping.scope = before
+    self.scoping.scope = before.with_ended(
+      @symbols.ended_by(self.scoping.scope),
+    )
   }
   f()
 }
@@ -661,7 +668,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
           self.define_def(
             d,
             id,
-            mk_def_binder(self.name_for(id), caps, Some(tpe), d.span),
+            mk_def_binder(self.name_for(id), caps, Some(tpe), d.span, id.span),
           )
         }
         _ => ()
@@ -688,6 +695,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
           ret.map(pair => pair.0),
           ret.map(pair => pair.1),
           d.span,
+          id.span,
         )
       })
       self.define_def(d, id, sym)
@@ -785,7 +793,7 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
           self.bind_blocks(bps)
           self.resolve_effectful(ret)
         })
-        mk_extern_function(name, tps, vps, bps, tpe, eff, capt, d.span)
+        mk_extern_function(name, tps, vps, bps, tpe, eff, capt, d.span, id.span)
       })
       self.define_def(d, id, sym)
     }
@@ -831,7 +839,11 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
       @source.ValDef(id, annot, binding) => {
         let tpe = annot.map(t => self.resolve_value_type(t, false))
         self.resolve_stmt(binding)
-        self.define_def(d, id, mk_val_binder(self.name_for(id), tpe, d.span))
+        self.define_def(
+          d,
+          id,
+          mk_val_binder(self.name_for(id), tpe, d.span, id.span),
+        )
       }
       // Local mutable state
       @source.VarDef(id, annot, binding) => {
@@ -843,6 +855,7 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
           tpe,
           @symbols.Sym::lexical_region(name, d.span),
           d.span,
+          id.span,
         )
         self.define_def(d, id, sym)
         self.bind_capture(capture_of(sym))
@@ -858,7 +871,7 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
         self.define_def(
           d,
           id,
-          mk_reg_binder(self.name_for(id), tpe, reg, d.span),
+          mk_reg_binder(self.name_for(id), tpe, reg, d.span, id.span),
         )
       }
       // Already has been preresolved (to enable recursive definitions).
@@ -875,7 +888,7 @@ fn Namer::resolve_def(self : Namer, d : Def) -> Unit raise EffektError {
             self.define_def(
               d,
               id,
-              mk_def_binder(self.name_for(id), caps, tpe, d.span),
+              mk_def_binder(self.name_for(id), caps, tpe, d.span, id.span),
             )
           }
         }
@@ -1050,6 +1063,7 @@ fn Namer::resolve_operation(
       effects,
       interface,
       op.span,
+      op.id.span,
     )
   })
   // Define in namespace ... and bind outside.
@@ -1574,10 +1588,31 @@ fn Namer::resolve_id_ref(self : Namer, id : IdRef) -> Sym raise EffektError {
       sym
     }
     None => {
-      self.context.abort(id.span, "Could not resolve term \{id_text(id)}")
+      let error = Message::error(
+        id.span,
+        "Could not resolve term \{id_text(id)}",
+      )
+      self.context.abort_with(
+        error.subdiagnostics(self.explain_missing_term(id)),
+      )
       @symbols.Sym::wildcard()
     }
   }
+}
+
+///|
+/// The notes and helps of a term that cannot be resolved: a binder whose scope
+/// has ended, or a close name (upstream `Scope.explainMissingTerm`).
+fn Namer::explain_missing_term(
+  self : Namer,
+  id : IdRef,
+) -> Array[@util.Subdiagnostic] {
+  @symbols.explain_missing_term(
+    self.scoping.scope,
+    self.imports,
+    id.path,
+    id.name,
+  )
 }
 
 ///|
@@ -1630,9 +1665,14 @@ fn Namer::resolve_function_calltarget(
             "There is an equally named effect operation \{op.name().name} of interface \{operation_interface(op).name().name}. Use syntax `do \{id_text(id)}()` to call it.",
           )
         }
+        // Only when there is no operation of that name does upstream look for a
+        // close one (the two helps are alternatives, not companions).
+        if ops.is_empty() {
+          error = error.subdiagnostics(self.explain_missing_term(id))
+        }
         self.context.abort_with(error)
       }
-      let sym = @symbols.Sym::call_target(blocks)
+      let sym = @symbols.Sym::call_target(blocks, Some(self.scoping.scope))
       self.context.assign_symbol(id.uid, sym)
       sym
     }
@@ -1655,7 +1695,7 @@ fn Namer::resolve_receiver_call(
   let candidates = self
     .lookup_overloaded(id.path, id.name, _ => true)
     .filter(group => !group.is_empty())
-  let sym = @symbols.Sym::call_target(candidates)
+  let sym = @symbols.Sym::call_target(candidates, Some(self.scoping.scope))
   self.context.assign_symbol(id.uid, sym)
   sym
 }
@@ -1672,7 +1712,7 @@ fn Namer::resolve_select(self : Namer, id : IdRef) -> Sym raise EffektError {
   if syms.is_empty() {
     self.context.abort(id.span, "Cannot resolve field access \{id_text(id)}")
   }
-  let sym = @symbols.Sym::call_target(syms)
+  let sym = @symbols.Sym::call_target(syms, Some(self.scoping.scope))
   self.context.assign_symbol(id.uid, sym)
   sym
 }
@@ -1690,7 +1730,7 @@ fn Namer::resolve_effect_call(
       "Cannot resolve effect operation \{id_text(id)}",
     )
   }
-  let sym = @symbols.Sym::call_target(syms)
+  let sym = @symbols.Sym::call_target(syms, Some(self.scoping.scope))
   self.context.assign_symbol(id.uid, sym)
   sym
 }

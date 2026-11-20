@@ -7,7 +7,14 @@
 
 ///|
 fn mk_base(name : Name, decl : Span) -> @symbols.SymBase {
-  { uid: fresh_uid(), name, decl, }
+  { uid: fresh_uid(), name, decl, def_id: Span::missing(), }
+}
+
+///|
+/// The base of a symbol whose defining identifier is known separately from the
+/// declaration it appears in (upstream annotates both).
+fn mk_base_at(name : Name, decl : Span, def_id : Span) -> @symbols.SymBase {
+  { uid: fresh_uid(), name, decl, def_id, }
 }
 
 ///|
@@ -53,8 +60,13 @@ fn mk_value_param(
 }
 
 ///|
-fn mk_val_binder(name : Name, tpe : ValueType?, decl : Span) -> Sym {
-  @symbols.Sym::ValBinder({ base: mk_base(name, decl), tpe, })
+fn mk_val_binder(
+  name : Name,
+  tpe : ValueType?,
+  decl : Span,
+  def_id : Span,
+) -> Sym {
+  @symbols.Sym::ValBinder({ base: mk_base_at(name, decl, def_id), tpe, })
 }
 
 ///|
@@ -63,8 +75,13 @@ fn mk_var_binder(
   tpe : ValueType?,
   capture : Sym,
   decl : Span,
+  def_id : Span,
 ) -> Sym {
-  @symbols.Sym::VarBinder({ base: mk_base(name, decl), tpe, capture, })
+  @symbols.Sym::VarBinder({
+    base: mk_base_at(name, decl, def_id),
+    tpe,
+    capture,
+  })
 }
 
 ///|
@@ -73,8 +90,9 @@ fn mk_reg_binder(
   tpe : ValueType?,
   region : Sym,
   decl : Span,
+  def_id : Span,
 ) -> Sym {
-  @symbols.Sym::RegBinder({ base: mk_base(name, decl), tpe, region, })
+  @symbols.Sym::RegBinder({ base: mk_base_at(name, decl, def_id), tpe, region, })
 }
 
 ///|
@@ -111,8 +129,9 @@ fn mk_def_binder(
   caps : Array[Sym]?,
   tpe : BlockType?,
   decl : Span,
+  def_id : Span,
 ) -> Sym {
-  @symbols.Sym::DefBinder({ base: mk_base(name, decl), caps, tpe, })
+  @symbols.Sym::DefBinder({ base: mk_base_at(name, decl, def_id), caps, tpe, })
 }
 
 ///|
@@ -125,9 +144,10 @@ fn mk_user_function(
   annotated_result : ValueType?,
   annotated_effects : Effects?,
   decl : Span,
+  def_id : Span,
 ) -> Sym {
   @symbols.Sym::UserFunction({
-    base: mk_base(name, decl),
+    base: mk_base_at(name, decl, def_id),
     tparams,
     vparams,
     bparams,
@@ -147,9 +167,10 @@ fn mk_extern_function(
   effects : Effects,
   capture : Array[Sym],
   decl : Span,
+  def_id : Span,
 ) -> Sym {
   @symbols.Sym::ExternFunction({
-    base: mk_base(name, decl),
+    base: mk_base_at(name, decl, def_id),
     tparams,
     vparams,
     bparams,
@@ -179,9 +200,10 @@ fn mk_operation(
   effects : Effects,
   interface : Sym,
   decl : Span,
+  def_id : Span,
 ) -> Sym {
   @symbols.Sym::Operation({
-    base: mk_base(name, decl),
+    base: mk_base_at(name, decl, def_id),
     tparams,
     vparams,
     bparams,

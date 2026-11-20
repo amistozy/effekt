@@ -97,8 +97,12 @@ pub(all) enum Scope {
   Global(Bindings)
   /// A scope introducing a new namespace.
   Named(String, Bindings, Scope)
-  /// A local scope introduced by functions, blocks, etc.
-  Local(String?, Bindings, Scope)
+  /// A local scope introduced by functions, blocks, etc. `ended` are the terms
+  /// whose scope has ended in it: leaving a nested local scope records them in
+  /// the enclosing one (upstream `Scope.Local.ended`), which is how a diagnostic
+  /// can point at a binder that is no longer in scope. Only a local scope keeps
+  /// them; a namespace or the global scope drops them.
+  Local(String?, Bindings, Scope, Array[Sym])
 }
 
 ///|
@@ -106,8 +110,58 @@ pub fn Scope::bindings(self : Scope) -> Bindings {
   match self {
     Global(b) => b
     Named(_, b, _) => b
-    Local(_, b, _) => b
+    Local(_, b, _, _) => b
   }
+}
+
+///|
+/// The same scope, recording the terms whose scope has ended in it. Only a local
+/// scope keeps them (upstream `Scope.withEnded`).
+pub fn Scope::with_ended(self : Scope, terms : ArrayView[Sym]) -> Scope {
+  match self {
+    Local(name, bindings, outer, ended) =>
+      Local(name, bindings, outer, terms.to_owned() + ended)
+    _ => self
+  }
+}
+
+///|
+/// The terms whose scope ends when the local scope `inner` is left: everything
+/// bound in it, then the ones that already ended inside it (upstream `local`).
+pub fn ended_by(inner : Scope) -> Array[Sym] {
+  let ended : Array[Sym] = []
+  for _, syms in inner.bindings().terms {
+    ended.append(syms)
+  }
+  ended.append(inner.ended())
+  ended
+}
+
+///|
+/// The terms whose scope has ended within this scope, the latest first
+/// (upstream `endedTerms`).
+pub fn ended_terms(scope : Scope) -> Array[Sym] {
+  match scope {
+    Local(_, _, outer, ended) => ended + ended_terms(outer)
+    _ => []
+  }
+}
+
+///|
+/// The latest term named `name` whose scope has ended, if `name` is unqualified
+/// (upstream `endedTerm`).
+pub fn ended_term(
+  scope : Scope,
+  path : ArrayView[String],
+  name : String,
+) -> Sym? {
+  guard path.is_empty() else { return None }
+  for sym in ended_terms(scope) {
+    if sym.name().name == name {
+      return Some(sym)
+    }
+  }
+  None
 }
 
 ///|
@@ -170,7 +224,7 @@ fn[T] first(
       or_else(qualified_first(path, bindings, select), () => {
         first(path, outer, select)
       })
-    Local(_, bindings, outer) =>
+    Local(_, bindings, outer, _) =>
       or_else(qualified_first(path, bindings, select), () => {
         first(path, outer, select)
       })
@@ -203,7 +257,7 @@ fn[T] all(
     Global(bindings) => qualified_all(path, bindings, select)
     Named(_, bindings, outer) =>
       qualified_all(path, bindings, select) + all(path, outer, select)
-    Local(_, bindings, outer) =>
+    Local(_, bindings, outer, _) =>
       qualified_all(path, bindings, select) + all(path, outer, select)
   }
 }
@@ -309,37 +363,140 @@ pub fn lookup_term_in_scope(
 }
 
 ///|
-/// The names of all types bound in the scope chain and in the imports, for a
-/// "Did you mean ...?" suggestion (upstream `Scope.all(path, scope)` over
-/// `bindings.types`).
-pub fn available_type_names(scope : Scope, imports : Bindings) -> Array[String] {
-  let out : Array[String] = []
-  collect_type_names(scope, out)
-  add_type_names(imports, out)
-  out
-}
-
-///|
-fn collect_type_names(scope : Scope, out : Array[String]) -> Unit {
-  match scope {
-    Global(b) => add_type_names(b, out)
-    Named(_, b, outer) => {
-      add_type_names(b, out)
-      collect_type_names(outer, out)
-    }
-    Local(_, b, outer) => {
-      add_type_names(b, out)
-      collect_type_names(outer, out)
-    }
+/// The names of all types bound in the scope chain and in the imports, grouped
+/// by scope (nearest first) and sorted within a group, for a "Did you mean
+/// ...?" suggestion (upstream `Scope.all(path, scope)` over `bindings.types`,
+/// which sorts each scope's names before comparing).
+pub fn available_type_names(
+  scope : Scope,
+  imports : Bindings,
+) -> Array[Array[String]] {
+  let out = all([], scope, b => sorted_names(b.types.keys()))
+  let imported = sorted_names(imports.types.keys())
+  if imported.is_empty() {
+    out
+  } else {
+    out + [imported]
   }
 }
 
 ///|
-fn add_type_names(b : Bindings, out : Array[String]) -> Unit {
-  for name, _ in b.types {
-    if !out.contains(name) {
-      out.push(name)
+/// The terms visible in the scope chain and in the imports, grouped by scope
+/// (nearest first) and sorted by name within a group (upstream `visibleTerms`,
+/// which `explainMissingTerm` and `didYouMeanMethod` use for a "Did you mean
+/// ...?" suggestion).
+pub fn visible_terms(
+  scope : Scope,
+  imports : Bindings,
+  path : ArrayView[String],
+) -> Array[Array[(String, Array[Sym])]] {
+  let out = all(path, scope, b => sorted_terms(b))
+  let imported = sorted_terms(imports)
+  if imported.is_empty() {
+    out
+  } else {
+    out + [imported]
+  }
+}
+
+///|
+fn sorted_terms(bindings : Bindings) -> Array[(String, Array[Sym])] {
+  let out : Array[(String, Array[Sym])] = []
+  for name, syms in bindings.terms {
+    out.push((name, syms))
+  }
+  out.mut_view().stable_sort_by((a, b) => a.0.lexical_compare(b.0))
+  out
+}
+
+///|
+fn sorted_names(names : Iter[String]) -> Array[String] {
+  let out : Array[String] = []
+  for name in names {
+    out.push(name)
+  }
+  out.mut_view().stable_sort_by((a, b) => a.lexical_compare(b))
+  out
+}
+
+///|
+/// What is wrong with a term that could not be resolved, as the notes and helps
+/// of the diagnostic (upstream `Scoping.explainMissingTerm`): a term of that
+/// name whose scope has ended is pointed at, otherwise a close name is
+/// suggested.
+pub fn explain_missing_term(
+  scope : Scope,
+  imports : Bindings,
+  path : ArrayView[String],
+  name : String,
+) -> Array[@util.Subdiagnostic] {
+  match ended_term(scope, path, name) {
+    Some(binder) => [note_ended(binder)]
+    None =>
+      match did_you_mean_term(scope, imports, path, name) {
+        Some(help) => [@util.Subdiagnostic::Help(help)]
+        None => []
+      }
+  }
+}
+
+///|
+/// Points at the binder of a term whose scope has ended (upstream `noteEnded`).
+/// The position is the *name* of the binder, not its whole definition.
+pub fn note_ended(binder : Sym) -> @util.Subdiagnostic {
+  let at = binder.def_id()
+  @util.Subdiagnostic::Note(
+    "There is a `\{binder.name().name}` bound here, but not in the current scope.",
+    if at.is_missing() {
+      None
+    } else {
+      Some(at)
+    },
+  )
+}
+
+///|
+/// A "Did you mean ...?" hint for a term that is bound nowhere: a heuristic for
+/// names that are keywords elsewhere, then the closest of the terms in scope.
+fn did_you_mean_term(
+  scope : Scope,
+  imports : Bindings,
+  path : ArrayView[String],
+  name : String,
+) -> String? {
+  let specific = (candidate : String) => {
+    match candidate {
+      // literal constructors are keywords, not terms in scope; suggest `None()`
+      // only if it is in scope
+      "True" | "TRUE" => @util.suggestion(["true"])
+      "False" | "FALSE" => @util.suggestion(["false"])
+      "null" | "nullptr" =>
+        if scope.any_term_named(imports, "None") {
+          @util.suggestion(["None()"])
+        } else {
+          None
+        }
+      _ => None
     }
+  }
+  @util.did_you_mean(
+    name,
+    visible_terms(scope, imports, path).map(group => group.map(pair => pair.0)),
+    specific,
+  )
+}
+
+///|
+/// Is a term of that name bound anywhere in the scope chain or the imports?
+fn Scope::any_term_named(
+  self : Scope,
+  imports : Bindings,
+  name : String,
+) -> Bool {
+  let found = first([], self, b => b.terms.get(name)) catch { _ => None }
+  match found {
+    Some(_) => true
+    None => imports.terms.get(name) is Some(_)
   }
 }
 
@@ -527,14 +684,27 @@ pub fn Scoping::exports(self : Scoping) -> Bindings {
 }
 
 ///|
-/// Runs `f` in a fresh local scope.
+/// Runs `f` in a fresh local scope. Leaving it ends the scope of everything bound
+/// inside, which the enclosing *local* scope records so that a later reference
+/// can point at the binder (upstream `local`).
 pub fn[T] Scoping::scoped(self : Scoping, f : () -> T) -> T {
   let before = self.scope
+  self.scope = Local(None, Bindings::empty(), before, [])
   defer {
-    self.scope = before
+    // the terms of the inner scope first, then the ones that ended inside it,
+    // each *prepended* to the outer scope's list so that the latest comes first
+    self.scope = before.with_ended(ended_by(self.scope))
   }
-  self.scope = Local(None, Bindings::empty(), before)
   f()
+}
+
+///|
+/// The terms whose scope has ended in this very scope (not in an enclosing one).
+fn Scope::ended(self : Scope) -> Array[Sym] {
+  match self {
+    Local(_, _, _, ended) => ended
+    _ => []
+  }
 }
 
 ///|
@@ -560,7 +730,7 @@ pub fn Scoping::path(self : Scoping) -> Array[String]? {
           Some(p) => Some(p + [name])
           None => Some([name])
         }
-      Local(_, _, _) => None
+      Local(_, _, _, _) => None
     }
   }
   collect(self.scope, self.module_path)

@@ -45,8 +45,33 @@ pub(all) struct Message {
   /// The compilation phase that reported the message, rendered as `[typer]`
   /// after the first line of the message (`ColoredMessaging.contentWithPhase`).
   phase : String?
+  /// Prose about the claim, one line each, drawn under the excerpt
+  /// (`Reason.details`): "There are multiple overloads, which all fail to
+  /// check:", "Cannot instantiate 1st block argument foo of type ...".
+  details : Array[String]
   /// Notes and helps shown under the diagnostic (`Diagnostic.subdiagnostics`).
   notes : Array[Subdiagnostic]
+  /// Diagnostics nested under this one (`Reason.causes`), e.g. the failure that
+  /// made an implicit argument impossible to instantiate.
+  causes : Array[Message]
+  /// The candidates of an unresolved overload (`Reason.alternatives`).
+  candidates : Array[Candidate]
+  /// How the message reads on a caret line, when that is not simply its first
+  /// line (`Reason.claim` versus `Reason.show`).
+  claim_text : String?
+}
+
+///|
+/// One candidate of an unresolved overload (upstream `messages.Candidate`).
+pub(all) struct Candidate {
+  /// How the candidate reads when its declaration cannot be shown: `` `foo` of
+  /// type ... `` (`Candidate.show`).
+  text : String
+  /// The span of the defining identifier, whose source line is drawn with the
+  /// candidate's bullet on it (`Candidate.definitionTree`).
+  declaration : Span
+  /// The diagnostics that rejected this candidate (`Candidate.errors`).
+  errors : Array[Message]
 }
 
 ///|
@@ -55,7 +80,17 @@ pub fn Message::Message(
   span : Span,
   text : String,
 ) -> Message {
-  { severity, span, text, phase: None, notes: [], }
+  {
+    severity,
+    span,
+    text,
+    phase: None,
+    details: [],
+    notes: [],
+    causes: [],
+    candidates: [],
+    claim_text: None,
+  }
 }
 
 ///|
@@ -110,45 +145,67 @@ pub fn Message::help(self : Message, text : String) -> Message {
 }
 
 ///|
-/// A rendered source line: the 1-based line number, the line itself and the
-/// marker underlining the span (`ColoredMessaging.Excerpt`).
-priv struct Excerpt {
-  line : Int32
-  code : String
-  marker : String
+/// Adds the notes and helps a scope explanation produced (upstream's
+/// `abort(msg) { explainMissingTerm(id) }`, whose block appends to the
+/// subdiagnostics of the message).
+pub fn Message::subdiagnostics(
+  self : Message,
+  subs : ArrayView[Subdiagnostic],
+) -> Message {
+  { ..self, notes: self.notes + subs.to_owned(), }
 }
 
 ///|
-/// The line where `span` starts, marked to its end on that line.
-fn excerpt_of(span : Span) -> Excerpt? {
-  guard span.origin != Missing else { return None }
-  let pos = span.position()
-  let code = span.source.line_text(pos.line)
-  guard code != "" else { return None }
-  let end = span.source.offset_to_position(span.end)
-  let width = if end.line == pos.line && end.column > pos.column {
-    end.column - pos.column
-  } else {
-    1
+/// Adds the prose about the claim, which is drawn under the excerpt
+/// (`Reason.details`).
+pub fn Message::details(self : Message, details : ArrayView[String]) -> Message {
+  { ..self, details: self.details + details.to_owned(), }
+}
+
+///|
+/// Adds a diagnostic nested under this one (`Reason.causes`): it is drawn with
+/// its own place and claim, one gutter deeper.
+pub fn Message::cause(self : Message, cause : Message) -> Message {
+  { ..self, causes: self.causes + [cause], }
+}
+
+///|
+/// Adds the candidates of an unresolved overload (`Reason.alternatives`).
+pub fn Message::candidates(
+  self : Message,
+  candidates : ArrayView[Candidate],
+) -> Message {
+  { ..self, candidates: self.candidates + candidates.to_owned(), }
+}
+
+///|
+/// The claim of a message as it hangs off a caret: the one-line version of its
+/// heading (upstream's `Reason.claim`, which a diagnostic spells out separately
+/// when its heading is the aligned multi-line form).
+pub fn Message::claim(self : Message) -> String {
+  match self.claim_text {
+    Some(text) => text
+    None =>
+      match self.text.find("\n") {
+        Some(i) => self.text[:i].to_owned()
+        None => self.text
+      }
   }
-  let marker = " ".repeat(pos.column - 1) + "^".repeat(width)
-  Some({ line: pos.line, code, marker, })
 }
 
 ///|
-/// The line number, right-aligned to the width of the widest line number of the
-/// diagnostic and its notes.
-fn align_line(line : Int32, width : Int32) -> String {
-  let shown = line.to_string()
-  " ".repeat(width - shown.length()) + shown
+/// Spells out how the message reads on a caret line, when that differs from its
+/// heading (upstream `Reason.claim` versus `Reason.show`).
+pub fn Message::with_claim(self : Message, claim : String) -> Message {
+  { ..self, claim_text: Some(claim), }
 }
 
 ///|
 /// The reason text with the phase appended to its *first* line; continuation
 /// lines are printed verbatim (`ColoredMessaging.contentWithPhase`). A trailing
-/// newline is kept: a reason whose text ends with one (upstream's
-/// `ImplicitInstantiation` does) renders as a blank line before the excerpt.
-fn with_phase(text : String, phase : String?) -> String {
+/// newline is kept: a message built as a string may end with one to separate the
+/// claim from the excerpt below it.
+pub fn with_phase(text : String, phase : String?) -> String {
   let suffix = match phase {
     Some(p) => " [\{p}]"
     None => ""
@@ -172,62 +229,32 @@ fn with_phase(text : String, phase : String?) -> String {
 /// ```
 ///
 /// The caret line underlines the span when it fits on one line and marks a
-/// single character otherwise. Notes and helps are rendered as items under the
-/// diagnostic, each preceded by a blank line, and a note that has a place of
-/// its own gets an excerpt separated from the diagnostic's by a gutter (`|`).
-/// The test corpus records its `.check` files with exactly this formatting.
+/// single character otherwise. The lines below the excerpt are the message's
+/// prose (`details`), and its paragraphs follow: the candidates of an unresolved
+/// overload (each drawn with its declaration), the nested causes, and the notes
+/// and helps. `src/util/drawing.mbt` lays those out. The test corpus records its
+/// `.check` files with exactly this formatting.
 pub fn Message::render(self : Message) -> String {
-  let primary = excerpt_of(self.span)
-  // One gutter for the whole diagnostic, as wide as its largest line number.
-  let mut width = primary.map(e => e.line.to_string().length()).unwrap_or(0)
-  let items : Array[(String, String, Excerpt?)] = []
-  for note in self.notes {
-    match note {
-      Note(text, at) => {
-        let excerpt = at.bind(excerpt_of)
-        if excerpt is Some(e) {
-          width = width.max(e.line.to_string().length())
-        }
-        items.push(("note", text, excerpt))
-      }
-      Help(text) => items.push(("help", text, None))
+  let drawing = Drawing::new()
+  for excerpt in excerpts_of(self) {
+    drawing.excerpt_line(excerpt, None)
+  }
+  drawing.children(() => drawing.body(self))
+  // One gutter for the whole drawing, as wide as its largest line number.
+  let mut gutter = 0
+  for line in drawing.lines {
+    if line is Code(span, _, _, _) {
+      let number = span.position().line.to_string()
+      gutter = gutter.max(number.length())
     }
   }
-  let lines : Array[String] = []
-  let text = with_phase(self.text, self.phase)
-  let header = if self.span.origin == Missing {
-    "[\{self.severity}] \{text}"
+  let header_source = if self.span.origin == Missing {
+    None
   } else {
-    let pos = self.span.position()
-    "[\{self.severity}] \{self.span.source.name}:\{pos.line}:\{pos.column}: \{text}"
+    Some(self.span.source)
   }
-  lines.push(header)
-  // `padding` is the blank line-number column that keeps the excerpts lined up
-  // with the ones that do print a number.
-  let padding = " ".repeat(width)
-  let mut previous_excerpt = match primary {
-    Some(e) => {
-      lines.push("\{align_line(e.line, width)}  \{e.code}")
-      lines.push("\{padding}  \{e.marker}")
-      true
-    }
-    None => false
-  }
-  for i, (kind, text, excerpt) in items {
-    if i == 0 || excerpt is Some(_) || previous_excerpt {
-      lines.push("")
-    }
-    lines.push("\{padding}  * \{kind}: \{text}")
-    match excerpt {
-      Some(e) => {
-        lines.push("\{align_line(e.line, width)}  |  \{e.code}")
-        lines.push("\{padding}  |  \{e.marker}")
-        previous_excerpt = true
-      }
-      None => previous_excerpt = false
-    }
-  }
-  lines.join("\n")
+  let body = render_lines(drawing.lines, gutter, header_source)
+  ([heading(self)] + body).join("\n")
 }
 
 ///|

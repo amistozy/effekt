@@ -18,7 +18,7 @@ files. The whole language compiles, not a subset.
 | `moon test --target js` | 251 unit tests |
 | `scripts/e2e.ps1` | 26 end-to-end checks |
 | `scripts/stdlib.ps1` | 49 of 49 standard library modules compile |
-| `scripts/upstream.ps1 -Strict` | 440 of 440 programs match, 243 of 243 rejections match, 189 of 234 diagnostics verbatim |
+| `scripts/upstream.ps1 -Strict` | 440 of 440 programs match, 243 of 243 rejections match, 236 of 240 diagnostics verbatim |
 
 Every gate is green on every commit, against the baselines `upstream.ps1` keeps;
 they may only grow, apart from a re-sync that moves the corpus. The corpus,
@@ -32,12 +32,16 @@ compared; the five skipped here write to `/dev/stdout`, spawn POSIX tools Window
 lacks, or import a module that upstream itself does not ship.
 
 Every program of the corpus compiles and runs, and every rejection is a rejection
-of the expected severity on the expected line. What still differs is the *text* of
-45 diagnostics: the overload error draws each candidate with its declaration (and
-the type mismatch inside it) where this port prints the candidate's name, type and
-message; two dozen other messages differ in a sentence. `stdlib.ps1` and
-`upstream.ps1` run the compiler once per module, so they take minutes: run them at
-milestones.
+of the expected severity on the expected line. The diagnostics are rendered the
+way upstream's `Drawing`/`ColoredMessaging` renders them — header, source excerpt
+with carets, then the nested paragraphs behind a `|` gutter — so 236 of the 240
+recorded `.check` files of rejected programs match character for character. The
+four that differ are not wording: upstream reports one more diagnostic than this
+port in two of them (`if_without_else_position`, `handler_clause_result`), marks a
+resume hint where this port does not, and resolves a shared overload failure
+under each candidate where this port reports it once (`issue433b`). `stdlib.ps1`
+and `upstream.ps1` run the compiler once per module, so they take minutes: run
+them at milestones.
 
 ## Quick start
 
