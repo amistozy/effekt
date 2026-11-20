@@ -5,6 +5,7 @@
 //     Frontend andThen Middleend                      (source -> core)
 //     Aggregate                                       (concatenate modules)
 //     Deadcode                                        (drop unreachable code)
+//     core.Mono                                       (monomorphize)
 //     core.Show                                       (structural show instances)
 //     Optimizer / DropBindings                        (skipped for now)
 //     cps.Transformer.transform                       (core -> cps)
@@ -76,13 +77,17 @@ fn middle_end(
     [main_sym] + @core.required_names(aggregated),
   )
   let aggregated = @core.deadcode(aggregated, required)
-  // 2c. Replace the prelude's `show` extern by compiler-generated structural
+  // 2c. Monomorphize: upstream runs `core.Mono` right here, before `core.Show`,
+  //     because the structural `show` instances it generates only make sense
+  //     once the data declarations have concrete field types.
+  let aggregated = @core.mono_phase(aggregated)
+  // 2d. Replace the prelude's `show` extern by compiler-generated structural
   //     show definitions. Upstream runs `core.Show` before its optimizer, so the
   //     instances it generates are optimized (and dead-coded) along with
   //     everything else.
   let aggregated = @core.show_phase(aggregated)
-  // 2d. The optimizer: upstream's `Optimizer.optimize`, minus the phases that
-  //     are not ported (`Mono`, `LambdaSets`, `ArityRaising`, `DropBindings`).
+  // 2e. The optimizer: upstream's `Optimizer.optimize`, minus the phases that
+  //     are not ported (`LambdaSets`, `ArityRaising`, `DropBindings`).
   let aggregated = optimize(aggregated, main_sym)
   (aggregated, main_sym)
 }

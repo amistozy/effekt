@@ -22,6 +22,8 @@ pub fn direct_style(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
 pub fn instantiate(BlockType, ArrayView[ValueType], ArrayView[@symbols.Captures]) -> BlockType raise @util.EffektError
 
+pub fn mono_phase(ModuleDecl) -> ModuleDecl raise @util.EffektError
+
 pub fn normalize(ModuleDecl, ArrayView[@symbols.Sym], InliningPolicy) -> ModuleDecl raise @util.EffektError
 
 pub fn references_to_parameters(ModuleDecl) -> ModuleDecl raise @util.EffektError
@@ -282,6 +284,34 @@ pub(all) struct ModuleDecl {
   exports : Array[@symbols.Sym]
 }
 pub fn ModuleDecl::ModuleDecl(String, Array[String], Array[Declaration], Array[Extern], Array[Toplevel], Array[@symbols.Sym]) -> Self
+
+#derive(Eq)
+pub(all) enum MonoBlockType[V] {
+  MonoFunction(Int32, Int32, Array[MonoValueType[V]], Array[MonoBlockType[V]], Array[MonoValueType[V]])
+  MonoInterface(@symbols.Sym, Array[MonoValueType[V]])
+  MonoPrompt(Array[MonoValueType[V]])
+  MonoResume(Array[MonoValueType[V]], Array[MonoValueType[V]])
+}
+
+#derive(Eq)
+pub(all) enum MonoCapture {
+  MonoCaptureBound(Int32, Int32)
+  MonoCaptureNamed(@symbols.Sym)
+}
+
+#derive(Eq)
+pub(all) struct MonoProjection {
+  owner : @symbols.Sym
+  position : Int32
+}
+
+#derive(Eq)
+pub(all) enum MonoValueType[V] {
+  MonoValueVar(V)
+  MonoValueBound(Int32, Int32)
+  MonoValueData(@symbols.Sym, Array[MonoValueType[V]])
+  MonoValueBoxed(MonoBlockType[V], Array[MonoCapture])
+}
 
 pub(all) struct Operation {
   name : @symbols.Sym

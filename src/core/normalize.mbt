@@ -1343,17 +1343,6 @@ fn Normalizer::select_operation(
 // ---------------------------------------------------------------------------
 
 ///|
-/// The type of the value a statement returns, as far as it is syntactically
-/// obvious. This port has no core type inference, so most statements yield the
-/// unknown type; the hint is only used for the parameters of join points.
-fn stmt_type_hint(s : Stmt) -> ValueType {
-  match s {
-    Return([expr]) => expr_type_hint(expr)
-    _ => unknown_value_type()
-  }
-}
-
-///|
 fn is_unit_literal(e : Expr) -> Bool {
   match e {
     Literal(LUnit, _) => true

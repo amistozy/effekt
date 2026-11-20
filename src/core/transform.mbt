@@ -237,7 +237,7 @@ fn Transformer::bind_stmt(self : Transformer, s : Stmt) -> Expr {
     _ => {
       let x = Sym::tmp_value("r")
       self.emit(BindingVal([x], s))
-      ValueVar(x, unknown_value_type())
+      ValueVar(x, stmt_type_hint(s))
     }
   }
 }
@@ -253,7 +253,7 @@ fn Transformer::bind_impure_app(
 ) -> Expr {
   let x = Sym::tmp_value("r")
   self.emit(BindingImpureApp(x, callee, targs, vargs, bargs))
-  ValueVar(x, unknown_value_type())
+  ValueVar(x, impure_app_type(callee, targs, bargs))
 }
 
 ///|
@@ -718,7 +718,9 @@ fn Transformer::transform_block_param(
 ///|
 /// A typed value variable.
 fn Transformer::value_var(self : Transformer, sym : Sym) -> Expr {
-  ValueVar(sym, self.value_type_of_sym(sym))
+  let tpe = self.value_type_of_sym(sym)
+
+  ValueVar(sym, tpe)
 }
 
 ///|
@@ -2233,10 +2235,13 @@ fn Transformer::preprocess_patterns(
   body : Stmt,
 ) -> PMClause raise EffektError {
   // create joinpoint
-  let tparams : Array[Sym] = []
+  let tparams = patterns
+    .map(p => self.bound_types_in_pattern(p.pattern))
+    .flatten()
   let params = patterns.map(p => self.bound_in_pattern(p.pattern)).flatten()
   for g in guards {
     if g.kind is @source.PatternGuard(_, pattern) {
+      tparams.append(self.bound_types_in_pattern(pattern))
       params.append(self.bound_in_pattern(pattern))
     }
   }
@@ -2272,6 +2277,7 @@ fn as_pm_var(e : Expr) -> PMVar raise EffektError {
   guard e is ValueVar(id, tpe) else {
     raise EffektError::Internal("Expected a value variable.")
   }
+
   PMVar(id, tpe)
 }
 
@@ -2303,6 +2309,31 @@ fn Transformer::bound_in_pattern(
 }
 
 ///|
+/// The existential type parameters a clause binds, upstream
+/// `boundTypesInPattern`: the parameters the typer annotated on each tag pattern
+/// a pattern mentions (and on the patterns of its guards).
+fn Transformer::bound_types_in_pattern(
+  self : Transformer,
+  p : @source.MatchPattern,
+) -> Array[Sym] {
+  match p.kind {
+    @source.TagPattern(_, patterns) => {
+      let out = match self.ctx.pattern_existentials_of(p.uid) {
+        Some(params) => params.copy()
+        None => []
+      }
+      for inner in patterns {
+        out.append(self.bound_types_in_pattern(inner))
+      }
+      out
+    }
+    @source.MultiPattern(patterns) =>
+      patterns.map(inner => self.bound_types_in_pattern(inner)).flatten()
+    _ => []
+  }
+}
+
+///|
 fn Transformer::transform_pattern(
   self : Transformer,
   p : @source.MatchPattern,
@@ -2323,9 +2354,14 @@ fn Transformer::transform_pattern(
           }
         _ => raise EffektError::Internal("Can only use constructors as tags.")
       }
-      // NOTE: upstream additionally passes the existential type parameters
-      // annotated on the pattern (`Annotations.TypeParameters`), which the
-      // source `Context` of this port does not carry.
+      // Upstream reads the existential type parameters the pattern binds from
+      // its `Annotations.TypeParameters`; the typer records exactly those on the
+      // pattern node ([[Context::assign_pattern_existentials]]), because it
+      // freshens them per occurrence.
+      let existentials = match self.ctx.pattern_existentials_of(p.uid) {
+        Some(params) => params.copy()
+        None => []
+      }
       let sub : Array[PMSubPattern] = []
       for inner in patterns {
         sub.push(
@@ -2335,7 +2371,7 @@ fn Transformer::transform_pattern(
           ),
         )
       }
-      PMTag(tag, [], all_variants, sub)
+      PMTag(tag, existentials, all_variants, sub)
     }
     @source.IgnorePattern => PMIgnore
     @source.LiteralPattern(value, tpe) =>
