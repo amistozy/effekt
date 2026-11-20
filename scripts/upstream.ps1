@@ -42,6 +42,12 @@ $positiveBaseline = 440
 # baseline counts the ones whose full text is identical to upstream's.
 $negativeBaseline = 243
 $negativeStrictBaseline = 240
+# `examples/benchmarks` is the third positive suite upstream runs on the JS
+# backend. Every benchmark runs in *test mode* (no command-line argument, see
+# `benchmarks/runner.effekt`): it computes a small result and prints it, which
+# is what the `.check` file records. The `config_*.txt` files upstream uses to
+# benchmark are not read here.
+$benchmarkBaseline = 91
 
 Write-Host "building the compiler..." -ForegroundColor Cyan
 moon build --target js 2>&1 | Out-Null
@@ -251,7 +257,7 @@ $worker = {
     $rel = $item.rel
     $jsOut = Join-Path $outDir (($rel -replace '[\\/]', '__') + ".js")
 
-    if ($kind -eq "pos") {
+    if ($kind -eq "pos" -or $kind -eq "bench") {
       $check = [IO.Path]::ChangeExtension($file, ".check")
       $expected = ""
       if (Test-Path $check) {
@@ -385,15 +391,25 @@ $skipped = @{
   "examples/stdlib/io/process.effekt" = "spawns the POSIX tool cat"
   "examples/stdlib/io/process_contract.effekt" = "spawns the POSIX tools sh and sleep"
   "examples/stdlib/io/spawn_options.effekt" = "spawns the POSIX tools sh, echo, seq and yes"
+  "examples/benchmarks/folklore_to_fact/cps_tak.effekt" = "ignored upstream for JS: the continuation stack overflows"
+  # `small_files` writes into `/tmp/small_files` and accepts only `-17` (EEXIST)
+  # from `mkdir`: node reports libuv's `-4075` on Windows, so the benchmark
+  # panics when the directory already exists. Upstream has the same problem on
+  # Windows, its CI is POSIX.
+  "examples/benchmarks/input_output/small_files.effekt" = "checks the POSIX EEXIST errno (-17) of mkdir"
 }
 $tests = @()
-foreach ($dir in @("pos", "stdlib")) {
+foreach ($dir in @("pos", "stdlib", "benchmarks")) {
   $base = Join-Path $corpus "examples/$dir"
+  # The benchmark suite is its own kind so that its baseline can grow on its
+  # own: a benchmark is a positive test, but it is also the only test that has
+  # to survive a real workload.
+  $kind = if ($dir -eq "benchmarks") { "bench" } else { "pos" }
   foreach ($f in (Get-ChildItem -Recurse $base -Filter '*.effekt' -File)) {
     $rel = $f.FullName.Substring($corpus.Length).TrimStart('\', '/') -replace '\\', '/'
     if ($Filter -ne "" -and -not $rel.Contains($Filter)) { continue }
     if ($skipped.ContainsKey($rel)) { continue }
-    $tests += @{ kind = "pos"; file = $f.FullName; rel = $rel }
+    $tests += @{ kind = $kind; file = $f.FullName; rel = $rel }
   }
 }
 $base = Join-Path $corpus "examples/neg"
@@ -422,6 +438,8 @@ Write-Host ("compiled {0} test files in {1:N0}s" -f $tests.Count, ((Get-Date) - 
 # ---------------------------------------------------------------------------
 $posOk = 0
 $posTotal = 0
+$benchOk = 0
+$benchTotal = 0
 $negOk = 0
 $negTotal = 0
 $negWording = 0
@@ -439,9 +457,11 @@ foreach ($line in $results) {
   $status = $parts[1]
   $rel = $parts[2]
   $detail = if ($parts.Count -gt 3) { $parts[3] } else { "" }
-  if ($kind -eq "pos") {
-    $posTotal++
-    if ($status -eq "ok") { $posOk++ } else {
+  if ($kind -eq "pos" -or $kind -eq "bench") {
+    if ($kind -eq "bench") { $benchTotal++ } else { $posTotal++ }
+    if ($status -eq "ok") {
+      if ($kind -eq "bench") { $benchOk++ } else { $posOk++ }
+    } else {
       if (-not $failures.ContainsKey($detail)) { $failures[$detail] = @() }
       $failures[$detail] += $rel
     }
@@ -471,6 +491,7 @@ foreach ($line in $results) {
 
 Write-Host ""
 Write-Host ("positive (pos + stdlib): {0} of {1} pass" -f $posOk, $posTotal) -ForegroundColor Cyan
+Write-Host ("benchmarks:              {0} of {1} run and match" -f $benchOk, $benchTotal) -ForegroundColor Cyan
 Write-Host ("negative (neg):          {0} of {1} match ({2} pass with different wording)" -f $negOk, $negTotal, $negWording) -ForegroundColor Cyan
 if ($Strict) {
   Write-Host ("  of those, full text:   {0} of {1} `.check` files match exactly" -f $negStrictOk, $negStrictTotal) -ForegroundColor Cyan
@@ -519,10 +540,14 @@ $failed = $false
 # baseline; it reports its own results and only a full run enforces one.
 if ($Filter -ne "") {
   Write-Host ""
-  Write-Host ("filtered run (no baseline check): {0}/{1} positive, {2}/{3} negative" -f $posOk, $posTotal, $negOk, $negTotal) -ForegroundColor DarkGray
+  Write-Host ("filtered run (no baseline check): {0}/{1} positive, {2}/{3} benchmarks, {4}/{5} negative" -f $posOk, $posTotal, $benchOk, $benchTotal, $negOk, $negTotal) -ForegroundColor DarkGray
 } else {
   if ($posOk -lt $positiveBaseline) {
     Write-Host ("positive: {0} pass, below the baseline of {1}" -f $posOk, $positiveBaseline) -ForegroundColor Red
+    $failed = $true
+  }
+  if ($benchOk -lt $benchmarkBaseline) {
+    Write-Host ("benchmarks: {0} pass, below the baseline of {1}" -f $benchOk, $benchmarkBaseline) -ForegroundColor Red
     $failed = $true
   }
   if ($negOk -lt $negativeBaseline) {
@@ -534,7 +559,7 @@ if ($Filter -ne "") {
     $failed = $true
   }
   if ($failed) { exit 1 }
-  $baselines = "baselines: positive {0}, negative {1}" -f $positiveBaseline, $negativeBaseline
+  $baselines = "baselines: positive {0}, benchmarks {1}, negative {2}" -f $positiveBaseline, $benchmarkBaseline, $negativeBaseline
   if ($Strict) { $baselines += ", negative (full text) {0}" -f $negativeStrictBaseline }
   Write-Host $baselines -ForegroundColor Green
 }

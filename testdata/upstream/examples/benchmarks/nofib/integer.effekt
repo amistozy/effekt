@@ -1,0 +1,79 @@
+import examples/benchmarks/runner
+
+type Either[A, B] {
+  Left(a: A)
+  Right(b: B)
+}
+
+def enum_from_then_to(from: Int, then: Int, to: Int): List[Int] =
+  if (from <= to) {
+    Cons(from, enum_from_then_to(then, (2 * then) - from, to))
+  } else {
+    Nil()
+  }
+
+def either_to_int(e: Either[Int, Bool]): Int =
+  e match {
+    case Left(i) => i
+    case Right(b) =>
+      if (b) {
+        1
+      } else {
+        0
+      }
+  }
+
+def apply_op_inner(ls: List[Int], a: Int, acc: Int) { op: (Int, Int) => Either[Int, Bool] }: Int =
+  ls match {
+    case Nil() => acc
+    case Cons(b, t2) => apply_op_inner(t2, a, acc + either_to_int(op(a, b))) { op }
+  }
+
+def apply_op(ls: List[Int], bs: List[Int], acc: Int) { op: (Int, Int) => Either[Int, Bool] }: Int =
+  ls match {
+    case Nil() => acc
+    case Cons(a, t1) => apply_op(t1, bs, apply_op_inner(bs, a, acc) { op }) { op }
+  }
+
+def integerbench(astart: Int, astep: Int, alim: Int) { op: (Int, Int) => Either[Int, Bool] }: Int = {
+  val as = enum_from_then_to(astart, astart + astep, alim)
+  apply_op(as, as, 0) { op }
+}
+
+def runbench(astart: Int, astep: Int, alim: Int) { jop: (Int, Int) => Either[Int, Bool] }: Int = {
+  val res1 = integerbench(astart, astep, alim) { jop }
+  val res2 = integerbench(astart, astep, alim) { jop }
+  res1 + res2
+}
+
+def runalltests(astart: Int, astep: Int, alim: Int): Int = {
+  def z_add(a: Int, b: Int): Either[Int, Bool] = { Left(a + b) }
+  def z_sub(a: Int, b: Int): Either[Int, Bool] = { Left(a - b) }
+  def z_mul(a: Int, b: Int): Either[Int, Bool] = { Left(a * b) }
+  def z_div(a: Int, b: Int): Either[Int, Bool] = { Left(a / b) }
+  def z_mod(a: Int, b: Int): Either[Int, Bool] = { Left(mod(a, b)) }
+  def z_equal(a: Int, b: Int): Either[Int, Bool] = { Right(a == b) }
+  def z_lt(a: Int, b: Int): Either[Int, Bool] = { Right(a < b) }
+  def z_leq(a: Int, b: Int): Either[Int, Bool] = { Right(a <= b) }
+  def z_gt(a: Int, b: Int): Either[Int, Bool] = { Right(a > b) }
+  def z_geq(a: Int, b: Int): Either[Int, Bool] = { Right(a >= b) }
+
+  val add = runbench(astart, astep, alim) { z_add }
+  val sub = runbench(astart, astep, alim) { z_sub }
+  val mul = runbench(astart, astep, alim) { z_mul }
+  val div = runbench(astart, astep, alim) { z_div }
+  val mod = runbench(astart, astep, alim) { z_mod }
+  val equal = runbench(astart, astep, alim) { z_equal }
+  val lt = runbench(astart, astep, alim) { z_lt }
+  val leq = runbench(astart, astep, alim) { z_leq }
+  val gt = runbench(astart, astep, alim) { z_gt }
+  val geq = runbench(astart, astep, alim) { z_geq }
+  add + sub + mul + div + mod + equal + lt + leq + gt + geq
+}
+
+def test_integer_nofib(n: Int): Int =
+  runalltests(1, 2000000 / n, 2000000)
+
+def run(n: Int): Int = test_integer_nofib(n)
+
+def main() = benchmark(6){run}

@@ -1,0 +1,36 @@
+import examples/benchmarks/runner
+
+import ref
+import array
+
+def swap(arr: Array[Int], i: Int, j: Int) = {
+  val tmp = arr.get(i);
+  arr.set(i, arr.get(j));
+  arr.set(j, tmp)
+}
+
+def run(n: Int) = {
+  val count = ref(0);
+
+  def permute(arr: Array[Int], n: Int): Unit = {
+    count.set(count.get + 1);
+    if (n != 0) {
+      val n1 = n - 1;
+      permute(arr, n1);
+      var i = n1;
+      while (i >= 0){
+        arr.swap(n1, i);
+        arr.permute(n1);
+        arr.swap(n1, i);
+        i = i - 1;
+      }
+    }
+  }
+
+  array(n, 1).permute(n);
+
+  count.get
+}
+
+def main() = benchmark(6){run}
+

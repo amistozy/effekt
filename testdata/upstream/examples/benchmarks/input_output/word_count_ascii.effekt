@@ -1,0 +1,87 @@
+import examples/benchmarks/runner
+
+import io/error
+import io/filesystem
+import stream
+
+
+// word_count_ascii.txt
+//           
+// !!!!!!!!!!
+// """"""""""
+// ##########
+// $$$$$$$$$$
+// %%%%%%%%%%
+// &&&&&&&&&&
+// ''''''''''
+
+record Output(chars: Int, words: Int, lines: Int)
+
+def formatWith(output: Output, filename: String): String =
+  output.lines.show ++ " " ++ output.words.show ++ " " ++ output.chars.show ++ " " ++ filename
+
+def isSpace(b: Byte) = b match {
+  case 0x20 => true // ' '
+  case 0x09 => true // '\t'
+  case 0x0A => true // '\n'
+  case 0x0B => true // '\v'
+  case 0x0C => true // '\f'
+  case 0x0D => true // '\r'
+  case _  => false
+}
+
+def isNewline(b: Byte) = b == 0x0A // \n
+
+def countWords(): Output / next[Byte] = {
+
+  var chars = 0
+  var words = 0
+  var lines = 0
+  var wasSpace = true
+
+  loop {
+    val c = do next()
+
+    chars = chars + 1
+
+    val currentIsSpace = isSpace(c)
+
+    if (wasSpace && not(currentIsSpace)) {
+      words = words + 1
+    }
+    wasSpace = currentIsSpace
+
+    if (isNewline(c)) {
+      lines = lines + 1
+    }
+  }
+
+  Output(chars, words, lines)
+}
+
+def run(n: Int) = {
+  with on[IOError].panic;
+
+  val filename = "/tmp/word_count_ascii.txt"
+
+  val _ = {
+    with writeFile(filename)
+    with repeat(n)
+    for[Int] { range(32, 127) } { c =>
+      repeat(10) {
+        do emit(c.toByte)
+      }
+      do emit(0x0A)
+    }
+  }
+
+  val output = {
+    with readFile(filename)
+    countWords()
+  }
+
+  return output.chars + output.words + output.lines
+}
+
+def main() = benchmark(5){run}
+

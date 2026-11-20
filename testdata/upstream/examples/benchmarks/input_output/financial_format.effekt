@@ -1,0 +1,116 @@
+import examples/benchmarks/runner
+
+import bytearray
+import io/error
+import io/filesystem
+import stream
+
+
+def emitEntry(tag: Int) { value: () => Unit / emit[Byte] }: Unit / emit[Byte] = {
+  tag.show.fromString.each()
+  do emit(0x3D)
+  value()
+  do emit(0x01)
+}
+
+def emitOrder(): Unit / emit[Byte] = {
+  emitEntry(8) { "FIX.4.4".fromString.each() }
+  emitEntry(9) { "176".fromString.each() }
+  emitEntry(35) { "D".fromString.each() }
+  emitEntry(49) { "Sender".fromString.each() }
+  emitEntry(56) { "Target".fromString.each() }
+  emitEntry(34) { "123".fromString.each() }
+  emitEntry(52) { "20250124-16:00:00.000".fromString.each() }
+
+  emitEntry(11) { "12345".fromString.each() }
+  emitEntry(55) { "AAPL".fromString.each() }
+  emitEntry(54) { "1".fromString.each() }
+  emitEntry(38) { "100".fromString.each() }
+  emitEntry(40) { "2".fromString.each() }
+  emitEntry(44) { "150.00".fromString.each() }
+
+  emitEntry(10) { "123".fromString.each() }
+}
+
+def nextTag(): Int / next[Byte] = {
+  var tag = 0
+  loop {
+    val byte = do next().toInt
+    if (byte >= 48 && byte <= 57) {
+      tag = tag * 10 + (byte - 48)
+    } else {
+      do stop()
+    }
+  }
+  return tag
+}
+
+def nextEntry { entry: Int => Unit / next[Byte] }: Unit / next[Byte] = {
+  val tag = nextTag()
+  try {
+    entry(tag)
+  } with next[Byte] {
+    resume {
+      val byte = do next()
+      if (byte == 0x01) {
+        do stop()
+      } else {
+        byte
+      }
+    }
+  }
+}
+
+def nextOrder(): Unit / next[Byte] = {
+  def assertTag(tag: Int) = {
+    nextEntry { got =>
+      if (got == tag) {
+        loop { do next(); () }
+      } else {
+        panic("wrong tag")
+      }
+    }
+  }
+  assertTag(8)
+  assertTag(9)
+  assertTag(35)
+  assertTag(49)
+  assertTag(56)
+  assertTag(34)
+  assertTag(52)
+
+  assertTag(11)
+  assertTag(55)
+  assertTag(54)
+  assertTag(38)
+  assertTag(40)
+  assertTag(44)
+
+  assertTag(10)
+}
+
+
+def run(n: Int) = {
+  with on[IOError].panic;
+
+  val filename = "/tmp/financial_information_exchange.txt"
+  val size = 4096
+
+  writeFile(filename) {
+    repeat(n) {
+      emitOrder()
+    }
+  }
+
+  readFile(filename) {
+    repeat(n) {
+      nextOrder()
+    }
+  }
+
+  return 0
+  
+}
+
+def main() = benchmark(5){run}
+

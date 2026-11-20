@@ -1,0 +1,46 @@
+import args
+import bench
+
+// Volatile storage for `relevant`'s barrier
+extern js """
+  let $relevantSink;
+"""
+extern chez """
+  (define $relevant-sink (box 0))
+"""
+extern llvm """
+  @relevant_sink = global %Int 0
+"""
+
+/**
+ * A side-effect barrier ("do-not-optimize"): consumes `value` through a volatile write
+ * which no optimizer can prove unobservable, so the results ought not be omitted.
+ */
+extern def relevant(value: Int) at io: Unit =
+  js "($relevantSink = ${value}, $effekt.unit)"
+  chez "(begin (set-box! $relevant-sink ${value}) (void))"
+  llvm """
+    store volatile %Int ${value}, ptr @relevant_sink
+    ret %Pos zeroinitializer
+  """
+
+def benchmark(testSize: Int) { run: Int => Int }: Unit = commandLineArgs() match {
+  // test mode
+  case Nil() => println(run(testSize))
+
+  // bench mode
+  case Cons(problemSize, _) =>
+    with crash("input size is not an integer")
+
+    val n = problemSize.toInt
+
+    val before = relativeTimestamp()
+    val result = run(n)
+    val after = relativeTimestamp()
+    relevant(result) // keep `result` alive, but don't measure the cost of keeping it alive
+    val nanos = after - before
+    println(nanos)
+}
+
+def main() = ()
+

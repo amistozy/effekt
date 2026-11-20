@@ -1,0 +1,21 @@
+import examples/benchmarks/runner
+
+def tak(x: Int, y: Int, z: Int): Int =
+  if (y < x) {
+    tak(
+      tak(x - 1, y, z),
+      tak(y - 1, z, x),
+      tak(z - 1, x, y)
+    )
+  } else {
+    z
+  }
+
+def run(n: Int): Int = {
+  val x = n
+  val y = (2 * n) / 3
+  val z = n / 3
+  tak(x, y, z)
+}
+
+def main() = benchmark(18){run}
