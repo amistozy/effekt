@@ -2725,10 +2725,17 @@ fn result_span(stmt : Stmt) -> Span {
 /// the handled statement explains `resume`. Comparisons with an expectation of
 /// their own — the result of a function literal, say — do not see it (the
 /// literal's body is checked with the explanation cleared).
-fn handler_clause_failure(ctx : ErrCtx, handler : HandlerResult) -> ValueType? {
+fn Typer::handler_clause_failure(
+  self : Typer,
+  ctx : ErrCtx,
+  handler : HandlerResult,
+) -> ValueType? {
   match root_of(ctx) {
     Expected(got, exp) =>
-      if value_type_equal(exp, handler.tpe) {
+      if value_type_equal(
+          self.st.u.prune_value(exp),
+          self.st.u.prune_value(handler.tpe),
+        ) {
         Some(got)
       } else {
         None
@@ -2782,6 +2789,8 @@ fn resumes_with(resume : BlockType) -> (ValueType, String)? {
 fn handler_result_notes(
   handler : HandlerResult,
   got : ValueType,
+  tpe : String,
+  resume : String,
   issue : String,
   claimed : Bool,
 ) -> Array[@util.Subdiagnostic] {
@@ -2801,9 +2810,9 @@ fn handler_result_notes(
           ),
         )
       } else {
-        handler_notes(notes, handler)
+        handler_notes(notes, handler, tpe, resume)
       }
-    None => handler_notes(notes, handler)
+    None => handler_notes(notes, handler, tpe, resume)
   }
   notes
 }
@@ -2812,18 +2821,17 @@ fn handler_result_notes(
 fn handler_notes(
   notes : Array[@util.Subdiagnostic],
   handler : HandlerResult,
+  tpe : String,
+  resume : String,
 ) -> Unit {
   notes.push(
     @util.Note(
-      "\{handler.tpe} is the type of the handled statement.",
+      "\{tpe} is the type of the handled statement.",
       Some(handler.handled),
     ),
   )
   notes.push(
-    @util.Note(
-      "In this handler clause, `resume` has type \{handler.resume}.",
-      None,
-    ),
+    @util.Note("In this handler clause, `resume` has type \{resume}.", None),
   )
 }
 
@@ -2869,10 +2877,12 @@ fn Typer::failure_notes_of(
   issue : String,
 ) -> Array[@util.Subdiagnostic] {
   if self.handler_result is Some(handler) {
-    if handler_clause_failure(ctx, handler) is Some(got) {
+    if self.handler_clause_failure(ctx, handler) is Some(got) {
       return handler_result_notes(
         handler,
         got,
+        "\{self.st.u.prune_value(handler.tpe)}",
+        "\{self.st.u.prune_block(handler.resume)}",
         issue,
         is_claimed(left, right, ctx),
       )

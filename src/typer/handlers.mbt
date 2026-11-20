@@ -285,9 +285,12 @@ fn Typer::check_function_argument(
         self.abort_message(msg)
       }
       if bparams.length() != bps.length() {
+        // The block arguments are what does not line up here, so both sides
+        // name that kind even when it is empty ("0 block arguments", upstream
+        // `formatArgs` with only the misaligned kinds).
         self.abort(
           arg.span,
-          "Wrong number of arguments to function: expected \{describe_args(0, 0, bps.length())}, but got \{describe_args(0, 0, bparams.length())}",
+          "Wrong number of arguments to function: expected \{pluralized(bps.length(), "block argument")}, but got \{pluralized(bparams.length(), "block argument")}",
         )
       }
 
