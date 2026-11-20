@@ -18,7 +18,7 @@ files. The whole language compiles, not a subset.
 | `moon test --target js` | 251 unit tests |
 | `scripts/e2e.ps1` | 26 end-to-end checks |
 | `scripts/stdlib.ps1` | 49 of 49 standard library modules compile |
-| `scripts/upstream.ps1 -Strict` | 440 of 440 programs match, 243 of 243 rejections match, 239 of 240 diagnostics verbatim |
+| `scripts/upstream.ps1 -Strict` | 440 of 440 programs match, 243 of 243 rejections match, 240 of 240 diagnostics verbatim |
 
 Every gate is green on every commit, against the baselines `upstream.ps1` keeps;
 they may only grow, apart from a re-sync that moves the corpus. The corpus,
@@ -34,16 +34,15 @@ lacks, or import a module that upstream itself does not ship.
 Every program of the corpus compiles and runs, and every rejection is a rejection
 of the expected severity on the expected line. The diagnostics are rendered the
 way upstream's `Drawing`/`ColoredMessaging` renders them — header, source excerpt
-with carets, then the nested paragraphs behind a `|` gutter — so 239 of the 240
-recorded `.check` files of rejected programs match character for character. The
-one that differs is not wording: `issue433b` keeps a shared overload failure
-nested under every candidate where this port hoists it out. Upstream decides
-which failures are shared by comparing the recorded diagnostics as *values*, and
-a nested overload failure mentions freshly instantiated type variables, so the
-two look-alike failures are never equal and stay per candidate; this port
-compares the rendered structure instead, so they look shared. `stdlib.ps1` and
-`upstream.ps1` run the compiler once per module, so they take minutes: run them
-at milestones.
+with carets, then the nested paragraphs behind a `|` gutter — so all 240 recorded
+`.check` files of rejected programs match character for character. Two
+behaviours had to be mirrored to get there: the join of an `if`/`match` aborts
+for concrete incompatible arms but only constrains a unification variable (so
+one file reports a single extra message and another keeps checking later
+definitions), and a failed nested call is never reported as a shared cause of
+several overload candidates — upstream compares diagnostics as values, and their
+instantiated types differ per candidate. `stdlib.ps1` and `upstream.ps1` run the
+compiler once per module, so they take minutes: run them at milestones.
 
 ## Quick start
 

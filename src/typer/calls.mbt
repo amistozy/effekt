@@ -832,10 +832,21 @@ fn same_candidates(a : ArrayView[Candidate], b : ArrayView[Candidate]) -> Bool {
 /// `OverloadResolution.independent`): the ones of the first candidate that the
 /// failures of all others contain as well. They do not depend on which candidate
 /// is chosen, so they are reported once, on their own.
+///
+/// A failed nested call is never shared. Upstream compares the recorded
+/// diagnostics as values, and an overload failure is `OverloadResolution` of
+/// `Candidate`s that carry the *instantiated* function type of that attempt, so
+/// two look-alike failures of the same nested call are different diagnostics:
+/// `examples/neg/issue433b` keeps the `++` failure under both `run` candidates.
+/// Comparing the rendered structure cannot see the instantiation, so the nested
+/// failure would otherwise look shared and be hoisted out.
 fn shared_failures(all_failures : ArrayView[FailedCandidate]) -> Array[Message] {
   let out : Array[Message] = []
   guard !all_failures.is_empty() else { return out }
   for m in all_failures[0].muted {
+    if is_overload_failure(m) {
+      continue
+    }
     if out.any(o => same_message(o, m)) {
       continue
     }
