@@ -3135,9 +3135,22 @@ fn Typer::unify_fail(
 
 ///|
 /// Records that `x` is `t`; when `x` was solved already, the new type is
-/// compared against the existing one (upstream `Constraints.learn`, whose
-/// merge callback unifies `(tpe, otherTpe)` in that order and wraps the
-/// context in `MergeInvariant`).
+/// compared against the existing one (upstream `Constraints.learn`).
+///
+/// The comparison order follows upstream's two branches. A *variable* on the
+/// other side connects the two nodes (`connectNodes`), which merges the types
+/// the two nodes already know in the order (this one's, the other one's):
+/// `examples/neg/patternmatch` merges two `Box` arguments this way and its note
+/// says `Int and Bool differ`, not `Bool and Int`. A concrete type is merged as
+/// `(new, existing)`.
+///
+/// The new type is learned in either case — upstream's `learnType` ends with
+/// `typeConstraints.learn(x, tpe)` — so a conflicting learn leaves the variable
+/// substituted by the most recent type. That is what turns the conflicting arm
+/// of `examples/neg/inference`'s `test2` into the outer "Expected Int but got
+/// String.": the merge recorded the "clauses have incompatible types"
+/// diagnostic, the node now says `String`, and the `match` is checked against
+/// `Int` afterwards.
 fn Typer::learn(
   self : Typer,
   x : Sym,
@@ -3145,12 +3158,32 @@ fn Typer::learn(
   ctx : ErrCtx,
 ) -> Unit raise EffektError {
   match self.st.u.types.get(x.uid()) {
-    Some(existing) =>
-      self.unify_value_types(
-        self.st.u.prune_value(t),
-        self.st.u.prune_value(existing),
-        MergeInvariant(ctx),
-      )
+    Some(existing) => {
+      let other = match t {
+        @symbols.ValueType::ValueTypeRef(y) =>
+          if self.st.u.is_type_var(y) {
+            self.st.u.types.get(y.uid())
+          } else {
+            None
+          }
+        _ => None
+      }
+      match other {
+        Some(other_tpe) =>
+          self.unify_value_types(
+            self.st.u.prune_value(existing),
+            self.st.u.prune_value(other_tpe),
+            MergeInvariant(ctx),
+          )
+        None =>
+          self.unify_value_types(
+            self.st.u.prune_value(t),
+            self.st.u.prune_value(existing),
+            MergeInvariant(ctx),
+          )
+      }
+      self.st.u.set_type(x, t)
+    }
     None => self.st.u.set_type(x, t)
   }
 }
@@ -3450,7 +3483,6 @@ pub fn Typer::join(
 ) -> ValueType raise EffektError {
   let mut result : ValueType? = None
   let mut first_span : Span? = None
-  let mut failed = false
   for (tpe, span) in tpes_and_terms {
     match result {
       None => {
@@ -3458,15 +3490,19 @@ pub fn Typer::join(
         first_span = span
       }
       Some(acc) => {
-        // A mismatch between two arms is reported by the merge itself (upstream
-        // reports it as an abort, but its recorded corpus output for
-        // `examples/neg/inference` contains diagnostics from *later*
-        // definitions, so type checking demonstrably continues). Keep the arm's
-        // own type as the join: the diagnostic is out, and the remaining
-        // definitions are still checked instead of losing their diagnostics.
-        // Upstream (and its recorded output) reports the arms' *substituted*
-        // types here (`MergeTypes(Context.unification(t1), unification(t2))`).
-        let reported = self.ctx.messages.length()
+        // The merge reports the arms' *substituted* types
+        // (`MergeTypes(Context.unification(t1), unification(t2))`).
+        //
+        // A mismatch between two concrete arms is an `abort` (upstream
+        // `TypeMerger.mergeValueTypes`), so the phase ends here: the arms' own
+        // diagnostics were recorded while they were checked against the
+        // expected type, and nothing after the join is reported
+        // (`examples/neg/typer/if_without_else_position`: the `()` of the
+        // missing else is the only other message). Only a merge that just
+        // *constrains* a unification variable returns — it records through
+        // `error` and checking goes on, which is why
+        // `examples/neg/inference` reports later definitions and the join's
+        // second pass.
         let merged = self.merge_value_types(
           acc,
           tpe,
@@ -3475,23 +3511,7 @@ pub fn Typer::join(
             self.st.u.prune_value(tpe),
             kind.origin(first_span, span),
           ),
-        ) catch {
-          // Upstream aborts the phase here, but its recorded corpus output for
-          // `examples/neg/inference` contains diagnostics of *later* definitions
-          // (and of the join's second pass), so type checking demonstrably
-          // continues. Keep the arm's own type as the join and go on.
-          EffektError::Fatal(_) => {
-            failed = true
-            tpe
-          }
-          EffektError::Internal(m) => raise EffektError::Internal(m)
-        }
-        // A merge that reported a mismatch without aborting failed the same way:
-        // reporting the arms against the join afterwards would repeat it in a
-        // different wording (`examples/neg/patternmatch` says it once).
-        if self.ctx.messages.length() > reported {
-          failed = true
-        }
+        )
         result = Some(merged)
       }
     }
@@ -3508,16 +3528,9 @@ pub fn Typer::join(
   // coercions; TODO this duplicates errors"). The context keeps the
   // *unsubstituted* arm and join types, which is why `examples/neg/patternmatch`
   // shows `Box[A]` on both sides and names the differing type arguments in the
-  // note.
-  //
-  // When a merge failed, upstream never gets here: the failure aborts the phase.
-  // Reporting the arms against a join that is only "the arm's own type" would
-  // repeat the same mismatch in a different wording
-  // (`examples/neg/typer/mismatch/if_arms_int_and_string`), so the pass is
-  // skipped — the merge diagnostic already says it.
-  if failed {
-    return joined
-  }
+  // note. The diagnostic is reported at the *join's* focus (the `if` or `match`
+  // itself), not at the arm: upstream's `Expected` carries the arm's tree only
+  // to attach a coercion to it.
   for (tpe, _) in tpes_and_terms {
     self.require_subtype_value(tpe, joined, Expected(tpe, joined))
   }
@@ -3531,17 +3544,21 @@ pub fn Typer::join(
 /// operand: `join` compares every arm against that result again with an
 /// `Expected` context that renders the arm and the join, and a substituted
 /// result would hide the type arguments the message is about.
+///
+/// The cases are also matched on the unsubstituted types. An arm that is still
+/// a unification variable takes the constraint path even when the variable is
+/// solved (`case Cons(a, rest) => a` in `examples/neg/inference`): the merge
+/// then records through `error` and checking continues, which is what makes
+/// that file report the join's second pass and later definitions. Only two
+/// concrete, incompatible arms reach `abort`.
 fn Typer::merge_value_types(
   self : Typer,
   old : ValueType,
   new : ValueType,
   ctx : ErrCtx,
 ) -> ValueType raise EffektError {
-  let old_raw = old
-  let old = self.st.u.prune_value(old)
-  let new = self.st.u.prune_value(new)
   if old == new {
-    return old_raw
+    return old
   }
   if old == t_top() || new == t_top() {
     return t_top()
@@ -3553,21 +3570,25 @@ fn Typer::merge_value_types(
     return old
   }
   match (old, new) {
+    // `old` is a unification variable: constrain it. This also covers a solved
+    // variable — `learn` then merges the new type into the existing one
+    // (`MergeInvariant`), which only records.
     (@symbols.ValueType::ValueTypeRef(x), t) =>
       if self.st.u.is_type_var(x) {
         self.learn(x, t, ctx)
-        old_raw
+        old
       } else {
-        // the *other* side might be the unification variable
+        // a rigid type parameter is not a unification variable; the *other*
+        // side may be one
         match t {
           @symbols.ValueType::ValueTypeRef(y) =>
             if self.st.u.is_type_var(y) {
               self.learn(y, old, ctx)
               new
             } else {
-              self.abort_types(old, t, ctx)
+              self.abort_types(old, new, ctx)
             }
-          _ => self.abort_types(old, t, ctx)
+          _ => self.abort_types(old, new, ctx)
         }
       }
     (t, @symbols.ValueType::ValueTypeRef(x)) =>
@@ -3575,7 +3596,7 @@ fn Typer::merge_value_types(
         self.learn(x, t, ctx)
         new
       } else {
-        self.abort_types(old, t, ctx)
+        self.abort_types(old, new, ctx)
       }
     (
       @symbols.ValueType::ValueTypeApp(c1, args1),
@@ -3589,7 +3610,7 @@ fn Typer::merge_value_types(
       for i in 0..<args1.length().min(args2.length()) {
         self.unify_value_types(args1[i], args2[i], TypeConstructorArgument(ctx))
       }
-      old_raw
+      old
     }
     (
       @symbols.ValueType::BoxedType(b1, c1),
@@ -3597,7 +3618,7 @@ fn Typer::merge_value_types(
     ) => {
       self.unify_block_types(b1, b2, BoxedTypeBlock(ctx))
       self.unify_captures(c1, c2, BoxedTypeCapture(ctx))
-      old_raw
+      old
     }
     _ => self.abort_types(old, new, ctx)
   }
