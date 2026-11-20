@@ -15,10 +15,10 @@ files. The whole language compiles, not a subset.
 | Gate | Result |
 |---|---|
 | `moon check --target js -d` | type checks, warnings as errors |
-| `moon test --target js` | 250 unit tests |
+| `moon test --target js` | 251 unit tests |
 | `scripts/e2e.ps1` | 26 end-to-end checks |
 | `scripts/stdlib.ps1` | 49 of 49 standard library modules compile |
-| `scripts/upstream.ps1 -Strict` | 432 of 440 programs match, 238 of 243 rejections match, 189 of 234 diagnostics verbatim |
+| `scripts/upstream.ps1 -Strict` | 433 of 440 programs match, 238 of 243 rejections match, 189 of 234 diagnostics verbatim |
 
 Every gate is green on every commit, against the baselines `upstream.ps1` keeps;
 they may only grow, apart from a re-sync that moves the corpus. The corpus,
@@ -32,15 +32,13 @@ compared; the five skipped here write to `/dev/stdout`, spawn POSIX tools Window
 lacks, or import a module that upstream itself does not ship.
 
 The programs that do not match yet are the ones upstream gained after
-`6fbff0b0e`, and they need work this port still owes: `core.Mono`, which upstream
-runs before `core.Show` and without which the structural `show` of a generic data
-type is not resolved (1 program, `show/wrapper`), and the newer overloading resolution — an
-`x.f(...)` call, a cut-off candidate, a value shadowing a function (7 programs) —
-together with upstream's reworked overload diagnostics, which draw each candidate
-with its source, drop duplicated errata, and report the error inside an argument
-separately (5 rejections and the diagnostics that are not verbatim). `stdlib.ps1`
-and `upstream.ps1` run the compiler once per module, so they take minutes: run
-them at milestones.
+`6fbff0b0e`: the newer overloading resolution — an `x.f(...)` call, a cut-off
+candidate, a value shadowing a function (7 programs) — together with upstream's
+reworked overload diagnostics, which draw each candidate with its source, drop
+duplicated errata, and report the error inside an argument separately (5
+rejections and the diagnostics that are not verbatim). `stdlib.ps1` and
+`upstream.ps1` run the compiler once per module, so they take minutes: run them
+at milestones.
 
 ## Quick start
 
@@ -114,7 +112,7 @@ and the gates run it.
 ```
 Source ─► Lexer ─► Parser ─► Namer ─► UnboxInference ─► Typer ─► ResolveExternDefs
        ─► ExplicitCapabilities ─► core.Transformer (ANF) ─► Aggregate ─► Deadcode
-       ─► core.Show ─► Optimizer ─► cps.Transformer ─► cps.Contify
+       ─► core.Mono ─► core.Show ─► Optimizer ─► cps.Transformer ─► cps.Contify
        ─► js.TransformerCps ─► JavaScript
 ```
 
@@ -122,14 +120,15 @@ The frontend produces a typed source tree — effects and capture sets are infer
 with types, exhaustivity is checked, the escape checks of `Wellformedness` run —
 and `ExplicitCapabilities` then rewrites capability annotations into explicit
 passing. The middle-end lowers the tree to the ANF core IR (what `--show-core`
-prints), generates the structural `show` instances the prelude needs, and runs
-upstream's optimizer chain: `Deadcode`, `StaticArguments`, three rounds of
-`BindSubexpressions` → `Normalizer` → `Deadcode` → `StaticResumptions` →
+prints), monomorphizes it, generates the structural `show` instances the prelude
+needs, and runs upstream's optimizer chain: `Deadcode`, `StaticArguments`, three
+rounds of `BindSubexpressions` → `Normalizer` → `Deadcode` → `StaticResumptions` →
 `DirectStyle` → `ReferencesToParameters`, and a final `Deadcode` +
-`ReferencesToParameters` (`core.Show` runs before the optimizer, as in upstream's
-`JavaScript.scala`). The backend goes through CPS and contification to the
-JavaScript IR, where handlers become the `RESET`/`SHIFT`/`RESUME` primitives of
-`effekt.effekt`, the runtime every module includes through `extern include`.
+`ReferencesToParameters` (`core.Mono` and `core.Show` run before the optimizer, as
+in upstream's `JavaScript.scala`). The backend goes through CPS and contification
+to the JavaScript IR, where handlers become the `RESET`/`SHIFT`/`RESUME`
+primitives of `effekt.effekt`, the runtime every module includes through `extern
+include`.
 
 Core has its own type language (`src/core/types.mbt`, upstream `core/Type.scala`):
 result lists and resumption types, and no effect sets, since capabilities are
@@ -176,8 +175,8 @@ Deliberate, and documented at the point of use:
   capture the binder drops, and a type parameter that would leave its scope.
 - **The optimizer is ported and runs** (see above), with these deviations: no
   `Deadcode.isPureCall` rule, because with approximate capture sets a pure-looking
-  call can capture a region and the rule would drop live calls; no `Mono`,
-  `LambdaSets`, `ArityRaising` or `DropBindings`; five normalizer deviations (no
+  call can capture a region and the rule would drop live calls; no `LambdaSets`,
+  `ArityRaising` or `DropBindings`; five normalizer deviations (no
   sharing of pure expressions via `Context.facts`, `covers`/`selecting` skipped,
   the `Shift` rule of `normalizeVal` skipped, join-point parameters typed
   `unknown_value_type()`, and the unit-return rule comparing syntax rather than

@@ -90,6 +90,63 @@ test "cps.transform: inlines a value binding (static continuation)" {
 }
 
 ///|
+test "cps.transform: reifying the dealloc continuation keeps every value" {
+  let ref = tv("ref")
+  let capture = tv("capture")
+  let prompt = tb("prompt")
+  let main = tb("main")
+  // var ref = 0; reset { [p: Prompt[Int, Int]] => return 1, 2 }
+  //
+  // The body of the `var` returns two values; reifying its dealloc continuation
+  // (the `reset` reifies the continuation it returns to) has to keep both, or a
+  // value is lost. The optimizer's state threading produces such bodies.
+  let stmt = @core.Stmt::Var(
+    ref,
+    int_expr(0),
+    capture,
+    @core.Stmt::Reset(
+      @core.BlockLit::BlockLit(
+        [],
+        [],
+        [],
+        [
+          @core.BlockParam::BlockParam(
+            prompt,
+            @core.PromptType([@core.t_int(), @core.t_int()]),
+            @symbols.Captures::empty(),
+          ),
+        ],
+        @core.Stmt::Return([int_expr(1), int_expr(2)]),
+      ),
+    ),
+  )
+  let module = @cps.transform(core_module(@core.ToplevelVal(main, stmt), main))
+  match module.definitions[0] {
+    @cps.ToplevelVal(_id, _ks, _k, binding) =>
+      match binding {
+        @cps.Var(_ref, _init, _meta, body) =>
+          match body {
+            @cps.Reset(_lit, arity, _meta, cont) => {
+              assert_eq(arity, 2, msg="the reset returns two values")
+              match cont {
+                @cps.ContLam(lam) =>
+                  assert_eq(
+                    lam.results.length(),
+                    2,
+                    msg="the dealloc continuation takes two values",
+                  )
+                _ => fail("expected a reified continuation")
+              }
+            }
+            _ => fail("expected a reset")
+          }
+        _ => fail("expected a var")
+      }
+    _ => fail("expected a toplevel val")
+  }
+}
+
+///|
 test "cps.transform: an application passes metacont and continuation" {
   let f = tb("f")
   let main = tb("main")

@@ -50,6 +50,19 @@ fn fresh_like(hint : Sym) -> Sym {
   fresh_sym(hint.name().name)
 }
 
+///|
+/// The hints of the continuation that deallocates a reference or a region: one
+/// per value the body returns (upstream `stmt.tpe.map { _ => Id("tmp") }`).
+///
+/// The number matters: `reify` turns the hints into the parameters of the
+/// continuation, so a `var` whose body returns two values — which the optimizer's
+/// state threading produces — would otherwise be reified into a one-parameter
+/// continuation and lose a value.
+fn dealloc_hints(body : @core.Stmt) -> Array[Sym] {
+  let types = body.infer_type() catch { _ => [@core.t_unit()] }
+  types.map(_ => fresh_sym("tmp"))
+}
+
 // ---------------------------------------------------------------------------
 // Continuations
 // ---------------------------------------------------------------------------
@@ -458,7 +471,7 @@ fn transform_stmt(
             transform_stmt(
               block_lit.body,
               ks,
-              Static([fresh_sym("tmp")], (xs, ks2) => {
+              Static(dealloc_hints(block_lit.body), (xs, ks2) => {
                 Dealloc(region.id, k.apply(xs, ks2))
               }),
               ctx,
@@ -481,7 +494,7 @@ fn transform_stmt(
         transform_stmt(
           body,
           ks,
-          Static([fresh_sym("tmp")], (xs, ks2) => Dealloc(id, k.apply(xs, ks2))),
+          Static(dealloc_hints(body), (xs, ks2) => Dealloc(id, k.apply(xs, ks2))),
           ctx,
         ),
       )
