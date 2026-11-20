@@ -146,6 +146,10 @@ pub struct Typer {
   /// are replayed when the candidate is chosen: a hint that only a rejected
   /// candidate produced would point at code that type checks otherwise.
   mut muted_infos : Array[(Span, String)]
+  /// Set when an implicit search was cut off at its depth bound (upstream
+  /// `Failure.Undecided`): the candidate did not fail for a *reason*, it could
+  /// not be decided, so it competes with the candidates that type check.
+  mut cutoff : Bool
   /// The span of the tree currently being checked.
   mut focus : Span
   /// Where each fresh unification variable was created (by uid), so that an
@@ -180,6 +184,7 @@ pub fn Typer::Typer(ctx : Context) -> Typer {
     muted_error: false,
     muted_messages: [],
     muted_infos: [],
+    cutoff: false,
     focus: Span::missing(),
     type_var_spans: Map([]),
     pending_matches: [],
@@ -209,21 +214,26 @@ fn Typer::error_message(self : Typer, msg : Message) -> Unit {
 }
 
 ///|
-/// Reports a warning. While a candidate of an overload resolution is checked
-/// the warning is dropped: upstream discards the messages of an attempt that
-/// succeeds (`Context.withMessages`) and a warning does not make an attempt
-/// fail (`Try` fails on errors only).
+/// Reports a warning. While a candidate of an overload resolution is checked the
+/// warning is kept with the attempt: upstream discards the messages of an attempt
+/// that succeeds (`Context.withMessages`), and the messages of a failing attempt
+/// are part of its failure — which is how a warning every candidate reports is
+/// reported once.
 fn Typer::warning(self : Typer, span : Span, msg : String) -> Unit {
-  if !self.muting {
+  if self.muting {
+    self.muted_messages.push(Message::warning(span, msg))
+  } else {
     self.ctx.warning(span, msg)
   }
 }
 
 ///|
-/// Reports a fully built warning (with notes and helps). Muted while an
-/// overload candidate is checked, like `warning`.
+/// Reports a fully built warning (with notes and helps), kept with a muted
+/// attempt like `warning`.
 fn Typer::warning_message(self : Typer, msg : Message) -> Unit {
-  if !self.muting {
+  if self.muting {
+    self.muted_messages.push(msg)
+  } else {
     self.ctx.report(msg)
   }
 }
@@ -250,23 +260,32 @@ fn Typer::info(self : Typer, span : Span, msg : String) -> Unit {
 fn[T] Typer::muted(
   self : Typer,
   f : () -> T raise?,
-) -> (T, Bool, Array[Message], Array[(Span, String)]) raise? {
+) -> (T, Bool, Array[Message], Array[(Span, String)], Bool) raise? {
   let muting_before = self.muting
   let error_before = self.muted_error
+  let cutoff_before = self.cutoff
   let messages_before = self.muted_messages
   let infos_before = self.muted_infos
   defer {
     self.muting = muting_before
     self.muted_error = error_before
+    self.cutoff = cutoff_before
     self.muted_messages = messages_before
     self.muted_infos = infos_before
   }
   self.muting = true
   self.muted_error = false
+  self.cutoff = false
   self.muted_messages = []
   self.muted_infos = []
   let value = f()
-  (value, self.muted_error, self.muted_messages.copy(), self.muted_infos.copy())
+  (
+    value,
+    self.muted_error,
+    self.muted_messages.copy(),
+    self.muted_infos.copy(),
+    self.cutoff,
+  )
 }
 
 ///|
@@ -632,7 +651,7 @@ fn Typer::types_compatible(
   defer {
     self.st = before
   }
-  let (unified, failed, _, _) = self.muted(() => {
+  let (unified, failed, _, _, _) = self.muted(() => {
     try {
       self.unify_value_types(
         inferred,

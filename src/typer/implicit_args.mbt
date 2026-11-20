@@ -84,7 +84,7 @@ fn[T] Typer::check_implicit(
   tpe : String,
   run : () -> T raise EffektError,
 ) -> T raise EffektError {
-  let ((result, failure), muted_error, errors, infos) = self.muted(() => {
+  let ((result, failure), muted_error, errors, infos, cut_off) = self.muted(() => {
     (Some(run()), None) catch {
       EffektError::Fatal(msg) => (None, Some(msg))
       EffektError::Internal(m) => raise EffektError::Internal(m)
@@ -111,6 +111,10 @@ fn[T] Typer::check_implicit(
     } else if failure is Some(msg) {
       text = text + indent_message(msg)
     }
+    // An instantiation whose search was cut off inherits that: the candidate it
+    // belongs to is undecided, not rejected (upstream `ImplicitInstantiation`'s
+    // `undecided` delegates to the stencil's failure).
+    self.cutoff = cut_off
     self.abort(call.span, text + "\n")
   }
   for entry in infos {
@@ -446,6 +450,9 @@ fn[T] Typer::with_implicit_guard(
   let grew = size >= last_size
   let depth = if grew { depth + 1 } else { depth }
   if grew && depth > max_implicit_recursion {
+    // Upstream reports `ImplicitMaxRecursion`, which is `undecided`: the search
+    // was cut off, so the enclosing candidate is not *known* to fail.
+    self.cutoff = true
     self.abort(
       self.focus,
       "Aborted recursive instantiation of the implicit argument \{name} after \{max_implicit_recursion} levels with non-decreasing types.",
