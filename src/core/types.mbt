@@ -238,21 +238,24 @@ pub fn instantiate(
           "Wrong number of type arguments: expected \{tparams.length()}, got \{targs.length()}",
         )
       }
-      if cargs.length() != cparams.length() {
-        raise EffektError::Internal(
-          "Wrong number of capture arguments: expected \{cparams.length()}, got \{cargs.length()}",
-        )
-      }
+      // The port's block types do not always record one capture parameter per
+      // block parameter — the compiler-generated ones (e.g. the prelude's
+      // higher-order functions) leave them out — so a call can pass more capture
+      // arguments than the type declares, or fewer. Only the ones that line up
+      // are substituted; the counts are not checked, as upstream's `assert`
+      // would.
       let tsubst : Map[Int32, ValueType] = Map([])
       for i in 0..<tparams.length() {
         tsubst.set(tparams[i].uid(), targs[i])
       }
       let csubst : Map[Int32, Captures] = Map([])
       for i in 0..<cparams.length() {
-        // A capture parameter is a (usually singleton) capture set here, while
-        // upstream stores the id directly.
-        for c in cparams[i].to_array() {
-          csubst.set(c.uid(), cargs[i])
+        if i < cargs.length() {
+          // A capture parameter is a (usually singleton) capture set here, while
+          // upstream stores the id directly.
+          for c in cparams[i].to_array() {
+            csubst.set(c.uid(), cargs[i])
+          }
         }
       }
       FunctionType(

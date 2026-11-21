@@ -15,7 +15,7 @@ files. The whole language compiles, not a subset.
 | Gate | Result |
 |---|---|
 | `moon check --target js -d` | type checks, warnings as errors |
-| `moon test --target js` | 261 unit tests |
+| `moon test --target js` | 263 unit tests |
 | `scripts/e2e.ps1` | 27 end-to-end checks |
 | `scripts/stdlib.ps1` | 49 of 49 standard library modules compile |
 | `scripts/upstream.ps1 -Strict` | 441 of 441 programs match, 91 of 91 benchmarks run and match, 10 of 10 case studies run and match, 7 of 7 programs also pass without optimizations, 243 of 243 rejections match, 240 of 240 diagnostics verbatim |

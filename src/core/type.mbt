@@ -30,6 +30,9 @@ fn result_of(tpe : BlockType) -> Array[ValueType] raise EffektError {
 ///|
 /// The results of applying a block of type `tpe`. A callee whose type is the
 /// placeholder `unknown_block_type()` yields the unknown value type.
+///
+/// A call site does not always record every type argument of its callee (see
+/// `adjust_type_args`), so the missing ones are filled in instead of failing.
 fn instantiated_results(
   tpe : BlockType,
   targs : ArrayView[ValueType],
@@ -37,6 +40,11 @@ fn instantiated_results(
 ) -> Array[ValueType] raise EffektError {
   if is_unknown_block_type(tpe) {
     return [unknown_value_type()]
+  }
+  let targs = match tpe {
+    FunctionType(tparams, _, _, _, _) =>
+      adjust_type_args(targs.to_owned(), tparams.length())
+    _ => targs.to_owned()
   }
   result_of(instantiate(tpe, targs, cargs))
 }

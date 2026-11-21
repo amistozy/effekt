@@ -235,3 +235,33 @@ test "infer_capt: alloc adds its region and var subtracts its capture" {
   )
   assert_eq("\{state_stmt.infer_capt()}", "{}")
 }
+
+///|
+/// A call site does not always record every type argument of its callee (the
+/// pattern matching compiler of this port leaves out the existential ones), so
+/// the results of a call with too few type arguments are still inferred: the
+/// missing ones are filled in.
+test "infer_type: a call with fewer type arguments than the callee declares" {
+  let t = @symbols.Sym::type_param(
+    @symbols.Name::local("T"),
+    @util.Span::missing(),
+  )
+  // `[T](x: T) => T`
+  let f = FunctionType([t], [], [ValueVar(t)], [], [ValueVar(t)])
+  let results = instantiated_results(f, [], [])
+  assert_eq(results.length(), 1)
+  // the substituted result is the unknown type, not a type error
+  assert_true(results[0] is ValueData(_, []))
+}
+
+///|
+/// The port's compiler-generated block types do not record one capture parameter
+/// per block parameter, so a call can pass more capture arguments than the
+/// callee's type declares. `instantiate` substitutes the ones that line up
+/// instead of failing (upstream would assert).
+test "instantiate: more capture arguments than capture parameters" {
+  let capture = @symbols.Sym::capture_param(@symbols.Name::local("cap"))
+  let f = FunctionType([], [], [], [t_region()], [t_int()])
+  let instantiated = instantiate(f, [], [wb_captures(capture)])
+  assert_true(instantiated is FunctionType(_, [], [], [_], [ValueData(_, [])]))
+}
