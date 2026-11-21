@@ -25,6 +25,12 @@ pub struct Unification {
   upper : CowMap[Array[Sym]]
   /// Subcapturing links `(lower, upper, filter)`; see `propagate`.
   links : Array[(Int32, Int32, Array[Sym])]
+  /// The variables that some link reads as its lower end. A bound of a variable
+  /// that is not in here flows nowhere, which is what keeps most bound updates
+  /// from running the propagation at all (see `propagate_lower_of`).
+  lower_ends : Map[Int32, Bool]
+  /// The variables that some link reads as its upper end.
+  upper_ends : Map[Int32, Bool]
   /// The type parameter a unification variable was instantiated for.
   var_of : Map[Int32, Sym]
   /// Capture unification variables.
@@ -39,6 +45,8 @@ pub fn Unification::Unification() -> Unification {
     lower: CowMap::new(),
     upper: CowMap::new(),
     links: [],
+    lower_ends: Map([]),
+    upper_ends: Map([]),
     var_of: Map([]),
     capt_var: Map([]),
   }
@@ -52,10 +60,14 @@ pub fn Unification::copy(self : Unification) -> Unification {
     lower: self.lower.snapshot(),
     upper: self.upper.snapshot(),
     links: self.links.copy(),
-    // `var_of`/`capt_var` are only ever *read by key* and only grow: a variable
-    // created by a rolled-back candidate is never looked up again (every fresh
-    // variable gets a fresh uid), so a snapshot can share them instead of
-    // copying two module-wide tables.
+    // `lower_ends`/`upper_ends`/`var_of`/`capt_var` are only ever *read by key*
+    // and only grow, so a snapshot can share them instead of copying four
+    // module-wide tables. A variable only a rolled-back candidate linked keeps
+    // its mark, which costs one propagation that finds nothing to do; a *missing*
+    // mark would lose a propagation, and that cannot happen while the marks and
+    // the links that need them are written together.
+    lower_ends: self.lower_ends,
+    upper_ends: self.upper_ends,
     var_of: self.var_of,
     capt_var: self.capt_var,
   }
@@ -378,6 +390,42 @@ fn Unification::link(
 ) -> Unit {
   guard lo != hi else { return }
   self.links.push((lo, hi, filter))
+  self.lower_ends.set(lo, true)
+  self.upper_ends.set(hi, true)
+}
+
+///|
+/// Adds the link and propagates it — unless neither end carries a bound *yet*,
+/// in which case the link cannot add anything now: an empty lower end has
+/// nothing to pass on, and an absent upper end has nothing to pass back. The
+/// link stays in `links`, and the bound that arrives later is what makes the
+/// propagation run (see `propagate_lower_of` / `propagate_upper_of`).
+fn Unification::link_and_propagate(
+  self : Unification,
+  lo : Int32,
+  hi : Int32,
+  filter : Array[Sym],
+) -> String? {
+  let carries = self.lower.get(lo) is Some(_) || self.upper.get(hi) is Some(_)
+  self.link(lo, hi, filter)
+  guard carries else { return None }
+  self.propagate()
+}
+
+///|
+/// Runs the propagation after `lower(uid)` was extended, unless no link reads
+/// that bound: then nothing can have flowed and the fixpoint is still the
+/// fixpoint.
+fn Unification::propagate_lower_of(self : Unification, uid : Int32) -> String? {
+  guard self.lower_ends.contains(uid) else { return None }
+  self.propagate()
+}
+
+///|
+/// The same for a bound that was just restricted in `upper`.
+fn Unification::propagate_upper_of(self : Unification, uid : Int32) -> String? {
+  guard self.upper_ends.contains(uid) else { return None }
+  self.propagate()
 }
 
 ///|
@@ -476,7 +524,7 @@ fn Unification::require_lower(
       match added_to(self.lower.get(x.uid()), bounds, []) {
         Some(lb) => {
           self.lower.set(x.uid(), lb)
-          self.propagate()
+          self.propagate_lower_of(x.uid())
         }
         // Nothing new was learnt. An absent bound and an empty one are the same
         // set everywhere (`lower_of` reads both as `[]`), so there is no state
@@ -510,11 +558,11 @@ fn Unification::require_upper(
             None
           } else {
             self.upper.set(x.uid(), up.filter(c => bounds.contains(c)))
-            self.propagate()
+            self.propagate_upper_of(x.uid())
           }
         None => {
           self.upper.set(x.uid(), bounds.to_owned())
-          self.propagate()
+          self.propagate_upper_of(x.uid())
         }
       }
     }

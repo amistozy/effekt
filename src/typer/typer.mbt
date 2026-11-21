@@ -980,8 +980,7 @@ fn Typer::without(
       @symbols.Captures::CaptureSetOf(cs.filter(c => !others.contains(c)))
     @symbols.Captures::CaptVar(x) => {
       let y = self.fresh_capt_var("without")
-      self.st.u.link(y.uid(), x.uid(), others.to_owned())
-      ignore(self.st.u.propagate())
+      ignore(self.st.u.link_and_propagate(y.uid(), x.uid(), others.to_owned()))
       @symbols.Captures::CaptVar(y)
     }
   }
@@ -1024,12 +1023,10 @@ fn Typer::require_subregion_ctx(
       if self.st.u.require_lower(ls, y) is Some(msg) {
         self.abort_issue_plain(msg)
       }
-    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptVar(y)) => {
-      self.st.u.link(x.uid(), y.uid(), [])
-      if self.st.u.propagate() is Some(msg) {
+    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptVar(y)) =>
+      if self.st.u.link_and_propagate(x.uid(), y.uid(), []) is Some(msg) {
         self.abort_issue_plain(msg)
       }
-    }
   }
 }
 
@@ -1063,12 +1060,10 @@ fn Typer::require_subregion(
       if self.st.u.require_lower(ls, y) is Some(msg) {
         self.error(span, msg)
       }
-    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptVar(y)) => {
-      self.st.u.link(x.uid(), y.uid(), [])
-      if self.st.u.propagate() is Some(msg) {
+    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptVar(y)) =>
+      if self.st.u.link_and_propagate(x.uid(), y.uid(), []) is Some(msg) {
         self.error(span, msg)
       }
-    }
   }
 }
 
