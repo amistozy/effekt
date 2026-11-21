@@ -90,7 +90,7 @@ fn Unboxer::rewrite_as_block(
     @source.TermKind::Var(id) =>
       match self.symbol_of(id.uid) {
         Some(s) =>
-          if s.is_ref_binder() || s.is_value_symbol() {
+          if @symbols.is_value_target(s) {
             self.synthesized(e.span, @source.TermKind::Unbox(e))
           } else {
             e
@@ -126,7 +126,7 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
     @source.TermKind::Var(id) =>
       match self.symbol_of(id.uid) {
         Some(s) =>
-          if s.is_ref_binder() || s.is_value_symbol() {
+          if @symbols.is_value_target(s) {
             e
           } else {
             // Upstream keeps the heuristics for a specific misunderstanding
@@ -320,7 +320,7 @@ fn Unboxer::rewrite_target(
     @source.CallTarget::IdTarget(id) =>
       match self.symbol_of(id.uid) {
         Some(s) =>
-          if s.is_ref_binder() || s.is_value_symbol() {
+          if @symbols.is_value_target(s) {
             let v = mk_term(id.span, @source.TermKind::Var(id))
             let unbox = self.visit_term(v, @source.TermKind::Unbox(v))
             // The call `f(1)` where `f` is a value: the diagnostic says that `f`
@@ -489,7 +489,7 @@ fn Unboxer::is_block_like(self : Unboxer, e : Term) -> Bool {
   match e.kind {
     @source.TermKind::Var(id) =>
       match self.symbol_of(id.uid) {
-        Some(s) => if s.is_ref_binder() { false } else { s.is_block_symbol() }
+        Some(s) => @symbols.is_block_target(s)
         None => false
       }
     @source.TermKind::Unbox(_) => true

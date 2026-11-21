@@ -542,12 +542,17 @@ pub fn lookup_terms_in_scope(
 }
 
 ///|
-/// Mutable variables are treated as values, not as blocks.
+/// Whether the term `Var(id)` is a value, not a block. Upstream
+/// `UnboxInference.isBlockLike`: a mutable variable (`var x`, `region r`) is
+/// bound by a `RefBinder`, which is a *block* symbol that behaves like a value —
+/// it holds a reference, it is not a computation.
 pub fn is_value_target(sym : Sym) -> Bool {
   sym.is_value_symbol() || sym.is_ref_binder()
 }
 
 ///|
+/// Whether the term `Var(id)` is a block (a computation), the complement of
+/// [[is_value_target]] for the term symbols.
 pub fn is_block_target(sym : Sym) -> Bool {
   sym.is_block_symbol() && !sym.is_ref_binder()
 }

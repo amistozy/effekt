@@ -258,8 +258,9 @@ pub fn Message::render(self : Message) -> String {
 }
 
 ///|
-/// The internal-error escape hatch. Mirrors `INTERNAL_ERROR` upstream.
-pub fn internal_error(msg : String) -> Unit raise EffektError {
+/// The internal-error escape hatch. Mirrors `INTERNAL_ERROR` upstream; the
+/// result type is polymorphic so that it can stand in for any expected value.
+pub fn[T] internal_error(msg : String) -> T raise EffektError {
   raise EffektError::Internal("Internal compiler error: \{msg}")
 }
 

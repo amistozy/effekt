@@ -110,7 +110,7 @@ fn capabilities_expr(ctx : Context, t : Term) -> Term? raise EffektError {
         // a field is selected, not called (upstream `case _: Field => Select(...)`)
         Some(@symbols.Sym::Field(_)) => Select(receiver, id)
         Some(sym) =>
-          if sym.is_value_symbol() || sym.is_ref_binder() {
+          if @symbols.is_value_target(sym) {
             let callee = reference_to_value(sym, ctx)
             if is_block_like(ctx, receiver) {
               Call(
@@ -229,7 +229,7 @@ fn is_block_like(ctx : Context, e : Term) -> Bool {
   match e.kind {
     Var(id) =>
       match ctx.symbol_of(id.uid) {
-        Some(sym) => sym.is_block_symbol() && !sym.is_ref_binder()
+        Some(sym) => @symbols.is_block_target(sym)
         None => false
       }
     Unbox(_) | New(_) => true
@@ -269,7 +269,7 @@ fn capabilities_def(ctx : Context, d : Def) -> Def? {
       let caps = ctx
         .bound_capabilities_of(d.uid)
         .map(cap => definition_for_capability(cap, ctx))
-      let d2 = copy_def_kind(
+      let d2 = copy_def(
         d,
         FunDef(id, tparams, vparams, bparams + caps, captures, ret, body),
         ctx,
@@ -278,13 +278,6 @@ fn capabilities_def(ctx : Context, d : Def) -> Def? {
     }
     _ => None
   }
-}
-
-///|
-fn copy_def_kind(from : Def, kind : DefKind, ctx : Context) -> Def {
-  let to = mk_def(from.span, from.info, kind)
-  ctx.copy_annotations(from.uid, to.uid)
-  to
 }
 
 ///|

@@ -1007,7 +1007,7 @@ fn Typer::report_overload_failures(
 /// The type a candidate is reported with (upstream `candidateType`): a block
 /// candidate has a function type, a value candidate the type of the value.
 fn Typer::candidate_type(self : Typer, sym : Sym) -> String {
-  if sym.is_block_symbol() && !sym.is_ref_binder() {
+  if @symbols.is_block_target(sym) {
     let tpe = self.lookup_block(sym) catch { _ => return "?" }
     "\{tpe}"
   } else {
@@ -1024,7 +1024,7 @@ fn Typer::is_block_like(self : Typer, e : Term) -> Bool {
   match e.kind {
     @source.TermKind::Var(id) =>
       match self.symbol_of_id_opt(id) {
-        Some(sym) => sym.is_block_symbol() && !sym.is_ref_binder()
+        Some(sym) => @symbols.is_block_target(sym)
         None => false
       }
     @source.TermKind::Unbox(_) | @source.TermKind::New(_) => true
@@ -1095,7 +1095,7 @@ fn Typer::check_call_to_candidate(
   bargs : ArrayView[Term],
   expected : ValueType?,
 ) -> TyRes[ValueType] raise EffektError {
-  if candidate.is_value_symbol() || candidate.is_ref_binder() {
+  if @symbols.is_value_target(candidate) {
     let callee = self.unboxed_callee(candidate, call.span)
     return self.check_call_of_expr(call, callee, targs, vargs, bargs, expected)
   }

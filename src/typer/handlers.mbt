@@ -115,7 +115,7 @@ fn Typer::check_expr_as_block_kind(
     }
     @source.TermKind::Var(id) => {
       let sym = self.symbol_of_id(id)
-      if sym.is_block_symbol() && !sym.is_ref_binder() {
+      if @symbols.is_block_target(sym) {
         let tpe = self.lookup_block(sym)
         if expected is Some(exp) {
           self.match_expected_block(tpe, exp, Some(id.span))

@@ -13,8 +13,6 @@ pub fn clause_tag(Clause) -> @symbols.Sym
 
 pub fn contify(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
-pub fn[T] internal_error(String) -> T raise @util.EffektError
-
 pub fn substitute_as_block_var(@symbols.Sym, Substitution) -> @symbols.Sym raise @util.EffektError
 
 pub fn substitute_block(Block, Substitution) -> Block raise @util.EffektError

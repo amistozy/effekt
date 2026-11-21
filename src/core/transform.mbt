@@ -732,6 +732,24 @@ fn Transformer::transform_block_param(
 }
 
 ///|
+/// A function or block literal in core form: the parameter translations and the
+/// body collection that every literal shares (upstream `transformBlockLit`).
+fn Transformer::block_lit(
+  self : Transformer,
+  tparams : ArrayView[@source.IdDef],
+  vps : ArrayView[@source.ValueParam],
+  bps : ArrayView[@source.BlockParam],
+  body : @source.Stmt,
+) -> BlockLit raise EffektError {
+  let tparams = tparams.map(p => self.sym_of_id_def(p))
+  let cparams = bps.map(b => self.block_param_capture(b))
+  let vparams = vps.map(p => self.transform_value_param(p))
+  let bparams = bps.map(p => self.transform_block_param(p))
+  let body = self.insert_bindings(() => self.transform_stmt(body))
+  BlockLit::BlockLit(tparams, cparams, vparams, bparams, body)
+}
+
+///|
 /// A typed value variable.
 fn Transformer::value_var(self : Transformer, sym : Sym) -> Expr {
   let tpe = self.value_type_of_sym(sym)
@@ -762,21 +780,8 @@ fn Transformer::transform_toplevel(
   match d.kind {
     @source.FunDef(_id, tps, vps, bps, _cpt, _ret, body) => {
       let sym = self.sym_of_def(d)
-      let tparams = tps.map(p => self.sym_of_id_def(p))
-      let cparams = bps.map(b => self.block_param_capture(b))
-      let vparams = vps.map(p => self.transform_value_param(p))
-      let bparams = bps.map(p => self.transform_block_param(p))
-      let body = self.insert_bindings(() => self.transform_stmt(body))
-      result.push(
-        CoreToplevelDef(
-          ToplevelDef(
-            sym,
-            BlockLit(
-              BlockLit::BlockLit(tparams, cparams, vparams, bparams, body),
-            ),
-          ),
-        ),
-      )
+      let lit = self.block_lit(tps, vps, bps, body)
+      result.push(CoreToplevelDef(ToplevelDef(sym, BlockLit(lit))))
     }
     @source.DataDef(_id, tparams, ctors) => {
       let datatype = self.sym_of_def(d)
@@ -1090,19 +1095,8 @@ fn Transformer::transform_stmt(
     @source.DefStmt(d, rest) =>
       match d.kind {
         @source.FunDef(_id, tps, vps, bps, _cpt, _ret, body) => {
-          let tparams = tps.map(p => self.sym_of_id_def(p))
-          let cparams = bps.map(b => self.block_param_capture(b))
-          let vparams = vps.map(p => self.transform_value_param(p))
-          let bparams = bps.map(p => self.transform_block_param(p))
-          let body = self.insert_bindings(() => self.transform_stmt(body))
-          self.emit(
-            BindingDef(
-              self.sym_of_def(d),
-              BlockLit(
-                BlockLit::BlockLit(tparams, cparams, vparams, bparams, body),
-              ),
-            ),
-          )
+          let lit = self.block_lit(tps, vps, bps, body)
+          self.emit(BindingDef(self.sym_of_def(d), BlockLit(lit)))
           self.transform_stmt(rest)
         }
         @source.ValDef(_id, _tpe, binding) => {
@@ -1369,14 +1363,8 @@ fn Transformer::transform_as_control_block(
           raise EffektError::Internal("Expected a function but got an object.")
       }
     }
-    @source.BlockLiteral(tps, vps, bps, body) => {
-      let tparams = tps.map(t => self.sym_of_id_def(t))
-      let cparams = bps.map(b => self.block_param_capture(b))
-      let vparams = vps.map(p => self.transform_value_param(p))
-      let bparams = bps.map(p => self.transform_block_param(p))
-      let body = self.insert_bindings(() => self.transform_stmt(body))
-      BlockLit(BlockLit::BlockLit(tparams, cparams, vparams, bparams, body))
-    }
+    @source.BlockLiteral(tps, vps, bps, body) =>
+      BlockLit(self.block_lit(tps, vps, bps, body))
     @source.New(_) =>
       raise EffektError::Internal(
         "Expected a function but got an object instantiation.",

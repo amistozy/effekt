@@ -46,7 +46,7 @@ pub fn hsep(ArrayView[Doc]) -> Doc
 
 pub fn[A] intercalate(ArrayView[A], ArrayView[A]) -> Array[A]
 
-pub fn internal_error(String) -> Unit raise EffektError
+pub fn[T] internal_error(String) -> T raise EffektError
 
 pub fn markdown_program(String) -> String
 

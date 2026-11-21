@@ -119,18 +119,6 @@ fn dedup_types(xs : Array[ValueType]) -> Array[ValueType] {
   out
 }
 
-///|
-/// The elements of `xs` without duplicates, keeping the first occurrence.
-fn dedup_ids(xs : Array[Sym]) -> Array[Sym] {
-  let out : Array[Sym] = []
-  for x in xs {
-    if !out.contains(x) {
-      out.push(x)
-    }
-  }
-  out
-}
-
 // ---------------------------------------------------------------------------
 // The analysis
 // ---------------------------------------------------------------------------
@@ -1737,7 +1725,7 @@ pub fn arity_raising(module : ModuleDecl) -> ModuleDecl raise EffektError {
             }
           }
         }
-        dependencies.set(id.uid(), dedup_ids(depends))
+        dependencies.set(id.uid(), @symbols.dedup_syms(depends))
       }
       _ => ()
     }

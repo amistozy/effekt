@@ -25,6 +25,7 @@ using @util {
   punctuate,
   comma,
   render_width,
+  internal_error,
 }
 
 ///|
@@ -32,13 +33,6 @@ using @symbols {type JSName, type Sym}
 
 ///|
 using @source {type LiteralValue}
-
-///|
-/// Raises an internal compiler error. The polymorphic result type lets it stand
-/// in for any expected value.
-pub fn[T] internal_error(msg : String) -> T raise EffektError {
-  raise EffektError::Internal("Internal compiler error: \{msg}")
-}
 
 ///|
 /// A fresh value symbol with the given name.

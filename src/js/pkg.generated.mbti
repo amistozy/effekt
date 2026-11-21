@@ -19,8 +19,6 @@ pub fn escape(String) -> String
 
 pub fn fresh_sym(String) -> @symbols.Sym
 
-pub fn[T] internal_error(String) -> T raise @util.EffektError
-
 pub fn js_const(@symbols.JSName, Expr) -> Stmt
 
 pub fn js_string(String) -> Expr
