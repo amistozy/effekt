@@ -74,13 +74,6 @@ pub(all) enum ErrCtx {
   Other
 }
 
-pub struct FailedCandidate {
-  sym : @symbols.Sym
-  msg : String
-  muted : Array[@util.Message]
-  undecided : Bool
-}
-
 pub(all) struct HandlerResult {
   tpe : @symbols.ValueType
   resume : @symbols.BlockType

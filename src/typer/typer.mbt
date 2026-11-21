@@ -299,13 +299,9 @@ fn[T] Typer::muted(
   self.muted_messages = []
   self.muted_infos = []
   let value = f()
-  (
-    value,
-    self.muted_error,
-    self.muted_messages.copy(),
-    self.muted_infos.copy(),
-    self.cutoff,
-  )
+  // The two buffers are handed out rather than copied: the `defer` above puts
+  // the enclosing ones back, so nothing else can reach these any more.
+  (value, self.muted_error, self.muted_messages, self.muted_infos, self.cutoff)
 }
 
 ///|

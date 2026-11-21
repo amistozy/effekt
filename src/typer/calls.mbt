@@ -476,16 +476,10 @@ fn Typer::try_candidates(
         EffektError::Internal(m) => (None, m)
       }
     })
-    let recorded = if err != "" {
-      err
-    } else {
-      muted.map(m => m.text).join("; ")
-    }
-    let final = if recorded == "" { "Type error" } else { recorded }
     match res {
       Some(r) =>
         if failed {
-          failures.push({ sym: c, msg: final, muted, undecided: cut_off, })
+          failures.push({ sym: c, error: err, muted, undecided: cut_off, })
           if alone {
             self.replay_infos(infos)
           }
@@ -496,7 +490,7 @@ fn Typer::try_candidates(
           successes.push((c, r, state, infos))
         }
       None => {
-        failures.push({ sym: c, msg: final, muted, undecided: cut_off, })
+        failures.push({ sym: c, error: err, muted, undecided: cut_off, })
         if alone {
           self.replay_infos(infos)
         }
@@ -555,6 +549,21 @@ fn candidates_in_order(candidates : ArrayView[Sym]) -> Array[Sym] {
 }
 
 ///|
+/// The candidates of one scope without the duplicates that a set-valued scope can
+/// hold, in the order their diagnostics are reported in.
+///
+/// The single-candidate scope is by far the common one — it is the plain call —
+/// and needs neither the dedup nor the sort, which would allocate two arrays and
+/// a qualified name per call site just to hand the candidate back.
+fn unique_candidates(candidates : Array[Sym]) -> Array[Sym] {
+  if candidates.length() == 1 {
+    candidates
+  } else {
+    candidates_in_order(dedup_syms(candidates))
+  }
+}
+
+///|
 /// Checks a (potentially overloaded) function call.
 fn Typer::check_overloaded_function_call(
   self : Typer,
@@ -581,7 +590,7 @@ fn Typer::check_overloaded_function_call(
   for candidates in scopes {
     // a scope is a *set* of candidates (upstream `Bindings.terms` is a Set):
     // the same symbol can be bound under several paths of the same scope
-    let unique = candidates_in_order(dedup_syms(candidates))
+    let unique = unique_candidates(candidates)
     let (successes, failures) = self.try_candidates(
       unique,
       scopes.length() == 1 && unique.length() == 1,
@@ -877,16 +886,36 @@ fn dependent_failures(
 
 ///|
 /// A candidate of an overloaded call that was tried and did not type check.
-pub struct FailedCandidate {
+priv struct FailedCandidate {
   sym : Sym
-  /// The candidate's failure, for when it reported no diagnostic of its own.
-  msg : String
+  /// The message the attempt aborted with, or `""` when it reported
+  /// diagnostics instead (see `FailedCandidate::message`).
+  error : String
   /// The diagnostics the attempt recorded.
   muted : Array[Message]
   /// The attempt's implicit search was cut off at its depth bound, so it did not
   /// fail for a reason: whether it would type check is unknown (upstream
   /// `Failure.Undecided`).
   undecided : Bool
+}
+
+///|
+/// Why the candidate failed, as text (upstream `Failure.message`): the abort
+/// message, or the diagnostics it recorded when it did not abort.
+///
+/// Built on demand: a call that resolves throws all of its failures away, and
+/// joining the diagnostics of every failed candidate was pure garbage there.
+fn FailedCandidate::message(self : FailedCandidate) -> String {
+  let recorded = if self.error != "" {
+    self.error
+  } else {
+    self.muted.map(m => m.text).join("; ")
+  }
+  if recorded == "" {
+    "Type error"
+  } else {
+    recorded
+  }
 }
 
 ///|
@@ -918,7 +947,7 @@ fn Typer::report_overload_failures(
       // the call. The first one is reported last so that the abort that stops the
       // phase carries exactly the message the boundary would otherwise repeat.
       if only.muted.is_empty() {
-        self.abort(call.span, only.msg)
+        self.abort(call.span, only.message())
       } else {
         for msg in only.muted[1:] {
           // `self.error_message`, not `self.ctx.report`: a nested call may itself
@@ -1223,7 +1252,7 @@ fn Typer::check_overloaded_method_call(
   for candidates in scopes {
     // a scope is a *set* of candidates (upstream `Bindings.terms` is a Set):
     // the same symbol can be bound under several paths of the same scope
-    let unique = candidates_in_order(dedup_syms(candidates))
+    let unique = unique_candidates(candidates)
     let (successes, failures) = self.try_candidates(
       unique,
       scopes.length() == 1 && unique.length() == 1,
