@@ -171,6 +171,31 @@ pub fn Bind::bind_block(block : Block) -> Bind[Block] {
 }
 
 ///|
+/// Binds an impure application (a call of an extern) to a fresh temporary
+/// (upstream `Bind.bind` on a block variable). The temporary keeps the original
+/// result type, i.e. the representation the extern sees.
+fn Bind::bind_app(
+  callee : BlockVar,
+  targs : ArrayView[ValueType],
+  vargs : ArrayView[Expr],
+  bargs : ArrayView[Block],
+) -> Bind[Expr] {
+  let id = Sym::tmp_value("tmp")
+  {
+    value: ValueVar(id, impure_app_type(callee, targs, bargs)),
+    bindings: [
+      BindingImpureApp(
+        id,
+        callee,
+        targs.to_owned(),
+        vargs.to_owned(),
+        bargs.to_owned(),
+      ),
+    ],
+  }
+}
+
+///|
 pub fn[S, T] Bind::traverse(
   l : ArrayView[S],
   f : (S) -> Bind[T],

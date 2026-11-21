@@ -97,10 +97,18 @@ fn middle_end(
   //     instances it generates are optimized (and dead-coded) along with
   //     everything else.
   let aggregated = @core.show_phase(aggregated)
-  // 2e. The optimizer: upstream's `Optimizer.optimize`, minus the phases that
-  //     are not ported (`LambdaSets`, `ArityRaising`, `DropBindings`).
+  // 2e. Arity raising: type-directed unboxing of records (upstream
+  //     `core.ArityRaising`, which runs after `core.Show` and before the
+  //     optimizer). Upstream runs it only when the optimizer is enabled.
+  let aggregated = if enabled {
+    @core.arity_raising(aggregated)
+  } else {
+    aggregated
+  }
+  // 2f. The optimizer: upstream's `Optimizer.optimize`, minus the phases that
+  //     are not ported (`LambdaSets`).
   let aggregated = optimize(aggregated, main_sym, enabled)
-  // 2f. Drop (inline) the unique value bindings. Upstream runs `DropBindings`
+  // 2g. Drop (inline) the unique value bindings. Upstream runs `DropBindings`
   //     after the optimizer and unconditionally — unlike `Optimizer.optimize`,
   //     it does not consult `config.optimize()` — so `--no-optimize` drops
   //     bindings as well.
@@ -158,6 +166,7 @@ fn normalize_round(
 ) -> @core.ModuleDecl raise EffektError {
   let module = @core.bind_subexpressions(module)
   let module = @core.normalize(module, roots, policy)
+
   let module = @core.deadcode(module, roots)
   let module = @core.static_resumptions(module)
   let module = @core.direct_style(module)

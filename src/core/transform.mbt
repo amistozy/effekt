@@ -463,8 +463,8 @@ fn Transformer::state_type_of(
   // instead (see `Typer::check_stmt_kind`'s `VarDef` case), so a reference binder
   // without an annotation only has that: the `State[_]` that
   // `block_type_of_sym` builds for it carries the unknown type. Fall back to the
-  // value type, otherwise every `get`/`put` of an unannotated `var` has the
-  // unknown type, which the type-directed optimizer phases then propagate.
+  // value type, otherwise the type of every `get`/`put` of an unannotated `var`
+  // would be `unknown_value_type()` — which arity raising cannot translate.
   let from_block_type = match self.block_type_of_sym(sym) {
     InterfaceType(i, args) =>
       if i.uid() == @symbols.state_effect_sym().uid() &&

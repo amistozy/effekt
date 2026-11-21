@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub fn arity_raising(ModuleDecl) -> ModuleDecl raise @util.EffektError
+
 pub fn bind_subexpressions(ModuleDecl) -> ModuleDecl raise @util.EffektError
 
 pub fn block_captures(Block) -> @symbols.Captures
