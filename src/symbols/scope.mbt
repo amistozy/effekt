@@ -616,14 +616,11 @@ pub fn Scoping::lookup_first_block_param(
   name : String,
 ) -> Array[Sym] raise EffektError {
   first(path, self.scope, b => {
-    match b.terms.get(name) {
-      // The name is not bound in this scope: keep looking in the outer ones
-      // (upstream `lookupFirstBlockParam` only stops at the innermost scope
-      // that *binds* the name, which is what makes a block parameter of an
-      // enclosing definition visible inside a nested block literal).
-      None => None
-      Some(syms) => Some(syms.filter(s => s is BlockParam(_)))
-    }
+    // The name is not bound in this scope: keep looking in the outer ones
+    // (upstream `lookupFirstBlockParam` only stops at the innermost scope that
+    // *binds* the name, which is what makes a block parameter of an enclosing
+    // definition visible inside a nested block literal).
+    b.terms.get(name).map(syms => syms.filter(s => s is BlockParam(_)))
   }).unwrap_or([])
 }
 
@@ -724,10 +721,7 @@ pub fn Scoping::path(self : Scoping) -> Array[String]? {
     match scope {
       Global(_) => Some(module_path)
       Named(name, _, outer) =>
-        match collect(outer, module_path) {
-          Some(p) => Some(p + [name])
-          None => Some([name])
-        }
+        Some(collect(outer, module_path).unwrap_or([]) + [name])
       Local(_, _, _, _) => None
     }
   }

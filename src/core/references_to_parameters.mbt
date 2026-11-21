@@ -658,14 +658,16 @@ pub fn references_to_parameters(
           let rewritten_init = rewrite.rewrite_expr(init)
           let rewritten_body = rewrite.rewrite_stmt(body)
           let uses = uses_of(ref, rewritten_body)
+          let kept = Var(ref, rewritten_init, capture, rewritten_body)
           if escapes_ref(ref, uses, rewritten_body, rewritten_body.free()) {
-            Some(Var(ref, rewritten_init, capture, rewritten_body))
+            Some(kept)
           } else {
-            match
-              eliminate(ref, rewritten_init, capture, uses, rewritten_body) {
-              Some(eliminated) => Some(eliminated)
-              None => Some(Var(ref, rewritten_init, capture, rewritten_body))
-            }
+            // The rewriter only reports whether the reference could be threaded
+            // through the parameters: the `Var` stays either way.
+            let threaded = eliminate(
+              ref, rewritten_init, capture, uses, rewritten_body,
+            )
+            Some(threaded.unwrap_or(kept))
           }
         }
         _ => None

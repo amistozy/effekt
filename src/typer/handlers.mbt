@@ -55,16 +55,12 @@ fn Typer::check_expr_as_block_kind(
   match e.kind {
     @source.TermKind::Unbox(inner) => {
       // Use `expected` to guide the inference of the boxed type.
-      let expected_tpe : ValueType? = match expected {
-        Some(t) =>
-          Some(
-            @symbols.ValueType::BoxedType(
-              t,
-              @symbols.Captures::CaptVar(self.fresh_capt_var("unbox")),
-            ),
-          )
-        None => None
-      }
+      let expected_tpe : ValueType? = expected.map(t => {
+        @symbols.ValueType::BoxedType(
+          t,
+          @symbols.Captures::CaptVar(self.fresh_capt_var("unbox")),
+        )
+      })
       let res = self.check_expr(inner, expected_tpe)
       match self.st.u.prune_value(res.tpe) {
         @symbols.ValueType::BoxedType(btpe, capt2) => {

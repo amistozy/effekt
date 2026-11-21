@@ -1221,13 +1221,10 @@ fn Normalizer::normalize_val_leaf(
                 ),
               )
             }),
-            match default {
-              Some(d) => {
-                let x = fresh_ids(ids)
-                Some(self.normalize_val(x, d, jump(k, x, tpe), inner))
-              }
-              None => None
-            },
+            default.map(d => {
+              let x = fresh_ids(ids)
+              self.normalize_val(x, d, jump(k, x, tpe), inner)
+            }),
           )
         },
         ctx,

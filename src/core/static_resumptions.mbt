@@ -1326,10 +1326,7 @@ fn reduce_rewriter(blocked : Map[Int32, Sym]) -> Rewrite {
                 None
               } else {
                 let inner = shift.with_body(rewrite.rewrite_stmt(shift.body()))
-                match reuse(inner, false) {
-                  Some(result) => Some(result)
-                  None => Some(inner.shift)
-                }
+                Some(reuse(inner, false).unwrap_or(inner.shift))
               }
             None => None
           }

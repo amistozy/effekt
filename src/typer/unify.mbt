@@ -327,6 +327,48 @@ fn captures_not_allowed(diff : Array[Sym]) -> String {
 }
 
 ///|
+/// `target ∪ (items - minus)`, or `None` when that would add nothing.
+///
+/// Both places that grow a bound need the same three things: the items a link
+/// carries are cut down by the link's filter, what is left is appended only when
+/// the target does not have it yet, and the copy of the target happens with the
+/// first item that is genuinely new. That copy matters: a propagation round
+/// visits every link and almost none of them adds a capture.
+fn added_to(
+  target : Array[Sym]?,
+  items : ArrayView[Sym],
+  minus : ArrayView[Sym],
+) -> Array[Sym]? {
+  let mut added : Array[Sym]? = None
+  for c in items {
+    if minus.contains(c) {
+      continue
+    }
+    let present = match added {
+      Some(out) => out.contains(c)
+      None =>
+        match target {
+          Some(out) => out.contains(c)
+          None => false
+        }
+    }
+    if !present {
+      let out = match added {
+        Some(out) => out
+        None =>
+          match target {
+            Some(out) => out.copy()
+            None => []
+          }
+      }
+      out.push(c)
+      added = Some(out)
+    }
+  }
+  added
+}
+
+///|
 /// Adds a subcapturing link `lo - filter <: hi`.
 fn Unification::link(
   self : Unification,
@@ -346,18 +388,9 @@ fn Unification::link(
 /// system: the invariant holds before the write, so the only pair that can have
 /// become inconsistent is the one that just changed.
 fn Unification::check_consistency(self : Unification, uid : Int32) -> String? {
-  match self.lower.get(uid) {
-    Some(lo) =>
-      match self.upper.get(uid) {
-        Some(up) =>
-          match disallowed(lo, up) {
-            Some(diff) => Some(captures_not_allowed(diff))
-            None => None
-          }
-        None => None
-      }
-    None => None
-  }
+  guard self.lower.get(uid) is Some(lo) else { return None }
+  guard self.upper.get(uid) is Some(up) else { return None }
+  disallowed(lo, up).map(captures_not_allowed)
 }
 
 ///|
@@ -377,40 +410,11 @@ fn Unification::propagate(self : Unification) -> String? {
     changed = false
     rounds += 1
     for (a, b, filter) in self.links {
-      // lower(a) - filter flows into lower(b). The lower bound of `b` is looked
-      // up once per link (and copied at most once) and written back at the end,
-      // instead of looking it up and copying it for every propagated capture.
+      // lower(a) - filter flows into lower(b)
       if self.lower.get(a) is Some(la) {
-        let existing = self.lower.get(b)
-        let mut lower_b : Array[Sym]? = None
-        for c in la {
-          if filter.contains(c) {
-            continue
-          }
-          let present = match lower_b {
-            Some(lb) => lb.contains(c)
-            None =>
-              match existing {
-                Some(lb) => lb.contains(c)
-                None => false
-              }
-          }
-          if !present {
-            let lb = match lower_b {
-              Some(lb) => lb
-              None =>
-                match existing {
-                  Some(lb) => lb.copy()
-                  None => []
-                }
-            }
-            lb.push(c)
-            lower_b = Some(lb)
-            changed = true
-          }
-        }
-        if lower_b is Some(lb) {
+        if added_to(self.lower.get(b), la, filter) is Some(lb) {
           self.lower.set(b, lb)
+          changed = true
           if violation is None {
             violation = self.check_consistency(b)
           }
@@ -460,45 +464,16 @@ fn Unification::require_lower(
   x : Sym,
 ) -> String? {
   match self.capts.get(x.uid()) {
-    Some(sol) =>
-      match disallowed(bounds, sol.to_array()) {
-        Some(diff) => Some(captures_not_allowed(diff))
-        None => None
-      }
+    Some(sol) => disallowed(bounds, sol.to_array()).map(captures_not_allowed)
     None => {
       if self.upper.get(x.uid()) is Some(up) {
-        match disallowed(bounds, up) {
-          Some(diff) => return Some(captures_not_allowed(diff))
-          None => ()
+        if disallowed(bounds, up) is Some(diff) {
+          return Some(captures_not_allowed(diff))
         }
       }
       // A bound that is already known must not restart the propagation: adding
       // nothing leaves the system as consistent as it was.
-      let existing = self.lower.get(x.uid())
-      let mut lower_x : Array[Sym]? = None
-      for c in bounds {
-        let present = match lower_x {
-          Some(lb) => lb.contains(c)
-          None =>
-            match existing {
-              Some(lb) => lb.contains(c)
-              None => false
-            }
-        }
-        if !present {
-          let lb = match lower_x {
-            Some(lb) => lb
-            None =>
-              match existing {
-                Some(lb) => lb.copy()
-                None => []
-              }
-          }
-          lb.push(c)
-          lower_x = Some(lb)
-        }
-      }
-      match lower_x {
+      match added_to(self.lower.get(x.uid()), bounds, []) {
         Some(lb) => {
           self.lower.set(x.uid(), lb)
           self.propagate()
@@ -520,16 +495,11 @@ fn Unification::require_upper(
   x : Sym,
 ) -> String? {
   match self.capts.get(x.uid()) {
-    Some(sol) =>
-      match disallowed(sol.to_array(), bounds) {
-        Some(diff) => Some(captures_not_allowed(diff))
-        None => None
-      }
+    Some(sol) => disallowed(sol.to_array(), bounds).map(captures_not_allowed)
     None => {
       if self.lower.get(x.uid()) is Some(lo) {
-        match disallowed(lo, bounds) {
-          Some(diff) => return Some(captures_not_allowed(diff))
-          None => ()
+        if disallowed(lo, bounds) is Some(diff) {
+          return Some(captures_not_allowed(diff))
         }
       }
       match self.upper.get(x.uid()) {
@@ -557,9 +527,8 @@ fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
   guard !self.capts.contains(x.uid()) else { return None }
   let bounds = self.lower_of(x.uid())
   if self.upper.get(x.uid()) is Some(up) {
-    match disallowed(bounds, up) {
-      Some(diff) => return Some(captures_not_allowed(diff))
-      None => ()
+    if disallowed(bounds, up) is Some(diff) {
+      return Some(captures_not_allowed(diff))
     }
   }
   self.capts.set(x.uid(), @symbols.Captures::CaptureSetOf(bounds))

@@ -955,10 +955,7 @@ fn MonoElaborator::stmt(
           tag: c.tag,
           body: self.block_lit(c.body, scope),
         }),
-        match default {
-          Some(s) => Some(self.stmt(s, scope))
-          None => None
-        },
+        default.map(s => self.stmt(s, scope)),
       )
     Region(body) => Region(self.block_lit(body, scope))
     Alloc(id, init, region, body) =>
@@ -2115,21 +2112,18 @@ fn mono_ground_value_type(
       Some(MonoValueData(name, out))
     }
     MonoValueBoxed(inner, captures) =>
-      match mono_ground_block_type(inner, type_binders, capture_binders) {
-        Some(ground) =>
-          if captures.all(c => {
-              match c {
-                MonoCaptureBound(level, position) =>
-                  mono_is_bound(level, position, capture_binders)
-                MonoCaptureNamed(_) => true
-              }
-            }) {
-            Some(MonoValueBoxed(ground, captures))
-          } else {
-            None
+      mono_ground_block_type(inner, type_binders, capture_binders)
+      .map(ground => MonoValueBoxed(ground, captures))
+      .filter(_ => {
+        // a box is ground only if every capture in it is bound here
+        captures.all(c => {
+          match c {
+            MonoCaptureBound(level, position) =>
+              mono_is_bound(level, position, capture_binders)
+            MonoCaptureNamed(_) => true
           }
-        None => None
-      }
+        })
+      })
   }
 }
 
@@ -3388,10 +3382,7 @@ fn mono_monomorphize_stmt(
         mono_scrutinee,
         result.map(t => mono_monomorphize_value_type(state, dctx, t)),
         mono_clauses,
-        match default {
-          Some(s) => Some(mono_monomorphize_stmt(state, dctx, s))
-          None => None
-        },
+        default.map(s => mono_monomorphize_stmt(state, dctx, s)),
       )
     }
     Get(id, tpe, ref, capt, body) =>
