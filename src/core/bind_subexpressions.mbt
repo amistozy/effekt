@@ -50,14 +50,7 @@ fn Aliases::alias(self : Aliases, from : Sym, to : Sym) -> Aliases {
 /// Names every subexpression and removes aliasing, see the note at the top.
 pub fn bind_subexpressions(module : ModuleDecl) -> ModuleDecl raise EffektError {
   let env = Aliases::empty()
-  ModuleDecl(
-    module.path,
-    module.includes,
-    module.declarations,
-    module.externs,
-    transform_toplevels(module.definitions, env),
-    module.exports,
-  )
+  module.with_definitions(transform_toplevels(module.definitions, env))
 }
 
 ///|

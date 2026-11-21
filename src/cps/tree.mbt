@@ -129,6 +129,32 @@ pub fn BlockLit::BlockLit(
   { vparams, bparams, ks, k, body, }
 }
 
+///|
+/// The same literal with a different body: a contification pass rewrites inside
+/// the body and keeps the parameters and both continuations.
+fn BlockLit::with_body(self : BlockLit, body : Stmt) -> BlockLit {
+  {
+    vparams: self.vparams,
+    bparams: self.bparams,
+    ks: self.ks,
+    k: self.k,
+    body,
+  }
+}
+
+///|
+/// The same operation with a different body.
+fn Operation::with_body(self : Operation, body : Stmt) -> Operation {
+  {
+    name: self.name,
+    vparams: self.vparams,
+    bparams: self.bparams,
+    ks: self.ks,
+    k: self.k,
+    body,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Statements
 // ---------------------------------------------------------------------------
@@ -979,19 +1005,13 @@ pub fn substitute_block_lit(
   b : BlockLit,
   subst : Substitution,
 ) -> BlockLit raise EffektError {
-  BlockLit::BlockLit(
-    b.vparams,
-    b.bparams,
-    b.ks,
-    b.k,
-    substitute_stmt(
-      b.body,
-      subst
-      .shadow_params(b.vparams, b.bparams)
-      .shadow_metaconts([b.ks])
-      .shadow_conts([b.k]),
-    ),
-  )
+  // The parameters (and both continuations) shadow the substitution inside the
+  // body, so they stay as they are.
+  let shadowed = subst
+    .shadow_params(b.vparams, b.bparams)
+    .shadow_metaconts([b.ks])
+    .shadow_conts([b.k])
+  b.with_body(substitute_stmt(b.body, shadowed))
 }
 
 ///|
@@ -1139,20 +1159,11 @@ pub fn substitute_operation(
   op : Operation,
   subst : Substitution,
 ) -> Operation raise EffektError {
-  Operation(
-    op.name,
-    op.vparams,
-    op.bparams,
-    op.ks,
-    op.k,
-    substitute_stmt(
-      op.body,
-      subst
-      .shadow_params(op.vparams, op.bparams)
-      .shadow_metaconts([op.ks])
-      .shadow_conts([op.k]),
-    ),
-  )
+  let shadowed = subst
+    .shadow_params(op.vparams, op.bparams)
+    .shadow_metaconts([op.ks])
+    .shadow_conts([op.k])
+  op.with_body(substitute_stmt(op.body, shadowed))
 }
 
 ///|

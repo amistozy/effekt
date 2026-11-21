@@ -75,6 +75,23 @@ pub fn ModuleDecl::ModuleDecl(
   { path, includes, declarations, externs, definitions, exports, }
 }
 
+///|
+/// The same module with other definitions: what a pass that only rewrites the
+/// definitions returns.
+fn ModuleDecl::with_definitions(
+  self : ModuleDecl,
+  definitions : Array[Toplevel],
+) -> ModuleDecl {
+  {
+    path: self.path,
+    includes: self.includes,
+    declarations: self.declarations,
+    externs: self.externs,
+    definitions,
+    exports: self.exports,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Toplevel data and interface declarations
 // ---------------------------------------------------------------------------
@@ -282,6 +299,47 @@ pub fn BlockLit::BlockLit(
   body : Stmt,
 ) -> BlockLit {
   { tparams, cparams, vparams, bparams, body, }
+}
+
+///|
+/// The same literal with a different body. Every pass that only rewrites *inside*
+/// a literal says which of the five fields it changes instead of spelling out the
+/// four parameter lists it keeps.
+fn BlockLit::with_body(self : BlockLit, body : Stmt) -> BlockLit {
+  {
+    tparams: self.tparams,
+    cparams: self.cparams,
+    vparams: self.vparams,
+    bparams: self.bparams,
+    body,
+  }
+}
+
+///|
+/// The literal an operation denotes: the two structs only differ in the
+/// operation's name, and the normalizer needs an operation as a `BlockLit` both
+/// when it lifts one into a method and when it selects one by name.
+fn Operation::to_block_lit(self : Operation) -> BlockLit {
+  {
+    tparams: self.tparams,
+    cparams: self.cparams,
+    vparams: self.vparams,
+    bparams: self.bparams,
+    body: self.body,
+  }
+}
+
+///|
+/// The same operation with a different body.
+fn Operation::with_body(self : Operation, body : Stmt) -> Operation {
+  {
+    name: self.name,
+    tparams: self.tparams,
+    cparams: self.cparams,
+    vparams: self.vparams,
+    bparams: self.bparams,
+    body,
+  }
 }
 
 ///|

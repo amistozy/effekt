@@ -793,14 +793,7 @@ pub fn show_phase(module : ModuleDecl) -> ModuleDecl raise EffektError {
   let dctx = DeclarationContext(module.declarations, module.externs)
   let definitions = module.definitions.map(d => ctx.transform_toplevel(dctx, d))
   definitions.append(ctx.all_show_defs())
-  ModuleDecl(
-    module.path,
-    module.includes,
-    module.declarations,
-    module.externs,
-    definitions,
-    module.exports,
-  )
+  module.with_definitions(definitions)
 }
 
 ///|
@@ -853,14 +846,7 @@ fn ShowContext::transform_operation(
   let body = self.without_bindings(() => {
     self.transform_stmt(dctx, operation.body)
   })
-  Operation(
-    operation.name,
-    operation.tparams,
-    operation.cparams,
-    operation.vparams,
-    operation.bparams,
-    body,
-  )
+  operation.with_body(body)
 }
 
 ///|
@@ -870,7 +856,7 @@ fn ShowContext::transform_block_lit(
   lit : BlockLit,
 ) -> BlockLit raise EffektError {
   let body = self.without_bindings(() => self.transform_stmt(dctx, lit.body))
-  BlockLit::BlockLit(lit.tparams, lit.cparams, lit.vparams, lit.bparams, body)
+  lit.with_body(body)
 }
 
 ///|

@@ -215,14 +215,7 @@ pub fn normalize(
       }
     }
   }
-  ModuleDecl(
-    module.path,
-    module.includes,
-    module.declarations,
-    module.externs,
-    definitions,
-    module.exports,
-  )
+  module.with_definitions(definitions)
 }
 
 // ---------------------------------------------------------------------------
@@ -1134,18 +1127,7 @@ fn Normalizer::normalize_val_leaf(
       Match(
         sc,
         result_type,
-        [
-          Clause(
-            clause.tag,
-            BlockLit::BlockLit(
-              clause.body.tparams,
-              clause.body.cparams,
-              clause.body.vparams,
-              clause.body.bparams,
-              inner,
-            ),
-          ),
-        ],
+        [Clause(clause.tag, clause.body.with_body(inner))],
         None,
       )
     }
@@ -1210,16 +1192,7 @@ fn Normalizer::normalize_val_leaf(
                 jump(k, x, tpe),
                 inner,
               )
-              Clause(
-                clause.tag,
-                BlockLit::BlockLit(
-                  clause.body.tparams,
-                  clause.body.cparams,
-                  clause.body.vparams,
-                  clause.body.bparams,
-                  normalized,
-                ),
-              )
+              Clause(clause.tag, clause.body.with_body(normalized))
             }),
             default.map(d => {
               let x = fresh_ids(ids)
@@ -1285,13 +1258,7 @@ fn Normalizer::rewrite_block_lit(
   lit : BlockLit,
   ctx : NormCtx,
 ) -> BlockLit raise EffektError {
-  BlockLit::BlockLit(
-    lit.tparams,
-    lit.cparams,
-    lit.vparams,
-    lit.bparams,
-    self.rewrite_stmt(lit.body, ctx),
-  )
+  lit.with_body(self.rewrite_stmt(lit.body, ctx))
 }
 
 ///|
@@ -1405,13 +1372,7 @@ fn Normalizer::lift(
   operation : Operation,
   interface_id : Sym,
 ) -> (BlockVar, BlockLit, Operation) raise EffektError {
-  let literal = BlockLit::BlockLit(
-    operation.tparams,
-    operation.cparams,
-    operation.vparams,
-    operation.bparams,
-    operation.body,
-  )
+  let literal = operation.to_block_lit()
   let method = BlockVar::BlockVar(
     Sym::id(operation.name.name()),
     literal.infer_type(),
@@ -1435,14 +1396,7 @@ fn Normalizer::forward(
     operation.vparams.map(p => ValueVar(p.id, p.tpe)),
     operation.bparams.map(p => BlockVar(BlockVar::BlockVar(p.id, p.tpe, p.capt))),
   )
-  let forwarding = Operation(
-    operation.name,
-    operation.tparams,
-    operation.cparams,
-    operation.vparams,
-    operation.bparams,
-    body,
-  )
+  let forwarding = operation.with_body(body)
   let renamer = Renamer()
   let renamed = renamer.rewrite_operation(forwarding)
   self.copy_usage(renamer.renamed)
@@ -1458,15 +1412,7 @@ fn Normalizer::select_operation(
 ) -> BlockLit? {
   for op in implementation.operations {
     if op.name == method {
-      return Some(
-        BlockLit::BlockLit(
-          op.tparams,
-          op.cparams,
-          op.vparams,
-          op.bparams,
-          op.body,
-        ),
-      )
+      return Some(op.to_block_lit())
     }
   }
   None

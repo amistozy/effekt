@@ -360,13 +360,7 @@ fn StaticArguments::rewrite_block_lit(
   self : StaticArguments,
   lit : BlockLit,
 ) -> BlockLit raise EffektError {
-  BlockLit::BlockLit(
-    lit.tparams,
-    lit.cparams,
-    lit.vparams,
-    lit.bparams,
-    self.rewrite_stmt(lit.body),
-  )
+  lit.with_body(self.rewrite_stmt(lit.body))
 }
 
 ///|

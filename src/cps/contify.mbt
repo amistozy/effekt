@@ -270,16 +270,7 @@ fn contify_in_stmt(id : Sym, s : Stmt) -> Stmt {
 fn contify_in_block(id : Sym, b : Block) -> Block {
   match b {
     BlockVar(_) => b
-    BlockLit(lit) =>
-      BlockLit(
-        BlockLit::BlockLit(
-          lit.vparams,
-          lit.bparams,
-          lit.ks,
-          lit.k,
-          contify_in_stmt(id, lit.body),
-        ),
-      )
+    BlockLit(lit) => BlockLit(lit.with_body(contify_in_stmt(id, lit.body)))
     Unbox(pure) => Unbox(contify_in_expr(id, pure))
     New(implementation) => New(contify_in_impl(id, implementation))
   }
@@ -287,29 +278,14 @@ fn contify_in_block(id : Sym, b : Block) -> Block {
 
 ///|
 fn contify_in_block_lit(id : Sym, b : BlockLit) -> BlockLit {
-  BlockLit::BlockLit(
-    b.vparams,
-    b.bparams,
-    b.ks,
-    b.k,
-    contify_in_stmt(id, b.body),
-  )
+  b.with_body(contify_in_stmt(id, b.body))
 }
 
 ///|
 fn contify_in_impl(id : Sym, implementation : Implementation) -> Implementation {
   let operations : Array[Operation] = []
   for op in implementation.operations {
-    operations.push(
-      Operation(
-        op.name,
-        op.vparams,
-        op.bparams,
-        op.ks,
-        op.k,
-        contify_in_stmt(id, op.body),
-      ),
-    )
+    operations.push(op.with_body(contify_in_stmt(id, op.body)))
   }
   Implementation(implementation.interface, operations)
 }
@@ -394,30 +370,14 @@ fn rewrite_stmt(s : Stmt) -> Stmt raise EffektError {
               } else {
                 LetDef(
                   id,
-                  BlockLit(
-                    BlockLit::BlockLit(
-                      lit.vparams,
-                      lit.bparams,
-                      lit.ks,
-                      lit.k,
-                      rewritten_body,
-                    ),
-                  ),
+                  BlockLit(lit.with_body(rewritten_body)),
                   rewritten_rest,
                 )
               }
             _ =>
               LetDef(
                 id,
-                BlockLit(
-                  BlockLit::BlockLit(
-                    lit.vparams,
-                    lit.bparams,
-                    lit.ks,
-                    lit.k,
-                    rewritten_body,
-                  ),
-                ),
+                BlockLit(lit.with_body(rewritten_body)),
                 rewritten_rest,
               )
           }
@@ -503,16 +463,7 @@ fn rewrite_expr(e : Expr) -> Expr raise EffektError {
 fn rewrite_block(b : Block) -> Block raise EffektError {
   match b {
     BlockVar(_) => b
-    BlockLit(lit) =>
-      BlockLit(
-        BlockLit::BlockLit(
-          lit.vparams,
-          lit.bparams,
-          lit.ks,
-          lit.k,
-          rewrite_stmt(lit.body),
-        ),
-      )
+    BlockLit(lit) => BlockLit(lit.with_body(rewrite_stmt(lit.body)))
     Unbox(pure) => Unbox(rewrite_expr(pure))
     New(implementation) => New(rewrite_impl(implementation))
   }
@@ -520,7 +471,7 @@ fn rewrite_block(b : Block) -> Block raise EffektError {
 
 ///|
 fn rewrite_block_lit(b : BlockLit) -> BlockLit raise EffektError {
-  BlockLit::BlockLit(b.vparams, b.bparams, b.ks, b.k, rewrite_stmt(b.body))
+  b.with_body(rewrite_stmt(b.body))
 }
 
 ///|
@@ -529,16 +480,7 @@ fn rewrite_impl(
 ) -> Implementation raise EffektError {
   let operations : Array[Operation] = []
   for op in implementation.operations {
-    operations.push(
-      Operation(
-        op.name,
-        op.vparams,
-        op.bparams,
-        op.ks,
-        op.k,
-        rewrite_stmt(op.body),
-      ),
-    )
+    operations.push(op.with_body(rewrite_stmt(op.body)))
   }
   Implementation(implementation.interface, operations)
 }
