@@ -458,22 +458,44 @@ fn Transformer::state_type_of(
   self : Transformer,
   sym : Sym,
 ) -> ValueType raise EffektError {
-  let tpe = self.block_type_of_sym(sym)
-  match tpe {
+  // Upstream's typer binds `State[S]` as the *block* type of a reference binder
+  // and `stateTypeOf` extracts `S`. This port's typer binds the value type `S`
+  // instead (see `Typer::check_stmt_kind`'s `VarDef` case), so a reference binder
+  // without an annotation only has that: the `State[_]` that
+  // `block_type_of_sym` builds for it carries the unknown type. Fall back to the
+  // value type, otherwise every `get`/`put` of an unannotated `var` has the
+  // unknown type, which the type-directed optimizer phases then propagate.
+  let from_block_type = match self.block_type_of_sym(sym) {
     InterfaceType(i, args) =>
-      if i.uid() == @symbols.state_effect_sym().uid() && args.length() == 1 {
-        args[0]
+      if i.uid() == @symbols.state_effect_sym().uid() &&
+        args.length() == 1 &&
+        !is_unknown_value_type(args[0]) {
+        Some(args[0])
       } else {
-        raise EffektError::Internal(
-          "Expected the builtin mutable state `Ref[S]` for `\{sym.name().name}` (a " +
-          "\{sym_kind(sym)}), but the block type is \{show_core_block_type(tpe)}.",
-        )
+        None
       }
-    _ =>
-      raise EffektError::Internal(
-        "Expected the builtin mutable state `Ref[S]` for `\{sym.name().name}` (a " +
-        "\{sym_kind(sym)}), but the block type is \{show_core_block_type(tpe)}.",
-      )
+    _ => None
+  }
+  match from_block_type {
+    Some(t) => t
+    None =>
+      match sym {
+        VarBinder(_) | RegBinder(_) => {
+          let tpe = self.value_type_of_sym(sym)
+          if !is_unknown_value_type(tpe) {
+            return tpe
+          }
+          raise EffektError::Internal(
+            "Expected the builtin mutable state `Ref[S]` for `\{sym.name().name}` (a " +
+            "\{sym_kind(sym)}), but neither the block type nor the value type is known.",
+          )
+        }
+        _ =>
+          raise EffektError::Internal(
+            "Expected the builtin mutable state `Ref[S]` for `\{sym.name().name}` (a " +
+            "\{sym_kind(sym)}), but the block type is \{show_core_block_type(self.block_type_of_sym(sym))}.",
+          )
+      }
   }
 }
 
