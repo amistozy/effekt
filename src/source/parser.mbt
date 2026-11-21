@@ -3920,13 +3920,19 @@ fn Parser::value_types(self : Parser) -> Many[TypeTree] raise EffektError {
 // ---------------------------------------------------------------------------
 
 ///|
-fn Parser::parse_program(self : Parser) -> ModuleDecl? raise EffektError {
+/// Runs `parse` as an entry point and turns its outcome into a result: the
+/// recoverable diagnostics decide between `Some` and `None`, and a fatal error is
+/// reported at the position where the parser gave up.
+fn[T] Parser::entry_point(
+  self : Parser,
+  parse : () -> T raise EffektError,
+) -> T? raise EffektError {
   try {
-    let decl = self.program()
+    let value = parse()
     self.report_recoverable_diagnostics()
     // Don't fret unless we had a recoverable error
     if self.diagnostics.all(d => d.kind != Error) {
-      Some(decl)
+      Some(value)
     } else {
       None
     }
@@ -3943,10 +3949,15 @@ fn Parser::parse_program(self : Parser) -> ModuleDecl? raise EffektError {
 }
 
 ///|
+fn Parser::parse_program(self : Parser) -> ModuleDecl? raise EffektError {
+  self.entry_point(() => self.program())
+}
+
+///|
 /// Parses a single expression (used by the REPL and by tests).
 fn Parser::parse_term_entry(self : Parser) -> Term? raise EffektError {
-  try {
-    let term = self.nonterminal(() => {
+  self.entry_point(() => {
+    self.nonterminal(() => {
       self.spaces()
       let t = self.expr()
       if self.peek(TEOF) {
@@ -3955,21 +3966,7 @@ fn Parser::parse_term_entry(self : Parser) -> Term? raise EffektError {
         self.fail("Unexpected item")
       }
     })
-    self.report_recoverable_diagnostics()
-    if self.diagnostics.all(d => d.kind != Error) {
-      Some(term)
-    } else {
-      None
-    }
-  } catch {
-    Fatal(msg) => {
-      self.report_recoverable_diagnostics()
-      let pos = self.fail_position
-      self.report(msg, [], pos, pos, Error)
-      None
-    }
-    Internal(m) => raise EffektError::Internal(m)
-  }
+  })
 }
 
 ///|

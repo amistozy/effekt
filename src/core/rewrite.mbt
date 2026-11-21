@@ -68,42 +68,12 @@ fn Rewrite::rewrite_captures(self : Rewrite, capt : Captures) -> Captures {
 
 ///|
 fn Rewrite::rewrite_value_type(self : Rewrite, tpe : ValueType) -> ValueType {
-  match tpe {
-    ValueVar(sym) => ValueVar(self.rewrite_id(sym))
-    ValueData(sym, targs) =>
-      ValueData(
-        self.rewrite_id(sym),
-        targs.map(t => self.rewrite_value_type(t)),
-      )
-    ValueBoxed(block, capt) =>
-      ValueBoxed(self.rewrite_block_type(block), self.rewrite_captures(capt))
-  }
+  rewrite_type(tpe, self)
 }
 
 ///|
 fn Rewrite::rewrite_block_type(self : Rewrite, tpe : BlockType) -> BlockType {
-  match tpe {
-    FunctionType(tparams, cparams, vparams, bparams, result) =>
-      FunctionType(
-        tparams.map(t => self.rewrite_id(t)),
-        cparams.map(c => self.rewrite_captures(c)),
-        vparams.map(t => self.rewrite_value_type(t)),
-        bparams.map(t => self.rewrite_block_type(t)),
-        result.map(t => self.rewrite_value_type(t)),
-      )
-    InterfaceType(sym, targs) =>
-      InterfaceType(
-        self.rewrite_id(sym),
-        targs.map(t => self.rewrite_value_type(t)),
-      )
-    PromptType(answer) =>
-      PromptType(answer.map(t => self.rewrite_value_type(t)))
-    ResumeType(result, answer) =>
-      ResumeType(
-        result.map(t => self.rewrite_value_type(t)),
-        answer.map(t => self.rewrite_value_type(t)),
-      )
-  }
+  rewrite_block_type(tpe, self)
 }
 
 // ---------------------------------------------------------------------------

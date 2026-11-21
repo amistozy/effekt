@@ -288,6 +288,22 @@ fn Typer::escaping_captures(
 }
 
 ///|
+/// The message for captures that escape a binder through a type: one capture is
+/// named, several are shown as the set they form (upstream's wording differs
+/// only in the plural).
+fn escaping_captures_message(
+  escaping : Array[Sym],
+  tpe : ValueType,
+  detail : String,
+) -> String {
+  if escaping.length() == 1 {
+    "Capture \{escaping[0].name().name} escapes through type \{tpe}\{detail}."
+  } else {
+    "Captures \{@symbols.Captures::CaptureSetOf(escaping)} escape through type \{tpe}\{detail}."
+  }
+}
+
+///|
 /// Reports the captures of `tpe` that are not in `scope` (upstream
 /// `Wellformedness.wellformed`).
 fn Typer::wf_check(
@@ -300,12 +316,7 @@ fn Typer::wf_check(
   guard !self.wf_aborted else { return }
   let escaping = self.escaping_captures(tpe, scope)
   guard !escaping.is_empty() else { return }
-  let message = if escaping.length() == 1 {
-    "Capture \{escaping[0].name().name} escapes through type \{tpe}\{detail}."
-  } else {
-    "Captures \{@symbols.Captures::CaptureSetOf(escaping)} escape through type \{tpe}\{detail}."
-  }
-  self.error(span, message)
+  self.error(span, escaping_captures_message(escaping, tpe, detail))
   self.wf_aborted = true
 }
 
@@ -419,12 +430,12 @@ fn Typer::wf_check_handled(
       "The return type \{tpe} of the handled statement is not allowed to refer to any of the bound capabilities, but mentions: \{@symbols.Captures::CaptureSetOf(escaping)}.",
     )
   } else {
-    let message = if escaping.length() == 1 {
-      "Capture \{escaping[0].name().name} escapes through type \{tpe} inferred as return type of the handled statement."
-    } else {
-      "Captures \{@symbols.Captures::CaptureSetOf(escaping)} escape through type \{tpe} inferred as return type of the handled statement."
-    }
-    self.error(span, message)
+    self.error(
+      span,
+      escaping_captures_message(
+        escaping, tpe, " inferred as return type of the handled statement",
+      ),
+    )
   }
   self.wf_aborted = true
 }

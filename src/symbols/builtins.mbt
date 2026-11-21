@@ -362,44 +362,11 @@ pub fn t_state_extract(s : BlockType) -> ValueType raise EffektError {
 }
 
 ///|
-/// The built-in map of names visible in every module.
-///
-/// Like upstream's `builtins.rootBindings`, this does *not* contain the core
-/// `Ref` interface: `Ref` is a core builtin only (see `core_builtins`), so that
-/// a program can define and import its own value type `Ref` (the standard
-/// library's `ref` module does exactly that).
-pub fn root_bindings() -> Bindings {
-  let types : Map[String, Sym] = {
-    "Unit": unit_symbol,
-    "Bool": boolean_symbol,
-    "Int": int_symbol,
-    "Double": double_symbol,
-    "String": string_symbol,
-    "Char": char_symbol,
-    "Byte": byte_symbol,
-    "Any": top_symbol,
-    "Nothing": bottom_symbol,
-    "IO": io_symbol,
-    "Region": region_symbol,
-  }
-  let captures : Map[String, Sym] = {
-    "io": io_capture(),
-    "async": async_capture(),
-    "global": global_capture(),
-  }
-  let inner : Bindings = {
-    terms: Map([]),
-    types,
-    captures,
-    namespaces: Map([]),
-  }
-  let namespaces : Map[String, Bindings] = { "effekt": inner }
-  { terms: Map([]), types, captures, namespaces, }
-}
-
-///|
-/// The names that are also available at the core level.
-fn core_builtins() -> Map[String, Sym] {
+/// The value types and effects every module sees by name. These are exactly the
+/// names a *core* program may use (see `core_builtins`), and sharing the two
+/// tables below is what keeps the two levels in step: the core level adds `Ref`
+/// and nothing else.
+fn builtin_types() -> Map[String, Sym] {
   {
     "Unit": unit_symbol,
     "Bool": boolean_symbol,
@@ -412,11 +379,42 @@ fn core_builtins() -> Map[String, Sym] {
     "Nothing": bottom_symbol,
     "IO": io_symbol,
     "Region": region_symbol,
-    "io": io_capture(),
-    "async": async_capture(),
-    "global": global_capture(),
-    "Ref": state_interface,
   }
+}
+
+///|
+fn builtin_captures() -> Map[String, Sym] {
+  { "io": io_capture(), "async": async_capture(), "global": global_capture() }
+}
+
+///|
+/// The built-in map of names visible in every module.
+///
+/// Like upstream's `builtins.rootBindings`, this does *not* contain the core
+/// `Ref` interface: `Ref` is a core builtin only (see `core_builtins`), so that
+/// a program can define and import its own value type `Ref` (the standard
+/// library's `ref` module does exactly that).
+pub fn root_bindings() -> Bindings {
+  let types = builtin_types()
+  let captures = builtin_captures()
+  let inner : Bindings = {
+    terms: Map([]),
+    types,
+    captures,
+    namespaces: Map([]),
+  }
+  let namespaces : Map[String, Bindings] = { "effekt": inner }
+  { terms: Map([]), types, captures, namespaces, }
+}
+
+///|
+/// The names that are also available at the core level: the builtins above plus
+/// `Ref`, which only exists once the program is lowered.
+fn core_builtins() -> Map[String, Sym] {
+  let out = builtin_types()
+  out.merge_in_place(builtin_captures())
+  out.set("Ref", state_interface)
+  out
 }
 
 ///|

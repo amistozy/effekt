@@ -303,42 +303,12 @@ fn Renamer::rewrite_expr(self : Renamer, e : Expr) -> Expr {
 
 ///|
 fn Renamer::rewrite_value_type(self : Renamer, tpe : ValueType) -> ValueType {
-  match tpe {
-    ValueVar(name) => ValueVar(self.rewrite_id(name))
-    ValueData(name, targs) =>
-      ValueData(
-        self.rewrite_id(name),
-        targs.map(t => self.rewrite_value_type(t)),
-      )
-    ValueBoxed(block, capt) =>
-      ValueBoxed(self.rewrite_block_type(block), self.rewrite_captures(capt))
-  }
+  rewrite_type(tpe, self)
 }
 
 ///|
 fn Renamer::rewrite_block_type(self : Renamer, tpe : BlockType) -> BlockType {
-  match tpe {
-    FunctionType(tparams, cparams, vparams, bparams, result) =>
-      FunctionType(
-        tparams.map(id => self.rewrite_id(id)),
-        cparams.map(c => self.rewrite_captures(c)),
-        vparams.map(t => self.rewrite_value_type(t)),
-        bparams.map(t => self.rewrite_block_type(t)),
-        result.map(t => self.rewrite_value_type(t)),
-      )
-    InterfaceType(name, targs) =>
-      InterfaceType(
-        self.rewrite_id(name),
-        targs.map(t => self.rewrite_value_type(t)),
-      )
-    PromptType(answer) =>
-      PromptType(answer.map(t => self.rewrite_value_type(t)))
-    ResumeType(result, answer) =>
-      ResumeType(
-        result.map(t => self.rewrite_value_type(t)),
-        answer.map(t => self.rewrite_value_type(t)),
-      )
-  }
+  rewrite_block_type(tpe, self)
 }
 
 ///|
