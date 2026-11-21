@@ -23,16 +23,17 @@
 //   * `covers` and `selecting` need the scrutinee's data type, so a `match`
 //     keeps its default and its clauses are normalized without knowing which
 //     constructor the scrutinee has.
-//   * the `Shift` rule of `normalizeVal` (drop the `val`, retype the resumption
-//     to what the enclosing statement answers with) is not ported: its guard asks
-//     whether the continuation is free in the shifted body, and computing that
-//     set at the bottom of a long spine costs more JavaScript stack than the
-//     normalizer has (see `normalize_let`).
 //
 // The rewrites that need to know the type of a statement take it from
 // `Type.inferType` (`type.mbt`, upstream `inferType`), with the syntactic hint of
 // `stmt_type_hint` as the fallback for the trees where the port leaves the
 // annotation open (the pattern compiler's join points, for instance).
+//
+// The two spine-walking rewrites (`normalize_let` and the "commute `val` and
+// bindings" cases of `normalizeVal`) peel the spine iteratively instead of
+// recursing. The trees of the larger benchmarks are thousands of bindings deep,
+// and JavaScript's default stack (984 KB) is an order of magnitude smaller than
+// the JVM's: `benchmarks/nofib/boyer` is what made the difference visible.
 
 // ---------------------------------------------------------------------------
 // The inlining policy (InliningPolicy.scala)
@@ -655,8 +656,13 @@ fn Normalizer::rewrite_stmt(
           )
         }
       }
-    Let(id, expr, body) =>
-      self.normalize_let([(id, self.active_expr(expr, ctx))], body, ctx)
+    // The single-binding case of `normalize_let`, inlined: it is the most common
+    // node of a long spine, and going through the fold costs three more frames
+    // per binding (see `normalize_let`).
+    Let(id, expr, body) => {
+      let bound = self.active_expr(expr, ctx)
+      Let(id, bound, self.rewrite_stmt(body, ctx.with_expr(id, bound)))
+    }
     ImpureApp(id, callee, targs, vargs, bargs, body) =>
       ImpureApp(
         id,
@@ -983,11 +989,131 @@ fn jump(k : BlockVar, ids : ArrayView[Sym], tpe : ArrayView[ValueType]) -> Stmt 
 }
 
 ///|
+/// A statement on the spine of a `val` that `normalizeVal` commutes it through
+/// (upstream's "Commute val and bindings" cases). Kept as data rather than as a
+/// recursive call, so that a long spine does not grow the normalizer's stack — a
+/// `val` whose binding is a chain of thousands of `let`s is what
+/// `benchmarks/nofib/boyer` looks like.
+priv enum ValSpine {
+  ValSpineDef(Sym, Block)
+  ValSpineLet(Sym, Expr)
+  ValSpineImpureApp(Sym, BlockVar, Array[ValueType], Array[Expr], Array[Block])
+  ValSpineVal(Array[Sym], Stmt)
+  ValSpineAlloc(Sym, Expr, Sym)
+  ValSpineGet(Sym, ValueType, Sym, Captures)
+  ValSpinePut(Sym, Captures, Expr)
+}
+
+///|
+fn ValSpine::wrap(self : ValSpine, rest : Stmt) -> Stmt {
+  match self {
+    ValSpineDef(id, block) => Def(id, block, rest)
+    ValSpineLet(id, expr) => Let(id, expr, rest)
+    ValSpineImpureApp(id, callee, targs, vargs, bargs) =>
+      ImpureApp(id, callee, targs, vargs, bargs, rest)
+    ValSpineVal(ids, binding) => Val(ids, binding, rest)
+    ValSpineAlloc(id, init, region) => Alloc(id, init, region, rest)
+    ValSpineGet(id, tpe, ref, capt) => Get(id, tpe, ref, capt, rest)
+    ValSpinePut(ref, capt, value) => Put(ref, capt, value, rest)
+  }
+}
+
+///|
+/// Upstream's guard on the `Shift` case of `normalizeVal`: the continuation is a
+/// resumption and the shifted body does not use it, so the `val` is dropped.
+fn shift_commutes(k : BlockParam, body : Stmt) -> Bool {
+  match k.tpe {
+    ResumeType(_, _) => !body.free().contains(k.id)
+    _ => false
+  }
+}
+
+///|
+/// The "from" and "to" types of a resumption. Only called on a type the caller
+/// has already checked to be a `ResumeType`.
+fn resume_type(tpe : BlockType) -> (Array[ValueType], Array[ValueType]) {
+  match tpe {
+    ResumeType(result, answer) => (result, answer)
+    _ => ([], [])
+  }
+}
+
+///|
 /// `val ids = binding; body`, where `binding` is already in normal form.
 ///
 /// Commutes the bindings on the spine of `binding` and normalizes `body` exactly
-/// once.
+/// once. The spine is peeled iteratively (see [[ValSpine]]) and only the leaf is
+/// handled by [[Normalizer::normalize_val_leaf]].
 fn Normalizer::normalize_val(
+  self : Normalizer,
+  ids : Array[Sym],
+  binding : Stmt,
+  body : Stmt,
+  ctx : NormCtx,
+) -> Stmt raise EffektError {
+  // [[ val x: A = shift(p) { {k: A => R} => body2 }; body: B ]]
+  //   = shift(p) { {k: >>>B<<< => R} => body2 }
+  //
+  // The `val` is dropped (the shift never returns to it), so the continuation
+  // answers with the type the *enclosing* statement expects.
+  match binding {
+    Shift(prompt, k, body2) if shift_commutes(k, body2) => {
+      let (result0, answer) = resume_type(k.tpe)
+      let result = body.infer_type() catch { _ => result0 }
+      return Shift(
+        prompt,
+        BlockParam(k.id, ResumeType(result, answer), k.capt),
+        body2,
+      )
+    }
+    _ => ()
+  }
+  let spine : Array[ValSpine] = []
+  let mut current = binding
+  let mut local = ctx
+  let mut peel = true
+  while peel {
+    match current {
+      Def(id, block, rest) => {
+        spine.push(ValSpineDef(id, block))
+        local = local.with_block(id, block)
+        current = rest
+      }
+      Let(id, expr, rest) => {
+        spine.push(ValSpineLet(id, expr))
+        local = local.with_expr(id, expr)
+        current = rest
+      }
+      ImpureApp(id, callee, targs, vargs, bargs, rest) => {
+        spine.push(ValSpineImpureApp(id, callee, targs, vargs, bargs))
+        current = rest
+      }
+      Val(val_ids, val_binding, rest) => {
+        spine.push(ValSpineVal(val_ids, val_binding))
+        current = rest
+      }
+      Alloc(id, init, region, rest) => {
+        spine.push(ValSpineAlloc(id, init, region))
+        current = rest
+      }
+      Get(id, tpe, ref, capt, rest) => {
+        spine.push(ValSpineGet(id, tpe, ref, capt))
+        current = rest
+      }
+      Put(ref, capt, value, rest) => {
+        spine.push(ValSpinePut(ref, capt, value))
+        current = rest
+      }
+      _ => peel = false
+    }
+  }
+  let leaf = self.normalize_val_leaf(ids, current, body, local)
+  spine.rev_fold(init=leaf, (rest, frame) => frame.wrap(rest))
+}
+
+///|
+/// The leaf of a `val` commutation: the cases that normalize `body` themselves.
+fn Normalizer::normalize_val_leaf(
   self : Normalizer,
   ids : Array[Sym],
   binding : Stmt,
@@ -1112,37 +1238,7 @@ fn Normalizer::normalize_val(
     Return(exprs) =>
       // upstream zips the ids with the returned expressions, which truncates
       self.normalize_let(ids.zip(exprs), body, ctx)
-    // Commute `val` and bindings
-    Def(id2, block2, body2) =>
-      Def(
-        id2,
-        block2,
-        self.normalize_val(ids, body2, body, ctx.with_block(id2, block2)),
-      )
-    Let(id2, binding2, body2) =>
-      Let(
-        id2,
-        binding2,
-        self.normalize_val(ids, body2, body, ctx.with_expr(id2, binding2)),
-      )
-    ImpureApp(id2, callee2, targs2, vargs2, bargs2, body2) =>
-      ImpureApp(
-        id2,
-        callee2,
-        targs2,
-        vargs2,
-        bargs2,
-        self.normalize_val(ids, body2, body, ctx),
-      )
-    // Flatten vals: [[ val x = { val y = s1; s2 }; s3 ]] = val y = s1; val x = s2; s3
-    Val(ids2, binding2, body2) =>
-      Val(ids2, binding2, self.normalize_val(ids, body2, body, ctx))
-    Alloc(id2, init2, region2, body2) =>
-      Alloc(id2, init2, region2, self.normalize_val(ids, body2, body, ctx))
-    Get(id2, tpe2, ref2, capt2, body2) =>
-      Get(id2, tpe2, ref2, capt2, self.normalize_val(ids, body2, body, ctx))
-    Put(ref2, capt2, value2, body2) =>
-      Put(ref2, capt2, value2, self.normalize_val(ids, body2, body, ctx))
+    // the "Commute `val` and bindings" cases are peeled in `normalize_val`
     other =>
       match self.rewrite_stmt(body, ctx) {
         // [[ val x = stmt; return x ]] = [[ stmt ]]
