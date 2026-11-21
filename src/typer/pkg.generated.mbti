@@ -192,6 +192,8 @@ pub struct Unification {
   lower : CowMap[Array[@symbols.Sym]]
   upper : CowMap[Array[@symbols.Sym]]
   links : Array[(Int32, Int32, Array[@symbols.Sym])]
+  type_candidates : Map[Int32, Bool]
+  capt_candidates : Map[Int32, Bool]
   lower_ends : Map[Int32, Bool]
   upper_ends : Map[Int32, Bool]
   var_of : Map[Int32, @symbols.Sym]

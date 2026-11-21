@@ -25,6 +25,12 @@ pub struct Unification {
   upper : CowMap[Array[Sym]]
   /// Subcapturing links `(lower, upper, filter)`; see `propagate`.
   links : Array[(Int32, Int32, Array[Sym])]
+  /// The solutions of `types` that mention some type variable. Solving one
+  /// variable can only change those (upstream's `withUnknowns`, see
+  /// `update_substitution`), so the set is what the re-normalisation iterates.
+  type_candidates : Map[Int32, Bool]
+  /// The solutions of `capts` that mention some capture variable.
+  capt_candidates : Map[Int32, Bool]
   /// The variables that some link reads as its lower end. A bound of a variable
   /// that is not in here flows nowhere, which is what keeps most bound updates
   /// from running the propagation at all (see `propagate_lower_of`).
@@ -45,6 +51,8 @@ pub fn Unification::Unification() -> Unification {
     lower: CowMap::new(),
     upper: CowMap::new(),
     links: [],
+    type_candidates: Map([]),
+    capt_candidates: Map([]),
     lower_ends: Map([]),
     upper_ends: Map([]),
     var_of: Map([]),
@@ -60,6 +68,12 @@ pub fn Unification::copy(self : Unification) -> Unification {
     lower: self.lower.snapshot(),
     upper: self.upper.snapshot(),
     links: self.links.copy(),
+    // Unlike the marks below, the candidate sets *shrink*: a candidate whose
+    // solution became concrete leaves the set, and a rolled-back candidate could
+    // leave a solution that mentions a variable out of it. They are small (the
+    // solutions that still mention a variable), so they are copied.
+    type_candidates: self.type_candidates.copy(),
+    capt_candidates: self.capt_candidates.copy(),
     // `lower_ends`/`upper_ends`/`var_of`/`capt_var` are only ever *read by key*
     // and only grow, so a snapshot can share them instead of copying four
     // module-wide tables. A variable only a rolled-back candidate linked keeps
@@ -187,17 +201,18 @@ pub fn Unification::set_type(
         let lo = if x.uid() < y.uid() { x } else { y }
         let hi = if x.uid() < y.uid() { y } else { x }
         match self.types.get(lo.uid()) {
-          Some(sol) => self.types.set(hi.uid(), sol)
-          None => self.types.set(hi.uid(), @symbols.ValueType::ValueTypeRef(lo))
+          Some(sol) => self.set_solution(hi.uid(), sol)
+          None =>
+            self.set_solution(hi.uid(), @symbols.ValueType::ValueTypeRef(lo))
         }
         self.update_substitution()
       } else if y.uid() == x.uid() {
         ()
       } else {
-        self.types.set(x.uid(), t)
+        self.set_solution(x.uid(), t)
       }
     _ => {
-      self.types.set(x.uid(), t)
+      self.set_solution(x.uid(), t)
       self.update_substitution()
     }
   }
@@ -207,18 +222,25 @@ pub fn Unification::set_type(
 /// Re-normalises the substitution, so that solutions never mention solved
 /// variables (`{?B} -> Box[?R]` becomes `{?B} -> Box[Int]` once `?R := Int`).
 ///
-/// This runs after every `set_type`, so it must not rebuild solutions that
-/// cannot change: the `mentions_*` test below is a cheap walk without
-/// allocation, and the updates are collected and applied after the iteration
-/// (the substitution reads the live tables instead of copying them).
+/// This runs after every solution, so it must not look at solutions that cannot
+/// change. Only the ones that still mention *some* variable can: a solution made
+/// of concrete types is already normal (no substitution can rewrite it), and it
+/// leaves `type_candidates` when it is written. That is upstream's
+/// `withUnknowns` set, which the port was missing — it re-walked the whole
+/// substitution table after every solution and found something to rewrite in
+/// about one entry in a thousand.
+///
+/// The updates are collected and applied after the iteration: the substitution
+/// reads the live tables, so it must not see the writes of this pass.
 fn Unification::update_substitution(self : Unification) -> Unit {
   let subst : Substitutions = {
     values: self.types.view(),
     captures: self.capts.view(),
   }
   let type_updates : Array[(Int32, ValueType)] = []
-  for k, v in self.types {
-    if self.mentions_solution(v) {
+  for k, _ in self.type_candidates {
+    // the candidate is only dropped when it is rewritten, so it is still there
+    if self.types.get(k) is Some(v) && self.mentions_solution(v) {
       let updated = subst.substitute_value(v)
       if !(updated == v) {
         type_updates.push((k, updated))
@@ -226,8 +248,8 @@ fn Unification::update_substitution(self : Unification) -> Unit {
     }
   }
   let capt_updates : Array[(Int32, Captures)] = []
-  for k, v in self.capts {
-    if self.mentions_solved_capture(v) {
+  for k, _ in self.capt_candidates {
+    if self.capts.get(k) is Some(v) && self.mentions_solved_capture(v) {
       let updated = subst.substitute_captures(v)
       if !(updated == v) {
         capt_updates.push((k, updated))
@@ -235,10 +257,92 @@ fn Unification::update_substitution(self : Unification) -> Unit {
     }
   }
   for (k, v) in type_updates {
-    self.types.set(k, v)
+    self.set_solution(k, v)
   }
   for (k, v) in capt_updates {
-    self.capts.set(k, v)
+    self.set_capt_solution(k, v)
+  }
+}
+
+///|
+/// Whether `t` mentions a type variable at all, solved or not: that is what makes
+/// a solution a *candidate* for `update_substitution`, see the note there.
+fn Unification::mentions_var(self : Unification, t : ValueType) -> Bool {
+  match t {
+    @symbols.ValueType::ValueTypeRef(_) => true
+    @symbols.ValueType::ValueTypeApp(_, args) =>
+      args.any(a => self.mentions_var(a))
+    @symbols.ValueType::BoxedType(b, c) =>
+      self.mentions_var_in_block(b) || self.mentions_var_in_captures(c)
+  }
+}
+
+///|
+fn Unification::mentions_var_in_block(
+  self : Unification,
+  t : BlockType,
+) -> Bool {
+  match t {
+    @symbols.BlockType::InterfaceType(_, args) =>
+      args.any(a => self.mentions_var(a))
+    @symbols.BlockType::FunctionType(_, capts, vps, bps, ret, effs) =>
+      capts.any(c => self.mentions_var_in_captures(c)) ||
+      vps.any(v => self.mentions_var(v)) ||
+      bps.any(b => self.mentions_var_in_block(b)) ||
+      self.mentions_var(ret) ||
+      effs.effects.any(e => self.mentions_var_in_block(e))
+  }
+}
+
+///|
+/// Whether `c` mentions a capture variable, solved or not. A capture set holds
+/// symbols, so each of them has to be asked: a capability is not a variable.
+fn Unification::mentions_var_in_captures(
+  self : Unification,
+  c : Captures,
+) -> Bool {
+  match c {
+    @symbols.Captures::CaptVar(_) => true
+    @symbols.Captures::CaptureSetOf(cs) => {
+      for s in cs {
+        if self.capt_var.contains(s.uid()) {
+          return true
+        }
+      }
+      false
+    }
+  }
+}
+
+///|
+/// Records the solution of `x` and keeps the candidate set of
+/// `update_substitution` in step: a solution that mentions no variable can never
+/// be rewritten again, so it does not have to be looked at.
+fn Unification::set_solution(
+  self : Unification,
+  uid : Int32,
+  t : ValueType,
+) -> Unit {
+  self.types.set(uid, t)
+  if self.mentions_var(t) {
+    self.type_candidates.set(uid, true)
+  } else {
+    self.type_candidates.remove(uid)
+  }
+}
+
+///|
+/// Records the solution of a capture variable, the same way.
+fn Unification::set_capt_solution(
+  self : Unification,
+  uid : Int32,
+  c : Captures,
+) -> Unit {
+  self.capts.set(uid, c)
+  if self.mentions_var_in_captures(c) {
+    self.capt_candidates.set(uid, true)
+  } else {
+    self.capt_candidates.remove(uid)
   }
 }
 
@@ -579,7 +683,7 @@ fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
       return Some(captures_not_allowed(diff))
     }
   }
-  self.capts.set(x.uid(), @symbols.Captures::CaptureSetOf(bounds))
+  self.set_capt_solution(x.uid(), @symbols.Captures::CaptureSetOf(bounds))
   None
 }
 
