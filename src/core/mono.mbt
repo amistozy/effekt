@@ -2794,17 +2794,29 @@ fn mono_lookup_fun_name(
 }
 
 ///|
+/// The monomorphized name of a data type applied to ground arguments (upstream
+/// `replacementData(id, Vector[GroundType])`): a declared type becomes the
+/// declaration of its instance, while an extern type (`Array`, `Ref`) keeps its
+/// symbol and has its arguments monomorphized in place. Dropping them would leave
+/// a bare `Array` behind, and every phase that reads the type's arity — arity
+/// raising looks for `Array[A]` at an extern boundary — then misreads it.
 fn mono_replacement_data_ground(
   state : MonoSpecialize,
   dctx : DeclarationContext,
   id : Sym,
   targs : ArrayView[MonoValueType[Unit]],
-) -> ValueType {
+) -> ValueType raise EffektError {
   if targs.is_empty() {
     return ValueData(id, [])
   }
   match mono_lookup_extern_data(dctx, id) {
-    Some(_) => ValueData(id, [])
+    Some(_) =>
+      ValueData(
+        id,
+        targs.map(t => {
+          mono_monomorphize_ground_value(state, dctx, t, MonoBinders::empty())
+        }),
+      )
     None =>
       state.tpe_names.get(mono_key(id, targs)).unwrap_or(ValueData(id, []))
   }

@@ -978,9 +978,16 @@ fn Normalizer::normalize_val(
     //   == sc match [B] { case k => [[ val x: A = body2; body: B ]] }
     Match(sc, tpe, [clause], None) => {
       let inner = self.normalize_val(ids, clause.body.body, body, ctx)
+      // Upstream uses `res.tpe`: the commutation turns the clause into the
+      // continuation of the `val`, so the match now answers with the *body*'s
+      // values, not with the ones the clause used to return. Keeping `tpe` would
+      // leave a stale annotation that is longer than the clause's result, and
+      // `Type.bindingType` (used by `ReferencesToParameters`) would then bind more
+      // state components than the clause returns.
+      let result_type = inner.infer_type() catch { _ => tpe }
       Match(
         sc,
-        tpe,
+        result_type,
         [
           Clause(
             clause.tag,
@@ -1035,7 +1042,10 @@ fn Normalizer::normalize_val(
     //   sc match [B] { ... k() ... }
     Match(sc, tpe, clauses, default) => {
       let res = self.rewrite_stmt(body, ctx)
-      let result_type = stmt_type_hint(res)
+      // Upstream uses `res.tpe`, the *list* of the body's results: a commuted
+      // `val` can answer with several values, and `single` would replace them by
+      // the unknown type.
+      let result_types = res.infer_type() catch { _ => [stmt_type_hint(res)] }
       self.joinpoint(
         ids,
         tpe,
@@ -1043,7 +1053,7 @@ fn Normalizer::normalize_val(
         (k, inner) => {
           Match(
             sc,
-            [result_type],
+            result_types,
             clauses.map(clause => {
               let x = fresh_ids(ids)
               let normalized = self.normalize_val(
