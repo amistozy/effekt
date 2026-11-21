@@ -23,15 +23,16 @@
 //   * `covers` and `selecting` need the scrutinee's data type, so a `match`
 //     keeps its default and its clauses are normalized without knowing which
 //     constructor the scrutinee has.
-//   * the `Shift` rule of `normalizeVal` retypes the continuation with the type
-//     of the enclosing statement (`ResumeType(body.tpe, answer)`). The core type
-//     language has `ResumeType` (`types.mbt`), but this pass does not infer the
-//     type of `body` (see the next point).
-//   * join point parameters get `unknown_value_type()`. Upstream takes the
-//     inferred types of the branches; the inference is ported (`type.mbt`) but
-//     this pass does not call it yet. A `Match` keeps the annotation it had.
-//   * the "return the unit value" rule of `normalizeVal` checks that the bound
-//     statement returns `()` syntactically instead of comparing result types.
+//   * the `Shift` rule of `normalizeVal` (drop the `val`, retype the resumption
+//     to what the enclosing statement answers with) is not ported: its guard asks
+//     whether the continuation is free in the shifted body, and computing that
+//     set at the bottom of a long spine costs more JavaScript stack than the
+//     normalizer has (see `normalize_let`).
+//
+// The rewrites that need to know the type of a statement take it from
+// `Type.inferType` (`type.mbt`, upstream `inferType`), with the syntactic hint of
+// `stmt_type_hint` as the fallback for the trees where the port leaves the
+// annotation open (the pattern compiler's join points, for instance).
 
 // ---------------------------------------------------------------------------
 // The inlining policy (InliningPolicy.scala)
@@ -853,23 +854,28 @@ fn Normalizer::rewrite_stmt(
 ///|
 /// `let x = e; body`, with `e` already in normal form: an alias that is known
 /// here is replaced by the expression it is known to equal.
+///
+/// Iterative on purpose. A `val (a, b, c) = ...` is one binding per component, so
+/// recursing once per binding makes the normalizer's stack grow with the size of
+/// the program's spine — and a long benchmark (`nofib/boyer`) then runs out of
+/// JavaScript's default stack, which is much smaller than the JVM's.
 fn Normalizer::normalize_let(
   self : Normalizer,
   bindings : ArrayView[(Sym, Expr)],
   body : Stmt,
   ctx : NormCtx,
 ) -> Stmt raise EffektError {
-  match bindings {
-    [] => self.rewrite_stmt(body, ctx)
-    [(id, expr), .. rest] => {
-      let bound = expr
-      Let(
-        id,
-        bound,
-        self.normalize_let(rest.to_owned(), body, ctx.with_expr(id, bound)),
-      )
-    }
-  }
+  let (bound, local) = bindings.fold(init=(([] : Array[(Sym, Expr)]), ctx), (
+    acc,
+    pair,
+  ) => {
+    let (bound, ctx) = acc
+    bound.push(pair)
+    (bound, ctx.with_expr(pair.0, pair.1))
+  })
+  bound.rev_fold(init=self.rewrite_stmt(body, local), (rest, pair) => {
+    Let(pair.0, pair.1, rest)
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -889,7 +895,7 @@ fn Normalizer::joinpoint(
 ) -> Stmt raise EffektError {
   match body {
     App(BlockVar(k), [], vargs, []) =>
-      if vargs.length() == ids.length() && variables_are(vargs, ids) {
+      if vargs.length() == ids.length() && applies_variables(vargs, ids) {
         f(k, ctx)
       } else {
         self.make_joinpoint(ids, tpe, body, f, ctx)
@@ -937,6 +943,21 @@ fn variables_are(exprs : ArrayView[Expr], ids : ArrayView[Sym]) -> Bool {
   guard exprs.length() == ids.length() else { return false }
   for i, expr in exprs {
     guard expr is ValueVar(id, _) && id == ids[i] else { return false }
+  }
+  true
+}
+
+///|
+/// Upstream's guard on the application a `val` is commuted with:
+/// `(vargs zip ids).forall { case (ValueVar(x, tpe), id) => x == id || tpe ==
+/// Type.TUnit; case _ => false }`. A `Unit`-typed argument is accepted whatever
+/// its variable is, since all unit values are equal.
+fn applies_variables(exprs : ArrayView[Expr], ids : ArrayView[Sym]) -> Bool {
+  guard exprs.length() == ids.length() else { return false }
+  for i, expr in exprs {
+    guard expr is ValueVar(id, tpe) && (id == ids[i] || tpe == t_unit()) else {
+      return false
+    }
   }
   true
 }
@@ -1008,7 +1029,9 @@ fn Normalizer::normalize_val(
     //   def k(x) = [[ body ]]
     //   if (cond) { [[ val x1 = thn; k(x1) ]] } else { [[ val x2 = els; k(x2) ]] }
     If(cond, thn, els) => {
-      let tpe = [stmt_type_hint(thn)]
+      // Upstream `val tpe = thn.tpe`: the `if` answers with the branches'
+      // results, which are the join point's parameter types.
+      let tpe = thn.infer_type() catch { _ => [stmt_type_hint(thn)] }
       self.joinpoint(
         ids,
         tpe,
@@ -1124,8 +1147,17 @@ fn Normalizer::normalize_val(
       match self.rewrite_stmt(body, ctx) {
         // [[ val x = stmt; return x ]] = [[ stmt ]]
         Return(xs) if variables_are(xs, ids) => other
-        // [[ val x: Unit = stmt; return () ]] = [[ stmt ]]
-        Return(xs) if xs.all(is_unit_literal) && returns_unit(other) => other
+        // [[ val x: Unit = stmt; return () ]] = [[ stmt ]]: upstream compares the
+        // *result types* (`other.tpe == xs.map(_.tpe)`), so a statement whose
+        // value is a `Unit`-typed variable is dropped as well.
+        Return(xs) if xs.all(is_unit_expr) => {
+          let result = other.infer_type() catch { _ => [stmt_type_hint(other)] }
+          if result.length() == xs.length() && result.all(t => t == t_unit()) {
+            other
+          } else {
+            Val(ids, other, Return(xs))
+          }
+        }
         // [[ val x = stmt; body ]] = val x = [[ stmt ]]; [[ body ]]
         normalized_body => Val(ids, other, normalized_body)
       }
@@ -1353,36 +1385,10 @@ fn Normalizer::select_operation(
 // ---------------------------------------------------------------------------
 
 ///|
-fn is_unit_literal(e : Expr) -> Bool {
-  match e {
-    Literal(LUnit, _) => true
-    _ => false
-  }
-}
-
-///|
-/// Whether the statement returns `()` on every path, which stands in for
-/// "the statement's type is Unit".
-fn returns_unit(s : Stmt) -> Bool {
-  match s {
-    Return(exprs) => exprs.all(is_unit_literal)
-    If(_, thn, els) => returns_unit(thn) && returns_unit(els)
-    Match(_, _, clauses, default) =>
-      clauses.all(c => returns_unit(c.body.body)) &&
-      (match default {
-        Some(d) => returns_unit(d)
-        None => true
-      })
-    Val(_, _, body) => returns_unit(body)
-    Let(_, _, body) => returns_unit(body)
-    Def(_, _, body) => returns_unit(body)
-    ImpureApp(_, _, _, _, _, body) => returns_unit(body)
-    Alloc(_, _, _, body) => returns_unit(body)
-    Var(_, _, _, body) => returns_unit(body)
-    Get(_, _, _, _, body) => returns_unit(body)
-    Put(_, _, _, body) => returns_unit(body)
-    _ => false
-  }
+/// Whether the expression's type is `Unit` (upstream `e.tpe == Type.TUnit`).
+fn is_unit_expr(e : Expr) -> Bool {
+  let tpe = e.infer_type() catch { _ => unknown_value_type() }
+  tpe == t_unit()
 }
 
 ///|
