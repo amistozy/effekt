@@ -340,12 +340,9 @@ fn pm_split_on_literal(
   // the different literal values that we match on
   let variants : Array[LiteralValue] = []
   for c in normalized {
-    match pm_split_clause(c, scrutinee) {
-      Some((PMLiteral(v, _, _), _, _)) =>
-        if !variants.any(w => pm_literal_equal(w, v)) {
-          variants.push(v)
-        }
-      _ => ()
+    if pm_split_clause(c, scrutinee) is Some((PMLiteral(v, _, _), _, _)) &&
+      !variants.any(w => pm_literal_equal(w, v)) {
+      variants.push(v)
     }
   }
 

@@ -1366,25 +1366,22 @@ fn mono_collect_extern(
   env : MonoEnvironment,
   out : Array[MonoFlow],
 ) -> Unit raise EffektError {
-  match external {
-    ExternDef(id, _, tparams, _, vparams, bparams, result, _, body) => {
-      let local = env.bind(id, tparams, 0)
-      for param in vparams {
-        ignore(mono_collect_value_type(param.tpe, local, out))
-      }
-      for param in bparams {
-        ignore(mono_collect_block_type(param.tpe, local, out))
-      }
-      ignore(mono_collect_value_type(result, local, out))
-      match body {
-        StringExternBody(_, template) =>
-          for argument in template.args {
-            mono_collect_expr(argument, local, out)
-          }
-        Unsupported(_) => ()
-      }
+  guard external
+    is ExternDef(id, _, tparams, _, vparams, bparams, result, _, body) else {
+    return
+  }
+  let local = env.bind(id, tparams, 0)
+  for param in vparams {
+    ignore(mono_collect_value_type(param.tpe, local, out))
+  }
+  for param in bparams {
+    ignore(mono_collect_block_type(param.tpe, local, out))
+  }
+  ignore(mono_collect_value_type(result, local, out))
+  if body is StringExternBody(_, template) {
+    for argument in template.args {
+      mono_collect_expr(argument, local, out)
     }
-    _ => ()
   }
 }
 
@@ -1708,11 +1705,8 @@ fn mono_collect_expr(
         _ => []
       }
       let arguments = mono_collect_value_types(data_targs + targs, env, out)
-      if data_targs.is_empty() {
-        match data {
-          ValueData(name, _) => out.push(MonoFlow::MonoFlow([], name))
-          _ => ()
-        }
+      if data is ValueData(name, _) && data_targs.is_empty() {
+        out.push(MonoFlow::MonoFlow([], name))
       }
       out.push(MonoFlow::MonoFlow(arguments, tag))
       for varg in vargs {
@@ -2446,12 +2440,9 @@ fn mono_specialize(
     }
   }
   for external in module.externs {
-    match external {
-      ExternDef(id, _, tparams, _, _, _, _, _, _) =>
-        if !tparams.is_empty() {
-          state.poly_extern_defs.set(id.uid(), true)
-        }
-      _ => ()
+    if external is ExternDef(id, _, tparams, _, _, _, _, _, _) &&
+      !tparams.is_empty() {
+      state.poly_extern_defs.set(id.uid(), true)
     }
   }
 
@@ -2797,9 +2788,8 @@ fn mono_replacement_data_ground(
 ///|
 fn mono_lookup_extern_data(dctx : DeclarationContext, id : Sym) -> Sym? {
   for external in dctx.externs {
-    match external {
-      ExternData(sym, _, _) => if sym.uid() == id.uid() { return Some(sym) }
-      _ => ()
+    if external is ExternData(sym, _, _) && sym.uid() == id.uid() {
+      return Some(sym)
     }
   }
   None

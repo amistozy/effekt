@@ -701,17 +701,13 @@ fn Typer::lexical_capability(
   guard !self.unknowns_block(target).is_empty() else { return None }
   let compatible : Array[Sym] = []
   for cap in self.st.cap_scope.all_capabilities() {
-    if capability_type(cap) is Some(cap_tpe) {
-      match self.st.u.prune_block(cap_tpe) {
-        @symbols.BlockType::InterfaceType(c2, args2) =>
-          if ctor == c2 && args.length() == args2.length() {
-            let ok = args.zip(args2).all(p => self.types_compatible(p.0, p.1))
-            if ok {
-              compatible.push(cap)
-            }
-          }
-        _ => ()
-      }
+    if capability_type(cap) is Some(cap_tpe) &&
+      self.st.u.prune_block(cap_tpe)
+      is @symbols.BlockType::InterfaceType(c2, args2) &&
+      ctor == c2 &&
+      args.length() == args2.length() &&
+      args.zip(args2).all(p => self.types_compatible(p.0, p.1)) {
+      compatible.push(cap)
     }
   }
   guard !compatible.is_empty() else { return None }
@@ -1342,20 +1338,15 @@ fn collect_mains(
   out : Array[Sym],
 ) -> Unit {
   for d in defs {
-    match d.kind {
-      @source.DefKind::FunDef(id, _, _, _, _, _, _) =>
-        if id.name == "main" {
-          if ctx.symbol_of(id.uid) is Some(sym) {
-            out.push(sym)
-          }
-        }
-      _ => ()
+    if d.kind is @source.DefKind::FunDef(id, _, _, _, _, _, _) &&
+      id.name == "main" &&
+      ctx.symbol_of(id.uid) is Some(sym) {
+      out.push(sym)
     }
   }
   for d in defs {
-    match d.kind {
-      @source.DefKind::NamespaceDef(_, inner) => collect_mains(ctx, inner, out)
-      _ => ()
+    if d.kind is @source.DefKind::NamespaceDef(_, inner) {
+      collect_mains(ctx, inner, out)
     }
   }
 }
@@ -1379,8 +1370,8 @@ pub fn Typer::check_main(
   }
   if mains.length() == 1 {
     let main = mains[0]
-    match self.ctx.block_type_of(main.uid()) {
-      Some(
+    guard self.ctx.block_type_of(main.uid())
+      is Some(
         @symbols.BlockType::FunctionType(
           _,
           _,
@@ -1389,27 +1380,26 @@ pub fn Typer::check_main(
           result,
           effects,
         ),
-      ) => {
-        if !vparams.is_empty() || !bparams.is_empty() {
-          self.abort(main.decl(), "Main does not take arguments")
-        }
-        if effects.non_empty() {
-          self.abort(
-            main.decl(),
-            "Main cannot have effects, but includes effects: \{effects}",
-          )
-        }
-        if value_type_equal(result, t_int()) {
-          self.abort(
-            main.decl(),
-            "Main must return Unit, please use `exit(n)` to return an error code.",
-          )
-        }
-        if !value_type_equal(result, t_unit()) {
-          self.match_expected(result, t_unit(), Some(main.decl()))
-        }
-      }
-      _ => ()
+      ) else {
+      return
+    }
+    if !vparams.is_empty() || !bparams.is_empty() {
+      self.abort(main.decl(), "Main does not take arguments")
+    }
+    if effects.non_empty() {
+      self.abort(
+        main.decl(),
+        "Main cannot have effects, but includes effects: \{effects}",
+      )
+    }
+    if value_type_equal(result, t_int()) {
+      self.abort(
+        main.decl(),
+        "Main must return Unit, please use `exit(n)` to return an error code.",
+      )
+    }
+    if !value_type_equal(result, t_unit()) {
+      self.match_expected(result, t_unit(), Some(main.decl()))
     }
   }
 }
@@ -1487,21 +1477,18 @@ fn Typer::precheck_def(self : Typer, d : Def) -> Unit raise EffektError {
         }
         // Bidirectional effects that mention the same effect recursively are
         // not (yet) supported.
-        match sym {
-          @symbols.Sym::Operation(o) =>
-            if eff_contains(
-                o.effects,
-                @symbols.BlockType::InterfaceType(
-                  o.interface,
-                  o.tparams.map(t => @symbols.ValueType::ValueTypeRef(t)),
-                ),
-              ) {
-              self.error(
-                d.span,
-                "Bidirectional effects that mention the same effect recursively are not (yet) supported.",
-              )
-            }
-          _ => ()
+        if sym is @symbols.Sym::Operation(o) &&
+          eff_contains(
+            o.effects,
+            @symbols.BlockType::InterfaceType(
+              o.interface,
+              o.tparams.map(t => @symbols.ValueType::ValueTypeRef(t)),
+            ),
+          ) {
+          self.error(
+            d.span,
+            "Bidirectional effects that mention the same effect recursively are not (yet) supported.",
+          )
         }
       }
     @source.DefKind::DataDef(_, _, ctors) =>
@@ -2681,21 +2668,12 @@ fn failure_notes(
   claimed : Bool,
 ) -> Array[@util.Subdiagnostic] {
   let notes : Array[@util.Subdiagnostic] = []
-  match root_of(ctx) {
-    MergeTypes(left, right, origin) =>
-      match origin {
-        NoArms => ()
-        _ => {
-          let noun = origin.noun()
-          notes.push(
-            @util.Note("This \{noun} has type \{left}.", origin.left_span()),
-          )
-          notes.push(
-            @util.Note("This \{noun} has type \{right}.", origin.right_span()),
-          )
-        }
-      }
-    _ => ()
+  if root_of(ctx) is MergeTypes(left, right, origin) && !(origin is NoArms) {
+    let noun = origin.noun()
+    notes.push(@util.Note("This \{noun} has type \{left}.", origin.left_span()))
+    notes.push(
+      @util.Note("This \{noun} has type \{right}.", origin.right_span()),
+    )
   }
   if !claimed {
     notes.push(@util.Note(issue + ".", None))

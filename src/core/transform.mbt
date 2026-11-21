@@ -2411,31 +2411,30 @@ fn Transformer::equals_for(
   let core_tpe = self.transform_value_type(tpe)
   let mut generic : PMEquals? = None
   for sym in self.eq_functions {
-    match sym.annotated_type() {
-      Some(@symbols.BlockType::FunctionType(tparams, _, vps, bps, ret, _)) =>
-        if bps.is_empty() &&
-          vps.length() == 2 &&
-          @symbols.value_type_equal(ret, @symbols.t_bool()) {
-          // specialized version: (T, T) => Bool
-          if @symbols.value_type_equal(vps[0], tpe) &&
-            @symbols.value_type_equal(vps[1], tpe) {
-            return Some(PMEquals(sym, []))
-          }
-          // generic version: [A](A, A) => Bool
-          if tparams.length() == 1 &&
-            @symbols.value_type_equal(
-              vps[0],
-              @symbols.ValueType::ValueTypeRef(tparams[0]),
-            ) &&
-            @symbols.value_type_equal(
-              vps[1],
-              @symbols.ValueType::ValueTypeRef(tparams[0]),
-            ) &&
-            generic is None {
-            generic = Some(PMEquals(sym, [core_tpe]))
-          }
-        }
-      _ => ()
+    guard sym.annotated_type()
+      is Some(@symbols.BlockType::FunctionType(tparams, _, vps, bps, ret, _)) &&
+      bps.is_empty() &&
+      vps.length() == 2 &&
+      @symbols.value_type_equal(ret, @symbols.t_bool()) else {
+      continue
+    }
+    // specialized version: (T, T) => Bool
+    if @symbols.value_type_equal(vps[0], tpe) &&
+      @symbols.value_type_equal(vps[1], tpe) {
+      return Some(PMEquals(sym, []))
+    }
+    // generic version: [A](A, A) => Bool
+    if tparams.length() == 1 &&
+      @symbols.value_type_equal(
+        vps[0],
+        @symbols.ValueType::ValueTypeRef(tparams[0]),
+      ) &&
+      @symbols.value_type_equal(
+        vps[1],
+        @symbols.ValueType::ValueTypeRef(tparams[0]),
+      ) &&
+      generic is None {
+      generic = Some(PMEquals(sym, [core_tpe]))
     }
   }
   match generic {

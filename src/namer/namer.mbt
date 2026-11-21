@@ -662,17 +662,14 @@ fn Namer::preresolve(self : Namer, d : Def) -> Unit raise EffektError {
     }
     // Allow recursive definitions of objects.
     @source.DefDef(id, captures, _, binding) =>
-      match binding.kind {
-        @source.New(implementation) => {
-          let tpe = self.resolve_block_ref(implementation.interface)
-          let caps = captures.map(cs => self.resolve_capture_set(cs).to_array())
-          self.define_def(
-            d,
-            id,
-            mk_def_binder(self.name_for(id), caps, Some(tpe), d.span, id.span),
-          )
-        }
-        _ => ()
+      if binding.kind is @source.New(implementation) {
+        let tpe = self.resolve_block_ref(implementation.interface)
+        let caps = captures.map(cs => self.resolve_capture_set(cs).to_array())
+        self.define_def(
+          d,
+          id,
+          mk_def_binder(self.name_for(id), caps, Some(tpe), d.span, id.span),
+        )
       }
     @source.FunDef(id, tparams, vparams, bparams, captures, annot, _) => {
       let unique = self.name_for(id)

@@ -52,15 +52,12 @@ pub fn DeclarationContext::DeclarationContext(
   let extern_defs : Map[Int32, Int32] = Map([])
   let extern_defs_by_name : Map[String, Int32] = Map([])
   for i, e in externs {
-    match e {
-      ExternDef(id, _, _, _, vparams, _, _, _, _) => {
-        extern_defs.set(id.uid(), i)
-        extern_defs_by_name.set(
-          extern_def_key(id.name().name, vparams.map(p => p.tpe)),
-          i,
-        )
-      }
-      _ => ()
+    if e is ExternDef(id, _, _, _, vparams, _, _, _, _) {
+      extern_defs.set(id.uid(), i)
+      extern_defs_by_name.set(
+        extern_def_key(id.name().name, vparams.map(p => p.tpe)),
+        i,
+      )
     }
   }
   {

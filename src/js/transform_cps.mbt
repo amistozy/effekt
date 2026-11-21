@@ -229,22 +229,20 @@ fn check_main_signature(
   main : Sym,
 ) -> Unit raise EffektError {
   for d in core_module.definitions {
-    match d {
-      @core.ToplevelDef(id, @core.Block::BlockLit(lit)) =>
-        if id.uid() == main.uid() {
-          if !lit.vparams.is_empty() {
-            raise EffektError::Fatal(
-              "Main does not take arguments, but takes \{lit.vparams.length()}.",
-            )
-          }
-          if !lit.bparams.is_empty() {
-            let effects = lit.bparams.map(p => @core.show_core_block_type(p.tpe))
-            raise EffektError::Fatal(
-              "Main cannot have effects, but includes effects: {\{effects.join(", ")}}.",
-            )
-          }
-        }
-      _ => ()
+    guard d is @core.ToplevelDef(id, @core.Block::BlockLit(lit)) &&
+      id.uid() == main.uid() else {
+      continue
+    }
+    if !lit.vparams.is_empty() {
+      raise EffektError::Fatal(
+        "Main does not take arguments, but takes \{lit.vparams.length()}.",
+      )
+    }
+    if !lit.bparams.is_empty() {
+      let effects = lit.bparams.map(p => @core.show_core_block_type(p.tpe))
+      raise EffektError::Fatal(
+        "Main cannot have effects, but includes effects: {\{effects.join(", ")}}.",
+      )
     }
   }
 }

@@ -487,12 +487,9 @@ fn Exhaustivity::check_literal(
 ) -> Unit {
   let all_literals : Array[@source.LiteralValue] = []
   for cl in clauses {
-    match cl.matches_on(trace) {
-      Some(PLit(value, _)) =>
-        if !all_literals.any(v => literal_equal(v, value)) {
-          all_literals.push(value)
-        }
-      _ => ()
+    if cl.matches_on(trace) is Some(PLit(value, _)) &&
+      !all_literals.any(v => literal_equal(v, value)) {
+      all_literals.push(value)
     }
   }
   let table : Array[(@source.LiteralValue, Array[Clause])] = []

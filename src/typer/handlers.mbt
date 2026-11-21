@@ -232,14 +232,12 @@ fn Typer::lambda_case_hints(
     }
   } else if vps.length() == 1 && vparams.length() > 1 {
     let tpe = self.st.u.prune_value(vps[0])
-    match tpe {
-      @symbols.ValueType::ValueTypeApp(ctor, args) =>
-        if is_tuple_name(ctor.name().name) && args.length() == vparams.length() {
-          hints.push(
-            "Did you mean to use `case (x, y) => ...` to pattern match on the tuple \{tpe}?",
-          )
-        }
-      _ => ()
+    if tpe is @symbols.ValueType::ValueTypeApp(ctor, args) &&
+      is_tuple_name(ctor.name().name) &&
+      args.length() == vparams.length() {
+      hints.push(
+        "Did you mean to use `case (x, y) => ...` to pattern match on the tuple \{tpe}?",
+      )
     }
   }
   hints
@@ -557,15 +555,11 @@ fn Typer::check_op_clause(
     None => self.abort(clause.span, "Expected an operation symbol.")
   }
 
-  if clause.ret is Some(t) {
-    match t.kind {
-      @source.TypeKind::Effectful(_, _) =>
-        self.abort(
-          clause.span,
-          "Unexpected type annotation on operation \{clause.id.name}.",
-        )
-      _ => ()
-    }
+  if clause.ret is Some(t) && t.kind is @source.TypeKind::Effectful(_, _) {
+    self.abort(
+      clause.span,
+      "Unexpected type annotation on operation \{clause.id.name}.",
+    )
   }
 
   // arity checks

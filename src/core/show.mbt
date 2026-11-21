@@ -73,12 +73,10 @@ pub fn required_names(module : ModuleDecl) -> Array[Sym] {
   ]
   let out : Array[Sym] = []
   for e in module.externs {
-    match e {
-      ExternDef(id, _, _, _, _, _, _, _, _) =>
-        if required.contains(id.name().name) && !out.contains(id) {
-          out.push(id)
-        }
-      _ => ()
+    if e is ExternDef(id, _, _, _, _, _, _, _, _) &&
+      required.contains(id.name().name) &&
+      !out.contains(id) {
+      out.push(id)
     }
   }
   out

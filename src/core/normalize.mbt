@@ -464,9 +464,8 @@ fn Normalizer::discount(
   let known : Map[Int32, Expr] = Map([])
   for (vparam, varg) in site.callee.vparams.zip(site.vargs) {
     let arg = self.active_expr(varg, ctx)
-    match arg {
-      Literal(_, _) | Make(_, _, _, _) => known.set(vparam.id.uid(), arg)
-      _ => ()
+    if arg is Literal(_, _) || arg is Make(_, _, _, _) {
+      known.set(vparam.id.uid(), arg)
     }
   }
   if known.is_empty() {
@@ -1048,17 +1047,14 @@ fn Normalizer::normalize_val(
   //
   // The `val` is dropped (the shift never returns to it), so the continuation
   // answers with the type the *enclosing* statement expects.
-  match binding {
-    Shift(prompt, k, body2) if shift_commutes(k, body2) => {
-      let (result0, answer) = resume_type(k.tpe)
-      let result = body.infer_type() catch { _ => result0 }
-      return Shift(
-        prompt,
-        BlockParam(k.id, ResumeType(result, answer), k.capt),
-        body2,
-      )
-    }
-    _ => ()
+  if binding is Shift(prompt, k, body2) && shift_commutes(k, body2) {
+    let (result0, answer) = resume_type(k.tpe)
+    let result = body.infer_type() catch { _ => result0 }
+    return Shift(
+      prompt,
+      BlockParam(k.id, ResumeType(result, answer), k.capt),
+      body2,
+    )
   }
   let spine : Array[ValSpine] = []
   let mut current = binding

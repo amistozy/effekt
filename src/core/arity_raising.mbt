@@ -160,16 +160,14 @@ priv struct ArAnalysis {
 fn extern_signatures(module : ModuleDecl) -> Map[Int32, ExternSig] {
   let out : Map[Int32, ExternSig] = Map([])
   for e in module.externs {
-    match e {
-      ExternDef(id, _, tparams, cparams, vparams, bparams, ret, _, _) =>
-        out.set(id.uid(), {
-          tparams,
-          cparams,
-          vparams: vparams.map(p => p.tpe),
-          bparams: bparams.map(p => p.tpe),
-          ret,
-        })
-      _ => ()
+    if e is ExternDef(id, _, tparams, cparams, vparams, bparams, ret, _, _) {
+      out.set(id.uid(), {
+        tparams,
+        cparams,
+        vparams: vparams.map(p => p.tpe),
+        bparams: bparams.map(p => p.tpe),
+        ret,
+      })
     }
   }
   out
@@ -241,15 +239,11 @@ fn componentwise_element(
   let u = targs[0]
   let instances : Array[ValueType] = []
   for tpe in [f.ret] + f.vparams {
-    match tpe {
-      ValueData(a, targs) =>
-        if targs.length() == 1 && containers.contains(a) {
-          match targs[0] {
-            ValueVar(_) => instances.push(ValueData(a, [u]))
-            _ => ()
-          }
-        }
-      _ => ()
+    if tpe is ValueData(a, arguments) &&
+      arguments.length() == 1 &&
+      containers.contains(a) &&
+      arguments[0] is ValueVar(_) {
+      instances.push(ValueData(a, [u]))
     }
   }
   if instances.any(i => frozen.contains(i)) {
@@ -1651,13 +1645,10 @@ pub fn arity_raising(module : ModuleDecl) -> ModuleDecl raise EffektError {
   // The only name-based step: the extern types of `array::Array` and `ref::Ref`.
   let containers : Array[Sym] = []
   for e in module.externs {
-    match e {
-      ExternData(id, tparams, _) =>
-        if tparams.length() == 1 &&
-          (id.name().name == "Array" || id.name().name == "Ref") {
-          containers.push(id)
-        }
-      _ => ()
+    if e is ExternData(id, tparams, _) &&
+      tparams.length() == 1 &&
+      (id.name().name == "Array" || id.name().name == "Ref") {
+      containers.push(id)
     }
   }
   // Frozen containers: those occurring at an extern boundary that is not
@@ -1673,12 +1664,10 @@ pub fn arity_raising(module : ModuleDecl) -> ModuleDecl raise EffektError {
   let frozen : Array[ValueType] = []
   for tpe in boundaries {
     for occurrence in type_occurrences(tpe) {
-      match occurrence {
-        ValueData(a, targs) =>
-          if targs.length() == 1 && containers.contains(a) {
-            frozen.push(occurrence)
-          }
-        _ => ()
+      if occurrence is ValueData(a, arguments) &&
+        arguments.length() == 1 &&
+        containers.contains(a) {
+        frozen.push(occurrence)
       }
     }
   }
@@ -1706,36 +1695,30 @@ pub fn arity_raising(module : ModuleDecl) -> ModuleDecl raise EffektError {
   let record_list : Array[(Sym, Constructor)] = []
   let dependencies : Map[Int32, Array[Sym]] = Map([])
   for d in module.declarations {
-    match d {
-      DeclarationData(id, tparams, constructors) => {
-        if tparams.is_empty() &&
-          constructors.length() == 1 &&
-          !constructors[0].fields.is_empty() {
-          records.set(id.uid(), constructors[0])
-          record_list.push((id, constructors[0]))
-        }
-        let depends : Array[Sym] = []
-        for c in constructors {
-          for f in c.fields {
-            for occurrence in type_occurrences(f.tpe) {
-              match occurrence {
-                ValueData(other, _) => depends.push(other)
-                _ => ()
-              }
-            }
+    guard d is DeclarationData(id, tparams, constructors) else { continue }
+    if tparams.is_empty() &&
+      constructors.length() == 1 &&
+      !constructors[0].fields.is_empty() {
+      records.set(id.uid(), constructors[0])
+      record_list.push((id, constructors[0]))
+    }
+    let depends : Array[Sym] = []
+    for c in constructors {
+      for f in c.fields {
+        for occurrence in type_occurrences(f.tpe) {
+          if occurrence is ValueData(other, _) {
+            depends.push(other)
           }
         }
-        dependencies.set(id.uid(), @symbols.dedup_syms(depends))
       }
-      _ => ()
     }
+    dependencies.set(id.uid(), @symbols.dedup_syms(depends))
   }
   let excluded : Array[Sym] = []
   for tpe in opaque {
     for occurrence in under_functions(tpe) {
-      match occurrence {
-        ValueData(id, _) => if !excluded.contains(id) { excluded.push(id) }
-        _ => ()
+      if occurrence is ValueData(id, _) && !excluded.contains(id) {
+        excluded.push(id)
       }
     }
   }
@@ -1808,14 +1791,11 @@ fn Raise::toplevel_env(
 ) -> Env raise EffektError {
   let mut env = Env::empty()
   for d in module.definitions {
-    match d {
-      ToplevelVal(id, binding) => {
-        let components = self.repr_value(single(binding.infer_type()))
-        if components.length() == 1 {
-          env = env.bind_exprs(id, [ValueVar(id, components[0])])
-        }
+    if d is ToplevelVal(id, binding) {
+      let components = self.repr_value(single(binding.infer_type()))
+      if components.length() == 1 {
+        env = env.bind_exprs(id, [ValueVar(id, components[0])])
       }
-      _ => ()
     }
   }
   env
