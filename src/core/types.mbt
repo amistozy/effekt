@@ -215,9 +215,7 @@ pub impl Show for BlockType with fn output(self, logger) {
 /// Upstream `Type.single`: expressions (and thus FFI calls) produce exactly one
 /// value.
 pub fn single(tpes : ArrayView[ValueType]) -> ValueType raise EffektError {
-  if tpes.length() == 1 {
-    return tpes[0]
-  }
+  guard tpes.length() != 1 else { return tpes[0] }
   raise EffektError::Internal(
     "Expected exactly one value, but got: \{show_type_list(tpes)}",
   )

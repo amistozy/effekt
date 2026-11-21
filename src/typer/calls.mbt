@@ -526,12 +526,8 @@ fn implicit_tail_matches(
   total : Int32,
   params : ArrayView[Sym],
 ) -> Bool {
-  if provided > total {
-    return false
-  }
-  if provided == total {
-    return true
-  }
+  guard provided <= total else { return false }
+  guard provided != total else { return true }
   guard params.length() == total else { return false }
   for i in provided..<total {
     guard params[i].is_implicit() else { return false }

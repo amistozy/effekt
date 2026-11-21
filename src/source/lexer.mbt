@@ -127,14 +127,10 @@ fn hex_value(c : Char) -> Int32 {
 /// outside the 64 bit range are rejected, exactly like upstream's
 /// `toLongOption`.
 fn parse_int_lit(s : String) -> Int64? {
-  if s.is_empty() {
-    return None
-  }
+  guard !s.is_empty() else { return None }
   let neg = s[0] == '-'
   let start = if neg { 1 } else { 0 }
-  if start >= s.length() {
-    return None
-  }
+  guard start < s.length() else { return None }
   // The Java `Long.parseLong` algorithm: accumulate negatively so that
   // Int64::min_value is representable.
   let limit : Int64 = if neg {
@@ -151,13 +147,9 @@ fn parse_int_lit(s : String) -> Int64? {
       return None
     }
     let digit = (u.to_int() - '0'.to_int()).to_int64()
-    if result < multmin {
-      return None
-    }
+    guard result >= multmin else { return None }
     result = result * 10L
-    if result < limit + digit {
-      return None
-    }
+    guard result >= limit + digit else { return None }
     result = result - digit
     started = true
   }
@@ -169,9 +161,7 @@ fn parse_int_lit(s : String) -> Int64? {
 ///|
 /// Parses a decimal floating point literal `[-] digits ['.' digits]`.
 fn parse_double_lit(s : String) -> Double? {
-  if s.is_empty() {
-    return None
-  }
+  guard !s.is_empty() else { return None }
   let neg = s[0] == '-'
   let mut i = if neg { 1 } else { 0 }
   let mut int_part : Double = 0.0
@@ -388,9 +378,7 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
   if self.resume_string_next {
     self.resume_string_next = false
     let n = self.delimiters.length()
-    if n > 0 {
-      return self.string_like(self.delimiters[n - 1], true)
-    }
+    guard n <= 0 else { return self.string_like(self.delimiters[n - 1], true) }
     // otherwise fallthrough
   }
 
@@ -766,9 +754,7 @@ fn Lexer::lex_unicode_escape(self : Lexer) -> Int32 {
 
 ///|
 fn parse_hex_int(s : String) -> Int32 {
-  if s.is_empty() {
-    return -1
-  }
+  guard !s.is_empty() else { return -1 }
   let mut acc = 0
   for u in s {
     guard is_hex_digit(u) else { return -1 }

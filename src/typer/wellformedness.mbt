@@ -297,9 +297,7 @@ fn Typer::wf_check(
   let escaping = self
     .free_captures_of(tpe)
     .filter(c => !scope.captures.contains(c))
-  if escaping.is_empty() {
-    return
-  }
+  guard !escaping.is_empty() else { return }
   let message = if escaping.length() == 1 {
     "Capture \{escaping[0].name().name} escapes through type \{tpe}\{detail}."
   } else {
@@ -327,9 +325,7 @@ fn Typer::wf_check_types(
   let escaping = free_types_value(tpe, [])
     .filter(t => !self.st.u.is_type_var(t))
     .filter(t => !scope.types.contains(t))
-  if escaping.is_empty() {
-    return
-  }
+  guard !escaping.is_empty() else { return }
   let message = if escaping.length() == 1 {
     "Type \{escaping[0].name().name} escapes through type \{tpe}\{detail}."
   } else {
@@ -419,9 +415,7 @@ fn Typer::wf_check_handled(
   let escaping = self
     .free_captures_of(tpe)
     .filter(c => !scope.captures.contains(c))
-  if escaping.is_empty() {
-    return
-  }
+  guard !escaping.is_empty() else { return }
   if escaping.any(c => bound.contains(c)) {
     // Upstream's `specificCaptures` for `TryHandle`.
     self.error(

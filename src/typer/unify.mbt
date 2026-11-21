@@ -298,9 +298,7 @@ fn Unification::link(
   hi : Int32,
   filter : Array[Sym],
 ) -> Unit {
-  if lo == hi {
-    return
-  }
+  guard lo != hi else { return }
   self.links.push((lo, hi, filter))
 }
 

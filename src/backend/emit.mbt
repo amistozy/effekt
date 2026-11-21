@@ -142,9 +142,7 @@ fn optimize(
   // (1) first thing we do is simply remove unused definitions (this speeds up
   //     all following analyses and rewrites)
   let module = @core.deadcode(module, roots)
-  if !enabled {
-    return module
-  }
+  guard enabled else { return module }
   // (2) lift static arguments
   let module = @core.static_arguments(module)
   let policy = @core.InliningPolicy::default()
@@ -239,9 +237,7 @@ fn find_exported(module : @symbols.Module, name : String) -> Sym? {
 /// exported bindings (the namer opens a scope for a namespace), so the tree is
 /// walked, exactly like `Typer.check_main` does.
 fn find_main(modules : ArrayView[@namer.ResolvedModule], ctx : Context) -> Sym? {
-  if modules.is_empty() {
-    return None
-  }
+  guard !modules.is_empty() else { return None }
   let module = modules.last().unwrap()
   let found : Array[Sym] = []
   collect_mains(ctx, module.tree.defs, found)

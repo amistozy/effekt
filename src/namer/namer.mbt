@@ -355,9 +355,7 @@ fn Namer::lookup_paths(
   path : Array[String],
 ) -> Array[Array[String]] {
   let ns = self.self_namespace
-  if path.length() < ns.length() {
-    return [path]
-  }
+  guard path.length() >= ns.length() else { return [path] }
   for i in 0..<ns.length() {
     guard path[i] == ns[i] else { return [path] }
   }
@@ -1763,9 +1761,7 @@ fn Namer::resolve_target_candidates(
 ) -> TargetResolution raise EffektError {
   for terms in candidates {
     // Should not occur by construction.
-    if terms.is_empty() {
-      continue
-    }
+    guard !terms.is_empty() else { continue }
     if terms.all(sym => @symbols.is_block_target(sym)) {
       let blocks : Array[Array[Sym]] = []
       for group in candidates {
@@ -1782,9 +1778,7 @@ fn Namer::resolve_target_candidates(
         return BlockTargets([])
       }
       // It is only a SINGLE value in the current scope => take it.
-      if terms.length() == 1 {
-        return SingleTarget(terms[0])
-      }
+      guard terms.length() != 1 else { return SingleTarget(terms[0]) }
       self.context.abort(
         id.span,
         "Multiple values with the same name \{id_text(id)} in one scope. Values cannot be overloaded.",

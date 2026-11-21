@@ -482,9 +482,7 @@ fn Transformer::state_type_of(
       match sym {
         VarBinder(_) | RegBinder(_) => {
           let tpe = self.value_type_of_sym(sym)
-          if !is_unknown_value_type(tpe) {
-            return tpe
-          }
+          guard is_unknown_value_type(tpe) else { return tpe }
           raise EffektError::Internal(
             "Expected the builtin mutable state `Ref[S]` for `\{sym.name().name}` (a " +
             "\{sym_kind(sym)}), but neither the block type nor the value type is known.",
@@ -1477,9 +1475,7 @@ fn Transformer::transform_as_expr(
 fn single_boolean_guard(
   guards : ArrayView[@source.MatchGuard],
 ) -> @source.Term? {
-  if guards.length() != 1 {
-    return None
-  }
+  guard guards.length() == 1 else { return None }
   match guards[0].kind {
     @source.BooleanGuard(cond) => Some(cond)
     @source.PatternGuard(_, _) => None

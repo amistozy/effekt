@@ -117,9 +117,7 @@ fn substitute_captures_with(
   capt : Captures,
   csubst : Map[Int32, Captures],
 ) -> Captures {
-  if csubst.is_empty() {
-    return capt
-  }
+  guard !csubst.is_empty() else { return capt }
   guard capt is CaptureSetOf(cs) else { return capt }
   captures_union(cs, c => csubst.get(c.uid()))
 }

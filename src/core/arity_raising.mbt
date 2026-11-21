@@ -810,9 +810,7 @@ fn describe_expr(e : Expr) -> String {
 ///|
 /// The single component of an expression list (upstream `Raise.single`).
 fn one_component(es : Array[Expr]) -> Expr raise EffektError {
-  if es.length() == 1 {
-    return es[0]
-  }
+  guard es.length() != 1 else { return es[0] }
   raise EffektError::Internal(
     "Expected a single component, but got \{es.length()}",
   )
@@ -846,9 +844,7 @@ fn Raise::open(
   e : Expr,
   tpe : ValueType,
 ) -> Bind[Array[Expr]] raise EffektError {
-  if !self.is_flat(tpe) {
-    return Bind::pure([e])
-  }
+  guard self.is_flat(tpe) else { return Bind::pure([e]) }
   let data = match tpe {
     ValueData(id, _) => id
     _ => raise EffektError::Internal("A flat type is not a data type: \{tpe}")

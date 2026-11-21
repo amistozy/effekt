@@ -247,9 +247,7 @@ fn fresh_show_id() -> Sym {
 /// and calls to it must not be replaced by a structural instance. We therefore
 /// additionally require the callee to be an extern function.
 fn is_show_call(block_var : BlockVar) -> Bool {
-  if block_var.id.name().name != show_function_name {
-    return false
-  }
+  guard block_var.id.name().name == show_function_name else { return false }
   match block_var.id {
     ExternFunction(_) => true
     _ => false
@@ -301,9 +299,7 @@ fn show_type_argument(
   targs : ArrayView[ValueType],
   vargs : ArrayView[Expr],
 ) -> ValueType? raise EffektError {
-  if targs.length() == 1 {
-    return showable_type(dctx, targs[0])
-  }
+  guard targs.length() != 1 else { return showable_type(dctx, targs[0]) }
   if targs.is_empty() && vargs.length() == 1 {
     return showable_type(dctx, shown_type_of(vargs[0]))
   }

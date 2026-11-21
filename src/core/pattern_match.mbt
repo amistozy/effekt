@@ -228,9 +228,7 @@ fn pm_compile(
 ) -> Stmt raise EffektError {
   // This shouldn't be reachable anymore since we specialize matching on void
   // before calling compile.
-  if clauses.is_empty() {
-    return Hole([motif], Span::missing())
-  }
+  guard !clauses.is_empty() else { return Hole([motif], Span::missing()) }
 
   // (0) normalize clauses
   let normalized = clauses.map(pm_normalize)
@@ -314,9 +312,7 @@ fn pm_split_clause(
   c : PMClause,
   scrutinee : PMVar,
 ) -> (PMPattern, Map[Int32, PMVarPattern], Array[PMCondition])? {
-  if c.conditions.is_empty() {
-    return None
-  }
+  guard !c.conditions.is_empty() else { return None }
   match c.conditions[0] {
     PMPatterns(patterns) =>
       patterns
@@ -633,7 +629,7 @@ fn pm_normalize_conditions(
   conditions : ArrayView[PMCondition],
   substitution : Map[Int32, PMVar],
 ) -> (Array[PMCondition], Map[Int32, PMVar]) raise EffektError {
-  if conditions.is_empty() {
+  guard !conditions.is_empty() else {
     return (pm_prefix(patterns, []), substitution)
   }
   let rest = pm_drop_first(conditions)

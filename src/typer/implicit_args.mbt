@@ -253,9 +253,7 @@ fn Typer::source_position_term(
     scope.imports,
     "SourcePosition",
   )
-  if candidates.is_empty() {
-    return None
-  }
+  guard !candidates.is_empty() else { return None }
   let span = call.span.synthesized()
   let from = call.span.source.offset_to_position(call.span.start)
   let to = call.span.source.offset_to_position(call.span.end)

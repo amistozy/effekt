@@ -56,15 +56,9 @@ fn edit_distance(a : String, b : String, limit : Int32) -> Int32? {
   let right = b.to_array()
   let n = left.length()
   let m = right.length()
-  if n == 0 {
-    return Some(m)
-  }
-  if m == 0 {
-    return Some(n)
-  }
-  if (n - m).abs() > limit {
-    return None
-  }
+  guard n != 0 else { return Some(m) }
+  guard m != 0 else { return Some(n) }
+  guard (n - m).abs() <= limit else { return None }
   // Strip the common prefix, then the common suffix of what is left.
   let mut prefix = 0
   while prefix < n && prefix < m && left[prefix] == right[prefix] {
@@ -78,12 +72,8 @@ fn edit_distance(a : String, b : String, limit : Int32) -> Int32? {
   }
   let s1 = left[prefix:n - suffix]
   let s2 = right[prefix:m - suffix]
-  if s1.is_empty() {
-    return Some(s2.length())
-  }
-  if s2.is_empty() {
-    return Some(s1.length())
-  }
+  guard !s1.is_empty() else { return Some(s2.length()) }
+  guard !s2.is_empty() else { return Some(s1.length()) }
   let distance = levenshtein(s1, s2)
   if distance <= limit {
     Some(distance)
@@ -123,9 +113,7 @@ pub(all) struct CloseMatches[A] {
 /// The closest candidates, or none when no candidate is within the limit.
 pub fn[A] CloseMatches::closest(self : CloseMatches[A]) -> Array[A] {
   for group in self.groups {
-    if !group.is_empty() {
-      return group
-    }
+    guard group.is_empty() else { return group }
   }
   []
 }
@@ -198,12 +186,8 @@ pub fn[A] close_matches(
 /// `a`, `a and b`, `a, b and c` for the conjunction `and` (upstream
 /// `messages.enumerated`).
 pub fn enumerated(items : ArrayView[String], conjunction : String) -> String {
-  if items.is_empty() {
-    return ""
-  }
-  if items.length() == 1 {
-    return items[0]
-  }
+  guard !items.is_empty() else { return "" }
+  guard items.length() != 1 else { return items[0] }
   let init = items[:items.length() - 1].join(", ")
   "\{init} \{conjunction} \{items[items.length() - 1]}"
 }
@@ -212,9 +196,7 @@ pub fn enumerated(items : ArrayView[String], conjunction : String) -> String {
 /// The "Did you mean ...?" hint for a list of names, at most three of them
 /// (upstream `messages.suggestion`).
 pub fn suggestion(names : ArrayView[String]) -> String? {
-  if names.is_empty() {
-    return None
-  }
+  guard !names.is_empty() else { return None }
   Some("Did you mean \{enumerated(names[:names.length().min(3)], "or")}?")
 }
 

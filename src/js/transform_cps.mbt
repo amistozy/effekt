@@ -780,9 +780,7 @@ fn can_be_direct(
   ctx : TransformerContext,
 ) -> Bool raise EffektError {
   let fuel = ctx.direct_fuel
-  if fuel[0] <= 0 {
-    return false
-  }
+  guard fuel[0] > 0 else { return false }
   fuel[0] = fuel[0] - 1
   match stmt {
     @cps.Stmt::Jump(k2, vargs, ks2) => {

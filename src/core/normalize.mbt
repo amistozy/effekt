@@ -1516,9 +1516,7 @@ fn adjust_type_args(
   targs : Array[ValueType],
   count : Int32,
 ) -> Array[ValueType] {
-  if targs.length() == count {
-    return targs
-  }
+  guard targs.length() != count else { return targs }
   // a slice clamps at both ends, so this truncates to the first `count`
   let out = targs[:count].to_owned()
   for _ in out.length()..<count {

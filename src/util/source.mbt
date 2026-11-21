@@ -253,12 +253,8 @@ pub fn Span::to_span(self : Span, other : Span) -> Span {
 
 ///|
 pub fn Span::merge(self : Span, other : Span) -> Span {
-  if self.origin == Missing {
-    return other
-  }
-  if other.origin == Missing {
-    return self
-  }
+  guard self.origin != Missing else { return other }
+  guard other.origin != Missing else { return self }
   let a = if self.start <= other.start { self } else { other }
   let b = if self.end >= other.end { self } else { other }
   guard a.source.name == b.source.name else { a }
@@ -352,9 +348,7 @@ fn parse_fence(line : String) -> Fence? {
   while i < n && is_fence_space(chars[i]) {
     i += 1
   }
-  if i == n {
-    return Some({ lang, opts: [], })
-  }
+  guard i != n else { return Some({ lang, opts: [], }) }
   guard chars[i] == ':' else { return None }
   // `ots.split(":").tail`: the options are what follows the first colon, split
   // at further colons.
@@ -377,9 +371,7 @@ fn parse_fence(line : String) -> Fence? {
 fn markdown_lines(text : String) -> Array[String] {
   let out : Array[String] = []
   let n = text.length()
-  if n == 0 {
-    return out
-  }
+  guard n != 0 else { return out }
   let mut start = 0
   for i in 0..<n {
     if text[i] == '\n' {

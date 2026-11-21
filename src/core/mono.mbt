@@ -1847,15 +1847,11 @@ fn mono_bounds_equal(
   a : Map[Int32, Array[MonoVariant]],
   b : Map[Int32, Array[MonoVariant]],
 ) -> Bool {
-  if a.length() != b.length() {
-    return false
-  }
+  guard a.length() == b.length() else { return false }
   for uid, variants in a {
     match b.get(uid) {
       Some(other) => {
-        if variants.length() != other.length() {
-          return false
-        }
+        guard variants.length() == other.length() else { return false }
         for i in 0..<variants.length() {
           if variants[i] != other[i] {
             return false
@@ -2275,9 +2271,7 @@ fn MonoSpecialize::bind(
   // arguments are simply dropped.
   let substitution = self.substitution.copy()
   for i, param in tparams {
-    if i >= targs.length() {
-      break
-    }
+    guard i < targs.length() else { break }
     substitution.set(param.uid(), targs[i])
   }
   {
@@ -2546,9 +2540,7 @@ fn mono_starts_with(
   variant : ArrayView[MonoValueType[Unit]],
   prefix : ArrayView[MonoValueType[Unit]],
 ) -> Bool {
-  if prefix.length() > variant.length() {
-    return false
-  }
+  guard prefix.length() <= variant.length() else { return false }
   for i in 0..<prefix.length() {
     if variant[i] != prefix[i] {
       return false
@@ -2800,9 +2792,7 @@ fn mono_replacement_data_ground(
   id : Sym,
   targs : ArrayView[MonoValueType[Unit]],
 ) -> ValueType raise EffektError {
-  if targs.is_empty() {
-    return ValueData(id, [])
-  }
+  guard !targs.is_empty() else { return ValueData(id, []) }
   match mono_lookup_extern_data(dctx, id) {
     Some(_) =>
       ValueData(
@@ -3051,9 +3041,7 @@ fn mono_replacement_fun(
   id : Sym,
   targs : ArrayView[ValueType],
 ) -> Sym raise EffektError {
-  if targs.is_empty() {
-    return id
-  }
+  guard !targs.is_empty() else { return id }
   let variant = targs.map(t => mono_to_ground_value(state, t))
   state.fun_name(id, variant)
 }
@@ -3130,16 +3118,14 @@ fn mono_monomorphize_constructor(
   ctor : Constructor,
   variant : ArrayView[MonoValueType[Unit]],
 ) -> Array[Constructor] raise EffektError {
-  let out : Array[Constructor] = []
-  let instances = mono_instances(state, ctor.id, variant, ctor.tparams)
-  for (base_types, local) in instances {
-    out.push(Constructor::{
+  mono_instances(state, ctor.id, variant, ctor.tparams).map(instance => {
+    let (base_types, local) = instance
+    Constructor::{
       id: local.fun_name(ctor.id, base_types),
       tparams: [],
       fields: ctor.fields.map(f => mono_monomorphize_field(local, dctx, f)),
-    })
-  }
-  out
+    }
+  })
 }
 
 ///|
@@ -3212,7 +3198,7 @@ fn mono_nest_defs(
   index : Int32,
   body : Stmt,
 ) -> Stmt raise EffektError {
-  if index >= variants.length() {
+  guard index < variants.length() else {
     return mono_monomorphize_stmt(state, dctx, body)
   }
   let variant = variants[index]

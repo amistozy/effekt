@@ -702,9 +702,7 @@ fn Typer::lexical_capability(
     @symbols.BlockType::InterfaceType(c, a) => (c, a)
     _ => return None
   }
-  if self.unknowns_block(target).is_empty() {
-    return None
-  }
+  guard !self.unknowns_block(target).is_empty() else { return None }
   let compatible : Array[Sym] = []
   for cap in self.st.cap_scope.all_capabilities() {
     if capability_type(cap) is Some(cap_tpe) {
@@ -720,9 +718,7 @@ fn Typer::lexical_capability(
       }
     }
   }
-  if compatible.is_empty() {
-    return None
-  }
+  guard !compatible.is_empty() else { return None }
   // Several capabilities of the same effect may be in scope at once (a handler
   // inside a block that allocates its own). That is not an ambiguity as long as
   // they all have the same interface type: any of them solves the effect's
@@ -982,9 +978,7 @@ fn Typer::without(
   caps : Captures,
   others : ArrayView[Sym],
 ) -> Captures {
-  if others.is_empty() {
-    return caps
-  }
+  guard !others.is_empty() else { return caps }
   match caps {
     @symbols.Captures::CaptureSetOf(cs) =>
       @symbols.Captures::CaptureSetOf(cs.filter(c => !others.contains(c)))
@@ -1014,9 +1008,7 @@ fn Typer::require_subregion_ctx(
 ) -> Unit raise EffektError {
   let from = self.st.u.prune_captures(from)
   let to = self.st.u.prune_captures(to)
-  if from == to {
-    return
-  }
+  guard from != to else { return }
   match (from, to) {
     (@symbols.Captures::CaptureSetOf(ls), _) if ls.is_empty() => return
     (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptureSetOf(us)) => {
@@ -1055,9 +1047,7 @@ fn Typer::require_subregion(
 ) -> Unit {
   let from = self.st.u.prune_captures(from)
   let to = self.st.u.prune_captures(to)
-  if from == to {
-    return
-  }
+  guard from != to else { return }
   match (from, to) {
     (@symbols.Captures::CaptureSetOf(ls), _) if ls.is_empty() => return
     (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptureSetOf(us)) => {
@@ -3068,9 +3058,7 @@ fn Typer::unify_value_types(
   tpe2 : ValueType,
   ctx : ErrCtx,
 ) -> Unit raise EffektError {
-  if tpe1 == tpe2 {
-    return
-  }
+  guard tpe1 != tpe2 else { return }
   // solve the unification variable, whichever side it is on
   if tpe1 is @symbols.ValueType::ValueTypeRef(x) && self.st.u.is_type_var(x) {
     self.learn(x, tpe2, ctx)
@@ -3557,18 +3545,12 @@ fn Typer::merge_value_types(
   new : ValueType,
   ctx : ErrCtx,
 ) -> ValueType raise EffektError {
-  if old == new {
-    return old
-  }
+  guard old != new else { return old }
   if old == t_top() || new == t_top() {
     return t_top()
   }
-  if old == t_bottom() {
-    return new
-  }
-  if new == t_bottom() {
-    return old
-  }
+  guard old != t_bottom() else { return new }
+  guard new != t_bottom() else { return old }
   match (old, new) {
     // `old` is a unification variable: constrain it. This also covers a solved
     // variable — `learn` then merges the new type into the existing one
@@ -3706,7 +3688,7 @@ fn Typer::merge_captures(
         }
     }
   }
-  if variables.is_empty() {
+  guard !variables.is_empty() else {
     return @symbols.Captures::CaptureSetOf(concrete)
   }
   let v = self.fresh_capt_var("substitution")

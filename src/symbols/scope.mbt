@@ -564,9 +564,7 @@ pub fn is_block_target(sym : Sym) -> Bool {
 /// implicit block argument).
 pub fn block_candidates(groups : ArrayView[Array[Sym]]) -> Array[Array[Sym]] {
   for terms in groups {
-    if terms.is_empty() {
-      continue
-    }
+    guard !terms.is_empty() else { continue }
     if terms.all(is_block_target) {
       let out : Array[Array[Sym]] = []
       for group in groups {

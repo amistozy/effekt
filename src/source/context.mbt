@@ -290,9 +290,7 @@ fn[V] copy_entry(
 /// to a block literal twice and thus generating JavaScript with duplicate
 /// parameter names.
 fn Context::copy_annotations(self : Context, from : Int32, to : Int32) -> Unit {
-  if from == to {
-    return
-  }
+  guard from != to else { return }
   copy_entry(self.symbols, self.symbols, from, to)
   copy_entry(self.value_types, self.value_types, from, to)
   copy_entry(self.block_types, self.block_types, from, to)

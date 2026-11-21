@@ -121,9 +121,7 @@ fn normalize_conds(conds : ArrayView[Cond], index : Int32) -> Clause {
 
 ///|
 fn Clause::matches_on(self : Clause, t : Trace) -> Pat? {
-  if self.conds.is_empty() {
-    return None
-  }
+  guard !self.conds.is_empty() else { return None }
   match self.conds[0] {
     CPatterns(ps) => pattern_under(ps, t)
     _ => None
@@ -134,9 +132,7 @@ fn Clause::matches_on(self : Clause, t : Trace) -> Pat? {
 /// The clause with `t` removed from its pattern conditions: it no longer
 /// matches on that scrutinee.
 fn Clause::minus(self : Clause, t : Trace) -> Clause {
-  if self.conds.is_empty() {
-    return self
-  }
+  guard !self.conds.is_empty() else { return self }
   match self.conds[0] {
     CPatterns(ps) => {
       let conds : Array[Cond] = [CPatterns(without_trace(ps, t))]
@@ -234,12 +230,10 @@ fn literal_domain(t : ValueType) -> Array[@source.LiteralValue]? {
       @source.LiteralValue::LBool(false),
     ])
   }
-  if t == @symbols.t_unit() {
+  guard t != @symbols.t_unit() else {
     return Some([@source.LiteralValue::LUnit])
   }
-  if t == @symbols.t_bottom() {
-    return Some([])
-  }
+  guard t != @symbols.t_bottom() else { return Some([]) }
   None
 }
 
@@ -332,9 +326,7 @@ fn Exhaustivity::preprocess(
   let patterns : Array[(Trace, Pat)] = []
   match clause.pattern.kind {
     @source.PatternKind::MultiPattern(ps) => {
-      if ps.length() != arity {
-        return None
-      }
+      guard ps.length() == arity else { return None }
       for i in 0..<ps.length() {
         patterns.push(
           (TRoot(self.scrutinees[i].uid), self.preprocess_pattern(ps[i])),
@@ -342,9 +334,7 @@ fn Exhaustivity::preprocess(
       }
     }
     _ => {
-      if arity != 1 {
-        return None
-      }
+      guard arity == 1 else { return None }
       patterns.push(
         (TRoot(self.scrutinees[0].uid), self.preprocess_pattern(clause.pattern)),
       )
@@ -616,9 +606,7 @@ fn Exhaustivity::match_clause(
 fn constructor_pattern(ctor : Sym) -> String {
   let fields = constructor_fields(ctor)
   let name = ctor.name().name
-  if fields.is_empty() {
-    return "\{name}()"
-  }
+  guard !fields.is_empty() else { return "\{name}()" }
   let parts = fields.map(_ => "_")
   "\{name}(\{parts.join(", ")})"
 }
@@ -731,13 +719,9 @@ fn Typer::defer_exhaustivity(
   has_default : Bool,
   span : Span,
 ) -> Unit {
-  if scrutinees.is_empty() {
-    return
-  }
+  guard !scrutinees.is_empty() else { return }
   for p in self.pending_matches {
-    if p.uid == uid {
-      return
-    }
+    guard p.uid != uid else { return }
   }
   self.pending_matches.push({
     uid,
