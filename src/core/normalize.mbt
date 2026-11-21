@@ -501,11 +501,11 @@ fn dead_branches(known : Map[Int32, Expr], body : Stmt) -> Int32 {
           ValueVar(id, _) =>
             match known.get(id.uid()) {
               Some(Literal(LBool(true), _)) => {
-                acc = acc + els.size()
+                acc += els.size()
                 continue thn
               }
               Some(Literal(LBool(false), _)) => {
-                acc = acc + thn.size()
+                acc += thn.size()
                 continue els
               }
               _ => return acc
@@ -523,21 +523,21 @@ fn dead_branches(known : Map[Int32, Expr], body : Stmt) -> Int32 {
                   if clause.tag == tag {
                     selected = Some(clause)
                   } else {
-                    dead = dead + clause.body.size()
+                    dead += clause.body.size()
                   }
                 }
                 match selected {
                   Some(clause) => {
-                    acc = acc + dead
+                    acc += dead
                     if default is Some(d) {
-                      acc = acc + d.size()
+                      acc += d.size()
                     }
                     continue clause.body.body
                   }
                   None =>
                     match default {
                       Some(d) => {
-                        acc = acc + dead
+                        acc += dead
                         continue d
                       }
                       None => return acc + dead

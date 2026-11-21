@@ -251,9 +251,7 @@ fn Namer::import_dependency(
       let included = dep.module
       // Importing the same module twice is a no-op (the driver prepends the
       // implicit prelude include, so `import effekt` occurs twice).
-      if self.imported.contains(path) {
-        return Some(included)
-      }
+      guard !self.imported.contains(path) else { return Some(included) }
       self.imported.push(path)
       let namespace = included.name.path + [included.name.name]
       // Fully qualified:
@@ -487,10 +485,7 @@ fn Namer::path(self : Namer) -> Array[String]? {
 /// The name of a definition, qualified with the current namespace path.
 /// Mirrors upstream's `Context.nameFor`.
 fn Namer::name_for(self : Namer, id : IdDef) -> Name {
-  let prefix : Array[String] = match self.path() {
-    Some(p) => p
-    None => []
-  }
+  let prefix = self.path().unwrap_or([])
   let full = prefix + id.path
   if full.is_empty() {
     Name::local(id.name)
@@ -1532,10 +1527,7 @@ fn Namer::check_implicit_flags(
 ) -> Unit {
   let mut current = level
   for (is_implicit, name, span) in flags {
-    let text = match span.text() {
-      Some(t) => t
-      None => name
-    }
+    let text = span.text().unwrap_or(name)
     if is_implicit && current == Forbidden {
       self.context.error(
         span,
@@ -2064,10 +2056,7 @@ fn Namer::resolve_function_type(
           }
           let effs = self.resolve_effects(effects).distinct()
           for eff in @symbols.canonical_order(effs.effects) {
-            let name = match eff.interface_name() {
-              Some(n) => n
-              None => Name::anon()
-            }
+            let name = eff.interface_name().unwrap_or(Name::anon())
             caps.push(@symbols.Sym::capture_param(name))
           }
           for cap in caps {
@@ -2216,10 +2205,7 @@ fn Namer::fresh_hole_id(self : Namer) -> String {
     let parts = self.parent_definitions.map(def_id_name)
     parts.join("_")
   }
-  let count = match self.hole_count.get(prefix) {
-    Some(c) => c
-    None => 0
-  }
+  let count = self.hole_count.get(prefix).unwrap_or(0)
   self.hole_count.set(prefix, count + 1)
   "\{prefix}\{count}"
 }

@@ -62,13 +62,13 @@ fn edit_distance(a : String, b : String, limit : Int32) -> Int32? {
   // Strip the common prefix, then the common suffix of what is left.
   let mut prefix = 0
   while prefix < n && prefix < m && left[prefix] == right[prefix] {
-    prefix = prefix + 1
+    prefix += 1
   }
   let mut suffix = 0
   while suffix < n - prefix &&
         suffix < m - prefix &&
         left[n - 1 - suffix] == right[m - 1 - suffix] {
-    suffix = suffix + 1
+    suffix += 1
   }
   let s1 = left[prefix:n - suffix]
   let s2 = right[prefix:m - suffix]

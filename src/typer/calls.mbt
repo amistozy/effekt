@@ -591,9 +591,8 @@ fn Typer::check_overloaded_function_call(
         )
       },
     )
-    match self.resolve_scope(id, successes, failures) {
-      Some(res) => return res
-      None => ()
+    if self.resolve_scope(id, successes, failures) is Some(res) {
+      return res
     }
     all_failures.append(failures)
   }
@@ -1160,15 +1159,11 @@ fn Typer::check_method_call_to(
         "Expected an interface type as receiver, but got \{recv.tpe}.",
       )
   }
-  match operation_interface(operation) {
-    Some(ctor) =>
-      if ctor != iface_ctor {
-        self.abort(
-          receiver.span,
-          "Expected an object of interface \{ctor.name().name}, but got \{recv.tpe}.",
-        )
-      }
-    None => ()
+  if operation_interface(operation) is Some(ctor) && ctor != iface_ctor {
+    self.abort(
+      receiver.span,
+      "Expected an object of interface \{ctor.name().name}, but got \{recv.tpe}.",
+    )
   }
   let (fun_tpe, tparams, vps, bps) = self.find_function_type_for(operation)
   // The number of explicitly provided type arguments is checked first and aborts
@@ -1238,11 +1233,10 @@ fn Typer::check_overloaded_method_call(
         )
       },
     )
-    match self.resolve_scope(id, successes, failures) {
-      // Record what the method call resolved to: the namer resolves the name to
-      // every candidate, and the backend rebuilds the call from this symbol.
-      Some(res) => return res
-      None => ()
+    // Record what the method call resolved to: the namer resolves the name to
+    // every candidate, and the backend rebuilds the call from this symbol.
+    if self.resolve_scope(id, successes, failures) is Some(res) {
+      return res
     }
     all_failures.append(failures)
   }
@@ -1282,9 +1276,8 @@ fn Typer::explain_missing_method(
     Some(s) => s
     None => return []
   }
-  match @symbols.ended_term(scope, id.path, id.name) {
-    Some(binder) => return [@symbols.note_ended(binder)]
-    None => ()
+  if @symbols.ended_term(scope, id.path, id.name) is Some(binder) {
+    return [@symbols.note_ended(binder)]
   }
   let imports = self.ctx
     .call_imports_of(call.uid)

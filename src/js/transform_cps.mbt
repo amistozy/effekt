@@ -781,7 +781,7 @@ fn can_be_direct(
 ) -> Bool raise EffektError {
   let fuel = ctx.direct_fuel
   guard fuel[0] > 0 else { return false }
-  fuel[0] = fuel[0] - 1
+  fuel[0] -= 1
   match stmt {
     @cps.Stmt::Jump(k2, vargs, ks2) => {
       let args_ok = vargs.all(v => !v.occurs(k))

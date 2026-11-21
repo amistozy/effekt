@@ -143,14 +143,12 @@ fn parse_int_lit(s : String) -> Int64? {
   let mut started = false
   for i in start..<s.length() {
     let u = s[i]
-    if u < '0' || u > '9' {
-      return None
-    }
+    guard u >= '0' && u <= '9' else { return None }
     let digit = (u.to_int() - '0'.to_int()).to_int64()
     guard result >= multmin else { return None }
-    result = result * 10L
+    result *= 10L
     guard result >= limit + digit else { return None }
-    result = result - digit
+    result -= digit
     started = true
   }
   guard started else { return None }
@@ -169,17 +167,17 @@ fn parse_double_lit(s : String) -> Double? {
   while i < s.length() && s[i] >= '0' && s[i] <= '9' {
     int_part = int_part * 10.0 + (s[i].to_int() - '0'.to_int()).to_double()
     seen_digit = true
-    i = i + 1
+    i += 1
   }
   guard seen_digit else { return None }
   let mut result = int_part
   if i < s.length() && s[i] == '.' {
-    i = i + 1
+    i += 1
     let mut scale = 0.1
     while i < s.length() && s[i] >= '0' && s[i] <= '9' {
-      result = result + (s[i].to_int() - '0'.to_int()).to_double() * scale
-      scale = scale / 10.0
-      i = i + 1
+      result += (s[i].to_int() - '0'.to_int()).to_double() * scale
+      scale /= 10.0
+      i += 1
     }
   }
   guard i == s.length() else { return None }
@@ -292,7 +290,7 @@ fn Lexer::at_end_of_input(self : Lexer) -> Bool {
 /// Advances the lexer by one, consuming (and returning) the current character.
 fn Lexer::advance(self : Lexer) -> Char {
   let ret = self.current_char
-  self.offset = self.offset + ret.utf16_len()
+  self.offset += ret.utf16_len()
   self.current_char = self.next_char
   self.next_char = char_at(
     self.content,
@@ -455,7 +453,7 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
     ('<', '=') => self.advance_with(2, TLtEq)
     ('<', '>') => self.advance_with(2, TDiamond)
     ('<', '{') => {
-      self.braces = self.braces + 1
+      self.braces += 1
       self.advance_with(2, THoleStart)
     }
     ('<', '~') => self.advance_with(2, TLtTilde)
@@ -485,13 +483,13 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
     ('?', _) => self.advance_with(1, TQuestion)
     ('$', '{') => {
       self.interpolation_depths.push(self.braces + 1)
-      self.braces = self.braces + 1
+      self.braces += 1
       self.advance_with(2, TSpliceStart)
     }
     ('$', _) => self.advance_with(1, TError(UnknownChar('$')))
     ('}', _) if self.is_at_interpolation_boundary() => {
       ignore(self.interpolation_depths.pop())
-      self.braces = self.braces - 1
+      self.braces -= 1
       self.resume_string_next = true // remember to resume with a string next!
       self.advance_with(1, TSpliceEnd)
     }
@@ -499,31 +497,31 @@ fn Lexer::next_token(self : Lexer) -> TokenKind {
     (';', _) => self.advance_with(1, TSemi)
     ('@', _) => self.advance_with(1, TAt)
     ('{', _) => {
-      self.braces = self.braces + 1
+      self.braces += 1
       self.advance_with(1, TLBrace)
     }
     ('}', '>') => {
-      self.braces = self.braces - 1
+      self.braces -= 1
       self.advance_with(2, THoleEnd)
     }
     ('}', _) => {
-      self.braces = self.braces - 1
+      self.braces -= 1
       self.advance_with(1, TRBrace)
     }
     ('(', _) => {
-      self.parens = self.parens + 1
+      self.parens += 1
       self.advance_with(1, TLParen)
     }
     (')', _) => {
-      self.parens = self.parens - 1
+      self.parens -= 1
       self.advance_with(1, TRParen)
     }
     ('[', _) => {
-      self.brackets = self.brackets + 1
+      self.brackets += 1
       self.advance_with(1, TLBracket)
     }
     (']', _) => {
-      self.brackets = self.brackets - 1
+      self.brackets -= 1
       self.advance_with(1, TRBracket)
     }
     (',', _) => self.advance_with(1, TComma)
@@ -596,10 +594,7 @@ fn Lexer::byte(self : Lexer) -> TokenKind {
 fn Lexer::identifier(self : Lexer) -> TokenKind {
   self.advance_while((curr, _) => is_name_rest(curr))
   let word = self.get_current_slice(0, 0)
-  match keyword_kind(word) {
-    Some(k) => k
-    None => TIdent(word)
-  }
+  keyword_kind(word).unwrap_or(TIdent(word))
 }
 
 ///|

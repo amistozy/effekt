@@ -38,9 +38,7 @@ fn instantiated_results(
   targs : ArrayView[ValueType],
   cargs : ArrayView[Captures],
 ) -> Array[ValueType] raise EffektError {
-  if is_unknown_block_type(tpe) {
-    return [unknown_value_type()]
-  }
+  guard !is_unknown_block_type(tpe) else { return [unknown_value_type()] }
   let targs = match tpe {
     FunctionType(tparams, _, _, _, _) =>
       adjust_type_args(targs.to_owned(), tparams.length())

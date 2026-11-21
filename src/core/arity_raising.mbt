@@ -227,9 +227,7 @@ fn boundary(site : ExternCallSite) -> Array[ValueType] raise EffektError {
 /// mention `T` only bare (like `genericEquals[T](x: T, y: T)`) may inspect their
 /// arguments and are not componentwise.
 fn is_componentwise(f : ExternSig, containers : Array[Sym]) -> Bool {
-  if f.tparams.length() != 1 || !f.bparams.is_empty() {
-    return false
-  }
+  guard f.tparams.length() == 1 && f.bparams.is_empty() else { return false }
   let t = f.tparams[0]
   let tpes = [f.ret] + f.vparams
   let allowed = tpes.all(tpe => {
@@ -249,7 +247,7 @@ fn componentwise_element(
   containers : Array[Sym],
   frozen : Array[ValueType],
 ) -> ValueType? {
-  if targs.length() != 1 || !is_componentwise(f, containers) {
+  guard targs.length() == 1 && is_componentwise(f, containers) else {
     return None
   }
   let u = targs[0]
@@ -352,9 +350,8 @@ fn ArAnalysis::visit_stmt(
       self.visit_stmt(body)
     }
     ImpureApp(_, callee, targs, vargs, bargs, body) => {
-      match self.externs.get(callee.id.uid()) {
-        Some(f) => self.call_sites.push({ f, targs, control: false, })
-        None => ()
+      if self.externs.get(callee.id.uid()) is Some(f) {
+        self.call_sites.push({ f, targs, control: false, })
       }
       self.visit_block_type(callee.annotated_tpe)
       for t in targs {
@@ -377,13 +374,10 @@ fn ArAnalysis::visit_stmt(
       self.visit_stmt(body)
     }
     App(callee, targs, vargs, bargs) => {
-      match callee {
-        BlockVar(bv) =>
-          match self.externs.get(bv.id.uid()) {
-            Some(f) => self.call_sites.push({ f, targs, control: true, })
-            None => ()
-          }
-        _ => ()
+      if callee is BlockVar(bv) {
+        if self.externs.get(bv.id.uid()) is Some(f) {
+          self.call_sites.push({ f, targs, control: true, })
+        }
       }
       self.visit_block(callee)
       for t in targs {
@@ -423,9 +417,8 @@ fn ArAnalysis::visit_stmt(
       for clause in clauses {
         self.visit_block_lit(clause.body)
       }
-      match default {
-        Some(body) => self.visit_stmt(body)
-        None => ()
+      if default is Some(body) {
+        self.visit_stmt(body)
       }
     }
     Region(lit) => self.visit_block_lit(lit)
@@ -471,9 +464,8 @@ fn ArAnalysis::visit_expr(
     ValueVar(_, tpe) => self.visit_value_type(tpe)
     Literal(_, tpe) => self.visit_value_type(tpe)
     PureApp(callee, targs, vargs) => {
-      match self.externs.get(callee.id.uid()) {
-        Some(f) => self.call_sites.push({ f, targs, control: false, })
-        None => ()
+      if self.externs.get(callee.id.uid()) is Some(f) {
+        self.call_sites.push({ f, targs, control: false, })
       }
       self.visit_block_type(callee.annotated_tpe)
       for t in targs {
@@ -1371,10 +1363,7 @@ fn Raise::stmt(self : Raise, env : Env, s : Stmt) -> Stmt raise EffektError {
               Clause(clause.tag, self.block_lit(env, clause.body)),
             )
           }
-          let raised_default = match default {
-            Some(body) => Some(self.stmt(env, body))
-            None => None
-          }
+          let raised_default = default.map(d => self.stmt(env, d))
           Match(one_component(cs), raised_tpes, raised_clauses, raised_default)
         })
       }

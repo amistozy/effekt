@@ -464,10 +464,10 @@ fn block_type_size(t : @symbols.BlockType) -> Int32 {
         cparams.length() +
         value_type_size(result)
       for vp in vps {
-        size = size + value_type_size(vp)
+        size += value_type_size(vp)
       }
       for bp in bps {
-        size = size + block_type_size(bp)
+        size += block_type_size(bp)
       }
       size + effects_size(effs)
     }
@@ -504,10 +504,7 @@ fn[T] Typer::with_implicit_guard(
   run : () -> T raise EffektError,
 ) -> T raise EffektError {
   let before = self.st.implicit_stack.get(name)
-  let (depth, last_size) = match before {
-    Some(entry) => entry
-    None => (0, size)
-  }
+  let (depth, last_size) = before.unwrap_or((0, size))
   let grew = size >= last_size
   let depth = if grew { depth + 1 } else { depth }
   if grew && depth > max_implicit_recursion {

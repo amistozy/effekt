@@ -1878,9 +1878,8 @@ fn mono_solve(constraints : Array[MonoFlow]) -> MonoSolution raise EffektError {
   for uid, variants in bounds {
     let ground : Array[Array[MonoValueType[Unit]]] = []
     for variant in variants {
-      match mono_ground_variant(variant, [], []) {
-        Some(g) => mono_push_unique(ground, g)
-        None => ()
+      if mono_ground_variant(variant, [], []) is Some(g) {
+        mono_push_unique(ground, g)
       }
     }
     if !ground.is_empty() {
@@ -2217,9 +2216,7 @@ fn mono_is_bound(
   position : Int32,
   binders : Array[Int32],
 ) -> Bool {
-  if level < 0 || position < 0 {
-    return false
-  }
+  guard level >= 0 && position >= 0 else { return false }
   match binders.get(level) {
     Some(arity) => position < arity
     None => false
@@ -3627,7 +3624,7 @@ fn mono_preprocess(module : ModuleDecl) -> ModuleDecl raise EffektError {
       state.interfaces[index],
       initial,
     )
-    index = index + 1
+    index += 1
   }
   ModuleDecl::{
     path: module.path,

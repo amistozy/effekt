@@ -97,9 +97,7 @@ fn Source::line_start(self : Source, line : Int32) -> Int32 {
 ///|
 /// The text of `line` (1-based), without the trailing newline.
 fn Source::line_text(self : Source, line : Int32) -> String {
-  if line < 1 || line > self.line_starts.length() {
-    return ""
-  }
+  guard line >= 1 && line <= self.line_starts.length() else { return "" }
   let from = self.line_starts[line - 1]
   let to = if line < self.line_starts.length() {
     self.line_starts[line]
@@ -232,9 +230,7 @@ pub fn Span::is_missing(self : Span) -> Bool {
 ///|
 /// The text covered by this span, if the span has real source information.
 pub fn Span::text(self : Span) -> String? {
-  if self.origin == Missing || self.source.content == "" {
-    return None
-  }
+  guard self.origin != Missing && self.source.content != "" else { return None }
   let a = self.start.max(0)
   let b = self.end.min(self.source.content.length())
   if b <= a {

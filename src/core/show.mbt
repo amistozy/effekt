@@ -300,12 +300,12 @@ fn show_type_argument(
   vargs : ArrayView[Expr],
 ) -> ValueType? raise EffektError {
   guard targs.length() != 1 else { return showable_type(dctx, targs[0]) }
-  if targs.is_empty() && vargs.length() == 1 {
-    return showable_type(dctx, shown_type_of(vargs[0]))
+  guard targs.is_empty() && vargs.length() == 1 else {
+    raise EffektError::Fatal(
+      "Expected targs for '\{show_function_name}' to have exactly one argument",
+    )
   }
-  raise EffektError::Fatal(
-    "Expected targs for '\{show_function_name}' to have exactly one argument",
-  )
+  showable_type(dctx, shown_type_of(vargs[0]))
 }
 
 ///|

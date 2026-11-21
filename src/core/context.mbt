@@ -184,11 +184,7 @@ fn QualifiedSignature::from_extern_function(
 /// (which is printed as written, not as a core type).
 fn value_param_type(p : Sym) -> @symbols.ValueType {
   match p {
-    ValueParam(vp) =>
-      match vp.tpe {
-        Some(t) => t
-        None => @symbols.t_top()
-      }
+    ValueParam(vp) => vp.tpe.unwrap_or(@symbols.t_top())
     _ => @symbols.t_top()
   }
 }
@@ -196,11 +192,7 @@ fn value_param_type(p : Sym) -> @symbols.ValueType {
 ///|
 fn block_param_type(p : Sym) -> @symbols.BlockType {
   match p {
-    BlockParam(bp) =>
-      match bp.tpe {
-        Some(t) => t
-        None => @symbols.t_io()
-      }
+    BlockParam(bp) => bp.tpe.unwrap_or(@symbols.t_io())
     _ => @symbols.t_io()
   }
 }

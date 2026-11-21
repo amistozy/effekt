@@ -318,7 +318,7 @@ fn Unification::propagate(self : Unification) -> String? {
   let mut changed = true
   while changed && rounds < 200 {
     changed = false
-    rounds = rounds + 1
+    rounds += 1
     for (a, b, filter) in self.links {
       // lower(a) - filter flows into lower(b). The lower bound of `b` is looked
       // up once per link (and copied at most once) and written back at the end,
@@ -457,9 +457,7 @@ fn Unification::require_upper(
 ///|
 /// Solves an out-of-scope capture variable with its lower bound.
 fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
-  if self.capts.contains(x.uid()) {
-    return None
-  }
+  guard !self.capts.contains(x.uid()) else { return None }
   let bounds = self.lower_of(x.uid())
   if self.upper.get(x.uid()) is Some(up) {
     let diff = bounds.filter(c => !up.contains(c))

@@ -81,10 +81,7 @@ fn Drawing::new() -> Drawing {
 ///|
 fn Drawing::emit(self : Drawing, line : Line) -> Unit {
   self.lines.push(line)
-  self.lead = match self.lead {
-    Some(_) => Some(Hang)
-    None => None
-  }
+  self.lead = self.lead.map(_ => Hang)
 }
 
 ///|
@@ -185,20 +182,20 @@ fn excerpt_count(m : Message) -> Int32 {
   for candidate in m.candidates {
     if !candidate.declaration.is_missing() &&
       excerpt_of(candidate.declaration) is Some(_) {
-      count = count + 1
+      count += 1
     }
     for error in candidate.errors {
-      count = count + excerpt_count(error)
+      count += excerpt_count(error)
     }
   }
   for cause in m.causes {
-    count = count + excerpt_count(cause)
+    count += excerpt_count(cause)
   }
   for note in m.notes {
     match note {
       Note(_, at) =>
         if at is Some(span) && excerpt_of(span) is Some(_) {
-          count = count + 1
+          count += 1
         }
       Help(_) => ()
     }

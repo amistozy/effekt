@@ -161,10 +161,7 @@ fn TransformationContext::lookup_value(
   self : TransformationContext,
   id : Sym,
 ) -> Expr {
-  match self.values.get(id.uid()) {
-    Some(value) => value
-    None => ValueVar(id)
-  }
+  self.values.get(id.uid()).unwrap_or(ValueVar(id))
 }
 
 ///|
@@ -172,10 +169,7 @@ fn TransformationContext::lookup_block(
   self : TransformationContext,
   id : Sym,
 ) -> Block {
-  match self.blocks.get(id.uid()) {
-    Some(block) => block
-    None => BlockVar(id)
-  }
+  self.blocks.get(id.uid()).unwrap_or(BlockVar(id))
 }
 
 ///|

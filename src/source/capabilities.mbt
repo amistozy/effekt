@@ -216,9 +216,7 @@ fn is_field_call(
   vargs : ArrayView[ValueArg],
   bargs : ArrayView[Term],
 ) -> Bool {
-  if vargs.length() != 1 || !bargs.is_empty() {
-    return false
-  }
+  guard vargs.length() == 1 && bargs.is_empty() else { return false }
   match ctx.symbol_of(fun.uid) {
     Some(Field(_)) => true
     _ => false
@@ -261,9 +259,8 @@ fn reference_to_value(sym : Sym, ctx : Context) -> Term {
   let id = IdRef(sym.name().name, Span::missing())
   ctx.assign_symbol(id.uid, sym)
   let t = mk_term(Span::missing(), Var(id))
-  match ctx.value_type_of(sym.uid()) {
-    Some(tpe) => ctx.assign_value_type(t.uid, tpe)
-    None => ()
+  if ctx.value_type_of(sym.uid()) is Some(tpe) {
+    ctx.assign_value_type(t.uid, tpe)
   }
   t
 }

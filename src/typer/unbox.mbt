@@ -170,10 +170,7 @@ fn Unboxer::rewrite_as_expr(self : Unboxer, e : Term) -> Term raise EffektError 
     @source.TermKind::New(implementation) => {
       // Upstream names the interface (`box new Counter[...] { ... }`); the tree
       // is already resolved, so the source text of the interface type is it.
-      let name = match implementation.interface.span.text() {
-        Some(text) => text
-        None => "T"
-      }
+      let name = implementation.interface.span.text().unwrap_or("T")
       self.error_with(
         @util.Message::error(
           e.span,

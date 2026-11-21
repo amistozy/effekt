@@ -291,9 +291,7 @@ fn Typer::wf_check(
   scope : WFScope,
   detail : String,
 ) -> Unit {
-  if self.wf_aborted {
-    return
-  }
+  guard !self.wf_aborted else { return }
   let escaping = self
     .free_captures_of(tpe)
     .filter(c => !scope.captures.contains(c))
@@ -319,9 +317,7 @@ fn Typer::wf_check_types(
   scope : WFScope,
   detail : String,
 ) -> Unit {
-  if self.wf_aborted {
-    return
-  }
+  guard !self.wf_aborted else { return }
   let escaping = free_types_value(tpe, [])
     .filter(t => !self.st.u.is_type_var(t))
     .filter(t => !scope.types.contains(t))
@@ -409,9 +405,7 @@ fn Typer::wf_check_handled(
   scope : WFScope,
   bound : ArrayView[Sym],
 ) -> Unit {
-  if self.wf_aborted {
-    return
-  }
+  guard !self.wf_aborted else { return }
   let escaping = self
     .free_captures_of(tpe)
     .filter(c => !scope.captures.contains(c))
@@ -435,9 +429,7 @@ fn Typer::wf_check_handled(
 
 ///|
 fn Typer::wf_def(self : Typer, d : Def, scope : WFScope) -> Unit {
-  if self.wf_aborted {
-    return
-  }
+  guard !self.wf_aborted else { return }
   match d.kind {
     @source.DefKind::FunDef(id, tparams, _, bparams, _, _, body) => {
       let captures = self.wf_capability_captures(d.uid) +
@@ -508,9 +500,7 @@ fn Typer::wf_def(self : Typer, d : Def, scope : WFScope) -> Unit {
 
 ///|
 fn Typer::wf_stmt(self : Typer, s : Stmt, scope : WFScope) -> Unit {
-  if self.wf_aborted {
-    return
-  }
+  guard !self.wf_aborted else { return }
   match s.kind {
     @source.StmtKind::DefStmt(d, rest) =>
       match d.kind {
@@ -582,9 +572,7 @@ fn Typer::wf_stmt(self : Typer, s : Stmt, scope : WFScope) -> Unit {
 
 ///|
 fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
-  if self.wf_aborted {
-    return
-  }
+  guard !self.wf_aborted else { return }
   match t.kind {
     @source.TermKind::Var(_) | @source.TermKind::Literal(_, _) => ()
     @source.TermKind::Assign(_, e) => self.wf_term(e, scope)
@@ -678,9 +666,7 @@ fn Typer::wf_term(self : Typer, t : Term, scope : WFScope) -> Unit {
       for h in handlers {
         self.wf_implementation(h.implementation, scope)
       }
-      if self.wf_aborted {
-        return
-      }
+      guard !self.wf_aborted else { return }
       if self.ctx.value_type_of(prog.uid) is Some(tpe) {
         self.wf_check_handled(tpe, prog.span, scope, bound)
       }
@@ -777,9 +763,7 @@ fn Typer::wf_implementation(
   scope : WFScope,
 ) -> Unit {
   for clause in implementation.clauses {
-    if self.wf_aborted {
-      return
-    }
+    guard !self.wf_aborted else { return }
     let captures = self.wf_capability_captures(clause.uid) +
       self.wf_param_captures(clause.bparams)
     // The clause's own type parameters are in scope for its body (upstream's

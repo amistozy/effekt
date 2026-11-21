@@ -946,7 +946,7 @@ fn Typer::warn_about_handlers(
     let mut all_implicit = true
     for j in 0..<effects.length() {
       if interface_type_equal(effects[i], effects[j]) {
-        count = count + 1
+        count += 1
         if explicit.contains(capabilities[j]) {
           all_implicit = false
         } else {

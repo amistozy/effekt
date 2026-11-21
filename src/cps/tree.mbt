@@ -955,11 +955,7 @@ pub fn substitute_expr(
   subst : Substitution,
 ) -> Expr raise EffektError {
   match e {
-    ValueVar(id) =>
-      match subst.values.get(id.uid()) {
-        Some(replacement) => replacement
-        None => ValueVar(id)
-      }
+    ValueVar(id) => subst.values.get(id.uid()).unwrap_or(ValueVar(id))
     Literal(value, tpe) => Literal(value, tpe)
     Make(tpe, tag, vargs) =>
       Make(tpe, tag, vargs.map(x => substitute_expr(x, subst)))
@@ -974,11 +970,7 @@ pub fn substitute_block(
   subst : Substitution,
 ) -> Block raise EffektError {
   match b {
-    BlockVar(id) =>
-      match subst.blocks.get(id.uid()) {
-        Some(replacement) => replacement
-        None => BlockVar(id)
-      }
+    BlockVar(id) => subst.blocks.get(id.uid()).unwrap_or(BlockVar(id))
     BlockLit(lit) => BlockLit(substitute_block_lit(lit, subst))
     Unbox(pure) => Unbox(substitute_expr(pure, subst))
     New(implementation) => New(substitute_implementation(implementation, subst))
@@ -1183,11 +1175,7 @@ pub fn substitute_cont(
   subst : Substitution,
 ) -> Cont raise EffektError {
   match k {
-    ContVar(id) =>
-      match subst.conts.get(id.uid()) {
-        Some(replacement) => replacement
-        None => ContVar(id)
-      }
+    ContVar(id) => subst.conts.get(id.uid()).unwrap_or(ContVar(id))
     ContLam(lam) => ContLam(substitute_cont_lam(lam, subst))
     Abort => Abort
   }

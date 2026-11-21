@@ -1224,9 +1224,7 @@ pub fn typecheck(
   // reported errors, so the type checker never sees the tree. A program that
   // uses a computation as a value gets the unbox diagnostic, not a type error on
   // top of it.
-  if context.has_errors() {
-    return
-  }
+  guard !context.has_errors() else { return }
   let t = Typer(context)
   t.check_module(rewritten)
 }
@@ -2413,7 +2411,7 @@ fn Typer::check_pattern_kind(
         )
       }
       for i in 0..<patterns.length() {
-        bindings = bindings + self.check_pattern(vps[i], patterns[i])
+        bindings += self.check_pattern(vps[i], patterns[i])
       }
       bindings
     }
@@ -3071,9 +3069,7 @@ fn Typer::unify_value_types(
   // coercions: `Nothing <: T` and `T <: Any`. Upstream only admits these in
   // covariant positions and records a coercion; we accept them everywhere and
   // do not record them (see the report).
-  if tpe1 == t_bottom() || tpe2 == t_top() {
-    return
-  }
+  guard tpe1 != t_bottom() && tpe2 != t_top() else { return }
   match (tpe1, tpe2) {
     (
       @symbols.ValueType::ValueTypeApp(c1, args1),
@@ -3505,11 +3501,7 @@ pub fn Typer::join(
     }
   }
   let joined = match result {
-    None =>
-      match expected {
-        Some(t) => t
-        None => t_bottom()
-      }
+    None => expected.unwrap_or(t_bottom())
     Some(t) => t
   }
   // Upstream checks every arm again against the join ("check again to insert
@@ -3546,9 +3538,7 @@ fn Typer::merge_value_types(
   ctx : ErrCtx,
 ) -> ValueType raise EffektError {
   guard old != new else { return old }
-  if old == t_top() || new == t_top() {
-    return t_top()
-  }
+  guard old != t_top() && new != t_top() else { return t_top() }
   guard old != t_bottom() else { return new }
   guard new != t_bottom() else { return old }
   match (old, new) {

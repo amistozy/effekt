@@ -842,9 +842,7 @@ fn reuse_go(
   match tail_positions(s) {
     Some(positions) => {
       // `k` escapes into a binding
-      if positions.before.contains(shift.k) {
-        return None
-      }
+      guard !positions.before.contains(shift.k) else { return None }
       let extended = sym_set_union(
         transparents,
         sym_set(positions.transparents),
@@ -1002,7 +1000,7 @@ fn joinpoint(
       captures_any_in(captures_of_value_type(fv.tpe), fresh)
     })
   }
-  if captures_any_in(captures_of_value_types(result), fresh) {
+  guard !captures_any_in(captures_of_value_types(result), fresh) else {
     return None
   }
   let j = Sym::tmp_block("j")

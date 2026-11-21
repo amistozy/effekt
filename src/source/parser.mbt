@@ -421,12 +421,12 @@ fn Parser::peek_at(self : Parser, offset : Int32) -> Token raise EffektError {
   while i < self.tokens.length() {
     let token = self.fail_on_error_token(self.tokens[i], i)
     if token.kind.is_space() {
-      i = i + 1
+      i += 1
     } else if remaining <= 0 {
       return token
     } else {
-      i = i + 1
-      remaining = remaining - 1
+      i += 1
+      remaining -= 1
     }
   }
   self.fail("Unexpected end of file")
@@ -467,7 +467,7 @@ fn Parser::next(self : Parser) -> Token raise EffektError {
 /// Skips the current token and then all subsequent whitespace.
 fn Parser::skip(self : Parser) -> Unit raise EffektError {
   self.previous = Some(self.token_at(self.position))
-  self.position = self.position + 1
+  self.position += 1
   self.current_label = None
   self.spaces()
 }
@@ -477,7 +477,7 @@ fn Parser::spaces(self : Parser) -> Unit raise EffektError {
   while self.has_next() {
     let kind = self.peek_kind()
     if kind.is_space() {
-      self.position = self.position + 1
+      self.position += 1
     } else {
       return
     }
@@ -535,10 +535,7 @@ fn[T] Parser::fail_expected(
   expected : String,
   got : TokenKind,
 ) -> T raise EffektError {
-  let label = match self.current_label {
-    Some(l) => l
-    None => expected
-  }
+  let label = self.current_label.unwrap_or(expected)
   self.fail("Expected \{label} but got \{got.explain()}")
 }
 
@@ -1171,9 +1168,7 @@ fn Parser::toplevel(self : Parser) -> Def raise EffektError {
 
 ///|
 fn Parser::toplevel_def(self : Parser, info : Info) -> Def raise EffektError {
-  if info.is_extern {
-    return self.extern_def_with(info)
-  }
+  guard !info.is_extern else { return self.extern_def_with(info) }
   let kind = self.peek_kind()
   match kind {
     KVal => self.val_def(info)

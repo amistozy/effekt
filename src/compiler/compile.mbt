@@ -231,9 +231,7 @@ fn collect_order(
   }
   // Already part of the order (a diamond, or the same file reached by another
   // include path): nothing to do.
-  if visited.contains(source) {
-    return true
-  }
+  guard !visited.contains(source) else { return true }
   if stack.search_by(entry => entry.source == source) is Some(on_stack) {
     report_cycle(loader, stack, on_stack, via, ctx)
     return false

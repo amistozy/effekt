@@ -643,9 +643,7 @@ fn eliminate(
   // reference (i.e. skips the optimization) rather than miscompiling when the
   // coarser capture sets or the `unknown_*` annotations of this port let a use
   // through.
-  if threaded.free().contains(ref) {
-    return None
-  }
+  guard !threaded.free().contains(ref) else { return None }
   let dropped = drop_state(threaded, body.infer_type(), ref)
   Some(remove_capture(capture, Let(initial, init, dropped)))
 }

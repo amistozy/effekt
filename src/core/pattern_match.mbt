@@ -494,10 +494,7 @@ fn pm_split_on_tag(
           vars_for.set(constructor.uid(), vars)
           tvars_for.set(constructor.uid(), tparams)
         }
-        let field_vars = match vars_for.get(constructor.uid()) {
-          Some(v) => v
-          None => ([] : Array[PMVar])
-        }
+        let field_vars = vars_for.get(constructor.uid()).unwrap_or([])
         let nested : Map[Int32, PMVarPattern] = Map([])
         for i, v in field_vars {
           nested.set(v.id.uid(), PMVarPattern(v, patterns_and_types[i].pattern))
@@ -535,21 +532,9 @@ fn pm_split_on_tag(
   // (4) assemble syntax tree for the pattern match
   let branches : Array[Clause] = []
   for v in variants {
-    let body = pm_compile(
-      match clauses_for.get(v.uid()) {
-        Some(l) => l
-        None => ([] : Array[PMClause])
-      },
-      motif,
-    )
-    let tparams = match tvars_for.get(v.uid()) {
-      Some(t) => t
-      None => ([] : Array[Sym])
-    }
-    let params = match vars_for.get(v.uid()) {
-      Some(p) => p.map(x => x.to_param())
-      None => ([] : Array[ValueParam])
-    }
+    let body = pm_compile(clauses_for.get(v.uid()).unwrap_or([]), motif)
+    let tparams = tvars_for.get(v.uid()).unwrap_or([])
+    let params = vars_for.get(v.uid()).unwrap_or([]).map(p => p.to_param())
     branches.push(Clause(v, BlockLit::BlockLit(tparams, [], params, [], body)))
   }
 
@@ -580,7 +565,7 @@ fn pm_branching_heuristic(
     for c in clauses {
       for cond in c.conditions {
         if cond is PMPatterns(m) && m.contains(vp.variable.id.uid()) {
-          count = count + 1
+          count += 1
         }
       }
     }

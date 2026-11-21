@@ -212,7 +212,7 @@ pub fn render_width(doc : Doc, width : Int32) -> String {
       Empty => ()
       Text(s) => {
         buf.write_string(s)
-        col = col + s.length()
+        col += s.length()
       }
       Cat(a, b) => {
         stack.push({ indent: item.indent, mode: item.mode, doc: b, })
@@ -223,7 +223,7 @@ pub fn render_width(doc : Doc, width : Int32) -> String {
       Line =>
         if item.mode == Flat {
           buf.write_string(" ")
-          col = col + 1
+          col += 1
         } else {
           newline(buf, item.indent)
           col = item.indent
@@ -256,7 +256,7 @@ fn fits(space : Int32, doc : Doc) -> Bool {
     match d {
       Empty => ()
       Text(s) => {
-        remaining = remaining - s.length()
+        remaining -= s.length()
         if remaining < 0 {
           return false
         }
@@ -268,7 +268,7 @@ fn fits(space : Int32, doc : Doc) -> Bool {
       Nest(_, inner) => stack.push(inner)
       Group(inner) => stack.push(inner)
       Line => {
-        remaining = remaining - 1
+        remaining -= 1
         if remaining < 0 {
           return false
         }

@@ -108,14 +108,14 @@ fn base_name_of(name : String) -> String {
   let mut i = 0
   while i < chars.length() && (is_js_letter(chars[i]) || chars[i] == '$') {
     buf.write_char(chars[i])
-    i = i + 1
+    i += 1
   }
   while i + 1 < chars.length() && chars[i] == '_' && is_js_letter(chars[i + 1]) {
     buf.write_char('_')
-    i = i + 1
+    i += 1
     while i < chars.length() && is_js_letter(chars[i]) {
       buf.write_char(chars[i])
-      i = i + 1
+      i += 1
     }
   }
   buf.to_string()
@@ -123,10 +123,7 @@ fn base_name_of(name : String) -> String {
 
 ///|
 fn unique_name_for(base : String) -> String {
-  let next_id = match used_names.get(base) {
-    Some(id) => id
-    None => 0
-  }
+  let next_id = used_names.get(base).unwrap_or(0)
   used_names.set(base, next_id + 1)
   "\{base}_\{next_id}"
 }
