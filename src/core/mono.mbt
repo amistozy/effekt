@@ -180,16 +180,10 @@ fn mono_key(id : Sym, variant : ArrayView[MonoValueType[Unit]]) -> String {
 // ---------------------------------------------------------------------------
 
 ///|
-/// `Array::flat_map`: upstream's `List.flatMap`, which core does not offer for
-/// arrays.
+/// `flatMap` over an array (upstream's `List.flatMap`): `Array` has no `flat_map`,
+/// and the call sites are shorter with this than with `map` and `flatten`.
 fn[T, A] mono_flat_map(xs : Array[A], f : (A) -> Array[T]) -> Array[T] {
-  let out : Array[T] = []
-  for x in xs {
-    for y in f(x) {
-      out.push(y)
-    }
-  }
-  out
+  xs.map(x => f(x)).flatten()
 }
 
 // ---------------------------------------------------------------------------

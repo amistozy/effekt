@@ -50,14 +50,9 @@ fn type_occurrences(tpe : ValueType) -> Array[ValueType] {
 }
 
 ///|
-/// `type_occurrences` on a list of value types (kept apart because the recursive
-/// call is not allowed in the closure of `map` here).
+/// `type_occurrences` on a list of value types (upstream `targs.flatMap(occurrences)`).
 fn block_type_occurrences_of(targs : ArrayView[ValueType]) -> Array[ValueType] {
-  let out : Array[ValueType] = []
-  for t in targs {
-    out.append(type_occurrences(t))
-  }
-  out
+  targs.map(t => type_occurrences(t)).flatten()
 }
 
 ///|
@@ -65,19 +60,10 @@ fn block_type_occurrences_of(targs : ArrayView[ValueType]) -> Array[ValueType] {
 /// on `BlockType`).
 fn block_type_occurrences(tpe : BlockType) -> Array[ValueType] {
   match tpe {
-    FunctionType(_, _, vparams, bparams, result) => {
-      let out : Array[ValueType] = []
-      for t in vparams {
-        out.append(type_occurrences(t))
-      }
-      for t in result {
-        out.append(type_occurrences(t))
-      }
-      for b in bparams {
-        out.append(block_type_occurrences(b))
-      }
-      out
-    }
+    FunctionType(_, _, vparams, bparams, result) =>
+      vparams.map(t => type_occurrences(t)).flatten() +
+      result.map(t => type_occurrences(t)).flatten() +
+      bparams.map(b => block_type_occurrences(b)).flatten()
     InterfaceType(_, targs) => block_type_occurrences_of(targs)
     PromptType(answer) => block_type_occurrences_of(answer)
     ResumeType(result, answer) =>
@@ -89,14 +75,14 @@ fn block_type_occurrences(tpe : BlockType) -> Array[ValueType] {
 /// The value types occurring inside function types (upstream
 /// `ArityRaising.underFunctions`).
 fn under_functions(tpe : ValueType) -> Array[ValueType] {
-  let out : Array[ValueType] = []
-  for occurrence in type_occurrences(tpe) {
+  type_occurrences(tpe)
+  .filter_map(occurrence => {
     match occurrence {
-      ValueBoxed(block, _) => out.append(block_type_occurrences(block))
-      _ => ()
+      ValueBoxed(block, _) => Some(block_type_occurrences(block))
+      _ => None
     }
-  }
-  out
+  })
+  .flatten()
 }
 
 ///|
@@ -708,12 +694,9 @@ fn Raise::repr_value(self : Raise, tpe : ValueType) -> Array[ValueType] {
   match tpe {
     ValueData(id, targs) =>
       if targs.is_empty() && self.flat.contains(id) {
-        let fields = self.record_unchecked(id).fields
-        let out : Array[ValueType] = []
-        for f in fields {
-          out.append(self.repr_value(f.tpe))
-        }
-        out
+        self.record_unchecked(id).fields
+        .map(f => self.repr_value(f.tpe))
+        .flatten()
       } else if self.is_container(tpe) && !self.frozen.contains(tpe) {
         self.repr_value(targs[0]).map(u => ValueData(id, [u]))
       } else {
@@ -751,11 +734,7 @@ fn Raise::repr_block_type(self : Raise, tpe : BlockType) -> BlockType {
 ///|
 /// `es.flatMap(repr)` (upstream `repr` on a list).
 fn repr_values(raiser : Raise, tpes : ArrayView[ValueType]) -> Array[ValueType] {
-  let out : Array[ValueType] = []
-  for t in tpes {
-    out.append(raiser.repr_value(t))
-  }
-  out
+  tpes.map(t => raiser.repr_value(t)).flatten()
 }
 
 ///|
@@ -773,18 +752,10 @@ fn Raise::reprs(self : Raise, tpe : BlockType) -> Array[BlockType] {
 /// parameters line up, and each block parameter that is split into `n` components
 /// repeats its capture `n` times.
 fn captures_sets(
-  cparams : Array[Captures],
-  components : ArrayView[Array[BlockType]],
+  cparams : ArrayView[Captures],
+  components : Array[Array[BlockType]],
 ) -> Array[Captures] {
-  let out : Array[Captures] = []
-  for i in 0..<cparams.length() {
-    if i < components.length() {
-      for _ in components[i] {
-        out.push(cparams[i])
-      }
-    }
-  }
-  out
+  cparams.zip(components).map(pair => pair.1.map(_ => pair.0)).flatten()
 }
 
 ///|
@@ -792,17 +763,9 @@ fn captures_sets(
 /// operation.
 fn captures_ids(
   cparams : ArrayView[Sym],
-  components : ArrayView[Array[BlockParam]],
+  components : Array[Array[BlockParam]],
 ) -> Array[Sym] {
-  let out : Array[Sym] = []
-  for i in 0..<cparams.length() {
-    if i < components.length() {
-      for _ in components[i] {
-        out.push(cparams[i])
-      }
-    }
-  }
-  out
+  cparams.zip(components).map(pair => pair.1.map(_ => pair.0)).flatten()
 }
 
 ///|
@@ -948,11 +911,7 @@ fn component_refs(id : Sym, n : Int32) -> Array[Sym] {
   if n == 1 {
     [id]
   } else {
-    let out : Array[Sym] = []
-    for i in 0..<n {
-      out.push(suffixed_id(id, i))
-    }
-    out
+    Array::makei(n, i => suffixed_id(id, i))
   }
 }
 
@@ -1031,6 +990,16 @@ fn[T] take_one(xs : Array[T]) -> Array[T] {
     []
   } else {
     [xs[0]]
+  }
+}
+
+///|
+/// The last element, if any (upstream `List(results.last)`).
+fn[T] take_last(xs : Array[T]) -> Array[T] {
+  if xs.is_empty() {
+    []
+  } else {
+    [xs[xs.length() - 1]]
   }
 }
 
@@ -1137,18 +1106,6 @@ fn Raise::component_arguments(
 }
 
 ///|
-/// The result of a componentwise call: all components, or only the last one for
-/// an extern whose result does not mention its type parameter (upstream
-/// `if mentions(f.ret, f.tparams.head) then calls else calls.take(1)`).
-fn[T] select_results(all : Bool, xs : Array[T]) -> Array[T] {
-  if all {
-    xs
-  } else {
-    take_one(xs)
-  }
-}
-
-///|
 /// The translated arguments, one component list per argument (upstream
 /// `Bind.traverse(vargs)(expr)`).
 fn Raise::argument_components(
@@ -1177,7 +1134,12 @@ fn Raise::componentwise_pure_call(
     for j in 0..<components.length() {
       calls.push(PureApp(callee, [components[j]], arguments[j]))
     }
-    select_results(type_mentions(f.ret, f.tparams[0]), calls)
+    // upstream `if mentions(f.ret, f.tparams.head) then calls else calls.take(1)`
+    if type_mentions(f.ret, f.tparams[0]) {
+      calls
+    } else {
+      take_one(calls)
+    }
   })
 }
 
@@ -1200,7 +1162,14 @@ fn Raise::componentwise_impure_call(
       calls.push(Bind::bind_app(callee, [components[j]], arguments[j], []))
     }
     map_raise(traverse_raise(calls, b => b), results => {
-      select_results(type_mentions(f.ret, f.tparams[0]), results)
+      // upstream `if mentions(f.ret, f.tparams.head) then results else
+      // List(results.last)` — the impure case keeps the *last* of the
+      // per-component calls, the pure case above keeps the first
+      if type_mentions(f.ret, f.tparams[0]) {
+        results
+      } else {
+        take_last(results)
+      }
     })
   })
 }
@@ -1523,18 +1492,14 @@ fn Raise::blocks(
   match b {
     BlockVar(bv) =>
       match env.bound_ref(bv.id) {
-        Some(refs) => {
-          let tpes = self.reprs(bv.annotated_tpe)
-          let out : Array[Block] = []
-          for i in 0..<refs.length() {
-            if i < tpes.length() {
-              out.push(
-                Block::BlockVar(BlockVar(refs[i], tpes[i], bv.annotated_capt)),
-              )
-            }
-          }
-          out
-        }
+        Some(refs) =>
+          // the references and the components line up; a shorter list of types
+          // truncates, like upstream's `zip`
+          refs
+          .zip(self.reprs(bv.annotated_tpe))
+          .map(pair => {
+            Block::BlockVar(BlockVar(pair.0, pair.1, bv.annotated_capt))
+          })
         None => [self.block(env, b)]
       }
     _ => [self.block(env, b)]
@@ -1571,34 +1536,16 @@ fn Raise::block_lit(
   env : Env,
   b : BlockLit,
 ) -> BlockLit raise EffektError {
-  let params : Array[Array[ValueParam]] = []
-  for p in b.vparams {
-    params.push(self.binders(p.id, p.tpe))
-  }
-  let components : Array[Array[BlockParam]] = []
-  for p in b.bparams {
-    components.push(self.block_params(p))
-  }
-  let all_params : Array[ValueParam] = []
-  for ps in params {
-    for p in ps {
-      all_params.push(p)
-    }
-  }
-  let all_blocks : Array[BlockParam] = []
-  for ps in components {
-    for p in ps {
-      all_blocks.push(p)
-    }
-  }
+  let params = b.vparams.map(p => self.binders(p.id, p.tpe))
+  let components = b.bparams.map(p => self.block_params(p))
   let bound = env
     .bind_values(b.vparams.map(p => p.id), params)
     .bind_refs(b.bparams, components)
   BlockLit(
     b.tparams,
     captures_ids(b.cparams, components),
-    all_params,
-    all_blocks,
+    params.flatten(),
+    components.flatten(),
     self.stmt(bound, b.body),
   )
 }
@@ -1609,26 +1556,8 @@ fn Raise::operation(
   env : Env,
   operation : Operation,
 ) -> Operation raise EffektError {
-  let params : Array[Array[ValueParam]] = []
-  for p in operation.vparams {
-    params.push(self.binders(p.id, p.tpe))
-  }
-  let components : Array[Array[BlockParam]] = []
-  for p in operation.bparams {
-    components.push(self.block_params(p))
-  }
-  let all_params : Array[ValueParam] = []
-  for ps in params {
-    for p in ps {
-      all_params.push(p)
-    }
-  }
-  let all_blocks : Array[BlockParam] = []
-  for ps in components {
-    for p in ps {
-      all_blocks.push(p)
-    }
-  }
+  let params = operation.vparams.map(p => self.binders(p.id, p.tpe))
+  let components = operation.bparams.map(p => self.block_params(p))
   let bound = env
     .bind_values(operation.vparams.map(p => p.id), params)
     .bind_refs(operation.bparams, components)
@@ -1636,8 +1565,8 @@ fn Raise::operation(
     operation.name,
     operation.tparams,
     captures_ids(operation.cparams, components),
-    all_params,
-    all_blocks,
+    params.flatten(),
+    components.flatten(),
     self.stmt(bound, operation.body),
   )
 }
@@ -1662,26 +1591,24 @@ fn split_ref(id : Sym, env : Env) -> Array[Sym] raise EffektError {
 ///|
 fn Raise::declaration(self : Raise, d : Declaration) -> Declaration {
   match d {
-    DeclarationData(id, tparams, constructors) => {
-      let out : Array[Constructor] = []
-      for c in constructors {
-        let fields : Array[Field] = []
-        for f in c.fields {
-          for field in self.fields(f) {
-            fields.push(field)
-          }
-        }
-        out.push(Constructor(c.id, c.tparams, fields))
-      }
-      DeclarationData(id, tparams, out)
-    }
-    DeclarationInterface(id, tparams, properties) => {
-      let out : Array[Property] = []
-      for p in properties {
-        out.push(Property(p.id, self.repr_block_type(p.tpe)))
-      }
-      DeclarationInterface(id, tparams, out)
-    }
+    DeclarationData(id, tparams, constructors) =>
+      DeclarationData(
+        id,
+        tparams,
+        constructors.map(c => {
+          Constructor(
+            c.id,
+            c.tparams,
+            c.fields.map(f => self.fields(f)).flatten(),
+          )
+        }),
+      )
+    DeclarationInterface(id, tparams, properties) =>
+      DeclarationInterface(
+        id,
+        tparams,
+        properties.map(p => Property(p.id, self.repr_block_type(p.tpe))),
+      )
   }
 }
 
@@ -1865,16 +1792,16 @@ fn flat_types(
   dependencies : Map[Int32, Array[Sym]],
   excluded : ArrayView[Sym],
 ) -> Array[Sym] {
-  let out : Array[Sym] = []
-  for pair in records {
+  records.filter_map(pair => {
     let id = pair.0
     if !excluded.contains(id) &&
       analysis.matched.contains(ValueData(id, [])) &&
       !is_recursive(id, dependencies) {
-      out.push(id)
+      Some(id)
+    } else {
+      None
     }
-  }
-  out
+  })
 }
 
 ///|

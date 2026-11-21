@@ -871,14 +871,14 @@ fn Normalizer::normalize_let(
   body : Stmt,
   ctx : NormCtx,
 ) -> Stmt raise EffektError {
-  let (bound, local) = bindings.fold(init=(([] : Array[(Sym, Expr)]), ctx), (
-    acc,
-    pair,
-  ) => {
-    let (bound, ctx) = acc
+  // upstream `normalizeLet(bindings, body)`: the body is normalized once, under
+  // the knowledge of all the bindings, and the `let`s are put back around it
+  let bound : Array[(Sym, Expr)] = []
+  let mut local = ctx
+  for pair in bindings {
     bound.push(pair)
-    (bound, ctx.with_expr(pair.0, pair.1))
-  })
+    local = local.with_expr(pair.0, pair.1)
+  }
   bound.rev_fold(init=self.rewrite_stmt(body, local), (rest, pair) => {
     Let(pair.0, pair.1, rest)
   })
