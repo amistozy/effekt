@@ -83,6 +83,11 @@ fn Free::free_blocks(self : Free) -> Array[FreeBlock] {
 ///|
 /// Removes the given value variables from the free set.
 fn Free::without_values(self : Free, ids : ArrayView[Sym]) -> Free {
+  // the two empty cases are the common ones: `free()` removes the binders of
+  // every block literal, and most of them bind nothing
+  if ids.is_empty() || self.values.is_empty() {
+    return self
+  }
   let values = self.values.copy()
   for id in ids {
     values.remove(id.uid())
@@ -93,6 +98,9 @@ fn Free::without_values(self : Free, ids : ArrayView[Sym]) -> Free {
 ///|
 /// Removes the given block variables from the free set.
 fn Free::without_blocks(self : Free, ids : ArrayView[Sym]) -> Free {
+  if ids.is_empty() || self.blocks.is_empty() {
+    return self
+  }
   let blocks = self.blocks.copy()
   for id in ids {
     blocks.remove(id.uid())
@@ -120,6 +128,11 @@ pub fn Free::without(
   bound_values : ArrayView[ValueParam],
   bound_blocks : ArrayView[BlockParam],
 ) -> Free {
+  // avoid the two arrays `map` would allocate for the common "binds nothing"
+  // case, and the map copies behind them
+  if self.is_empty() || (bound_values.is_empty() && bound_blocks.is_empty()) {
+    return self
+  }
   self
   .without_values(bound_values.map(p => p.id))
   .without_blocks(bound_blocks.map(p => p.id))
@@ -129,6 +142,14 @@ pub fn Free::without(
 /// Upstream merges with `unionWith(free1, free2, (_, tpe2) => tpe2)`: on a
 /// conflict the right-hand side wins.
 pub fn Free::union(self : Free, other : Free) -> Free {
+  // `free()` unions from the leaves up, so one of the two sides is often empty;
+  // copying a map (or both) to merge nothing into it is worth avoiding
+  if other.values.is_empty() && other.blocks.is_empty() {
+    return self
+  }
+  if self.values.is_empty() && self.blocks.is_empty() {
+    return other
+  }
   let values = self.values.copy()
   values.merge_in_place(other.values)
   let blocks = self.blocks.copy()

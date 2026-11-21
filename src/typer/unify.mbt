@@ -270,8 +270,16 @@ fn Unification::mentions_solved_capture(
 ) -> Bool {
   match c {
     @symbols.Captures::CaptVar(x) => self.capts.contains(x.uid())
-    @symbols.Captures::CaptureSetOf(cs) =>
-      cs.any(s => self.capts.contains(s.uid()))
+    // a loop rather than `any`: this runs inside the constraint solver, once per
+    // capture and per round, and the closure would be allocated each time
+    @symbols.Captures::CaptureSetOf(cs) => {
+      for s in cs {
+        if self.capts.contains(s.uid()) {
+          return true
+        }
+      }
+      false
+    }
   }
 }
 
@@ -312,10 +320,11 @@ fn Unification::propagate(self : Unification) -> String? {
     changed = false
     rounds = rounds + 1
     for (a, b, filter) in self.links {
-      // lower(a) - filter flows into lower(b). The lower bound of `b` is copied
-      // at most once per link and written back at the end, instead of looking
-      // it up and copying it for every propagated capture.
+      // lower(a) - filter flows into lower(b). The lower bound of `b` is looked
+      // up once per link (and copied at most once) and written back at the end,
+      // instead of looking it up and copying it for every propagated capture.
       if self.lower.get(a) is Some(la) {
+        let existing = self.lower.get(b)
         let mut lower_b : Array[Sym]? = None
         for c in la {
           if filter.contains(c) {
@@ -324,7 +333,7 @@ fn Unification::propagate(self : Unification) -> String? {
           let present = match lower_b {
             Some(lb) => lb.contains(c)
             None =>
-              match self.lower.get(b) {
+              match existing {
                 Some(lb) => lb.contains(c)
                 None => false
               }
@@ -333,7 +342,7 @@ fn Unification::propagate(self : Unification) -> String? {
             let lb = match lower_b {
               Some(lb) => lb
               None =>
-                match self.lower.get(b) {
+                match existing {
                   Some(lb) => lb.copy()
                   None => []
                 }
