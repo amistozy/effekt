@@ -987,6 +987,65 @@ fn Typer::without(
 }
 
 ///|
+/// What checking `from <: to` decided. The two callers below report it
+/// differently, which is the only thing that differs between them.
+priv enum SubregionCheck {
+  /// nothing to check: the two sides are the same, or `from` is empty
+  Consistent
+  /// `from` has captures that `to` does not allow
+  NotAllowed(Array[Sym], Captures)
+  /// the constraint solver rejected the bound; the message carries no context of
+  /// its own, so how it is reported is up to the caller
+  Rejected(String)
+}
+
+///|
+/// The verdict for a diagnostic of the constraint solver: it rejected the bound,
+/// or there was nothing to reject.
+fn rejected_or_consistent(diagnostic : String?) -> SubregionCheck {
+  match diagnostic {
+    Some(msg) => Rejected(msg)
+    None => Consistent
+  }
+}
+
+///|
+/// The diagnosis for captures that the allowed set does not have.
+fn not_allowed_message(not_allowed : Array[Sym], to : Captures) -> String {
+  "Used captures \{@symbols.Captures::CaptureSetOf(not_allowed)} are not in the allowed set \{to}"
+}
+
+///|
+/// `from <: to`, mirrored from `Unification.requireSubregion`, as a decision that
+/// the caller reports.
+fn Typer::check_subregion(
+  self : Typer,
+  from : Captures,
+  to : Captures,
+) -> SubregionCheck {
+  let from = self.st.u.prune_captures(from)
+  let to = self.st.u.prune_captures(to)
+  guard from != to else { return Consistent }
+  match (from, to) {
+    (@symbols.Captures::CaptureSetOf(ls), _) if ls.is_empty() => Consistent
+    (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptureSetOf(us)) => {
+      let not_allowed = ls.filter(c => !us.contains(c))
+      if not_allowed.is_empty() {
+        Consistent
+      } else {
+        NotAllowed(not_allowed, to)
+      }
+    }
+    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptureSetOf(us)) =>
+      rejected_or_consistent(self.st.u.require_upper(us, x))
+    (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptVar(y)) =>
+      rejected_or_consistent(self.st.u.require_lower(ls, y))
+    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptVar(y)) =>
+      rejected_or_consistent(self.st.u.link_and_propagate(x.uid(), y.uid(), []))
+  }
+}
+
+///|
 /// `require_subregion` with an error context: a capture that is not allowed is
 /// reported as a *note* of the surrounding comparison (upstream's
 /// `requireSubregion(c1, c2, ctx)`).
@@ -995,75 +1054,35 @@ fn Typer::without(
 /// detects the conflict later, in the constraint solver, and upstream's
 /// `Constraints.checkConsistency` aborts with a diagnostic that has no context
 /// at all — `Not allowed {io}` at the current focus, not a note of a claim.
+/// That abort is the one thing this reporting differs in from
+/// `require_subregion`, which reports every violation at its span.
 fn Typer::require_subregion_ctx(
   self : Typer,
   from : Captures,
   to : Captures,
   ctx : ErrCtx,
 ) -> Unit raise EffektError {
-  let from = self.st.u.prune_captures(from)
-  let to = self.st.u.prune_captures(to)
-  guard from != to else { return }
-  match (from, to) {
-    (@symbols.Captures::CaptureSetOf(ls), _) if ls.is_empty() => return
-    (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptureSetOf(us)) => {
-      let not_allowed = ls.filter(c => !us.contains(c))
-      if !not_allowed.is_empty() {
-        self.error_issue(
-          "Used captures \{@symbols.Captures::CaptureSetOf(not_allowed)} are not in the allowed set \{to}",
-          ctx,
-        )
-      }
-    }
-    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptureSetOf(us)) =>
-      if self.st.u.require_upper(us, x) is Some(msg) {
-        self.abort_issue_plain(msg)
-      }
-    (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptVar(y)) =>
-      if self.st.u.require_lower(ls, y) is Some(msg) {
-        self.abort_issue_plain(msg)
-      }
-    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptVar(y)) =>
-      if self.st.u.link_and_propagate(x.uid(), y.uid(), []) is Some(msg) {
-        self.abort_issue_plain(msg)
-      }
+  match self.check_subregion(from, to) {
+    Consistent => ()
+    NotAllowed(not_allowed, to) =>
+      self.error_issue(not_allowed_message(not_allowed, to), ctx)
+    Rejected(msg) => self.abort_issue_plain(msg)
   }
 }
 
 ///|
-/// `from <: to`, mirrored from `Unification.requireSubregion`.
+/// `from <: to`, reported at `span`.
 fn Typer::require_subregion(
   self : Typer,
   from : Captures,
   to : Captures,
   span : Span,
 ) -> Unit {
-  let from = self.st.u.prune_captures(from)
-  let to = self.st.u.prune_captures(to)
-  guard from != to else { return }
-  match (from, to) {
-    (@symbols.Captures::CaptureSetOf(ls), _) if ls.is_empty() => return
-    (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptureSetOf(us)) => {
-      let not_allowed = ls.filter(c => !us.contains(c))
-      if !not_allowed.is_empty() {
-        self.error(
-          span,
-          "Used captures \{@symbols.Captures::CaptureSetOf(not_allowed)} are not in the allowed set \{to}",
-        )
-      }
-    }
-    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptureSetOf(us)) =>
-      if self.st.u.require_upper(us, x) is Some(msg) {
-        self.error(span, msg)
-      }
-    (@symbols.Captures::CaptureSetOf(ls), @symbols.Captures::CaptVar(y)) =>
-      if self.st.u.require_lower(ls, y) is Some(msg) {
-        self.error(span, msg)
-      }
-    (@symbols.Captures::CaptVar(x), @symbols.Captures::CaptVar(y)) =>
-      if self.st.u.link_and_propagate(x.uid(), y.uid(), []) is Some(msg) {
-        self.error(span, msg)
-      }
+  match self.check_subregion(from, to) {
+    Consistent => ()
+    NotAllowed(not_allowed, to) =>
+      self.error(span, not_allowed_message(not_allowed, to))
+    Rejected(msg) => self.error(span, msg)
   }
 }
 

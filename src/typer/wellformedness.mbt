@@ -277,6 +277,17 @@ fn Typer::free_captures_of(self : Typer, t : ValueType) -> Array[Sym] {
 }
 
 ///|
+/// The captures of `tpe` that `scope` does not have: the input of the checks
+/// below that reject a capture escaping through an inferred type.
+fn Typer::escaping_captures(
+  self : Typer,
+  tpe : ValueType,
+  scope : WFScope,
+) -> Array[Sym] {
+  self.free_captures_of(tpe).filter(c => !scope.captures.contains(c))
+}
+
+///|
 /// Reports the captures of `tpe` that are not in `scope` (upstream
 /// `Wellformedness.wellformed`).
 fn Typer::wf_check(
@@ -287,9 +298,7 @@ fn Typer::wf_check(
   detail : String,
 ) -> Unit {
   guard !self.wf_aborted else { return }
-  let escaping = self
-    .free_captures_of(tpe)
-    .filter(c => !scope.captures.contains(c))
+  let escaping = self.escaping_captures(tpe, scope)
   guard !escaping.is_empty() else { return }
   let message = if escaping.length() == 1 {
     "Capture \{escaping[0].name().name} escapes through type \{tpe}\{detail}."
@@ -401,9 +410,7 @@ fn Typer::wf_check_handled(
   bound : ArrayView[Sym],
 ) -> Unit {
   guard !self.wf_aborted else { return }
-  let escaping = self
-    .free_captures_of(tpe)
-    .filter(c => !scope.captures.contains(c))
+  let escaping = self.escaping_captures(tpe, scope)
   guard !escaping.is_empty() else { return }
   if escaping.any(c => bound.contains(c)) {
     // Upstream's `specificCaptures` for `TryHandle`.
