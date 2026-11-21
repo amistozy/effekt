@@ -450,10 +450,7 @@ pub impl Show for Sym with fn output(self, logger) {
 
 ///|
 pub fn Sym::is_value_symbol(self : Sym) -> Bool {
-  match self {
-    ValueParam(_) | ValBinder(_) | Hole(_) | Wildcard(_) | TmpValue(_) => true
-    _ => false
-  }
+  self is (ValueParam(_) | ValBinder(_) | Hole(_) | Wildcard(_) | TmpValue(_))
 }
 
 ///|
@@ -499,34 +496,22 @@ pub fn Sym::is_type_symbol(self : Sym) -> Bool {
 
 ///|
 pub fn Sym::is_ref_binder(self : Sym) -> Bool {
-  match self {
-    RegBinder(_) | VarBinder(_) => true
-    _ => false
-  }
+  self is (RegBinder(_) | VarBinder(_))
 }
 
 ///|
 pub fn Sym::is_block_type_constructor(self : Sym) -> Bool {
-  match self {
-    Interface(_) | ExternInterface(_) | ErrorBlockType(_) => true
-    _ => false
-  }
+  self is (Interface(_) | ExternInterface(_) | ErrorBlockType(_))
 }
 
 ///|
 pub fn Sym::is_value_type_constructor(self : Sym) -> Bool {
-  match self {
-    DataType(_) | Record(_) | ExternType(_) | ErrorValueType(_) => true
-    _ => false
-  }
+  self is (DataType(_) | Record(_) | ExternType(_) | ErrorValueType(_))
 }
 
 ///|
 pub fn Sym::is_type_var(self : Sym) -> Bool {
-  match self {
-    TypeParam(_) | UnificationVar(_) => true
-    _ => false
-  }
+  self is (TypeParam(_) | UnificationVar(_))
 }
 
 ///|
@@ -545,10 +530,7 @@ pub fn Sym::is_callable(self : Sym) -> Bool {
 
 ///|
 pub fn Sym::is_operation(self : Sym) -> Bool {
-  match self {
-    Operation(_) => true
-    _ => false
-  }
+  self is Operation(_)
 }
 
 // ---------------------------------------------------------------------------
@@ -841,10 +823,7 @@ pub fn Captures::empty() -> Captures {
 
 ///|
 pub fn Captures::is_pure(self : Captures) -> Bool {
-  match self {
-    CaptureSetOf(cs) => cs.is_empty()
-    CaptVar(_) => false
-  }
+  self is CaptureSetOf(cs) && cs.is_empty()
 }
 
 ///|

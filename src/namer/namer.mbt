@@ -1626,10 +1626,7 @@ fn Namer::all_constructors_for(
 ) -> Array[Sym] raise EffektError {
   flatten_syms(
     self.lookup_overloaded(name.path, name.name, sym => {
-      match sym {
-        @symbols.Sym::Constructor(_) => true
-        _ => false
-      }
+      sym is @symbols.Sym::Constructor(_)
     }),
   )
 }
@@ -1702,10 +1699,7 @@ fn Namer::resolve_receiver_call(
 /// Resolves a potentially overloaded field access.
 fn Namer::resolve_select(self : Namer, id : IdRef) -> Sym raise EffektError {
   let syms = self.lookup_overloaded(id.path, id.name, sym => {
-    match sym {
-      @symbols.Sym::Field(_) => true
-      _ => false
-    }
+    sym is @symbols.Sym::Field(_)
   })
   if syms.is_empty() {
     self.context.abort(id.span, "Cannot resolve field access \{id_text(id)}")

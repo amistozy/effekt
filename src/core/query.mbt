@@ -28,10 +28,7 @@ fn stmt_any(s : Stmt, p : (Stmt) -> Bool) -> Bool {
     Match(scrutinee, _, clauses, default) =>
       expr_any(scrutinee, p) ||
       clauses.any(clause => block_lit_any(clause.body, p)) ||
-      (match default {
-        Some(d) => stmt_any(d, p)
-        None => false
-      })
+      (default is Some(d) && stmt_any(d, p))
     Region(body) => block_lit_any(body, p)
     Alloc(_, init, _, body) => expr_any(init, p) || stmt_any(body, p)
     Var(_, init, _, body) => expr_any(init, p) || stmt_any(body, p)

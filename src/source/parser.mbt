@@ -1717,10 +1717,7 @@ fn Parser::maybe_extern_bodies(
 
 ///|
 fn Parser::is_extern_body_start(self : Parser) -> Bool raise EffektError {
-  match self.peek_kind() {
-    TStr(_, _) | TIdent(_) | TLBrace => true
-    _ => false
-  }
+  self.peek_kind() is (TStr(_, _) | TIdent(_) | TLBrace)
 }
 
 ///|
@@ -1992,16 +1989,8 @@ fn Parser::desugar_with_patterns(
   // Check if all patterns are simple variable bindings or ignored, with no
   // guards and no fallback.
   let all_simple_vars = guards.is_empty() &&
-    (match fallback {
-      Some(_) => false
-      None => true
-    }) &&
-    patterns.items.all(p => {
-      match p.kind {
-        AnyPattern(_) | IgnorePattern => true
-        _ => false
-      }
-    })
+    fallback is None &&
+    patterns.items.all(p => p.kind is (AnyPattern(_) | IgnorePattern))
   let block_lit : Term = if all_simple_vars {
     // Simple case: desugar to: call { (x, y, _, ...) => body }
     let vparams : Array[ValueParam] = patterns.items.map(p => {
@@ -2657,18 +2646,12 @@ fn Parser::expr_outer(
 
 ///|
 fn is_var_term(t : Term) -> Bool {
-  match t.kind {
-    Var(_) => true
-    _ => false
-  }
+  t.kind is Var(_)
 }
 
 ///|
 fn Parser::is_thunked_op(_self : Parser, op : TokenKind) -> Bool {
-  match op {
-    TBarBar | TAmpAmp => true
-    _ => false
-  }
+  op is (TBarBar | TAmpAmp)
 }
 
 ///|
@@ -2919,10 +2902,7 @@ fn Parser::tuple_or_group(self : Parser) -> Term raise EffektError {
 
 ///|
 fn Parser::is_hole(self : Parser) -> Bool raise EffektError {
-  match self.peek_kind() {
-    TDiamond | THoleStart | THoleStr(_) => true
-    _ => false
-  }
+  self.peek_kind() is (TDiamond | THoleStart | THoleStr(_))
 }
 
 ///|
@@ -3008,10 +2988,7 @@ fn Parser::is_literal(self : Parser) -> Bool raise EffektError {
 
 ///|
 fn Parser::is_string(self : Parser) -> Bool raise EffektError {
-  match self.peek_kind() {
-    TStr(_, _) | TRawStr(_, _) => true
-    _ => false
-  }
+  self.peek_kind() is (TStr(_, _) | TRawStr(_, _))
 }
 
 ///|

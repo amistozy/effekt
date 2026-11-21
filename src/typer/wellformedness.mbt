@@ -25,16 +25,11 @@ fn free_captures(c : Captures) -> Array[Sym] {
 }
 
 ///|
+/// Unification variables are an artifact of inference, not a capture a binder
+/// could drop (upstream `freeCapture` only matches the concrete constructors),
+/// so they are not free.
 fn is_free_capture(s : Sym) -> Bool {
-  match s {
-    @symbols.Sym::CaptureParam(_) => true
-    @symbols.Sym::LexicalRegion(_) => true
-    /// Unification variables are an artifact of inference, not a capture a
-    /// binder could drop (upstream `freeCapture` only matches the concrete
-    /// constructors), so they are not free.
-    @symbols.Sym::CaptUnificationVar(_) => false
-    _ => false
-  }
+  s is (@symbols.Sym::CaptureParam(_) | @symbols.Sym::LexicalRegion(_))
 }
 
 ///|

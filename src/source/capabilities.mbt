@@ -217,10 +217,7 @@ fn is_field_call(
   bargs : ArrayView[Term],
 ) -> Bool {
   guard vargs.length() == 1 && bargs.is_empty() else { return false }
-  match ctx.symbol_of(fun.uid) {
-    Some(Field(_)) => true
-    _ => false
-  }
+  ctx.symbol_of(fun.uid) is Some(Field(_))
 }
 
 ///|

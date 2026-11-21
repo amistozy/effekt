@@ -266,10 +266,7 @@ fn escaping_ref_stmt(
       clauses.any(clause => {
         escaping_ref_stmt(ref, uses, outside, clause.body.body)
       }) ||
-      (match default {
-        Some(body) => escaping_ref_stmt(ref, uses, outside, body)
-        None => false
-      })
+      (default is Some(body) && escaping_ref_stmt(ref, uses, outside, body))
     Var(_, init, _, rest) =>
       mentions(ref, uses, init.free()) ||
       escaping_ref_stmt(ref, uses, outside, rest)

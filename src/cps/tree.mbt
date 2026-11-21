@@ -650,10 +650,7 @@ fn binds(params : Array[Sym], id : Sym) -> Bool {
 
 ///|
 fn stmt_opt_occurs(stmt : Stmt?, id : Sym) -> Bool {
-  match stmt {
-    Some(s) => s.occurs(id)
-    None => false
-  }
+  stmt is Some(s) && s.occurs(id)
 }
 
 ///|

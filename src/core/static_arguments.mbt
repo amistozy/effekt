@@ -125,10 +125,8 @@ fn StaticArguments::within(self : StaticArguments, id : Sym) -> Bool {
 
 ///|
 fn StaticArguments::has_statics(self : StaticArguments, id : Sym) -> Bool {
-  match self.statics.get(id.uid()) {
-    Some(is_static) => is_static.allows_the_translation()
-    None => false
-  }
+  self.statics.get(id.uid()) is Some(is_static) &&
+  is_static.allows_the_translation()
 }
 
 ///|

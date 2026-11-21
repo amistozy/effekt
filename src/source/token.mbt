@@ -382,10 +382,7 @@ fn keyword_kind(word : String) -> TokenKind? {
 /// Whitespace and comments are skipped by the parser, but are represented in
 /// the token stream (needed for "semicolon insertion" and for extern bodies).
 fn TokenKind::is_space(self : TokenKind) -> Bool {
-  match self {
-    TSpace | TComment(_) | TNewline => true
-    _ => false
-  }
+  self is (TSpace | TComment(_) | TNewline)
 }
 
 ///|
@@ -418,10 +415,7 @@ pub fn Token::Token(start : Int32, end : Int32, kind : TokenKind) -> Token {
 
 ///|
 pub fn Token::is_error(self : Token) -> Bool {
-  match self.kind {
-    TError(_) => true
-    _ => false
-  }
+  self.kind is TError(_)
 }
 
 ///|

@@ -566,10 +566,7 @@ fn Transformer::type_arguments_of(
 /// Is this tree pure (no captures)? Upstream consults the typer's inferred
 /// capture set and conservatively answers `false` when there is none.
 fn Transformer::is_pure_uid(self : Transformer, uid : Int32) -> Bool {
-  match self.ctx.capture_of(uid) {
-    Some(capt) => capt.is_pure()
-    None => false
-  }
+  self.ctx.capture_of(uid) is Some(capt) && capt.is_pure()
 }
 
 ///|
@@ -619,14 +616,8 @@ fn captures_pure_or_io(capt : Captures) -> Bool {
   .all(c => {
     let is_io = c.uid() == @symbols.io_capture().uid()
     let is_async = c.uid() == @symbols.async_capture().uid()
-    let is_mutable_state = match c {
-      LexicalRegion(_) => true
-      _ => false
-    }
-    let is_resource = match c {
-      Resource(_) => true
-      _ => false
-    }
+    let is_mutable_state = c is LexicalRegion(_)
+    let is_resource = c is Resource(_)
     !(is_async || is_mutable_state) && (is_io || is_resource)
   })
 }

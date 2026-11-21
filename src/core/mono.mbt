@@ -2217,10 +2217,7 @@ fn mono_is_bound(
   binders : Array[Int32],
 ) -> Bool {
   guard level >= 0 && position >= 0 else { return false }
-  match binders.get(level) {
-    Some(arity) => position < arity
-    None => false
-  }
+  binders.get(level) is Some(arity) && position < arity
 }
 // ---------------------------------------------------------------------------
 // Specializing the tree

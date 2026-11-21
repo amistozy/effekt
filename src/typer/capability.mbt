@@ -185,10 +185,7 @@ fn CapScope::relevant_in_scope_for(
 
 ///|
 fn CapScope::is_global(self : CapScope) -> Bool {
-  match self {
-    GlobalCap => true
-    _ => false
-  }
+  self is GlobalCap
 }
 
 ///|

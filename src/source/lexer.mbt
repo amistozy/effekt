@@ -25,18 +25,12 @@ pub(all) enum Delimiter {
 
 ///|
 fn Delimiter::allows_interpolation(self : Delimiter) -> Bool {
-  match self {
-    SingleString | MultiString | HoleString | RawString => true
-    CharString => false
-  }
+  self is (SingleString | MultiString | HoleString | RawString)
 }
 
 ///|
 fn Delimiter::is_multiline(self : Delimiter) -> Bool {
-  match self {
-    SingleString | CharString => false
-    MultiString | HoleString | RawString => true
-  }
+  self is (MultiString | HoleString | RawString)
 }
 
 ///|

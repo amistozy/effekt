@@ -349,24 +349,14 @@ fn assuming(cond : Expr, value : Bool, ctx : NormCtx) -> NormCtx {
 
 ///|
 fn has_known_block_arg(site : CallSite) -> Bool {
-  site.bargs.any(b => {
-    match b {
-      BlockLit(_) | New(_) => true
-      BlockVar(_) | Unbox(_) => false
-    }
-  })
+  site.bargs.any(b => b is (BlockLit(_) | New(_)))
 }
 
 ///|
 /// Whether normalizing `body` would *move* a scope (a `reset` or a `region`)
 /// rather than copy computation.
 fn installs_scope(body : Stmt) -> Bool {
-  stmt_any(body, s => {
-    match s {
-      Reset(_) | Region(_) => true
-      _ => false
-    }
-  })
+  stmt_any(body, s => s is (Reset(_) | Region(_)))
 }
 
 ///|
@@ -403,10 +393,7 @@ fn Normalizer::shifts_to_an_enclosing_prompt(
   ctx : NormCtx,
 ) -> Bool {
   let shifts = (s : Stmt) => {
-    match s {
-      Shift(prompt, _, _) => ctx.has_prompt(prompt.id)
-      _ => false
-    }
+    s is Shift(prompt, _, _) && ctx.has_prompt(prompt.id)
   }
   if any_stmt_in_implementation(implementation, shifts) {
     true
@@ -437,11 +424,8 @@ fn Normalizer::carries_an_operation_to_its_handler(
   !site.bargs.is_empty() &&
   site.callee.body.size() <= carrying_limit &&
   site.bargs.any(barg => {
-    match self.known_and_used_once(barg, ctx) {
-      Some(New(implementation)) =>
-        self.shifts_to_an_enclosing_prompt(implementation, ctx)
-      _ => false
-    }
+    self.known_and_used_once(barg, ctx) is Some(New(implementation)) &&
+    self.shifts_to_an_enclosing_prompt(implementation, ctx)
   }) &&
   !self.moves_a_scope_into_a_prompt(site, ctx)
 }
@@ -1022,10 +1006,7 @@ fn ValSpine::wrap(self : ValSpine, rest : Stmt) -> Stmt {
 /// Upstream's guard on the `Shift` case of `normalizeVal`: the continuation is a
 /// resumption and the shifted body does not use it, so the `val` is dropped.
 fn shift_commutes(k : BlockParam, body : Stmt) -> Bool {
-  match k.tpe {
-    ResumeType(_, _) => !body.free().contains(k.id)
-    _ => false
-  }
+  k.tpe is ResumeType(_, _) && !body.free().contains(k.id)
 }
 
 ///|

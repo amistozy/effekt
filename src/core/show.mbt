@@ -248,10 +248,7 @@ fn fresh_show_id() -> Sym {
 /// additionally require the callee to be an extern function.
 fn is_show_call(block_var : BlockVar) -> Bool {
   guard block_var.id.name().name == show_function_name else { return false }
-  match block_var.id {
-    ExternFunction(_) => true
-    _ => false
-  }
+  block_var.id is ExternFunction(_)
 }
 
 ///|

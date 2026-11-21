@@ -421,10 +421,7 @@ fn core_builtins() -> Map[String, Sym] {
 
 ///|
 fn is_core_builtin(s : Sym) -> Bool {
-  match core_builtins().get(s.name().name) {
-    Some(other) => other.uid() == s.uid()
-    None => false
-  }
+  core_builtins().get(s.name().name) is Some(other) && other.uid() == s.uid()
 }
 
 ///|

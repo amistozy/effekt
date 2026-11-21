@@ -500,10 +500,7 @@ fn Scope::any_term_named(
   name : String,
 ) -> Bool {
   let found = first([], self, b => b.terms.get(name)) catch { _ => None }
-  match found {
-    Some(_) => true
-    None => imports.terms.get(name) is Some(_)
-  }
+  found is Some(_) || imports.terms.get(name) is Some(_)
 }
 
 ///|
@@ -620,15 +617,7 @@ pub fn Scoping::lookup_first_block_param(
       // that *binds* the name, which is what makes a block parameter of an
       // enclosing definition visible inside a nested block literal).
       None => None
-      Some(syms) =>
-        Some(
-          syms.filter(s => {
-            match s {
-              BlockParam(_) => true
-              _ => false
-            }
-          }),
-        )
+      Some(syms) => Some(syms.filter(s => s is BlockParam(_)))
     }
   }).unwrap_or([])
 }

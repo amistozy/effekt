@@ -716,10 +716,7 @@ fn escaping_stmt(closed : Map[Int32, Sym], s : Stmt) -> Bool raise EffektError {
     Match(scrutinee, _, clauses, default) =>
       escaping_expr(closed, scrutinee) ||
       clauses.any(clause => escaping_stmt(closed, clause.body.body)) ||
-      (match default {
-        Some(body) => escaping_stmt(closed, body)
-        None => false
-      })
+      (default is Some(body) && escaping_stmt(closed, body))
     Alloc(_, init, _, body) =>
       escaping_expr(closed, init) || escaping_stmt(closed, body)
     Var(_, init, _, body) =>

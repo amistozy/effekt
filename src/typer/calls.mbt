@@ -757,10 +757,7 @@ fn is_overload_failure(m : Message) -> Bool {
 ///|
 /// Whether a diagnostic is an error (upstream `severity == Severity.Error`).
 fn is_error_message(m : Message) -> Bool {
-  match m.severity {
-    Error => true
-    _ => false
-  }
+  m.severity is Error
 }
 
 ///|

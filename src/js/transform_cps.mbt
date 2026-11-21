@@ -785,10 +785,7 @@ fn can_be_direct(
   match stmt {
     @cps.Stmt::Jump(k2, vargs, ks2) => {
       let args_ok = vargs.all(v => !v.occurs(k))
-      let metacont_ok = match ctx.metacont {
-        Some(m) => m.uid() == ks2.id.uid()
-        None => false
-      }
+      let metacont_ok = ctx.metacont is Some(m) && m.uid() == ks2.id.uid()
       if k2.uid() == k.uid() {
         args_ok && metacont_ok
       } else {
@@ -1044,10 +1041,7 @@ fn to_js_stmt(
         }
       }
     @cps.Stmt::Match(scrutinee, clauses, default) => {
-      let no_default = match default {
-        None => true
-        Some(_) => false
-      }
+      let no_default = default is None
       if clauses.is_empty() && no_default {
         pure([Return(effekt_call("unreachable", []))])
       } else if clauses.length() == 1 && no_default {
