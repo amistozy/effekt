@@ -191,12 +191,12 @@ Deliberate, and documented at the point of use:
   capture the binder drops, and a type parameter that would leave its scope.
 - **The optimizer is ported and runs** (see above), with these deviations: no
   `Deadcode.isPureCall` rule, because with approximate capture sets a pure-looking
-  call can capture a region and the rule would drop live calls; no `LambdaSets`;
-  five normalizer deviations (no
-  sharing of pure expressions via `Context.facts`, `covers`/`selecting` skipped,
-  the `Shift` rule of `normalizeVal` skipped, join-point parameters typed
-  `unknown_value_type()`, and the unit-return rule comparing syntax rather than
-  result types); and a few annotations left as `unknown_*` sentinels, which
+  call can capture a region and the rule would drop live calls; no `LambdaSets`
+  (which upstream does not run either — it is only used by its own tests); two
+  normalizer deviations (the common-subexpression elimination of pure
+  expressions via `Context.facts`, which keys them by structural equality — `Expr`
+  has none here —, and `covers`/`selecting`, which need the scrutinee's data
+  type); and a few annotations left as `unknown_*` sentinels, which
   `Type.inferType` propagates instead of failing.
 - **The Chez Scheme, LLVM and VM backends are not ported**, nor the LSP server,
   the REPL or the documentation generator.
