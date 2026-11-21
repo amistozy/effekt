@@ -292,6 +292,34 @@ fn Unification::lower_of(self : Unification, uid : Int32) -> Array[Sym] {
 }
 
 ///|
+/// The captures of `lower` that `upper` does not allow. `None` when `lower` is
+/// included in `upper`, which is the case that has to cost nothing: every
+/// consistency check here runs over bounds that were just propagated, and most
+/// of them are consistent.
+fn disallowed(lower : ArrayView[Sym], upper : ArrayView[Sym]) -> Array[Sym]? {
+  let n = lower.length()
+  let mut first = -1
+  for i in 0..<n {
+    if !upper.contains(lower[i]) {
+      first = i
+      break
+    }
+  }
+  guard first >= 0 else { return None }
+  // Collecting the tail keeps the order of `lower` (nothing before `first` is
+  // disallowed), which is what the message prints. This is the failing path, so
+  // it is the only one that allocates.
+  let diff : Array[Sym] = []
+  for i in first..<n {
+    let c = lower[i]
+    if !upper.contains(c) {
+      diff.push(c)
+    }
+  }
+  Some(diff)
+}
+
+///|
 /// The diagnostic for capture bounds that are not included in the solution
 /// (upstream's `Constraints.checkConsistency`).
 fn captures_not_allowed(diff : Array[Sym]) -> String {
@@ -311,9 +339,38 @@ fn Unification::link(
 }
 
 ///|
+/// Checks that the bounds of `uid` do not exclude each other, returning the
+/// diagnostic of upstream's `Constraints.checkConsistency` if they do.
+///
+/// This runs at the point where a bound is *written*, not once over the whole
+/// system: the invariant holds before the write, so the only pair that can have
+/// become inconsistent is the one that just changed.
+fn Unification::check_consistency(self : Unification, uid : Int32) -> String? {
+  match self.lower.get(uid) {
+    Some(lo) =>
+      match self.upper.get(uid) {
+        Some(up) =>
+          match disallowed(lo, up) {
+            Some(diff) => Some(captures_not_allowed(diff))
+            None => None
+          }
+        None => None
+      }
+    None => None
+  }
+}
+
+///|
 /// Propagates all known bounds along the links until a fixed point is reached.
 /// Returns a diagnostic if the constraint system became inconsistent.
+///
+/// The consistency check runs on write: a system that was consistent before the
+/// call can only become inconsistent where this call changes a bound, so the
+/// pass does not have to re-walk every node afterwards. The first violation
+/// found is reported after the fixpoint has run to completion, so that a
+/// failure leaves the same bounds behind as a successful call would.
 fn Unification::propagate(self : Unification) -> String? {
+  let mut violation : String? = None
   let mut rounds = 0
   let mut changed = true
   while changed && rounds < 200 {
@@ -354,41 +411,45 @@ fn Unification::propagate(self : Unification) -> String? {
         }
         if lower_b is Some(lb) {
           self.lower.set(b, lb)
+          if violation is None {
+            violation = self.check_consistency(b)
+          }
         }
       }
       // upper(b) + filter flows into upper(a)
       if self.upper.get(b) is Some(ub) {
-        let target : Array[Sym] = []
-        target.append(ub)
-        for c in filter {
-          if !target.contains(c) {
-            target.push(c)
-          }
+        let existing = self.upper.get(a)
+        // The union is only built when it can shrink the bound: every capture of
+        // `upper(a)` that `upper(b)` does not have is either filtered out here
+        // or keeps the bound as it is.
+        let shrinks = match existing {
+          Some(ua) => ua.any(c => !ub.contains(c) && !filter.contains(c))
+          None => true
         }
-        match self.upper.get(a) {
-          None => {
-            self.upper.set(a, target)
-            changed = true
-          }
-          Some(ua) =>
-            // Only build the intersection when it can shrink the bound.
-            if !ua.all(c => target.contains(c)) {
-              self.upper.set(a, ua.filter(c => target.contains(c)))
-              changed = true
+        if shrinks {
+          let target : Array[Sym] = []
+          target.append(ub)
+          for c in filter {
+            if !target.contains(c) {
+              target.push(c)
             }
+          }
+          self.upper.set(
+            a,
+            match existing {
+              Some(ua) => ua.filter(c => target.contains(c))
+              None => target
+            },
+          )
+          changed = true
+          if violation is None {
+            violation = self.check_consistency(a)
+          }
         }
       }
     }
   }
-  // consistency of all nodes
-  for uid, lo in self.lower {
-    if self.upper.get(uid) is Some(up) {
-      let diff = lo.filter(c => !up.contains(c))
-      // Upstream's `Constraints.checkConsistency`.
-      guard diff.is_empty() else { return Some(captures_not_allowed(diff)) }
-    }
-  }
-  None
+  violation
 }
 
 ///|
@@ -399,26 +460,54 @@ fn Unification::require_lower(
   x : Sym,
 ) -> String? {
   match self.capts.get(x.uid()) {
-    Some(sol) => {
-      let solved = sol.to_array()
-      let diff = bounds.filter(c => !solved.contains(c))
-      guard diff.is_empty() else { Some(captures_not_allowed(diff)) }
-      None
-    }
+    Some(sol) =>
+      match disallowed(bounds, sol.to_array()) {
+        Some(diff) => Some(captures_not_allowed(diff))
+        None => None
+      }
     None => {
       if self.upper.get(x.uid()) is Some(up) {
-        let diff = bounds.filter(c => !up.contains(c))
-        guard diff.is_empty() else { return Some(captures_not_allowed(diff)) }
-      }
-      let current = self.lower_of(x.uid())
-      let next = current.copy()
-      for c in bounds {
-        if !next.contains(c) {
-          next.push(c)
+        match disallowed(bounds, up) {
+          Some(diff) => return Some(captures_not_allowed(diff))
+          None => ()
         }
       }
-      self.lower.set(x.uid(), next)
-      self.propagate()
+      // A bound that is already known must not restart the propagation: adding
+      // nothing leaves the system as consistent as it was.
+      let existing = self.lower.get(x.uid())
+      let mut lower_x : Array[Sym]? = None
+      for c in bounds {
+        let present = match lower_x {
+          Some(lb) => lb.contains(c)
+          None =>
+            match existing {
+              Some(lb) => lb.contains(c)
+              None => false
+            }
+        }
+        if !present {
+          let lb = match lower_x {
+            Some(lb) => lb
+            None =>
+              match existing {
+                Some(lb) => lb.copy()
+                None => []
+              }
+          }
+          lb.push(c)
+          lower_x = Some(lb)
+        }
+      }
+      match lower_x {
+        Some(lb) => {
+          self.lower.set(x.uid(), lb)
+          self.propagate()
+        }
+        // Nothing new was learnt. An absent bound and an empty one are the same
+        // set everywhere (`lower_of` reads both as `[]`), so there is no state
+        // to write and nothing to propagate or re-check.
+        None => None
+      }
     }
   }
 }
@@ -431,25 +520,33 @@ fn Unification::require_upper(
   x : Sym,
 ) -> String? {
   match self.capts.get(x.uid()) {
-    Some(sol) => {
-      let solved = sol.to_array()
-      let diff = solved.filter(c => !bounds.contains(c))
-      guard diff.is_empty() else { Some(captures_not_allowed(diff)) }
-      None
-    }
+    Some(sol) =>
+      match disallowed(sol.to_array(), bounds) {
+        Some(diff) => Some(captures_not_allowed(diff))
+        None => None
+      }
     None => {
       if self.lower.get(x.uid()) is Some(lo) {
-        let diff = lo.filter(c => !bounds.contains(c))
-        guard diff.is_empty() else { return Some(captures_not_allowed(diff)) }
+        match disallowed(lo, bounds) {
+          Some(diff) => return Some(captures_not_allowed(diff))
+          None => ()
+        }
       }
       match self.upper.get(x.uid()) {
-        Some(up) => {
-          let intersection = up.filter(c => bounds.contains(c))
-          self.upper.set(x.uid(), intersection)
+        Some(up) =>
+          // An upper bound that does not shrink is not news: the fixpoint and
+          // the consistency check would both come out the same.
+          if up.all(c => bounds.contains(c)) {
+            None
+          } else {
+            self.upper.set(x.uid(), up.filter(c => bounds.contains(c)))
+            self.propagate()
+          }
+        None => {
+          self.upper.set(x.uid(), bounds.to_owned())
+          self.propagate()
         }
-        None => self.upper.set(x.uid(), bounds.to_owned())
       }
-      self.propagate()
     }
   }
 }
@@ -460,8 +557,10 @@ fn Unification::solve_capt_var(self : Unification, x : Sym) -> String? {
   guard !self.capts.contains(x.uid()) else { return None }
   let bounds = self.lower_of(x.uid())
   if self.upper.get(x.uid()) is Some(up) {
-    let diff = bounds.filter(c => !up.contains(c))
-    guard diff.is_empty() else { return Some(captures_not_allowed(diff)) }
+    match disallowed(bounds, up) {
+      Some(diff) => return Some(captures_not_allowed(diff))
+      None => ()
+    }
   }
   self.capts.set(x.uid(), @symbols.Captures::CaptureSetOf(bounds))
   None
