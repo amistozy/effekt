@@ -66,6 +66,10 @@ priv struct CallSite {
   bound_by : BlockVar?
   vargs : Array[Expr]
   bargs : Array[Block]
+  /// `callee.body.size()`, computed at most once: the inlining policy asks for
+  /// it up to three times per call site, and every answer is a full walk of the
+  /// callee's body.
+  mut body_size : Int32?
 }
 
 ///|
@@ -75,7 +79,19 @@ fn CallSite::CallSite(
   vargs : Array[Expr],
   bargs : Array[Block],
 ) -> CallSite {
-  { callee, bound_by, vargs, bargs, }
+  { callee, bound_by, vargs, bargs, body_size: None, }
+}
+
+///|
+fn CallSite::body_size(self : CallSite) -> Int32 {
+  match self.body_size {
+    Some(n) => n
+    None => {
+      let n = self.callee.body.size()
+      self.body_size = Some(n)
+      n
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -380,7 +396,7 @@ fn Normalizer::used_once(
 ) -> Bool {
   self.is_once(callee.id) &&
   (match once_limit {
-    Some(limit) => site.callee.body.size() <= limit
+    Some(limit) => site.body_size() <= limit
     None => true
   }) &&
   !self.moves_a_scope_into_a_prompt(site, ctx)
@@ -422,7 +438,7 @@ fn Normalizer::carries_an_operation_to_its_handler(
   carrying_limit : Int32,
 ) -> Bool raise EffektError {
   !site.bargs.is_empty() &&
-  site.callee.body.size() <= carrying_limit &&
+  site.body_size() <= carrying_limit &&
   site.bargs.any(barg => {
     self.known_and_used_once(barg, ctx) is Some(New(implementation)) &&
     self.shifts_to_an_enclosing_prompt(implementation, ctx)
@@ -438,8 +454,10 @@ fn Normalizer::affordable(
   ctx : NormCtx,
   threshold : Int32,
 ) -> Bool raise EffektError {
-  site.callee.body.size() <= threshold ||
-  site.callee.body.size() <= threshold + self.discount(site, ctx)
+  // `size()` walks the whole callee body, so it is computed once and reused by
+  // both bounds (the discounted bound only ever grows the budget).
+  let size = site.body_size()
+  size <= threshold || size <= threshold + self.discount(site, ctx)
 }
 
 ///|
@@ -552,7 +570,7 @@ fn Normalizer::should_inline(
         None => site.bargs.any(b => b is BlockLit(_))
         Some(callee) =>
           !self.is_recursive(callee.id) &&
-          (self.is_once(callee.id) || site.callee.body.size() <= threshold)
+          (self.is_once(callee.id) || site.body_size() <= threshold)
       }
     Default(threshold, once_limit, carrying_limit) =>
       match site.bound_by {

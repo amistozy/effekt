@@ -285,6 +285,8 @@ fn substitute_value_type_with(
   vsubst : Map[Int32, ValueType],
   csubst : Map[Int32, Captures],
 ) -> ValueType {
+  // Nothing to substitute: the type is immutable, so it can be shared.
+  guard !(vsubst.is_empty() && csubst.is_empty()) else { return tpe }
   match tpe {
     ValueVar(sym) => vsubst.get(sym.uid()).unwrap_or(tpe)
     ValueData(sym, targs) =>
@@ -307,6 +309,8 @@ fn substitute_block_type_with(
   vsubst : Map[Int32, ValueType],
   csubst : Map[Int32, Captures],
 ) -> BlockType {
+  // See `substitute_value_type_with`: nothing to substitute, nothing to rebuild.
+  guard !(vsubst.is_empty() && csubst.is_empty()) else { return tpe }
   match tpe {
     FunctionType(tparams, cparams, vparams, bparams, result) => {
       // Names are unique symbols, so shadowing should NOT take place; we still

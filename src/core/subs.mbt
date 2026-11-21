@@ -38,11 +38,18 @@ pub fn Substitution::Substitution(
 
 ///|
 fn[V] shadowed(m : Map[Int32, V], ids : ArrayView[Sym]) -> Map[Int32, V] {
-  let copy = m.copy()
-  for id in ids {
-    copy.remove(id.uid())
+  // Symbols are globally unique, so the binders of a nested block type are
+  // normally absent from the substitution and there is nothing to subtract —
+  // in that case the map is shared instead of copied.
+  if ids.all(id => !m.contains(id.uid())) {
+    m
+  } else {
+    let copy = m.copy()
+    for id in ids {
+      copy.remove(id.uid())
+    }
+    copy
   }
-  copy
 }
 
 ///|

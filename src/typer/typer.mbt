@@ -1948,15 +1948,20 @@ fn Typer::check_expr(
   e : Term,
   expected : ValueType?,
 ) -> TyRes[ValueType] raise EffektError {
-  self.at(e.span, () => {
-    let res = self.check_expr_kind(e, expected)
-    self.annotate_value(e.uid, res.tpe)
-    self.annotate_effects(e.uid, res.effs)
-    if expected is Some(exp) {
-      self.match_expected(res.tpe, exp, Some(e.span))
-    }
-    res
-  })
+  // `self.at(e.span, () => ...)`, written out: this runs once per expression
+  // node, and the closure (plus the call) was pure overhead there.
+  let saved = self.focus
+  self.focus = e.span
+  defer {
+    self.focus = saved
+  }
+  let res = self.check_expr_kind(e, expected)
+  self.annotate_value(e.uid, res.tpe)
+  self.annotate_effects(e.uid, res.effs)
+  if expected is Some(exp) {
+    self.match_expected(res.tpe, exp, Some(e.span))
+  }
+  res
 }
 
 ///|
