@@ -120,7 +120,7 @@ and the gates run it.
 ```
 Source ─► Lexer ─► Parser ─► Namer ─► UnboxInference ─► Typer ─► ResolveExternDefs
        ─► ExplicitCapabilities ─► core.Transformer (ANF) ─► Aggregate ─► Deadcode
-       ─► core.Mono ─► core.Show ─► Optimizer ─► DropBindings
+       ─► core.Mono ─► core.Show ─► ArityRaising ─► Optimizer ─► DropBindings
        ─► cps.Transformer ─► cps.Contify ─► js.TransformerCps ─► JavaScript
 ```
 
@@ -129,15 +129,19 @@ with types, exhaustivity is checked, the escape checks of `Wellformedness` run �
 and `ExplicitCapabilities` then rewrites capability annotations into explicit
 passing. The middle-end lowers the tree to the ANF core IR (what `--show-core`
 prints), monomorphizes it, generates the structural `show` instances the prelude
-needs, and runs upstream's optimizer chain: `Deadcode`, `StaticArguments`, three
+needs, unboxes the records that are only ever scrutinized (`ArityRaising`; a
+record type with one constructor whose `match` the program opens is represented
+by its components, and arrays and references of such a type componentwise), and
+runs upstream's optimizer chain: `Deadcode`, `StaticArguments`, three
 rounds of `BindSubexpressions` → `Normalizer` → `Deadcode` → `StaticResumptions` →
 `DirectStyle` → `ReferencesToParameters`, and a final `Deadcode` +
 `ReferencesToParameters` (`core.Mono` and `core.Show` run before the optimizer, as
-in upstream's `JavaScript.scala`). `--no-optimize` stops the optimizer after its
-first `Deadcode`, exactly where upstream's `Optimizer.optimize` returns when
-`Context.config.optimize()` is false. `DropBindings` then inlines the value
-bindings that are used exactly once — and, unlike the optimizer, it does that
-with `--no-optimize` as well, as upstream does. The backend goes through CPS and contification
+in upstream's `JavaScript.scala`, and `ArityRaising` between them).
+`--no-optimize` stops the optimizer after its first `Deadcode`, exactly where
+upstream's `Optimizer.optimize` returns when `Context.config.optimize()` is false
+— and, like upstream, it skips `ArityRaising` as well. `DropBindings` then inlines
+the value bindings that are used exactly once — and, unlike the optimizer, it does
+that with `--no-optimize` as well, as upstream does. The backend goes through CPS and contification
 to the JavaScript IR, where handlers become the `RESET`/`SHIFT`/`RESUME`
 primitives of `effekt.effekt`, the runtime every module includes through `extern
 include`.
@@ -187,8 +191,8 @@ Deliberate, and documented at the point of use:
   capture the binder drops, and a type parameter that would leave its scope.
 - **The optimizer is ported and runs** (see above), with these deviations: no
   `Deadcode.isPureCall` rule, because with approximate capture sets a pure-looking
-  call can capture a region and the rule would drop live calls; no `LambdaSets`
-  or `ArityRaising`; five normalizer deviations (no
+  call can capture a region and the rule would drop live calls; no `LambdaSets`;
+  five normalizer deviations (no
   sharing of pure expressions via `Context.facts`, `covers`/`selecting` skipped,
   the `Shift` rule of `normalizeVal` skipped, join-point parameters typed
   `unknown_value_type()`, and the unit-return rule comparing syntax rather than
